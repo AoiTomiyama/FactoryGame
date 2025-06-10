@@ -36,7 +36,7 @@ public class GridGeneratorEditor : Editor
     {
         if (generator.cellPrefab == null)
         {
-            Debug.LogError("Tile Prefab is not assigned.");
+            Debug.LogError($"{nameof(GridFieldGenerator)}の{nameof(generator.cellPrefab)}が未割当です。");
             return;
         }
 
