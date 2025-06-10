@@ -21,14 +21,11 @@ public class GridGeneratorEditor : Editor
     /// <param name="generator"></param>
     private static void ClearGrid(GridFieldGenerator generator)
     {
-        if (generator.Grid == null) return;
-        for (int i = generator.transform.childCount - 1; i >= 0 ; i--)
+        for (int i = generator.transform.childCount - 1; i >= 0; i--)
         {
             var target = generator.transform.GetChild(i).gameObject;
             DestroyImmediate(target);
         }
-
-        generator.Grid = null;
     }
 
     /// <summary>
@@ -43,12 +40,7 @@ public class GridGeneratorEditor : Editor
             return;
         }
 
-        if (generator.Grid != null)
-        {
-            ClearGrid(generator);
-        }
-
-        generator.Grid = new GameObject[generator.gridSize, generator.gridSize];
+        ClearGrid(generator);
 
         for (int x = 0; x < generator.gridSize; x++)
         {
@@ -57,11 +49,9 @@ public class GridGeneratorEditor : Editor
             for (int z = 0; z < generator.gridSize; z++)
             {
                 var cellScale = generator.cellPrefab.transform.localScale;
-                var pos = new Vector3(x * cellScale.x, 0,
-                                      z * cellScale.z);
-                
+                var pos = new Vector3(x * cellScale.x, 0, z * cellScale.z);
+
                 var tile = (GameObject)PrefabUtility.InstantiatePrefab(generator.cellPrefab, separator.transform);
-                generator.Grid[x, z] = tile;
                 tile.transform.position = pos;
                 tile.name = $"Tile_{x}_{z}";
             }
