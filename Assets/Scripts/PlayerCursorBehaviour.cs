@@ -71,6 +71,11 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private void OnLeftClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
+        if (_selectedObject == null)
+        {
+            Debug.LogWarning("セルが選択されていません。");
+            return;
+        }
 
         if (_selectedObject.TryGetComponent<CellBehaviour>(out var cellBehaviour))
         {
