@@ -990,54 +990,6 @@
                     "isPartOfComposite": false
                 }
             ]
-        },
-        {
-            "name": "Mouse",
-            "id": "1f2b245f-01b0-4087-9d78-06387e95c69c",
-            "actions": [
-                {
-                    "name": "MousePosition",
-                    "type": "Value",
-                    "id": "972ac36b-5e6e-43fc-abb8-f469c4bc842a",
-                    "expectedControlType": "Vector2",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": true
-                },
-                {
-                    "name": "CastRay",
-                    "type": "Button",
-                    "id": "ace9cd7f-7272-4ff5-a9de-04b13dd771e9",
-                    "expectedControlType": "",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                }
-            ],
-            "bindings": [
-                {
-                    "name": "",
-                    "id": "977da219-5f1d-4a24-b0c3-803a32ebd001",
-                    "path": "<Mouse>/position",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "MousePosition",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "d0eabb18-282a-4e27-9502-ffed23975467",
-                    "path": "<Mouse>/leftButton",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "",
-                    "action": "CastRay",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                }
-            ]
         }
     ],
     "controlSchemes": [
