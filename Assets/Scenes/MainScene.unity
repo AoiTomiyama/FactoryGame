@@ -36102,6 +36102,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fieldDatabase: {fileID: 1279850227}
+  lineWidth: 0.1
+  lineMaterial: {fileID: 10306, guid: 0000000000000000f000000000000000, type: 0}
   cellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
   gridSize: 30
 --- !u!4 &1279850226
