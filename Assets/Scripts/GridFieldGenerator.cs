@@ -8,7 +8,7 @@ public class GridFieldGenerator : MonoBehaviour
     [SerializeField] private Color lineColor;
     public GameObject cellPrefab;
     public int gridSize = 30;
-    
+
 
     private void Start()
     {
@@ -19,17 +19,19 @@ public class GridFieldGenerator : MonoBehaviour
             for (int z = 0; z < gridSize; z++)
             {
                 var cell = separator.GetChild(z).gameObject;
-                fieldDatabase.SetNewCell(x, z, cell);
+                fieldDatabase.SaveCell(x, z, cell);
             }
         }
-        GenerateGrid();
-    }
-    void GenerateGrid()
+
+        GenerateGridLine();
+    }   
+
+    private void GenerateGridLine()
     {
         var cellSize = cellPrefab.transform.localScale.x;
         var numLines = (gridSize + 1) + (gridSize + 1);
         var numPoints = numLines * 3;
-        
+
         var obj = new GameObject("GridLines");
         obj.transform.SetParent(transform);
         obj.transform.position = new Vector3(-0.5f, 0.51f, -0.5f) * cellSize;

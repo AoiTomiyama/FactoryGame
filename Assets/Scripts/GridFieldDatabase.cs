@@ -7,7 +7,7 @@ public class GridFieldDatabase : MonoBehaviour
     /// <summary>
     /// セルを配列に保存する
     /// </summary>
-    public void SetNewCell(int x, int z, GameObject cellObject)
+    public void SaveCell(int x, int z, GameObject cellObject)
     {
         // 配列の初期化チェック
         if (GridCells == null)
@@ -37,7 +37,7 @@ public class GridFieldDatabase : MonoBehaviour
         }
         
         GridCells[x, z] = cellBase;
-        cellBase.xIndex = x;
-        cellBase.zIndex = z;
+        cellBase.XIndex = x;
+        cellBase.ZIndex = z;
     }
 }

@@ -3,14 +3,15 @@ using UnityEngine.InputSystem;
 
 public class PlayerCursorBehaviour : MonoBehaviour
 {
-    [SerializeField] private LayerMask _layerMask;
-    [SerializeField] private Color _selectedColor = Color.red;
-    [SerializeField] private InputAction _mouseAction;
-    [SerializeField] private InputAction _leftClickAction;
-    [SerializeField] private InputAction _rightClickAction;
-    [SerializeField] private GameObject _cellPrefab;
-    [SerializeField] private GameObject _defaultCellPrefab;
+    [SerializeField] private LayerMask layerMask;
+    [SerializeField] private Color selectedColor = Color.red;
+    [SerializeField] private InputAction mouseAction;
+    [SerializeField] private InputAction leftClickAction;
+    [SerializeField] private InputAction rightClickAction;
+    [SerializeField] private GameObject cellPrefab;
+    [SerializeField] private GameObject defaultCellPrefab;
     [SerializeField] private GridFieldDatabase fieldDatabase;
+    
     private Camera _camera;
     private CellBase _selectedCell;
 
@@ -21,20 +22,24 @@ public class PlayerCursorBehaviour : MonoBehaviour
 
     private void OnEnable()
     {
-        _mouseAction.Enable();
-        _leftClickAction.Enable();
-        _rightClickAction.Enable();
+        mouseAction.Enable();
+        leftClickAction.Enable();
+        rightClickAction.Enable();
 
-        _mouseAction.performed += OnMouseMove;
-        _leftClickAction.performed += OnLeftClick;
-        _rightClickAction.performed += OnRightClick;
+        mouseAction.performed += OnMouseMove;
+        leftClickAction.performed += OnLeftClick;
+        rightClickAction.performed += OnRightClick;
     }
 
     private void OnDisable()
     {
-        _mouseAction.Disable();
-        _leftClickAction.Disable();
-        _rightClickAction.Disable();
+        mouseAction.performed -= OnMouseMove;
+        leftClickAction.performed -= OnLeftClick;
+        rightClickAction.performed -= OnRightClick;
+        
+        mouseAction.Disable();
+        leftClickAction.Disable();
+        rightClickAction.Disable();
     }
 
     private void OnMouseMove(InputAction.CallbackContext context)
@@ -42,7 +47,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!context.performed) return;
 
         var ray = _camera.ScreenPointToRay(context.ReadValue<Vector2>());
-        if (Physics.Raycast(ray, out var hit, Mathf.Infinity, _layerMask))
+        if (Physics.Raycast(ray, out var hit, Mathf.Infinity, layerMask))
         {
             SelectGrid(hit.collider.gameObject);
         }
@@ -66,23 +71,22 @@ public class PlayerCursorBehaviour : MonoBehaviour
         _selectedCell = cellBase;
         if (_selectedCell.cellModel.TryGetComponent<Renderer>(out var currentRenderer))
         {
-            currentRenderer.material.color = _selectedColor;
+            currentRenderer.material.color = selectedColor;
         }
-        Debug.Log(_selectedCell.gameObject.name);
     }
 
     private void OnLeftClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
 
-        ReplaceCell(_cellPrefab);
+        ReplaceCell(cellPrefab);
     }
 
     private void OnRightClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
 
-        ReplaceCell(_defaultCellPrefab);
+        ReplaceCell(defaultCellPrefab);
     }
 
     /// <summary>
@@ -102,8 +106,8 @@ public class PlayerCursorBehaviour : MonoBehaviour
         }
 
         // 選択されているセルの情報を取得
-        var x = _selectedCell.xIndex;
-        var z = _selectedCell.zIndex;
+        var x = _selectedCell.XIndex;
+        var z = _selectedCell.ZIndex;
         var objName = _selectedCell.name;
         var pos = _selectedCell.transform.position;
         var parent = _selectedCell.transform.parent;
@@ -116,7 +120,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         newObj.name = objName;
         
         // 新しいセルの情報を保存
-        fieldDatabase.SetNewCell(x, z, newObj);
+        fieldDatabase.SaveCell(x, z, newObj);
     }
 
 }

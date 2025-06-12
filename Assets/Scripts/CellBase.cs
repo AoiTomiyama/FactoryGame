@@ -3,8 +3,8 @@ using UnityEngine;
 
 public abstract class CellBase : MonoBehaviour
 {
-    public int xIndex { get; set; }
-    public int zIndex { get; set; }
+    public int XIndex { get; set; }
+    public int ZIndex { get; set; }
     public GameObject cellModel { get; private set; }
 
     private void Awake()
