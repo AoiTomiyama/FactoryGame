@@ -12,7 +12,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private GameObject _defaultCellPrefab;
     [SerializeField] private GridFieldDatabase fieldDatabase;
     private Camera _camera;
-    private GameObject _selectedObject;
+    private CellBase _selectedCell;
 
     private void Start()
     {
@@ -52,21 +52,23 @@ public class PlayerCursorBehaviour : MonoBehaviour
     {
         if (target == null) return;
         
-        // 直前に選択されていたオブジェクトと同じ場合は何もしない
-        if (target == _selectedObject) return;
 
         // 直前に選択されていたオブジェクトがある場合、その色を元に戻す
-        if (_selectedObject != null &&
-            _selectedObject.TryGetComponent<Renderer>(out var prevRenderer))
+        if (_selectedCell != null &&
+            _selectedCell.cellModel.TryGetComponent<Renderer>(out var prevRenderer))
         {
+            // 直前に選択されていたオブジェクトと同じ場合は何もしない
+            if (target == _selectedCell.gameObject) return;
             prevRenderer.material.color = Color.white;
         }
 
-        _selectedObject = target;
-        if (_selectedObject.TryGetComponent<Renderer>(out var currentRenderer))
+        if (!target.TryGetComponent<CellBase>(out var cellBase)) return;
+        _selectedCell = cellBase;
+        if (_selectedCell.cellModel.TryGetComponent<Renderer>(out var currentRenderer))
         {
             currentRenderer.material.color = _selectedColor;
         }
+        Debug.Log(_selectedCell.gameObject.name);
     }
 
     private void OnLeftClick(InputAction.CallbackContext context)
@@ -93,26 +95,21 @@ public class PlayerCursorBehaviour : MonoBehaviour
             Debug.LogError("Prefabが未割り当てです。");
             return;
         }
-        if (_selectedObject == null)
+        if (_selectedCell == null)
         {
             Debug.LogWarning("セルが選択されていません。");
             return;
         }
 
-        if (!_selectedObject.TryGetComponent<CellBase>(out var cellBase))
-        {
-            Debug.LogError($"{nameof(CellBase)}が未割り当てです。");
-            return;
-        }
         // 選択されているセルの情報を取得
-        var x = cellBase.xIndex;
-        var z = cellBase.zIndex;
-        var objName = _selectedObject.name;
-        var pos = _selectedObject.transform.position;
-        var parent = _selectedObject.transform.parent;
+        var x = _selectedCell.xIndex;
+        var z = _selectedCell.zIndex;
+        var objName = _selectedCell.name;
+        var pos = _selectedCell.transform.position;
+        var parent = _selectedCell.transform.parent;
         
         // セルを削除
-        Destroy(_selectedObject);
+        Destroy(_selectedCell.gameObject);
         
         // 新しいセルを生成
         var newObj = Instantiate(prefab, pos, Quaternion.identity, parent);

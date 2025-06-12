@@ -8,17 +8,37 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 878906971913252476, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 878906971913252476, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3052182163969045410, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+      propertyPath: m_Size.y
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3052182163969045410, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+      propertyPath: m_Center.y
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
       propertyPath: m_Name
       value: TestBlock
       objectReference: {fileID: 0}
     - target: {fileID: 9028744536133712409, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
-      propertyPath: m_LocalScale.y
-      value: 4
+      propertyPath: m_LocalPosition.x
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 9028744536133712409, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 2
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9028744536133712409, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 9028744536133712409, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
