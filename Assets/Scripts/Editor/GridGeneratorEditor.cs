@@ -42,13 +42,13 @@ public class GridGeneratorEditor : Editor
 
         ClearGrid(generator);
 
+        var cellScale = generator.cellPrefab.transform.localScale;
         for (int x = 0; x < generator.gridSize; x++)
         {
             var separator = new GameObject($"Separator_{x}");
             separator.transform.SetParent(generator.transform);
             for (int z = 0; z < generator.gridSize; z++)
             {
-                var cellScale = generator.cellPrefab.transform.localScale;
                 var pos = new Vector3(x * cellScale.x, 0, z * cellScale.z);
 
                 var tile = (GameObject)PrefabUtility.InstantiatePrefab(generator.cellPrefab, separator.transform);

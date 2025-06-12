@@ -9,7 +9,8 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private InputAction _leftClickAction;
     [SerializeField] private InputAction _rightClickAction;
     [SerializeField] private GameObject _cellPrefab;
-    [SerializeField] private GridFieldSO _fieldSo;
+    [SerializeField] private GameObject _defaultCellPrefab;
+    [SerializeField] private GridFieldDatabase fieldDatabase;
     private Camera _camera;
     private GameObject _selectedObject;
 
@@ -43,9 +44,6 @@ public class PlayerCursorBehaviour : MonoBehaviour
         var ray = _camera.ScreenPointToRay(context.ReadValue<Vector2>());
         if (Physics.Raycast(ray, out var hit, Mathf.Infinity, _layerMask))
         {
-            // 直前に選択されていたオブジェクトと同じ場合は何もしない
-            if (hit.collider.gameObject == _selectedObject) return;
-
             SelectGrid(hit.collider.gameObject);
         }
     }
@@ -53,6 +51,9 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private void SelectGrid(GameObject target)
     {
         if (target == null) return;
+        
+        // 直前に選択されていたオブジェクトと同じ場合は何もしない
+        if (target == _selectedObject) return;
 
         // 直前に選択されていたオブジェクトがある場合、その色を元に戻す
         if (_selectedObject != null &&
@@ -71,39 +72,54 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private void OnLeftClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
+
+        ReplaceCell(_cellPrefab);
+    }
+
+    private void OnRightClick(InputAction.CallbackContext context)
+    {
+        if (!context.performed) return;
+
+        ReplaceCell(_defaultCellPrefab);
+    }
+
+    /// <summary>
+    /// 選択されているセルを新しいセルに置き換える
+    /// </summary>
+    private void ReplaceCell(GameObject prefab)
+    {
+        if (prefab == null)
+        {
+            Debug.LogError("Prefabが未割り当てです。");
+            return;
+        }
         if (_selectedObject == null)
         {
             Debug.LogWarning("セルが選択されていません。");
             return;
         }
 
-        if (_selectedObject.TryGetComponent<CellBehaviour>(out var cellBehaviour))
+        if (!_selectedObject.TryGetComponent<CellBase>(out var cellBase))
         {
-            var x = cellBehaviour.xIndex;
-            var z = cellBehaviour.zIndex;
-            ReplaceCell(x, z);
+            Debug.LogError($"{nameof(CellBase)}が未割り当てです。");
+            return;
         }
-        else
-        {
-            Debug.LogError($"{typeof(CellBehaviour)}が未割り当てです。");
-        }
-    }
-
-    /// <summary>
-    /// 選択されているセルを新しいセルに置き換える
-    /// </summary>
-    private void ReplaceCell(int x, int z)
-    {
+        // 選択されているセルの情報を取得
+        var x = cellBase.xIndex;
+        var z = cellBase.zIndex;
         var objName = _selectedObject.name;
         var pos = _selectedObject.transform.position;
         var parent = _selectedObject.transform.parent;
+        
+        // セルを削除
         Destroy(_selectedObject);
         
-        var newObj = Instantiate(_cellPrefab, pos, Quaternion.identity, parent);
+        // 新しいセルを生成
+        var newObj = Instantiate(prefab, pos, Quaternion.identity, parent);
         newObj.name = objName;
-        _fieldSo.SetNewCell(x, z, newObj);
-        SelectGrid(newObj);
+        
+        // 新しいセルの情報を保存
+        fieldDatabase.SetNewCell(x, z, newObj);
     }
 
-    private void OnRightClick(InputAction.CallbackContext context) {}
 }
