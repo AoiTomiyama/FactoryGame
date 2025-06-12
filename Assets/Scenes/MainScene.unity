@@ -34741,7 +34741,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   layerMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 8
   selectedColor: {r: 1, g: 0, b: 0, a: 1}
   mouseAction:
     m_Name: Mouse
@@ -34750,7 +34750,15 @@ MonoBehaviour:
     m_Id: 22b89e67-4688-4533-b955-b436689c6ff4
     m_Processors: 
     m_Interactions: 
-    m_SingletonActionBindings: []
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 1d5af45c-5dbc-4d1d-87c3-2b8a719bd506
+      m_Path: <Mouse>/position
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Mouse
+      m_Flags: 0
     m_Flags: 0
   leftClickAction:
     m_Name: Left Click
@@ -34759,7 +34767,15 @@ MonoBehaviour:
     m_Id: 5ca32da8-9efa-4c01-85e6-40da101ae439
     m_Processors: 
     m_Interactions: 
-    m_SingletonActionBindings: []
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 48dd4013-7893-4597-9763-cae6742c7bf1
+      m_Path: <Mouse>/leftButton
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Left Click
+      m_Flags: 0
     m_Flags: 0
   rightClickAction:
     m_Name: Right Click
@@ -34768,10 +34784,18 @@ MonoBehaviour:
     m_Id: 551b2300-2242-4079-9d3f-31cf242947c5
     m_Processors: 
     m_Interactions: 
-    m_SingletonActionBindings: []
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 87b1d044-e113-4e7d-a7aa-2000af7a74c2
+      m_Path: <Mouse>/rightButton
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Right Click
+      m_Flags: 0
     m_Flags: 0
-  cellPrefab: {fileID: 0}
-  defaultCellPrefab: {fileID: 0}
+  cellPrefab: {fileID: 4718554902016987728, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
+  defaultCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
   fieldDatabase: {fileID: 1279850227}
 --- !u!4 &1257092510 stripped
 Transform:
