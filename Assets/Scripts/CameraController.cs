@@ -7,10 +7,10 @@ public class CameraController : MonoBehaviour
     // 依存関係の設定
     [SerializeField] private CinemachineCamera virtualCamera;
     [SerializeField] private Transform followTarget;
-    
+
     // カメラ移動関連の設定
     [SerializeField] private float followSpeed;
-    
+
     // ズーム関連の設定
     [SerializeField] private float zoomSpeed;
     [SerializeField] private float zoomSmoothing;
@@ -21,14 +21,20 @@ public class CameraController : MonoBehaviour
     [SerializeField] private InputAction middleClickAction;
     [SerializeField] private InputAction mouseDeltaAction;
     [SerializeField] private InputAction scrollAction;
+    [SerializeField] private InputAction switchCameraAngleAction;
 
     private Vector2 _lastMousePos;
     private float _targetFOV;
     private bool _isPanning;
 
+    private bool _isCameraAngleSwitched;
+    private Vector3 _defaultCameraAngle;
+    [SerializeField] private Vector3 cameraAngle;
+
     private void Start()
     {
         _targetFOV = virtualCamera.Lens.OrthographicSize;
+        _defaultCameraAngle = transform.localRotation.eulerAngles;
     }
 
     private void Update()
@@ -36,15 +42,18 @@ public class CameraController : MonoBehaviour
         HandlePan();
         SmoothUpdate();
     }
+
     private void OnEnable()
     {
         middleClickAction.Enable();
         mouseDeltaAction.Enable();
         scrollAction.Enable();
+        switchCameraAngleAction.Enable();
 
         middleClickAction.started += OnPanStart;
         middleClickAction.canceled += OnPanEnd;
         scrollAction.performed += HandleZoom;
+        switchCameraAngleAction.performed += OnSwitchCameraAngle;
     }
 
     private void OnDisable()
@@ -52,10 +61,18 @@ public class CameraController : MonoBehaviour
         middleClickAction.started -= OnPanStart;
         middleClickAction.canceled -= OnPanEnd;
         scrollAction.performed -= HandleZoom;
+        switchCameraAngleAction.performed -= OnSwitchCameraAngle;
 
         middleClickAction.Disable();
         mouseDeltaAction.Disable();
         scrollAction.Disable();
+        switchCameraAngleAction.Disable();
+    }
+
+    private void OnSwitchCameraAngle(InputAction.CallbackContext ctx)
+    {
+        if (!ctx.performed) return;
+        _isCameraAngleSwitched = !_isCameraAngleSwitched;
     }
 
     private void OnPanStart(InputAction.CallbackContext ctx)
@@ -95,5 +112,12 @@ public class CameraController : MonoBehaviour
     {
         virtualCamera.Lens.OrthographicSize =
             Mathf.Lerp(virtualCamera.Lens.OrthographicSize, _targetFOV, Time.deltaTime * zoomSmoothing);
+
+        var endAngle = _isCameraAngleSwitched ? cameraAngle : _defaultCameraAngle;
+        transform.localRotation = Quaternion.Lerp(
+            transform.localRotation,
+            Quaternion.Euler(endAngle),
+            Time.deltaTime * zoomSmoothing
+        );
     }
 }
