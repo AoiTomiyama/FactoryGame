@@ -79,14 +79,39 @@ public class PlayerCursorBehaviour : MonoBehaviour
     {
         if (!context.performed) return;
 
-        ReplaceCell(cellPrefab);
+        if (!TryReplaceCell(cellPrefab))
+        {
+            Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
+        }
     }
 
     private void OnRightClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
 
-        ReplaceCell(defaultCellPrefab);
+        // 右クリックでデフォルトのセルに置き換える
+       ReplaceCell(defaultCellPrefab);
+    }
+    
+    private bool TryReplaceCell(GameObject prefab)
+    {
+        if (prefab == null)
+        {
+            Debug.LogError("Prefabが未割り当てです。");
+            return false;
+        }
+        if (_selectedCell == null)
+        {
+            Debug.LogWarning("セルが選択されていません。");
+            return false;
+        }
+        if (_selectedCell is not EmptyCell)
+        {
+            Debug.Log("既にセルが存在します。置き換えはできません");
+            return false;
+        }
+        ReplaceCell(prefab);
+        return true;
     }
 
     /// <summary>
@@ -94,17 +119,6 @@ public class PlayerCursorBehaviour : MonoBehaviour
     /// </summary>
     private void ReplaceCell(GameObject prefab)
     {
-        if (prefab == null)
-        {
-            Debug.LogError("Prefabが未割り当てです。");
-            return;
-        }
-        if (_selectedCell == null)
-        {
-            Debug.LogWarning("セルが選択されていません。");
-            return;
-        }
-
         // 選択されているセルの情報を取得
         var x = _selectedCell.XIndex;
         var z = _selectedCell.ZIndex;
@@ -114,6 +128,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         
         // セルを削除
         Destroy(_selectedCell.gameObject);
+        _selectedCell = null;
         
         // 新しいセルを生成
         var newObj = Instantiate(prefab, pos, Quaternion.identity, parent);
