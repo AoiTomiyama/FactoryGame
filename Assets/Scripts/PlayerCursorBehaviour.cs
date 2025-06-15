@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -11,13 +12,31 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private GameObject cellPrefab;
     [SerializeField] private GameObject defaultCellPrefab;
     [SerializeField] private GridFieldDatabase fieldDatabase;
-    
+
     private Camera _camera;
     private CellBase _selectedCell;
+    
+    [SerializeField] private CellInfo[] cellInfos;
+    [Serializable]
+    private struct CellInfo
+    {
+        public GameObject fieldCellPrefab;
+        public GameObject placeholderCellPrefab;
+    }
+    
+    private int _currentCellIndex = 0;
 
     private void Start()
     {
         _camera = Camera.main;
+        Instantiate(cellInfos[_currentCellIndex].placeholderCellPrefab, transform.position, Quaternion.identity, transform);
+
+        if (fieldDatabase != null) return;
+        fieldDatabase = FindAnyObjectByType<GridFieldDatabase>();
+        if (fieldDatabase == null)
+        {
+            Debug.LogError("GridFieldDatabaseが見つかりません。シーンに追加してください。");
+        }
     }
 
     private void OnEnable()
@@ -59,27 +78,26 @@ public class PlayerCursorBehaviour : MonoBehaviour
         
 
         // 直前に選択されていたオブジェクトがある場合、その色を元に戻す
-        if (_selectedCell != null &&
-            _selectedCell.cellModel.TryGetComponent<Renderer>(out var prevRenderer))
+        if (_selectedCell != null)
         {
             // 直前に選択されていたオブジェクトと同じ場合は何もしない
             if (target == _selectedCell.gameObject) return;
-            prevRenderer.material.color = Color.white;
+            _selectedCell.CellModel.SetActive(true);
         }
 
         if (!target.TryGetComponent<CellBase>(out var cellBase)) return;
         _selectedCell = cellBase;
-        if (_selectedCell.cellModel.TryGetComponent<Renderer>(out var currentRenderer))
-        {
-            currentRenderer.material.color = selectedColor;
-        }
+        if (_selectedCell is not EmptyCell) return;
+        _selectedCell.CellModel.SetActive(false);
+        transform.position = _selectedCell.transform.position;
     }
 
     private void OnLeftClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
 
-        if (!TryReplaceCell(cellPrefab))
+        var obj = cellInfos[_currentCellIndex].fieldCellPrefab;
+        if (!TryReplaceCell(obj))
         {
             Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
         }

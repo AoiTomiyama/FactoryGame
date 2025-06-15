@@ -31251,6 +31251,111 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+--- !u!1 &1114964329
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1114964331}
+  - component: {fileID: 1114964330}
+  m_Layer: 0
+  m_Name: PlayerCursor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1114964330
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1114964329}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd3ce4327d6f39045b7becad3dd79ec9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  layerMask:
+    serializedVersion: 2
+    m_Bits: 8
+  selectedColor: {r: 1, g: 0.41194963, b: 0.41194963, a: 1}
+  mouseAction:
+    m_Name: Mouse
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 22b89e67-4688-4533-b955-b436689c6ff4
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 1d5af45c-5dbc-4d1d-87c3-2b8a719bd506
+      m_Path: <Mouse>/position
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Mouse
+      m_Flags: 0
+    m_Flags: 0
+  leftClickAction:
+    m_Name: Left Click
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 5ca32da8-9efa-4c01-85e6-40da101ae439
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 48dd4013-7893-4597-9763-cae6742c7bf1
+      m_Path: <Mouse>/leftButton
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Left Click
+      m_Flags: 0
+    m_Flags: 0
+  rightClickAction:
+    m_Name: Right Click
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 551b2300-2242-4079-9d3f-31cf242947c5
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: 87b1d044-e113-4e7d-a7aa-2000af7a74c2
+      m_Path: <Mouse>/rightButton
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Right Click
+      m_Flags: 0
+    m_Flags: 0
+  cellPrefab: {fileID: 4718554902016987728, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
+  defaultCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+  fieldDatabase: {fileID: 1279850227}
+  cellInfos:
+  - fieldCellPrefab: {fileID: 4718554902016987728, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
+    placeholderCellPrefab: {fileID: 5589804250963055731, guid: 25fc3180cf825cf428f36d76b1fe7f9a, type: 3}
+--- !u!4 &1114964331
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1114964329}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 14.87965, y: 0.5, z: 17.94511}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1115343726
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -34479,7 +34584,6 @@ GameObject:
   - component: {fileID: 1256464686}
   - component: {fileID: 1256464688}
   - component: {fileID: 1256464689}
-  - component: {fileID: 1256464690}
   m_Layer: 0
   m_Name: CinemachineCamera
   m_TagString: Untagged
@@ -34591,8 +34695,8 @@ MonoBehaviour:
   virtualCamera: {fileID: 1256464686}
   followTarget: {fileID: 1073183735}
   followSpeed: 0.015
-  zoomSpeed: 70
-  zoomSmoothing: 5
+  zoomSpeed: 90
+  zoomSmoothing: 6
   minZoom: 5
   maxZoom: 20
   middleClickAction:
@@ -34663,77 +34767,8 @@ MonoBehaviour:
       m_Action: Switch Camera Angle
       m_Flags: 0
     m_Flags: 0
-  cameraAngle: {x: 80.00003, y: 90, z: 0}
---- !u!114 &1256464690
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1256464684}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dd3ce4327d6f39045b7becad3dd79ec9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  layerMask:
-    serializedVersion: 2
-    m_Bits: 8
-  selectedColor: {r: 1, g: 0.41194963, b: 0.41194963, a: 1}
-  mouseAction:
-    m_Name: Mouse
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 22b89e67-4688-4533-b955-b436689c6ff4
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: 1d5af45c-5dbc-4d1d-87c3-2b8a719bd506
-      m_Path: <Mouse>/position
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Mouse
-      m_Flags: 0
-    m_Flags: 0
-  leftClickAction:
-    m_Name: Left Click
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 5ca32da8-9efa-4c01-85e6-40da101ae439
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: 48dd4013-7893-4597-9763-cae6742c7bf1
-      m_Path: <Mouse>/leftButton
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Left Click
-      m_Flags: 0
-    m_Flags: 0
-  rightClickAction:
-    m_Name: Right Click
-    m_Type: 0
-    m_ExpectedControlType: 
-    m_Id: 551b2300-2242-4079-9d3f-31cf242947c5
-    m_Processors: 
-    m_Interactions: 
-    m_SingletonActionBindings:
-    - m_Name: 
-      m_Id: 87b1d044-e113-4e7d-a7aa-2000af7a74c2
-      m_Path: <Mouse>/rightButton
-      m_Interactions: 
-      m_Processors: 
-      m_Groups: 
-      m_Action: Right Click
-      m_Flags: 0
-    m_Flags: 0
-  cellPrefab: {fileID: 4718554902016987728, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
-  defaultCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
-  fieldDatabase: {fileID: 1279850227}
+  cameraAngle: {x: 85, y: 90, z: 0}
+  cameraAngleSmoothing: 10
 --- !u!4 &1256501912 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 9028744536133712409, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
@@ -58814,3 +58849,4 @@ SceneRoots:
   - {fileID: 1279850226}
   - {fileID: 1256464687}
   - {fileID: 1073183735}
+  - {fileID: 1114964331}

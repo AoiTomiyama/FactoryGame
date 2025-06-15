@@ -30,6 +30,7 @@ public class CameraController : MonoBehaviour
     private bool _isCameraAngleSwitched;
     private Vector3 _defaultCameraAngle;
     [SerializeField] private Vector3 cameraAngle;
+    [SerializeField] private float cameraAngleSmoothing;
 
     private void Start()
     {
@@ -40,7 +41,7 @@ public class CameraController : MonoBehaviour
     private void Update()
     {
         HandlePan();
-        SmoothUpdate();
+        SmoothingUpdate();
     }
 
     private void OnEnable()
@@ -108,7 +109,7 @@ public class CameraController : MonoBehaviour
         _targetFOV = Mathf.Clamp(_targetFOV, minZoom, maxZoom);
     }
 
-    private void SmoothUpdate()
+    private void SmoothingUpdate()
     {
         virtualCamera.Lens.OrthographicSize =
             Mathf.Lerp(virtualCamera.Lens.OrthographicSize, _targetFOV, Time.deltaTime * zoomSmoothing);
@@ -117,7 +118,7 @@ public class CameraController : MonoBehaviour
         transform.localRotation = Quaternion.Lerp(
             transform.localRotation,
             Quaternion.Euler(endAngle),
-            Time.deltaTime * zoomSmoothing
+            Time.deltaTime * cameraAngleSmoothing
         );
     }
 }
