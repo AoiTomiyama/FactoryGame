@@ -22,11 +22,9 @@ public class GridFieldGenerator : MonoBehaviour
                 fieldDatabase.SaveCell(x, z, cell);
             }
         }
-
-        GenerateGridLine();
     }   
 
-    private void GenerateGridLine()
+    public void GenerateGridLine()
     {
         var cellSize = cellPrefab.transform.localScale.x;
         var numLines = (gridSize + 1) + (gridSize + 1);

@@ -10,7 +10,11 @@ public class GridGeneratorEditor : Editor
 
         var generator = (GridFieldGenerator)target;
 
-        if (GUILayout.Button("Generate Grid")) GenerateGrid(generator);
+        if (GUILayout.Button("Generate Grid"))
+        {
+            GenerateGrid(generator);
+            generator.GenerateGridLine();
+        }
 
         if (GUILayout.Button("Clear Grid")) ClearGrid(generator);
     }
