@@ -1,11 +1,13 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
+using UnityEngine.UI;
 
 public class PlayerCursorBehaviour : MonoBehaviour
 {
     [SerializeField] private LayerMask layerMask;
-    [SerializeField] private Color selectedColor = Color.red;
     [SerializeField] private InputAction mouseAction;
     [SerializeField] private InputAction leftClickAction;
     [SerializeField] private InputAction rightClickAction;
@@ -15,21 +17,26 @@ public class PlayerCursorBehaviour : MonoBehaviour
 
     private Camera _camera;
     private CellBase _selectedCell;
-    
+
     [SerializeField] private CellInfo[] cellInfos;
+    [SerializeField] private UIRaycaster _raycaster;
+
     [Serializable]
     private struct CellInfo
     {
         public GameObject fieldCellPrefab;
         public GameObject placeholderCellPrefab;
     }
-    
+
     private int _currentCellIndex = 0;
+    private Vector2 _mousePosition;
 
     private void Start()
     {
         _camera = Camera.main;
-        Instantiate(cellInfos[_currentCellIndex].placeholderCellPrefab, transform.position, Quaternion.identity, transform);
+
+        Instantiate(cellInfos[_currentCellIndex].placeholderCellPrefab, transform.position, Quaternion.identity,
+            transform);
 
         if (fieldDatabase != null) return;
         fieldDatabase = FindAnyObjectByType<GridFieldDatabase>();
@@ -55,7 +62,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         mouseAction.performed -= OnMouseMove;
         leftClickAction.performed -= OnLeftClick;
         rightClickAction.performed -= OnRightClick;
-        
+
         mouseAction.Disable();
         leftClickAction.Disable();
         rightClickAction.Disable();
@@ -65,7 +72,10 @@ public class PlayerCursorBehaviour : MonoBehaviour
     {
         if (!context.performed) return;
 
-        var ray = _camera.ScreenPointToRay(context.ReadValue<Vector2>());
+        _mousePosition = context.ReadValue<Vector2>();
+        if (_raycaster.IsPointerOverUI(_mousePosition)) return;
+        
+        var ray = _camera.ScreenPointToRay(_mousePosition);
         if (Physics.Raycast(ray, out var hit, Mathf.Infinity, layerMask))
         {
             SelectGrid(hit.collider.gameObject);
@@ -75,7 +85,6 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private void SelectGrid(GameObject target)
     {
         if (target == null) return;
-        
 
         // 直前に選択されていたオブジェクトがある場合、その色を元に戻す
         if (_selectedCell != null)
@@ -95,6 +104,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private void OnLeftClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
+        if (_raycaster.IsPointerOverUI(_mousePosition)) return;
 
         var obj = cellInfos[_currentCellIndex].fieldCellPrefab;
         if (!TryReplaceCell(obj))
@@ -106,11 +116,12 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private void OnRightClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
+        if (_raycaster.IsPointerOverUI(_mousePosition)) return;
 
         // 右クリックでデフォルトのセルに置き換える
-       ReplaceCell(defaultCellPrefab);
+        ReplaceCell(defaultCellPrefab);
     }
-    
+
     private bool TryReplaceCell(GameObject prefab)
     {
         if (prefab == null)
@@ -118,16 +129,19 @@ public class PlayerCursorBehaviour : MonoBehaviour
             Debug.LogError("Prefabが未割り当てです。");
             return false;
         }
+
         if (_selectedCell == null)
         {
             Debug.LogWarning("セルが選択されていません。");
             return false;
         }
+
         if (_selectedCell is not EmptyCell)
         {
             Debug.Log("既にセルが存在します。置き換えはできません");
             return false;
         }
+
         ReplaceCell(prefab);
         return true;
     }
@@ -143,15 +157,15 @@ public class PlayerCursorBehaviour : MonoBehaviour
         var objName = _selectedCell.name;
         var pos = _selectedCell.transform.position;
         var parent = _selectedCell.transform.parent;
-        
+
         // セルを削除
         Destroy(_selectedCell.gameObject);
         _selectedCell = null;
-        
+
         // 新しいセルを生成
         var newObj = Instantiate(prefab, pos, Quaternion.identity, parent);
         newObj.name = objName;
-        
+
         // 新しいセルの情報を保存
         fieldDatabase.SaveCell(x, z, newObj);
     }
