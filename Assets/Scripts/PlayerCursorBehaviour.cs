@@ -1,9 +1,6 @@
 using System;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
-using UnityEngine.UI;
 
 public class PlayerCursorBehaviour : MonoBehaviour
 {
@@ -14,19 +11,13 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private GameObject cellPrefab;
     [SerializeField] private GameObject defaultCellPrefab;
     [SerializeField] private GridFieldDatabase fieldDatabase;
+    [SerializeField] private CellPairingInfoSO cellPairingInfoSO;
 
     private Camera _camera;
     private CellBase _selectedCell;
 
-    [SerializeField] private CellInfo[] cellInfos;
+    [SerializeField] private CellType selectedCellType;
     [SerializeField] private UIRaycaster _raycaster;
-
-    [Serializable]
-    private struct CellInfo
-    {
-        public GameObject fieldCellPrefab;
-        public GameObject placeholderCellPrefab;
-    }
 
     private int _currentCellIndex = 0;
     private Vector2 _mousePosition;
@@ -35,7 +26,8 @@ public class PlayerCursorBehaviour : MonoBehaviour
     {
         _camera = Camera.main;
 
-        Instantiate(cellInfos[_currentCellIndex].placeholderCellPrefab, transform.position, Quaternion.identity,
+        var cellInfo = cellPairingInfoSO.GetCellInfo(selectedCellType);
+        Instantiate(cellInfo.placeholderCellPrefab, transform.position, Quaternion.identity,
             transform);
 
         if (fieldDatabase != null) return;
@@ -106,7 +98,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!context.performed) return;
         if (_raycaster.IsPointerOverUI(_mousePosition)) return;
 
-        var obj = cellInfos[_currentCellIndex].fieldCellPrefab;
+        var obj = cellPairingInfoSO.GetCellInfo(selectedCellType).fieldCellPrefab;
         if (!TryReplaceCell(obj))
         {
             Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
