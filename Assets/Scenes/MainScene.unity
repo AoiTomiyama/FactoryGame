@@ -31941,12 +31941,28 @@ MonoBehaviour:
       m_Action: Right Click
       m_Flags: 0
     m_Flags: 0
-  cellPrefab: {fileID: 4718554902016987728, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
+  rotateAction:
+    m_Name: Rotate
+    m_Type: 0
+    m_ExpectedControlType: 
+    m_Id: 06b01751-0895-4e8e-bce3-9d7ac1bd3e0a
+    m_Processors: 
+    m_Interactions: 
+    m_SingletonActionBindings:
+    - m_Name: 
+      m_Id: d1b11add-a73a-438d-b952-bbec7618ad35
+      m_Path: <Keyboard>/r
+      m_Interactions: 
+      m_Processors: 
+      m_Groups: 
+      m_Action: Rotate
+      m_Flags: 0
+    m_Flags: 0
   defaultCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
   fieldDatabase: {fileID: 1279850227}
   cellDatabaseSo: {fileID: 11400000, guid: ab50a9accbefab847bc12e7da168fc2e, type: 2}
   selectedCellType: 1
-  _raycaster: {fileID: 1527578490}
+  raycaster: {fileID: 1527578490}
 --- !u!4 &1114964331
 Transform:
   m_ObjectHideFlags: 0

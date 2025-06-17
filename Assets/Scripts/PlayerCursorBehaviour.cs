@@ -8,6 +8,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private InputAction mouseAction;
     [SerializeField] private InputAction leftClickAction;
     [SerializeField] private InputAction rightClickAction;
+    [SerializeField] private InputAction rotateAction;
     [SerializeField] private GameObject defaultCellPrefab;
     [SerializeField] private GridFieldDatabase fieldDatabase;
     [SerializeField] private CellDatabaseSO cellDatabaseSo;
@@ -40,10 +41,12 @@ public class PlayerCursorBehaviour : MonoBehaviour
         mouseAction.Enable();
         leftClickAction.Enable();
         rightClickAction.Enable();
+        rotateAction.Enable();
 
         mouseAction.performed += OnMouseMove;
         leftClickAction.performed += OnLeftClick;
         rightClickAction.performed += OnRightClick;
+        rotateAction.performed += OnRotateObject;
     }
 
     private void OnDisable()
@@ -51,10 +54,12 @@ public class PlayerCursorBehaviour : MonoBehaviour
         mouseAction.performed -= OnMouseMove;
         leftClickAction.performed -= OnLeftClick;
         rightClickAction.performed -= OnRightClick;
+        rotateAction.performed -= OnRotateObject;
 
         mouseAction.Disable();
         leftClickAction.Disable();
         rightClickAction.Disable();
+        rotateAction.Disable();
     }
 
     private void OnMouseMove(InputAction.CallbackContext context)
@@ -85,9 +90,9 @@ public class PlayerCursorBehaviour : MonoBehaviour
 
         if (!target.TryGetComponent<CellBase>(out var cellBase)) return;
         _selectedCell = cellBase;
+        transform.position = _selectedCell.transform.position;
         if (_selectedCell is not EmptyCell) return;
         _selectedCell.CellModel.SetActive(false);
-        transform.position = _selectedCell.transform.position;
     }
 
     private void OnLeftClick(InputAction.CallbackContext context)
@@ -154,7 +159,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         _selectedCell = null;
 
         // 新しいセルを生成
-        var newObj = Instantiate(prefab, pos, Quaternion.identity, parent);
+        var newObj = Instantiate(prefab, pos, _placeholderCell.transform.rotation, parent);
         newObj.name = objName;
 
         // 新しいセルの情報を保存
@@ -173,5 +178,13 @@ public class PlayerCursorBehaviour : MonoBehaviour
         {
             Debug.LogWarning($"CellType {selectedCellType} の情報が見つかりません。");
         }
+    }
+    
+    private void OnRotateObject(InputAction.CallbackContext context)
+    {
+        if (!context.performed) return;
+        if (raycaster.IsPointerOverUI(_mousePosition)) return;
+
+        _placeholderCell.transform.Rotate(Vector3.up, 90f);
     }
 }
