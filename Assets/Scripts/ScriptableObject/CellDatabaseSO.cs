@@ -25,7 +25,7 @@ public class CellDatabaseSO : ScriptableObject
     public void ValidateAndBuildLookup()
     {
         _infoLookup = new Dictionary<CellType, CellInfo>();
-        
+
         var hashSet = new HashSet<CellType>();
 
         foreach (var info in cellPairingInfos)
@@ -34,7 +34,7 @@ public class CellDatabaseSO : ScriptableObject
             {
                 Debug.LogWarning("重複する CellType が存在します: " + info.cellType, this);
             }
-            
+
             if (info.fieldCellPrefab == null)
             {
                 Debug.LogWarning($"CellType {info.cellType} に fieldCellPrefab が設定されていません", this);
@@ -49,7 +49,6 @@ public class CellDatabaseSO : ScriptableObject
             _infoLookup[info.cellType] = info;
         }
 
-        Debug.Log($"{nameof(CellDatabaseSO)} のヴァリデーション完了");
         isInitialized = true;
     }
 

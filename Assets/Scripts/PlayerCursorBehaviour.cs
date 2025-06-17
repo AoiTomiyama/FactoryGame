@@ -8,7 +8,6 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private InputAction mouseAction;
     [SerializeField] private InputAction leftClickAction;
     [SerializeField] private InputAction rightClickAction;
-    [SerializeField] private GameObject cellPrefab;
     [SerializeField] private GameObject defaultCellPrefab;
     [SerializeField] private GridFieldDatabase fieldDatabase;
     [SerializeField] private CellDatabaseSO cellDatabaseSo;
@@ -18,7 +17,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private GameObject _placeholderCell;
 
     [SerializeField] private CellType selectedCellType;
-    [SerializeField] private UIRaycaster _raycaster;
+    [SerializeField] private UIRaycaster raycaster;
 
     private Vector2 _mousePosition;
 
@@ -63,7 +62,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!context.performed) return;
 
         _mousePosition = context.ReadValue<Vector2>();
-        if (_raycaster.IsPointerOverUI(_mousePosition)) return;
+        if (raycaster.IsPointerOverUI(_mousePosition)) return;
 
         var ray = _camera.ScreenPointToRay(_mousePosition);
         if (Physics.Raycast(ray, out var hit, Mathf.Infinity, layerMask))
@@ -94,7 +93,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private void OnLeftClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
-        if (_raycaster.IsPointerOverUI(_mousePosition)) return;
+        if (raycaster.IsPointerOverUI(_mousePosition)) return;
 
         if (!cellDatabaseSo.TryGetCellInfo(selectedCellType, out var cellInfo)) return;
         var obj = cellInfo.fieldCellPrefab;
@@ -108,7 +107,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private void OnRightClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
-        if (_raycaster.IsPointerOverUI(_mousePosition)) return;
+        if (raycaster.IsPointerOverUI(_mousePosition)) return;
 
         // 右クリックでデフォルトのセルに置き換える
         ReplaceCell(defaultCellPrefab);
