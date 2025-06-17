@@ -4230,6 +4230,7 @@ RectTransform:
   m_Children:
   - {fileID: 776976336}
   - {fileID: 452370610}
+  - {fileID: 651583013}
   m_Father: {fileID: 889176796}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
@@ -13468,8 +13469,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 187.888, y: 0}
-  m_SizeDelta: {x: 160, y: 160}
+  m_AnchoredPosition: {x: 179.25055, y: 0}
+  m_SizeDelta: {x: 149, y: 298.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &452370611
 MonoBehaviour:
@@ -19844,6 +19845,83 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 9028744536133712409, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
   m_PrefabInstance: {fileID: 1509179684}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &651583012
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 651583013}
+  - component: {fileID: 651583014}
+  - component: {fileID: 651583015}
+  m_Layer: 5
+  m_Name: Element
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &651583013
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 651583012}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 146039792}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: -64, y: 0}
+  m_SizeDelta: {x: 277, y: 978.5}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &651583014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 651583012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59f8146938fff824cb5fd77236b75775, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Padding:
+    m_Left: 0
+    m_Right: 0
+    m_Top: 0
+    m_Bottom: 0
+  m_ChildAlignment: 4
+  m_Spacing: 0
+  m_ChildForceExpandWidth: 1
+  m_ChildForceExpandHeight: 1
+  m_ChildControlWidth: 0
+  m_ChildControlHeight: 0
+  m_ChildScaleWidth: 0
+  m_ChildScaleHeight: 0
+  m_ReverseArrangement: 0
+--- !u!114 &651583015
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 651583012}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b55dc7c3b10f587489408b644379f979, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  buttonPrefab: {fileID: 842194332486055627, guid: 3330892ed40ce2a42915b3af14effa20, type: 3}
+  playerCursor: {fileID: 1114964330}
 --- !u!1001 &652465929
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -23231,8 +23309,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 187.888, y: 0}
-  m_SizeDelta: {x: 160, y: 160}
+  m_AnchoredPosition: {x: 179.25055, y: 0}
+  m_SizeDelta: {x: 149, y: 298.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &776976337
 MonoBehaviour:
@@ -31866,9 +31944,8 @@ MonoBehaviour:
   cellPrefab: {fileID: 4718554902016987728, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
   defaultCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
   fieldDatabase: {fileID: 1279850227}
-  cellInfos:
-  - fieldCellPrefab: {fileID: 4718554902016987728, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
-    placeholderCellPrefab: {fileID: 5589804250963055731, guid: 25fc3180cf825cf428f36d76b1fe7f9a, type: 3}
+  cellPairingInfoSO: {fileID: 11400000, guid: ab50a9accbefab847bc12e7da168fc2e, type: 2}
+  selectedCellType: 1
   _raycaster: {fileID: 1527578490}
 --- !u!4 &1114964331
 Transform:
