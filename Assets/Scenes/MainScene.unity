@@ -31944,7 +31944,7 @@ MonoBehaviour:
   cellPrefab: {fileID: 4718554902016987728, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
   defaultCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
   fieldDatabase: {fileID: 1279850227}
-  cellPairingInfoSO: {fileID: 11400000, guid: ab50a9accbefab847bc12e7da168fc2e, type: 2}
+  cellDatabaseSo: {fileID: 11400000, guid: ab50a9accbefab847bc12e7da168fc2e, type: 2}
   selectedCellType: 1
   _raycaster: {fileID: 1527578490}
 --- !u!4 &1114964331

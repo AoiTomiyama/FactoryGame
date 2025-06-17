@@ -5,7 +5,6 @@ public sealed class ResourceCell : CellBase
 {
     [SerializeField] private ResourceType resourceType;
 }
-
 public enum ResourceType
 {
     Stone,

@@ -11,7 +11,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private GameObject cellPrefab;
     [SerializeField] private GameObject defaultCellPrefab;
     [SerializeField] private GridFieldDatabase fieldDatabase;
-    [SerializeField] private CellPairingInfoSo cellPairingInfoSO;
+    [SerializeField] private CellDatabaseSO cellDatabaseSo;
 
     private Camera _camera;
     private CellBase _selectedCell;
@@ -96,7 +96,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!context.performed) return;
         if (_raycaster.IsPointerOverUI(_mousePosition)) return;
 
-        if (!cellPairingInfoSO.TryGetCellInfo(selectedCellType, out var cellInfo)) return;
+        if (!cellDatabaseSo.TryGetCellInfo(selectedCellType, out var cellInfo)) return;
         var obj = cellInfo.fieldCellPrefab;
 
         if (!TryReplaceCell(obj))
@@ -165,7 +165,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     public void SetSelectedCellType(CellType cellType)
     {
         selectedCellType = cellType;
-        if (cellPairingInfoSO.TryGetCellInfo(selectedCellType, out var cellInfo))
+        if (cellDatabaseSo.TryGetCellInfo(selectedCellType, out var cellInfo))
         {
             Destroy(_placeholderCell);
             _placeholderCell = Instantiate(cellInfo.placeholderCellPrefab, transform.position, Quaternion.identity, transform);

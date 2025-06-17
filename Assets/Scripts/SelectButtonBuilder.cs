@@ -12,9 +12,9 @@ public class SelectButtonBuilder : MonoBehaviour
         for (int i = 0; i < buttonCount; i++)
         {
             var cellType = (CellType)i;
-            if (cellType is CellType.None or CellType.Empty) continue; // Noneはスキップ
+            if (cellType is CellType.None) continue; // Noneはスキップ
             var obj = Instantiate(buttonPrefab, transform);
-            obj.name = $"{cellType}Button";
+            obj.name = $"Select{cellType}CellButton";
             var button = obj.GetComponent<Button>();
             if (button != null)
             {
