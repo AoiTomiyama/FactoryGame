@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c991c243980b7784799c4200cd165029, type: 3}
+  m_Name: CellDB
+  m_EditorClassIdentifier: 
+  cellPairingInfos:
+  - fieldCellPrefab: {fileID: 5281411090297953909, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
+    placeholderCellPrefab: {fileID: 4939761327901212978, guid: 882fb4a7f7b4a7d4d9300a1c7d749528, type: 3}
+    cellType: 1
+  - fieldCellPrefab: {fileID: 8510216384174176173, guid: 3394ffad861065944ab3de864c7a2537, type: 3}
+    placeholderCellPrefab: {fileID: 6436038730584001697, guid: 25fc3180cf825cf428f36d76b1fe7f9a, type: 3}
+    cellType: 2
+  - fieldCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+    placeholderCellPrefab: {fileID: 5589804250963055731, guid: 5690599eb420d274684c70d59614aef2, type: 3}
+    cellType: 4
+  isInitialized: 1

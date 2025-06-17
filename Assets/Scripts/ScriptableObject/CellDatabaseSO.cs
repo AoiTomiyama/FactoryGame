@@ -2,29 +2,39 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "CellPairingInfoSO", menuName = "Scriptable Objects/CellPairingInfoSO")]
-public class CellPairingInfoSo : ScriptableObject
+[CreateAssetMenu(fileName = "CellDatabaseSO", menuName = "Scriptable Objects/CellDatabaseSO")]
+public class CellDatabaseSO : ScriptableObject
 {
     [SerializeField] private CellInfo[] cellPairingInfos;
     private Dictionary<CellType, CellInfo> _infoLookup;
 
-    // 初期化、またはエディタでの変更時に重複チェックと辞書構築
-    private void OnEnable()
-    {
-        ValidateAndBuildLookup();
-    }
+    [InspectorReadOnly] [Tooltip("ヴァリデーション済みかどうか")] [SerializeField]
+    private bool isInitialized;
 
     private void OnValidate()
     {
+        isInitialized = false;
+    }
+
+    private void OnEnable()
+    {
+        if (isInitialized) return;
         ValidateAndBuildLookup();
     }
 
-    private void ValidateAndBuildLookup()
+    public void ValidateAndBuildLookup()
     {
         _infoLookup = new Dictionary<CellType, CellInfo>();
+        
+        var hashSet = new HashSet<CellType>();
 
         foreach (var info in cellPairingInfos)
         {
+            if (hashSet.Contains(info.cellType))
+            {
+                Debug.LogWarning("重複する CellType が存在します: " + info.cellType, this);
+            }
+            
             if (info.fieldCellPrefab == null)
             {
                 Debug.LogWarning($"CellType {info.cellType} に fieldCellPrefab が設定されていません", this);
@@ -35,8 +45,12 @@ public class CellPairingInfoSo : ScriptableObject
                 Debug.LogWarning($"CellType {info.cellType} に placeholderCellPrefab が設定されていません", this);
             }
 
+            hashSet.Add(info.cellType);
             _infoLookup[info.cellType] = info;
         }
+
+        Debug.Log($"{nameof(CellDatabaseSO)} のヴァリデーション完了");
+        isInitialized = true;
     }
 
     /// <summary>
@@ -44,6 +58,12 @@ public class CellPairingInfoSo : ScriptableObject
     /// </summary>
     public bool TryGetCellInfo(CellType cellType, out CellInfo info)
     {
+        if (!isInitialized)
+        {
+            Debug.LogError($"{nameof(CellDatabaseSO)}が初期化されていません。ヴァリデーションを実行");
+            ValidateAndBuildLookup();
+        }
+
         if (_infoLookup == null || !_infoLookup.TryGetValue(cellType, out info))
         {
             info = default;
