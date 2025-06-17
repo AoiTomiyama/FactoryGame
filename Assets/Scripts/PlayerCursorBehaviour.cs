@@ -11,24 +11,22 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private GameObject cellPrefab;
     [SerializeField] private GameObject defaultCellPrefab;
     [SerializeField] private GridFieldDatabase fieldDatabase;
-    [SerializeField] private CellPairingInfoSO cellPairingInfoSO;
+    [SerializeField] private CellPairingInfoSo cellPairingInfoSO;
 
     private Camera _camera;
     private CellBase _selectedCell;
+    private GameObject _placeholderCell;
 
     [SerializeField] private CellType selectedCellType;
     [SerializeField] private UIRaycaster _raycaster;
 
-    private int _currentCellIndex = 0;
     private Vector2 _mousePosition;
 
     private void Start()
     {
         _camera = Camera.main;
 
-        var cellInfo = cellPairingInfoSO.GetCellInfo(selectedCellType);
-        Instantiate(cellInfo.placeholderCellPrefab, transform.position, Quaternion.identity,
-            transform);
+        SetSelectedCellType(selectedCellType);
 
         if (fieldDatabase != null) return;
         fieldDatabase = FindAnyObjectByType<GridFieldDatabase>();
@@ -66,7 +64,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
 
         _mousePosition = context.ReadValue<Vector2>();
         if (_raycaster.IsPointerOverUI(_mousePosition)) return;
-        
+
         var ray = _camera.ScreenPointToRay(_mousePosition);
         if (Physics.Raycast(ray, out var hit, Mathf.Infinity, layerMask))
         {
@@ -98,7 +96,9 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!context.performed) return;
         if (_raycaster.IsPointerOverUI(_mousePosition)) return;
 
-        var obj = cellPairingInfoSO.GetCellInfo(selectedCellType).fieldCellPrefab;
+        if (!cellPairingInfoSO.TryGetCellInfo(selectedCellType, out var cellInfo)) return;
+        var obj = cellInfo.fieldCellPrefab;
+
         if (!TryReplaceCell(obj))
         {
             Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
@@ -161,5 +161,18 @@ public class PlayerCursorBehaviour : MonoBehaviour
         // 新しいセルの情報を保存
         fieldDatabase.SaveCell(x, z, newObj);
     }
-
+    
+    public void SetSelectedCellType(CellType cellType)
+    {
+        selectedCellType = cellType;
+        if (cellPairingInfoSO.TryGetCellInfo(selectedCellType, out var cellInfo))
+        {
+            Destroy(_placeholderCell);
+            _placeholderCell = Instantiate(cellInfo.placeholderCellPrefab, transform.position, Quaternion.identity, transform);
+        }
+        else
+        {
+            Debug.LogWarning($"CellType {selectedCellType} の情報が見つかりません。");
+        }
+    }
 }
