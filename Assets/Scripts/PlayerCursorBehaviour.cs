@@ -10,7 +10,6 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private InputAction rightClickAction;
     [SerializeField] private InputAction rotateAction;
     [SerializeField] private GameObject defaultCellPrefab;
-    [SerializeField] private GridFieldDatabase fieldDatabase;
     [SerializeField] private CellDatabaseSO cellDatabaseSo;
 
     private Camera _camera;
@@ -27,13 +26,6 @@ public class PlayerCursorBehaviour : MonoBehaviour
         _camera = Camera.main;
 
         SetSelectedCellType(selectedCellType);
-
-        if (fieldDatabase != null) return;
-        fieldDatabase = FindAnyObjectByType<GridFieldDatabase>();
-        if (fieldDatabase == null)
-        {
-            Debug.LogError("GridFieldDatabaseが見つかりません。シーンに追加してください。");
-        }
     }
 
     private void OnEnable()
@@ -166,7 +158,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         newObj.name = objName;
 
         // 新しいセルの情報を保存
-        fieldDatabase.SaveCell(x, z, newObj);
+        GridFieldDatabase.Instance.SaveCell(x, z, newObj);
     }
     
     public void SetSelectedCellType(CellType cellType)

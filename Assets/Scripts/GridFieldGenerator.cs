@@ -2,27 +2,16 @@ using UnityEngine;
 
 public class GridFieldGenerator : MonoBehaviour
 {
-    [SerializeField] private GridFieldDatabase fieldDatabase;
     [SerializeField] private float lineWidth = 0.1f;
     [SerializeField] private Material lineMaterial;
     [SerializeField] private Color lineColor;
     public GameObject cellPrefab;
     public int gridSize = 30;
 
-
     private void Start()
     {
-        fieldDatabase.GridCells = new CellBase[gridSize, gridSize];
-        for (int x = 0; x < gridSize; x++)
-        {
-            var separator = transform.GetChild(x);
-            for (int z = 0; z < gridSize; z++)
-            {
-                var cell = separator.GetChild(z).gameObject;
-                fieldDatabase.SaveCell(x, z, cell);
-            }
-        }
-    }   
+        GridFieldDatabase.Instance.InitializeCells(gridSize, transform);
+    }
 
     public void GenerateGridLine()
     {
