@@ -6,19 +6,19 @@ public class SelectButtonBuilder : MonoBehaviour
 {
     [SerializeField] private GameObject buttonPrefab;
     [SerializeField] private PlayerCursorBehaviour playerCursor;
+    [SerializeField] private CellDatabaseSO cellDatabase;
     private void Start()
     {
-        var buttonCount = Enum.GetValues(typeof(CellType)).Length;
-        for (int i = 0; i < buttonCount; i++)
+        var list = cellDatabase.GetAllCellInfos();
+        foreach (var cellInfo in list)
         {
-            var cellType = (CellType)i;
-            if (cellType is CellType.None) continue; // Noneはスキップ
+            if (cellInfo.cellType == CellType.None) continue; // Noneはスキップ
             var obj = Instantiate(buttonPrefab, transform);
-            obj.name = $"Select{cellType}CellButton";
+            obj.name = $"Select{cellInfo.cellType}CellButton";
             var button = obj.GetComponent<Button>();
             if (button != null)
             {
-                button.onClick.AddListener(() => playerCursor.SetSelectedCellType(cellType));
+                button.onClick.AddListener(() => playerCursor.SetSelectedCellType(cellInfo.cellType));
             }
             else
             {

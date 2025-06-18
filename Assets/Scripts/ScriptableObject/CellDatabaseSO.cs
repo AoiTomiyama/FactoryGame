@@ -71,6 +71,17 @@ public class CellDatabaseSO : ScriptableObject
 
         return true;
     }
+    
+    public List<CellInfo> GetAllCellInfos()
+    {
+        if (!isInitialized)
+        {
+            Debug.LogError($"{nameof(CellDatabaseSO)}が初期化されていません。ヴァリデーションを実行");
+            ValidateAndBuildLookup();
+        }
+
+        return new List<CellInfo>(_infoLookup.Values);
+    }
 }
 
 [Serializable]
