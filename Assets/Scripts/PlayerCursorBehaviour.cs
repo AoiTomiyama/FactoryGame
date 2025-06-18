@@ -91,7 +91,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!target.TryGetComponent<CellBase>(out var cellBase)) return;
         _selectedCell = cellBase;
         transform.position = _selectedCell.transform.position;
-        if (_selectedCell is not EmptyCell) return;
+        if (_selectedCell is not EmptyCell && selectedCellType != CellType.Empty) return;
         _selectedCell.CellModel.SetActive(false);
     }
 
@@ -112,10 +112,13 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private void OnRightClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
-        if (raycaster.IsPointerOverUI(_mousePosition)) return;
-
-        // 右クリックでデフォルトのセルに置き換える
-        ReplaceCell(defaultCellPrefab);
+        // if (raycaster.IsPointerOverUI(_mousePosition)) return;
+        //
+        // // 右クリックでデフォルトのセルに置き換える
+        // if (!TryReplaceCell(defaultCellPrefab))
+        // {
+        //     Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
+        // }
     }
 
     private bool TryReplaceCell(GameObject prefab)
@@ -132,7 +135,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
             return false;
         }
 
-        if (_selectedCell is not EmptyCell)
+        if (selectedCellType != CellType.Empty && _selectedCell is not EmptyCell)
         {
             Debug.Log("既にセルが存在します。置き換えはできません");
             return false;
