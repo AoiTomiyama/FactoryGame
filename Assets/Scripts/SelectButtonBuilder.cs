@@ -1,15 +1,16 @@
-using System;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class SelectButtonBuilder : MonoBehaviour
 {
     [SerializeField] private GameObject buttonPrefab;
-    [SerializeField] private PlayerCursorBehaviour playerCursor;
     [SerializeField] private CellDatabaseSO cellDatabase;
+
     private void Start()
     {
         var list = cellDatabase.GetAllCellInfos();
+        var playerCursor = FindAnyObjectByType<PlayerCursorBehaviour>();
+
         foreach (var cellInfo in list)
         {
             if (cellInfo.cellType == CellType.None) continue; // Noneはスキップ

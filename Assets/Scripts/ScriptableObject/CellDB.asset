@@ -20,6 +20,6 @@ MonoBehaviour:
     placeholderCellPrefab: {fileID: 6436038730584001697, guid: 25fc3180cf825cf428f36d76b1fe7f9a, type: 3}
     cellType: 2
   - fieldCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
-    placeholderCellPrefab: {fileID: 5589804250963055731, guid: 5690599eb420d274684c70d59614aef2, type: 3}
+    placeholderCellPrefab: {fileID: 3753479285475593560, guid: b98d1dbe996258f46a7bfc05a60b5025, type: 3}
     cellType: 4
-  isInitialized: 1
+  isInitialized: 0

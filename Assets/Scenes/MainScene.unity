@@ -19921,7 +19921,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   buttonPrefab: {fileID: 842194332486055627, guid: 3330892ed40ce2a42915b3af14effa20, type: 3}
-  playerCursor: {fileID: 1114964330}
+  cellDatabase: {fileID: 11400000, guid: ab50a9accbefab847bc12e7da168fc2e, type: 2}
 --- !u!1001 &652465929
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -91,7 +91,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!target.TryGetComponent<CellBase>(out var cellBase)) return;
         _selectedCell = cellBase;
         transform.position = _selectedCell.transform.position;
-        if (_selectedCell is not EmptyCell && selectedCellType != CellType.Empty) return;
+        if (_selectedCell is not EmptyCell) return;
         _selectedCell.CellModel.SetActive(false);
     }
 
@@ -162,7 +162,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         _selectedCell = null;
 
         // 新しいセルを生成
-        var newObj = Instantiate(prefab, pos, _placeholderCell.transform.rotation, parent);
+        var newObj = Instantiate(prefab, pos, transform.rotation, parent);
         newObj.name = objName;
 
         // 新しいセルの情報を保存
@@ -175,7 +175,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (cellDatabaseSo.TryGetCellInfo(selectedCellType, out var cellInfo))
         {
             Destroy(_placeholderCell);
-            _placeholderCell = Instantiate(cellInfo.placeholderCellPrefab, transform.position, Quaternion.identity, transform);
+            _placeholderCell = Instantiate(cellInfo.placeholderCellPrefab, transform.position, transform.rotation, transform);
         }
         else
         {
@@ -188,6 +188,6 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!context.performed) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
 
-        _placeholderCell.transform.Rotate(Vector3.up, 90f);
+        transform.Rotate(Vector3.up, 90f);
     }
 }
