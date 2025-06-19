@@ -95,9 +95,10 @@ public struct CellInfo
 public enum CellType
 {
     None,
+    Empty,
     ResourceWood,
     ResourceStone,
     ResourceIron,
     Extractor,
-    Empty,
+    Storage,
 }

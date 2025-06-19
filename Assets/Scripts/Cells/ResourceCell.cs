@@ -9,6 +9,7 @@ public sealed class ResourceCell : CellBase
 }
 public enum ResourceType
 {
+    None,
     Stone,
     Wood,
     Iron,
