@@ -17,29 +17,32 @@ public class GridFieldGenerator : MonoBehaviour
     [SerializeField] private PropPrefab[] propPrefabs;
 
     [Header("ノイズの設定")]
-    [Tooltip("繰り返しの回数")] [SerializeField] 
+    [Tooltip("繰り返しの回数")] [SerializeField]
     private int octaves = 5;
-    
+
     [Tooltip("初期周波数")] [SerializeField]
     private float baseFrequency = 0.05f;
-    
-    [Tooltip("初期振幅")] [SerializeField] 
+
+    [Tooltip("初期振幅")] [SerializeField]
     private float baseAmplitude = 1f;
-    
+
     [Tooltip("振幅の減衰")] [SerializeField]
     private float persistence = 0.5f;
-    
-    [Tooltip("周波数の増加")] [SerializeField] 
+
+    [Tooltip("周波数の増加")] [SerializeField]
     private float lacunarity = 2f;
 
     [Serializable]
-    public struct PropPrefab
+    private struct PropPrefab
     {
+        [SerializeField] [Tooltip("プロップのプレハブ")]
         public GameObject prefab;
-        [Range(0, 1)]
+        
+        [SerializeField] [Range(0, 1)] [Tooltip("ノイズ値の閾値")]
         public float threshold;
-        [NonSerialized]
-        public Vector3 NoiseOffset;
+        
+        [Tooltip("ノイズオフセットのランダム値")]
+        public Vector3 NoiseOffset { get; set; }
     }
 
     private void Start()
@@ -91,9 +94,9 @@ public class GridFieldGenerator : MonoBehaviour
                 foreach (var p in propPrefabs)
                 {
                     var noiseValue = Fbm(x + p.NoiseOffset.x, z + p.NoiseOffset.z);
-                    
+
                     if (noiseValue <= p.threshold) continue;
-                    
+
                     // ノイズ値が閾値を超えた場合、配置するオブジェクトを確定
                     obj = p.prefab;
                     break;

@@ -37,6 +37,7 @@ public class GridGeneratorEditor : Editor
         }
 
         fieldGenerator.ClearGrid(_anchorTransform);
+        DestroyImmediate(_anchorTransform.gameObject);
     }
 
     private void Generate(GridFieldGenerator fieldGenerator)
@@ -51,9 +52,11 @@ public class GridGeneratorEditor : Editor
             }
             else
             {
-                const string anchorName = "==[Field]==";
-                    
+                const string anchorName = "===== [Field] =====";
+
                 _anchorTransform = new GameObject(anchorName).transform;
+
+                _anchorTransform.SetParent(fieldGenerator.transform.parent);
                 _anchorTransform.AddComponent<GridFieldDatabase>();
             }
         }
