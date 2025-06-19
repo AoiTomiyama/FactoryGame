@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GridFieldDatabase : MonoBehaviour
@@ -113,8 +114,8 @@ public class GridFieldDatabase : MonoBehaviour
     }
 
     /// <summary>
-    /// 指定した座標　(`x`, `z`) を中心に、マンハッタン距離 `range` 以内に存在する型 `T` のセルを検索する。
-    /// 条件を満たすセルが見つかった場合は `cellBase` に代入し、`true` を返し、それ以外は `false` を返す。
+    /// 指定した座標を中心に、マンハッタン距離 `range` 以内に存在する型 `T` のセルを検索する。
+    /// 条件を満たすセルが見つかった場合は `cellBase` に代入し`true` を返し、それ以外は `false` を返す。
     /// </summary>
     /// <param name="x">中心となるX座標</param>
     /// <param name="z">中心となるZ座標</param>
@@ -124,35 +125,60 @@ public class GridFieldDatabase : MonoBehaviour
     /// <returns>条件を満たすセルが見つかったかどうか</returns>
     public bool TryGetCellFromRange<T>(int x, int z, int range, out T cellBase) where T : CellBase
     {
+        cellBase = null;
+        var sizeX = _gridCells.GetLength(0);
+        var sizeZ = _gridCells.GetLength(1);
+
         // 範囲外チェック
-        if (x < 0 || z < 0 || x >= _gridCells.GetLength(0) || z >= _gridCells.GetLength(1))
+        if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ)
         {
             Debug.LogError($"({x}, {z}) は範囲外です。");
-            cellBase = null;
             return false;
         }
 
-        // 一定のマンハッタン距離内に指定のセルがあるかを調べる。
-        for (int i = -range; i <= range; i++)
+        var visited = new bool[sizeX][];
+        for (int index = 0; index < sizeX; index++)
         {
-            for (int j = -range; j <= range; j++)
+            visited[index] = new bool[sizeZ];
+        }
+
+        // BFS（幅優先探索）を使用して、マンハッタン距離 range 以内のセルを探索
+        var queue = new Queue<(int x, int z, int dist)>();
+        queue.Enqueue((x, z, 0));
+        visited[x][z] = true;
+        var directions = new (int dx, int dz)[]
+        {
+            (1, 0), (-1, 0), (0, 1), (0, -1)
+        };
+
+        while (queue.Count > 0)
+        {
+            var (centerX, centerZ, dist) = queue.Dequeue();
+
+            if (_gridCells[centerX, centerZ] is T selectedCell)
             {
-                if (Mathf.Abs(i) + Mathf.Abs(j) > range) continue;
-
-                var dx = x + i;
-                var dz = z + j;
-
-                if (dx < 0 || dz < 0 || dx >= _gridCells.GetLength(0) ||
-                    dz >= _gridCells.GetLength(1))
-                    continue;
-
-                if (_gridCells[dx, dz] is not T selectedCell) continue;
                 cellBase = selectedCell;
                 return true;
             }
+
+            if (dist >= range) continue;
+
+
+            foreach (var (dirX, dirZ) in directions)
+            {
+                var nextX = centerX + dirX;
+                var nextZ = centerZ + dirZ;
+
+                if (nextX < 0 || nextZ < 0 || nextX >= sizeX || nextZ >= sizeZ)
+                    continue;
+                if (visited[nextX][nextZ])
+                    continue;
+
+                visited[nextX][nextZ] = true;
+                queue.Enqueue((nextX, nextZ, dist + 1));
+            }
         }
 
-        cellBase = null;
         return false;
     }
 }
