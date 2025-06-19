@@ -14,7 +14,7 @@ public class StorageCell : CellBase
     /// </summary>
     /// <param name="amount">ストレージに入れる量</param>
     /// <param name="resourceType">リソースの種類</param>
-    /// <returns>ストレージに入りきらなかった猟</returns>
+    /// <returns>ストレージに入りきらなかった量</returns>
     public int StoreResource(int amount, ResourceType resourceType)
     {
         // 初めてのリソース追加
@@ -48,6 +48,10 @@ public class StorageCell : CellBase
         }
 
         currentLoad += amount;
+
+        Debug.Log("ストレージセルにリソースを追加しました。" +
+                  $"現在の容量: {currentLoad}, " +
+                  $"追加した量: {amount}");
         return 0;
     }
 
@@ -70,6 +74,7 @@ public class StorageCell : CellBase
             return 0;
         }
 
+        // 現在の容量から取り出す
         if (currentLoad - amount >= 0)
         {
             currentLoad -= amount;
@@ -79,6 +84,9 @@ public class StorageCell : CellBase
                 _storedResourceType = ResourceType.None;
             }
 
+            Debug.Log("ストレージセルからリソースを取り出しました。" +
+                      $"現在の容量: {currentLoad}, " +
+                      $"取り出した量: {amount}");
             return amount;
         }
 
@@ -86,12 +94,19 @@ public class StorageCell : CellBase
                          $"現在の容量: {currentLoad}, " +
                          $"削除しようとした量: {amount}");
 
+        // 現在の容量が不足している場合は、現在の容量を全て取り出す
         var takenAmount = currentLoad;
         currentLoad = 0;
+        
         // リソースを全部取り出した後は、リソースタイプをリセット
         _storedResourceType = ResourceType.None;
 
         // 取り出せる量は現在の容量まで
         return takenAmount;
     }
+    
+    /// <summary>
+    /// 容量上限に達しているかどうかを確認。
+    /// </summary>
+    public bool IsFull() => currentLoad == capacity;
 }
