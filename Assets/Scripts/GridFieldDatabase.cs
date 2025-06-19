@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -22,6 +21,7 @@ public class GridFieldDatabase : MonoBehaviour
     }
 
     private CellBase[,] _gridCells;
+    private int _gridSize;
 
     private void Awake()
     {
@@ -49,6 +49,7 @@ public class GridFieldDatabase : MonoBehaviour
         }
 
         _gridCells = new CellBase[size, size];
+        _gridSize = size;
 
         for (int x = 0; x < size; x++)
         {
@@ -81,7 +82,7 @@ public class GridFieldDatabase : MonoBehaviour
         }
 
         // 範囲外チェック
-        if (x < 0 || z < 0 || x >= _gridCells.GetLength(0) || z >= _gridCells.GetLength(1))
+        if (IsOutOfRange(x, z))
         {
             Debug.LogError($"({x}, {z}) は範囲外です。");
             return;
@@ -104,7 +105,7 @@ public class GridFieldDatabase : MonoBehaviour
     public CellBase GetCell(int x, int z)
     {
         // 範囲外チェック
-        if (x < 0 || z < 0 || x >= _gridCells.GetLength(0) || z >= _gridCells.GetLength(1))
+        if (IsOutOfRange(x, z))
         {
             Debug.LogError($"({x}, {z}) は範囲外です。");
             return null;
@@ -123,23 +124,19 @@ public class GridFieldDatabase : MonoBehaviour
     /// <param name="cellBase">見つかったセル（型T）</param>
     /// <typeparam name="T">検索するセルの型（CellBaseの派生型）</typeparam>
     /// <returns>条件を満たすセルが見つかったかどうか</returns>
-    public bool TryGetCellFromRange<T>(int x, int z, int range, out T cellBase) where T : CellBase
+    public bool TryGetCellFromRange<T>(int x, int z, int range, ref T cellBase) where T : CellBase
     {
-        cellBase = null;
-        var sizeX = _gridCells.GetLength(0);
-        var sizeZ = _gridCells.GetLength(1);
-
         // 範囲外チェック
-        if (x < 0 || z < 0 || x >= sizeX || z >= sizeZ)
+        if (IsOutOfRange(x, z))
         {
             Debug.LogError($"({x}, {z}) は範囲外です。");
             return false;
         }
 
-        var visited = new bool[sizeX][];
-        for (int index = 0; index < sizeX; index++)
+        var visited = new bool[_gridSize][];
+        for (int index = 0; index < _gridSize; index++)
         {
-            visited[index] = new bool[sizeZ];
+            visited[index] = new bool[_gridSize];
         }
 
         // BFS（幅優先探索）を使用して、マンハッタン距離 range 以内のセルを探索
@@ -155,7 +152,9 @@ public class GridFieldDatabase : MonoBehaviour
         {
             var (centerX, centerZ, dist) = queue.Dequeue();
 
-            if (_gridCells[centerX, centerZ] is T selectedCell)
+            // 中心セルが型Tのセルで、かつcellBaseがnullまたは異なる場合は代入する
+            if (_gridCells[centerX, centerZ] is T selectedCell
+                && selectedCell != cellBase)
             {
                 cellBase = selectedCell;
                 return true;
@@ -169,7 +168,7 @@ public class GridFieldDatabase : MonoBehaviour
                 var nextX = centerX + dirX;
                 var nextZ = centerZ + dirZ;
 
-                if (nextX < 0 || nextZ < 0 || nextX >= sizeX || nextZ >= sizeZ)
+                if (IsOutOfRange(nextX, nextZ))
                     continue;
                 if (visited[nextX][nextZ])
                     continue;
@@ -181,4 +180,6 @@ public class GridFieldDatabase : MonoBehaviour
 
         return false;
     }
+
+    private bool IsOutOfRange(int x, int z) => x < 0 || z < 0 || x >= _gridSize || z >= _gridSize;
 }
