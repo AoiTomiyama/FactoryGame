@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class GridFieldDatabase : MonoBehaviour
@@ -8,28 +9,36 @@ public class GridFieldDatabase : MonoBehaviour
     {
         get
         {
-            if (_instance == null)
-            {
-                _instance = FindAnyObjectByType<GridFieldDatabase>();
-                if (_instance == null)
-                {
+            if (_instance != null) return _instance;
+            _instance = FindAnyObjectByType<GridFieldDatabase>();
+            
+            if (_instance != null) return _instance;
 #if UNITY_EDITOR
-                    Debug.LogError("GridFieldDatabaseがシーンに存在しません。");
+            Debug.LogError("GridFieldDatabaseがシーンに存在しません。");
 #endif
-                    return null;
-                }
-            }
-
-            return _instance;
+            return null;
         }
     }
 
     private CellBase[,] _gridCells;
 
+    private void Awake()
+    {
+        if (_instance == null)
+        {
+            _instance = this;
+        }
+        else if (_instance != this)
+        {
+            Debug.LogWarning("GridFieldDatabaseのインスタンスが複数存在します。最初のインスタンスを保持します。");
+            Destroy(gameObject);
+        }
+    }
+
     /// <summary>
     /// 配列の初期化とセルの保存を行う
     /// </summary>
-    public void InitializeCells(int size, Transform fieldTransform)
+    public void InitializeCells(int size)
     {
         // 引数のチェック
         if (size <= 0)
@@ -38,17 +47,11 @@ public class GridFieldDatabase : MonoBehaviour
             return;
         }
 
-        if (fieldTransform == null)
-        {
-            Debug.LogError($"{nameof(fieldTransform)}がnullです。");
-            return;
-        }
-
         _gridCells = new CellBase[size, size];
 
         for (int x = 0; x < size; x++)
         {
-            var separator = fieldTransform.GetChild(x);
+            var separator = transform.GetChild(x);
             for (int z = 0; z < size; z++)
             {
                 var cell = separator.GetChild(z).gameObject;

@@ -1,64 +1,64 @@
+using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 
 [CustomEditor(typeof(GridFieldGenerator))]
 public class GridGeneratorEditor : Editor
 {
+    private Transform _anchorTransform;
+
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
 
-        var generator = (GridFieldGenerator)target;
+        var fieldGenerator = (GridFieldGenerator)target;
 
         if (GUILayout.Button("Generate Grid"))
         {
-            GenerateGrid(generator);
-            generator.GenerateGridLine();
+            Generate(fieldGenerator);
         }
 
-        if (GUILayout.Button("Clear Grid")) ClearGrid(generator);
-    }
-
-    /// <summary>
-    /// グリット情報のクリア
-    /// </summary>
-    /// <param name="generator"></param>
-    private static void ClearGrid(GridFieldGenerator generator)
-    {
-        for (int i = generator.transform.childCount - 1; i >= 0; i--)
+        if (GUILayout.Button("Clear Grid"))
         {
-            var target = generator.transform.GetChild(i).gameObject;
-            DestroyImmediate(target);
+            Clear(fieldGenerator);
         }
     }
 
-    /// <summary>
-    /// シーン上にグリッドを生成
-    /// </summary>
-    /// <param name="generator"></param>
-    private void GenerateGrid(GridFieldGenerator generator)
+    private void Clear(GridFieldGenerator fieldGenerator)
     {
-        if (generator.cellPrefab == null)
+        if (_anchorTransform == null)
         {
-            Debug.LogError($"{nameof(GridFieldGenerator)}の{nameof(generator.cellPrefab)}が未割当です。");
-            return;
-        }
-
-        ClearGrid(generator);
-
-        var cellScale = generator.cellPrefab.transform.localScale;
-        for (int x = 0; x < generator.gridSize; x++)
-        {
-            var separator = new GameObject($"Separator_{x}");
-            separator.transform.SetParent(generator.transform);
-            for (int z = 0; z < generator.gridSize; z++)
+            // 割り当てがnullかつ、Databaseがある場合は破棄
+            var database = FindAnyObjectByType<GridFieldDatabase>();
+            if (database != null)
             {
-                var pos = new Vector3(x * cellScale.x, 0, z * cellScale.z);
-
-                var tile = (GameObject)PrefabUtility.InstantiatePrefab(generator.cellPrefab, separator.transform);
-                tile.transform.position = pos;
-                tile.name = $"Tile_{x}_{z}";
+                _anchorTransform = database.transform;
             }
         }
+
+        fieldGenerator.ClearGrid(_anchorTransform);
+    }
+
+    private void Generate(GridFieldGenerator fieldGenerator)
+    {
+        if (_anchorTransform == null)
+        {
+            // Databaseを元に検索して、なければ新規に作成
+            var database = FindAnyObjectByType<GridFieldDatabase>();
+            if (database != null)
+            {
+                _anchorTransform = database.transform;
+            }
+            else
+            {
+                const string anchorName = "==[Field]==";
+                    
+                _anchorTransform = new GameObject(anchorName).transform;
+                _anchorTransform.AddComponent<GridFieldDatabase>();
+            }
+        }
+
+        fieldGenerator.GenerateGrid(_anchorTransform);
+        fieldGenerator.GenerateGridLine(_anchorTransform);
     }
 }
