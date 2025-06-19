@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -122,10 +123,12 @@ public class GridFieldDatabase : MonoBehaviour
     /// <param name="z">中心となるZ座標</param>
     /// <param name="range">検索するマンハッタン距離</param>
     /// <param name="cellBase">見つかったセル（型T）</param>
+    /// <param name="excludingList">あらかじめ検索から除外するリスト</param>
     /// <typeparam name="T">検索するセルの型（CellBaseの派生型）</typeparam>
     /// <returns>条件を満たすセルが見つかったかどうか</returns>
-    public bool TryGetCellFromRange<T>(int x, int z, int range, ref T cellBase) where T : CellBase
+    public bool TryGetCellFromRange<T>(int x, int z, int range, out T cellBase, T[] excludingList = null) where T : CellBase
     {
+        cellBase = null;
         // 範囲外チェック
         if (IsOutOfRange(x, z))
         {
@@ -137,6 +140,17 @@ public class GridFieldDatabase : MonoBehaviour
         for (int index = 0; index < _gridSize; index++)
         {
             visited[index] = new bool[_gridSize];
+        }
+        
+        // 除外リストが指定されている場合は、除外リストのセルを訪問済みとしてマーク
+        if (excludingList != null)
+        {
+            foreach (var cell in excludingList)
+            {
+                if (cell == null) continue;
+                if (IsOutOfRange(cell.XIndex, cell.ZIndex)) continue;
+                visited[cell.XIndex][cell.ZIndex] = true;
+            }
         }
 
         // BFS（幅優先探索）を使用して、マンハッタン距離 range 以内のセルを探索
@@ -153,8 +167,7 @@ public class GridFieldDatabase : MonoBehaviour
             var (centerX, centerZ, dist) = queue.Dequeue();
 
             // 中心セルが型Tのセルで、かつcellBaseがnullまたは異なる場合は代入する
-            if (_gridCells[centerX, centerZ] is T selectedCell
-                && selectedCell != cellBase)
+            if (_gridCells[centerX, centerZ] is T selectedCell)
             {
                 cellBase = selectedCell;
                 return true;
