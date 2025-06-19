@@ -21,5 +21,8 @@ MonoBehaviour:
     cellType: 2
   - fieldCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
     placeholderCellPrefab: {fileID: 3753479285475593560, guid: b98d1dbe996258f46a7bfc05a60b5025, type: 3}
+    cellType: 5
+  - fieldCellPrefab: {fileID: 1248816208215470868, guid: 5fcff706387ed944480fa78eb02e921f, type: 3}
+    placeholderCellPrefab: {fileID: 8217202652066461179, guid: 6fb0b84c647911241bbcdeda1d86c789, type: 3}
     cellType: 4
-  isInitialized: 0
+  isInitialized: 1

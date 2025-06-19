@@ -98,5 +98,6 @@ public enum CellType
     ResourceWood,
     ResourceStone,
     ResourceIron,
+    Extractor,
     Empty,
 }

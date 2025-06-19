@@ -20,6 +20,8 @@ public class ExtractorCell : CellBase
         _forwardCell = GridFieldDatabase.Instance.GetCell(
             XIndex + Mathf.RoundToInt(transform.forward.x),
             ZIndex + Mathf.RoundToInt(transform.forward.z));
+        
+        if (_forwardCell == null) return;
         StartCoroutine(ExtractEnumerator());
     }
 
