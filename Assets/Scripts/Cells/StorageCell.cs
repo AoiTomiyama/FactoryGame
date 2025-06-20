@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -23,8 +22,9 @@ public class StorageCell : ConnectableCellBase
         }
     }
 
-    private void Start()
+    protected override void Start()
     {
+        base.Start();
         storageAmountBar.fillAmount = 0;
     }
 

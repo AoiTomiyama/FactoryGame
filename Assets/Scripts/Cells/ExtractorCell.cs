@@ -18,10 +18,12 @@ public class ExtractorCellBase : ConnectableCellBase
     private CellBase _forwardCell;
     private int _currentExtractedAmount;
 
-    private void Start()
+    protected override void Start()
     {
+        base.Start();
         foreach (var cell in AdjacentCells)
         {
+            if (cell == null) continue;
             if (cell.XIndex != XIndex + Mathf.RoundToInt(transform.forward.x) ||
                 cell.ZIndex != ZIndex + Mathf.RoundToInt(transform.forward.z)) continue;
             // 前方のセルを見つけたら保存
@@ -40,15 +42,16 @@ public class ExtractorCellBase : ConnectableCellBase
     {
         while (true)
         {
-            extractionProgressBar.fillAmount = 0f;
-            var tween = extractionProgressBar
-                .DOFillAmount(1f, extractionSecond)
-                .SetEase(Ease.Linear);
-
-            yield return tween.WaitForCompletion();
             // ストレージに保存できる容量があるか確認
             if (_currentExtractedAmount < extractionCapacity)
             {
+                extractionProgressBar.fillAmount = 0f;
+            
+                var tween = extractionProgressBar
+                    .DOFillAmount(1f, extractionSecond)
+                    .SetEase(Ease.Linear);
+
+                yield return tween.WaitForCompletion();
                 Extract();
             }
             else
@@ -56,6 +59,7 @@ public class ExtractorCellBase : ConnectableCellBase
                 // 容量上限に達した場合はスペースが空くまで待機
                 yield return new WaitUntil(() => HasStorageCapacity(out _));
                 OutputResources();
+                UpdateUI();
             }
         }
     }
