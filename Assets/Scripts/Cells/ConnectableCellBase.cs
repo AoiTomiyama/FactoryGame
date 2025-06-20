@@ -23,6 +23,8 @@ public abstract class ConnectableCellBase : CellBase
         // 周囲1マス以内のセルを取得
         for (int i = 0; i < AdjacentCount; i++)
         {
+            if (AdjacentCells[i] != null) continue;
+            
             if (!GridFieldDatabase.Instance.TryGetCellFromRange(XIndex, ZIndex, 1, out var foundCell,
                     excludingList)) continue;
             
