@@ -545,14 +545,14 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 1500897271111828814}
+      addedObject: {fileID: 7232298883473130837}
   m_SourcePrefab: {fileID: 100100000, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
 --- !u!1 &1248816208215470868 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
   m_PrefabInstance: {fileID: 6685126217872566119}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &1500897271111828814
+--- !u!114 &7232298883473130837
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -561,13 +561,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 1248816208215470868}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6d142c5bcd1d43542ad8d368a5eb470e, type: 3}
+  m_Script: {fileID: 11500000, guid: b3fb507c8d35e7e40921cc20f23577e2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   resourceType: 1
   extractionSecond: 1
   extractionAmount: 1
-  extractionCapacity: 10
+  extractionCapacity: 5
   extractionProgressBar: {fileID: 5612211340224938452}
   storageAmountBar: {fileID: 5684710347186014869}
 --- !u!4 &2416987904683171198 stripped
