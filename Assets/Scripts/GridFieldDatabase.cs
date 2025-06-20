@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class GridFieldDatabase : MonoBehaviour
@@ -125,7 +126,8 @@ public class GridFieldDatabase : MonoBehaviour
     /// <param name="excludingList">あらかじめ検索から除外するリスト</param>
     /// <typeparam name="T">検索するセルの型（CellBaseの派生型）</typeparam>
     /// <returns>条件を満たすセルが見つかったかどうか</returns>
-    public bool TryGetCellFromRange<T>(int x, int z, int range, out T cellBase, T[] excludingList = null) where T : CellBase
+    public bool TryGetCellFromRange<T>(int x, int z, int range, out T cellBase, List<T> excludingList = null)
+        where T : CellBase
     {
         cellBase = null;
         // 範囲外チェック
@@ -136,19 +138,9 @@ public class GridFieldDatabase : MonoBehaviour
         }
 
         var visited = new bool[_gridSize][];
-        for (int index = 0; index < _gridSize; index++)
+        for (int i = 0; i < _gridSize; i++)
         {
-            visited[index] = new bool[_gridSize];
-        }
-        
-        // 除外リストが指定されている場合は、除外リストのセルを訪問済みとしてマーク
-        if (excludingList != null)
-        {
-            foreach (var cell in excludingList)
-            {
-                if (cell == null) continue;
-                visited[cell.XIndex][cell.ZIndex] = true;
-            }
+            visited[i] = new bool[_gridSize];
         }
 
         // BFS（幅優先探索）を使用して、マンハッタン距離 range 以内のセルを探索
@@ -163,16 +155,7 @@ public class GridFieldDatabase : MonoBehaviour
         while (queue.Count > 0)
         {
             var (centerX, centerZ, dist) = queue.Dequeue();
-
-            // 中心セルが型Tのセルで、かつcellBaseがnullまたは異なる場合は代入する
-            if (_gridCells[centerX, centerZ] is T selectedCell)
-            {
-                cellBase = selectedCell;
-                return true;
-            }
-
             if (dist >= range) continue;
-
 
             foreach (var (dirX, dirZ) in directions)
             {
@@ -183,9 +166,19 @@ public class GridFieldDatabase : MonoBehaviour
                     continue;
                 if (visited[nextX][nextZ])
                     continue;
+                
+                // セルが型Tで、かつ除外リストに含まれていない場合は、cellBaseに代入してtrueを返す
+                if (_gridCells[nextX, nextZ] is T selectedCell && excludingList != null &&
+                    !excludingList.Contains(selectedCell))
+                {
+                    cellBase = selectedCell;
+                    return true;
+                }
 
                 visited[nextX][nextZ] = true;
                 queue.Enqueue((nextX, nextZ, dist + 1));
+
+                // 中心セルが型Tのセルで、かつcellBaseがnullまたは異なる場合は代入する
             }
         }
 
