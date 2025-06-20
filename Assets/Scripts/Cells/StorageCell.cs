@@ -9,9 +9,20 @@ public class StorageCell : ConnectableCellBase
     
     [Header("UI設定")]
     [SerializeField] private Image storageAmountBar;
+    [SerializeField] private Image resourceIconImage;
+    [SerializeField] private ResourceIconSO resourceIconSo;
 
     private ResourceType _storedResourceType = ResourceType.None;
-
+    private ResourceType StoredResourceType
+    {
+        get => _storedResourceType;
+        set
+        {
+            _storedResourceType = value;
+            UpdateResourceIcon();
+        }
+    }
+    
     private int CurrentLoad
     {
         get => currentLoad;
@@ -25,7 +36,8 @@ public class StorageCell : ConnectableCellBase
     protected override void Start()
     {
         base.Start();
-        storageAmountBar.fillAmount = 0;
+        UpdateUI();
+        UpdateResourceIcon();
     }
 
     /// <summary>
@@ -37,12 +49,12 @@ public class StorageCell : ConnectableCellBase
     public int StoreResource(int amount, ResourceType resourceType)
     {
         // 初めてのリソース追加
-        if (_storedResourceType == ResourceType.None)
+        if (StoredResourceType == ResourceType.None)
         {
-            _storedResourceType = resourceType;
+            StoredResourceType = resourceType;
         }
 
-        if (_storedResourceType != resourceType)
+        if (StoredResourceType != resourceType)
         {
             // 設定済みのリソースタイプと異なる場合、追加できないので全量を戻す
             return amount;
@@ -68,7 +80,7 @@ public class StorageCell : ConnectableCellBase
     /// <returns>取り出しに成功した量</returns>
     public int TakeResource(int amount, ResourceType resourceType)
     {
-        if (_storedResourceType != resourceType)
+        if (StoredResourceType != resourceType)
         {
             // 取り出せないので、0を返す
             return 0;
@@ -81,7 +93,7 @@ public class StorageCell : ConnectableCellBase
             if (CurrentLoad == 0)
             {
                 // 取り出した後に容量が0になった場合、リソースタイプをリセット
-                _storedResourceType = ResourceType.None;
+                StoredResourceType = ResourceType.None;
             }
             return amount;
         }
@@ -91,7 +103,7 @@ public class StorageCell : ConnectableCellBase
         CurrentLoad = 0;
         
         // リソースを全部取り出した後は、リソースタイプをリセット
-        _storedResourceType = ResourceType.None;
+        StoredResourceType = ResourceType.None;
 
         // 取り出せる量は現在の容量まで
         return takenAmount;
@@ -108,5 +120,14 @@ public class StorageCell : ConnectableCellBase
 
         // ストレージの容量に応じてUIを更新
         storageAmountBar.fillAmount = (float)CurrentLoad / capacity;
+    }
+
+    private void UpdateResourceIcon()
+    {
+        // リソースタイプがNoneの場合はアイコンを非表示にする
+        resourceIconImage.enabled = StoredResourceType != ResourceType.None;
+        
+        // アイコンを更新
+        resourceIconImage.sprite = resourceIconSo.GetIcon(StoredResourceType);
     }
 }
