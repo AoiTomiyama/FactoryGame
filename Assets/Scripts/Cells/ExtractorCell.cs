@@ -3,7 +3,7 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class ExtractorCell : CellBase
+public class ExtractorCellBase : ConnectableCellBase
 {
     [Header("抽出設定")]
     [SerializeField] private ResourceType resourceType;
@@ -16,21 +16,17 @@ public class ExtractorCell : CellBase
     [SerializeField] private Image storageAmountBar;
 
     private CellBase _forwardCell;
-    private StorageCell[] _adjacentStorageCells;
     private int _currentExtractedAmount;
 
     private void Start()
     {
-        _forwardCell = GridFieldDatabase.Instance.GetCell(
-            XIndex + Mathf.RoundToInt(transform.forward.x),
-            ZIndex + Mathf.RoundToInt(transform.forward.z));
-
-        const int adjacentCount = 3;
-        _adjacentStorageCells = new StorageCell[adjacentCount];
-        // 周囲のストレージセルを取得
-        for (int i = 0; i < adjacentCount; i++)
+        foreach (var cell in AdjacentCells)
         {
-            _ = GridFieldDatabase.Instance.TryGetCellFromRange(XIndex, ZIndex, 1, out _adjacentStorageCells[i]);
+            if (cell.XIndex != XIndex + Mathf.RoundToInt(transform.forward.x) ||
+                cell.ZIndex != ZIndex + Mathf.RoundToInt(transform.forward.z)) continue;
+            // 前方のセルを見つけたら保存
+            _forwardCell = cell;
+            break;
         }
 
         extractionProgressBar.fillAmount = 0;
@@ -58,7 +54,7 @@ public class ExtractorCell : CellBase
             else
             {
                 // 容量上限に達した場合はスペースが空くまで待機
-                yield return new WaitUntil(HasStorageCapacity);
+                yield return new WaitUntil(() => HasStorageCapacity(out _));
                 OutputResources();
             }
         }
@@ -68,35 +64,25 @@ public class ExtractorCell : CellBase
     /// 周囲のストレージセルが見つかり、かつ容量に空きがあるかを確認する
     /// </summary>
     /// <returns></returns>
-    private bool HasStorageCapacity()
+    private bool HasStorageCapacity(out StorageCell storageCell)
     {
-        for (var i = 0; i < _adjacentStorageCells.Length; i++)
+        foreach (var cell in AdjacentCells)
         {
-            var storage = _adjacentStorageCells[i];
-
-            // 既にストレージセルが見つかっていて、容量に空きがある場合はtrueを返す
-            // もしくは、ストレージセルがない場合、周囲のセルを再度検索し、
-            // 未発見の容量に空きがあるストレージ見つかった場合はtrueを返す
-            if (storage != null)
-            {
-                if (!storage.IsFull())
-                {
-                    return true;
-                }
-
-                // 既にストレージセルが見つかっていて、容量がいっぱいの場合は次のセルを探す
-                continue;
-            }
-
-            // ストレージセルが見つからない場合、周囲のセルを検索
-            if (!GridFieldDatabase.Instance.TryGetCellFromRange(XIndex, ZIndex, 1, out storage,
-                    _adjacentStorageCells) || storage.IsFull()) continue;
-
-            // ストレージセルが見つかった場合、配列に保存
-            _adjacentStorageCells[i] = storage;
+            // セルがnullの場合はスキップ
+            if (cell == null) continue;
+            
+            // ストレージセルでない場合もスキップ
+            if (cell is not StorageCell storage) continue;
+            
+            // ストレージセルが見つかったが、容量がいっぱいの場合はスキップ
+            if (storage.IsFull()) continue;
+            
+            storageCell = storage;
             return true;
         }
 
+        // 周囲のセルにストレージセルが見つからない、もしくは全て容量がいっぱいの場合はfalseを返す
+        storageCell = null;
         return false;
     }
 
@@ -116,23 +102,14 @@ public class ExtractorCell : CellBase
     private void OutputResources()
     {
         // ストレージセルがない場合、処理を終了
-        if (!HasStorageCapacity()) return;
+        if (!HasStorageCapacity(out var storage)) return;
 
-        // ストレージセルにリソースを保存
-        foreach (var storage in _adjacentStorageCells)
-        {
-            if (storage == null || storage.IsFull())
-            {
-                continue;
-            }
+        // ストレージセルに保存できる量がある場合は、保存する
+        var overflowAmount = storage.StoreResource(_currentExtractedAmount, resourceType);
+        _currentExtractedAmount = 0;
 
-            // ストレージセルに保存できる量がある場合は、保存する
-            var output = storage.StoreResource(_currentExtractedAmount, resourceType);
-            _currentExtractedAmount = 0;
-
-            // ストレージに保存できなかった分は戻す
-            _currentExtractedAmount += (output > 0) ? output : 0;
-        }
+        // ストレージに保存できなかった分は戻す
+        _currentExtractedAmount += overflowAmount;
     }
 
     private void UpdateUI()

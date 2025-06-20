@@ -2,7 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class StorageCell : CellBase
+public class StorageCell : ConnectableCellBase
 {
     [Header("ストレージセルの設定")]
     [SerializeField] [InspectorReadOnly] private int currentLoad;

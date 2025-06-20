@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -148,7 +147,6 @@ public class GridFieldDatabase : MonoBehaviour
             foreach (var cell in excludingList)
             {
                 if (cell == null) continue;
-                if (IsOutOfRange(cell.XIndex, cell.ZIndex)) continue;
                 visited[cell.XIndex][cell.ZIndex] = true;
             }
         }

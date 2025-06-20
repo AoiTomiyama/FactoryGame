@@ -6,7 +6,7 @@ public abstract class CellBase : MonoBehaviour
     public int ZIndex { get; set; }
     public GameObject CellModel { get; private set; }
 
-    private void Awake()
+    protected virtual void Awake()
     {
         CellModel = transform.GetChild(0).gameObject;
     }
