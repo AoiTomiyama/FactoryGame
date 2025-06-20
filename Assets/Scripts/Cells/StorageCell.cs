@@ -1,13 +1,32 @@
+using System;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class StorageCell : CellBase
 {
+    [Header("ストレージセルの設定")]
     [SerializeField] [InspectorReadOnly] private int currentLoad;
     [SerializeField] private int capacity;
+    
+    [Header("UI設定")]
+    [SerializeField] private Image storageAmountBar;
 
     private ResourceType _storedResourceType = ResourceType.None;
-    public int Capacity => capacity;
-    public int CurrentLoad => currentLoad;
+
+    private int CurrentLoad
+    {
+        get => currentLoad;
+        set
+        {
+            currentLoad = value;
+            UpdateUI();
+        }
+    }
+
+    private void Start()
+    {
+        storageAmountBar.fillAmount = 0;
+    }
 
     /// <summary>
     /// ストレージにリソースを追加します。入りきらなかった分は戻り値として返される
@@ -35,22 +54,22 @@ public class StorageCell : CellBase
             return amount;
         }
 
-        if (currentLoad + amount > capacity)
+        if (CurrentLoad + amount > capacity)
         {
             Debug.LogWarning("ストレージセルの容量を超えています。" +
-                             $"現在の容量: {currentLoad}, " +
+                             $"現在の容量: {CurrentLoad}, " +
                              $"追加しようとした量: {amount}");
 
             // 容量を超えないように調整
-            var overflow = currentLoad + amount - capacity;
-            currentLoad = capacity;
+            var overflow = CurrentLoad + amount - capacity;
+            CurrentLoad = capacity;
             return overflow;
         }
 
-        currentLoad += amount;
+        CurrentLoad += amount;
 
         Debug.Log("ストレージセルにリソースを追加しました。" +
-                  $"現在の容量: {currentLoad}, " +
+                  $"現在の容量: {CurrentLoad}, " +
                   $"追加した量: {amount}");
         return 0;
     }
@@ -75,28 +94,28 @@ public class StorageCell : CellBase
         }
 
         // 現在の容量から取り出す
-        if (currentLoad - amount >= 0)
+        if (CurrentLoad - amount >= 0)
         {
-            currentLoad -= amount;
-            if (currentLoad == 0)
+            CurrentLoad -= amount;
+            if (CurrentLoad == 0)
             {
                 // 取り出した後に容量が0になった場合、リソースタイプをリセット
                 _storedResourceType = ResourceType.None;
             }
 
             Debug.Log("ストレージセルからリソースを取り出しました。" +
-                      $"現在の容量: {currentLoad}, " +
+                      $"現在の容量: {CurrentLoad}, " +
                       $"取り出した量: {amount}");
             return amount;
         }
 
         Debug.LogWarning("ストレージセルの現在の容量が不足しています。" +
-                         $"現在の容量: {currentLoad}, " +
+                         $"現在の容量: {CurrentLoad}, " +
                          $"削除しようとした量: {amount}");
 
         // 現在の容量が不足している場合は、現在の容量を全て取り出す
-        var takenAmount = currentLoad;
-        currentLoad = 0;
+        var takenAmount = CurrentLoad;
+        CurrentLoad = 0;
         
         // リソースを全部取り出した後は、リソースタイプをリセット
         _storedResourceType = ResourceType.None;
@@ -108,5 +127,13 @@ public class StorageCell : CellBase
     /// <summary>
     /// 容量上限に達しているかどうかを確認。
     /// </summary>
-    public bool IsFull() => currentLoad == capacity;
+    public bool IsFull() => CurrentLoad == capacity;
+    
+    private void UpdateUI()
+    {
+        if (storageAmountBar == null) return;
+
+        // ストレージの容量に応じてUIを更新
+        storageAmountBar.fillAmount = (float)CurrentLoad / capacity;
+    }
 }
