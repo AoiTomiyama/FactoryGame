@@ -32,7 +32,7 @@ public class ExtractorCell : CellBase
         {
             _ = GridFieldDatabase.Instance.TryGetCellFromRange(XIndex, ZIndex, 1, out _adjacentStorageCells[i]);
         }
-        
+
         extractionProgressBar.fillAmount = 0;
         storageAmountBar.fillAmount = 0;
 
@@ -44,6 +44,12 @@ public class ExtractorCell : CellBase
     {
         while (true)
         {
+            extractionProgressBar.fillAmount = 0f;
+            var tween = extractionProgressBar
+                .DOFillAmount(1f, extractionSecond)
+                .SetEase(Ease.Linear);
+
+            yield return tween.WaitForCompletion();
             // ストレージに保存できる容量があるか確認
             if (_currentExtractedAmount < extractionCapacity)
             {
@@ -55,13 +61,6 @@ public class ExtractorCell : CellBase
                 yield return new WaitUntil(HasStorageCapacity);
                 OutputResources();
             }
-
-            extractionProgressBar.fillAmount = 0f;
-            var tween = extractionProgressBar
-                .DOFillAmount(1f, extractionSecond)
-                .SetEase(Ease.Linear);
-
-            yield return tween.WaitForCompletion();
         }
     }
 
