@@ -3,7 +3,7 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class ExtractorCellBase : ConnectableCellBase
+public sealed class ExtractorCellBase : ConnectableCellBase
 {
     [Header("抽出設定")]
     [SerializeField] private ResourceType resourceType;
