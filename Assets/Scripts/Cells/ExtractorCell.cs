@@ -1,12 +1,19 @@
 using System.Collections;
+using DG.Tweening;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ExtractorCell : CellBase
 {
+    [Header("抽出設定")]
     [SerializeField] private ResourceType resourceType;
-    [SerializeField] private int extractionSecond;
+    [SerializeField] private float extractionSecond;
     [SerializeField] private int extractionAmount;
     [SerializeField] private int extractionCapacity;
+
+    [Header("UI設定")]
+    [SerializeField] private Image extractionProgressBar;
+    [SerializeField] private Image storageAmountBar;
 
     private CellBase _forwardCell;
     private StorageCell[] _adjacentStorageCells;
@@ -25,8 +32,11 @@ public class ExtractorCell : CellBase
         {
             _ = GridFieldDatabase.Instance.TryGetCellFromRange(XIndex, ZIndex, 1, out _adjacentStorageCells[i]);
         }
+        
+        extractionProgressBar.fillAmount = 0;
+        storageAmountBar.fillAmount = 0;
 
-        if (_forwardCell == null) return;
+        if (_forwardCell == null || _forwardCell is not ResourceCell) return;
         StartCoroutine(ExtractEnumerator());
     }
 
@@ -49,7 +59,12 @@ public class ExtractorCell : CellBase
                 OutputResources();
             }
 
-            yield return new WaitForSeconds(extractionSecond);
+            extractionProgressBar.fillAmount = 0f;
+            var tween = extractionProgressBar
+                .DOFillAmount(1f, extractionSecond)
+                .SetEase(Ease.Linear);
+
+            yield return tween.WaitForCompletion();
         }
     }
 
@@ -102,6 +117,7 @@ public class ExtractorCell : CellBase
         }
 
         OutputResources();
+        UpdateUI();
     }
 
     private void OutputResources()
@@ -123,6 +139,14 @@ public class ExtractorCell : CellBase
 
             // ストレージに保存できなかった分は戻す
             _currentExtractedAmount += (output > 0) ? output : 0;
+        }
+    }
+
+    private void UpdateUI()
+    {
+        if (storageAmountBar != null)
+        {
+            storageAmountBar.fillAmount = (float)_currentExtractedAmount / extractionCapacity;
         }
     }
 }
