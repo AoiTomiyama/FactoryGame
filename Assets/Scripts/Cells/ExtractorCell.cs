@@ -51,9 +51,6 @@ public class ExtractorCell : CellBase
             }
             else
             {
-#if UNITY_EDITOR
-                Debug.Log($"容量上限に到達: {_currentExtractedAmount}");
-#endif
                 // 容量上限に達した場合はスペースが空くまで待機
                 yield return new WaitUntil(HasStorageCapacity);
                 OutputResources();
@@ -111,9 +108,6 @@ public class ExtractorCell : CellBase
             resourceCell.ResourceType == resourceType)
         {
             _currentExtractedAmount += extractionAmount;
-#if UNITY_EDITOR
-            Debug.Log("生産: " + _currentExtractedAmount + "/" + extractionCapacity);
-#endif
         }
 
         OutputResources();
