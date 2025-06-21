@@ -7,13 +7,18 @@ public abstract class ConnectableCellBase : CellBase
 {
     protected CellBase[] AdjacentCells { get; private set; }
     private const int AdjacentCount = 4;
+    protected event Action OnAdjacentConnected;
 
     protected virtual void Start()
     {
         AdjacentCells = new CellBase[AdjacentCount];
 
         ConnectAdjacentCells(this);
+        PipelineNetworkManager.Instance.AddCellToNetwork(this);
     }
+    
+    public bool HasCellConnected(CellBase cell) => AdjacentCells.Contains(cell);
+    public CellBase[] GetAdjacentCells() => AdjacentCells;
 
     private void ConnectAdjacentCells(ConnectableCellBase fromCell)
     {
@@ -46,6 +51,9 @@ public abstract class ConnectableCellBase : CellBase
             // 向こうのセルのAdjacentCellsに接続元のセルを追加
             connectableCell.ConnectAdjacentCells(fromCell);
         }
+        
+        // 接続が完了したらイベントを呼び出す
+        OnAdjacentConnected?.Invoke();
     }
 
     private void OnDrawGizmos()

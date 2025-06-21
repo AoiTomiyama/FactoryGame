@@ -1,7 +1,8 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public sealed class StorageCell : ConnectableCellBase
+public sealed class StorageCell : ConnectableCellBase, IContainable
 {
     [Header("ストレージセルの設定")]
     [SerializeField] [InspectorReadOnly] private int currentLoad;
@@ -11,6 +12,11 @@ public sealed class StorageCell : ConnectableCellBase
     [SerializeField] private Image storageAmountBar;
     [SerializeField] private Image resourceIconImage;
     [SerializeField] private ResourceIconSO resourceIconSo;
+    public int StorageAmount
+    {
+        get => currentLoad;
+        set => currentLoad = value;
+    }
 
     private ResourceType _storedResourceType = ResourceType.None;
     private ResourceType StoredResourceType
@@ -40,12 +46,6 @@ public sealed class StorageCell : ConnectableCellBase
         UpdateResourceIcon();
     }
 
-    /// <summary>
-    /// ストレージにリソースを追加します。入りきらなかった分は戻り値として返される
-    /// </summary>
-    /// <param name="amount">ストレージに入れる量</param>
-    /// <param name="resourceType">リソースの種類</param>
-    /// <returns>ストレージに入りきらなかった量</returns>
     public int StoreResource(int amount, ResourceType resourceType)
     {
         // 初めてのリソース追加
@@ -109,9 +109,6 @@ public sealed class StorageCell : ConnectableCellBase
         return takenAmount;
     }
     
-    /// <summary>
-    /// 容量上限に達しているかどうかを確認。
-    /// </summary>
     public bool IsFull() => CurrentLoad == capacity;
     
     private void UpdateUI()

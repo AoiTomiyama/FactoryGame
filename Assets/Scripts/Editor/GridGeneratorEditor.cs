@@ -36,7 +36,7 @@ public class GridGeneratorEditor : Editor
             }
         }
 
-        fieldGenerator.ClearGrid(_anchorTransform);
+        GridFieldGenerator.ClearGrid(_anchorTransform);
         DestroyImmediate(_anchorTransform.gameObject);
     }
 

@@ -15,7 +15,7 @@ public class GridFieldDatabase : MonoBehaviour
 
             if (_instance != null) return _instance;
 #if UNITY_EDITOR
-            Debug.LogError("GridFieldDatabaseがシーンに存在しません。");
+            Debug.LogError($"{nameof(GridFieldDatabase)}がシーンに存在しません。");
 #endif
             return null;
         }
@@ -30,7 +30,7 @@ public class GridFieldDatabase : MonoBehaviour
         {
             _instance = this;
         }
-        else if (_instance != this)
+        else
         {
             Debug.LogWarning("GridFieldDatabaseのインスタンスが複数存在します。最初のインスタンスを保持します。");
             Destroy(gameObject);
@@ -177,8 +177,6 @@ public class GridFieldDatabase : MonoBehaviour
 
                 visited[nextX][nextZ] = true;
                 queue.Enqueue((nextX, nextZ, dist + 1));
-
-                // 中心セルが型Tのセルで、かつcellBaseがnullまたは異なる場合は代入する
             }
         }
 

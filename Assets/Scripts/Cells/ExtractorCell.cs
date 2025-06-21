@@ -1,9 +1,11 @@
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
-public sealed class ExtractorCellBase : ConnectableCellBase
+public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
 {
     [Header("抽出設定")]
     [SerializeField] private ResourceType resourceType;
@@ -15,6 +17,13 @@ public sealed class ExtractorCellBase : ConnectableCellBase
     [SerializeField] private Image extractionProgressBar;
     [SerializeField] private Image storageAmountBar;
 
+    public int StorageAmount
+    {
+        get => _currentExtractedAmount;
+        set => _currentExtractedAmount = value;
+    }
+
+    public HashSet<(int length, List<ConnectableCellBase> path)> ExportPaths { get; set; } = new();
     private CellBase _forwardCell;
     private int _currentExtractedAmount;
 
@@ -46,7 +55,7 @@ public sealed class ExtractorCellBase : ConnectableCellBase
             if (_currentExtractedAmount < extractionCapacity)
             {
                 extractionProgressBar.fillAmount = 0f;
-            
+
                 var tween = extractionProgressBar
                     .DOFillAmount(1f, extractionSecond)
                     .SetEase(Ease.Linear);
@@ -58,7 +67,7 @@ public sealed class ExtractorCellBase : ConnectableCellBase
             {
                 // 容量上限に達した場合はスペースが空くまで待機
                 yield return new WaitUntil(() => HasStorageCapacity(out _));
-                OutputResources();
+                ExportResources();
                 UpdateUI();
             }
         }
@@ -67,27 +76,30 @@ public sealed class ExtractorCellBase : ConnectableCellBase
     /// <summary>
     /// 周囲のストレージセルが見つかり、かつ容量に空きがあるかを確認する
     /// </summary>
-    /// <returns></returns>
-    private bool HasStorageCapacity(out StorageCell storageCell)
+    private bool HasStorageCapacity(out IContainable containable)
     {
-        foreach (var cell in AdjacentCells)
+        if (ExportPaths == null || ExportPaths.Count == 0)
         {
-            // セルがnullの場合はスキップ
-            if (cell == null) continue;
-            
-            // ストレージセルでない場合もスキップ
-            if (cell is not StorageCell storage) continue;
-            
-            // ストレージセルが見つかったが、容量がいっぱいの場合はスキップ
+            containable = null;
+            return false;
+        }
+        containable = null;
+        var hasCapacity = false;
+        
+        // 経路の先にストレージセルがある場合、そこにリソースを保存する
+        foreach (var (_, path) in ExportPaths)
+        {
+            // 経路の終点がストレージセルでない場合はスキップ
+            if (path?.Last() is not IContainable storage) continue;
+
             if (storage.IsFull()) continue;
             
-            storageCell = storage;
-            return true;
+            // 空きのあるストレージセルが見つかった場合は、trueを返す
+            containable = storage;
+            hasCapacity = true;
+            break;
         }
-
-        // 周囲のセルにストレージセルが見つからない、もしくは全て容量がいっぱいの場合はfalseを返す
-        storageCell = null;
-        return false;
+        return hasCapacity;
     }
 
     private void Extract()
@@ -99,21 +111,8 @@ public sealed class ExtractorCellBase : ConnectableCellBase
             _currentExtractedAmount += extractionAmount;
         }
 
-        OutputResources();
+        ExportResources();
         UpdateUI();
-    }
-
-    private void OutputResources()
-    {
-        // ストレージセルがない場合、処理を終了
-        if (!HasStorageCapacity(out var storage)) return;
-
-        // ストレージセルに保存できる量がある場合は、保存する
-        var overflowAmount = storage.StoreResource(_currentExtractedAmount, resourceType);
-        _currentExtractedAmount = 0;
-
-        // ストレージに保存できなかった分は戻す
-        _currentExtractedAmount += overflowAmount;
     }
 
     private void UpdateUI()
@@ -121,6 +120,47 @@ public sealed class ExtractorCellBase : ConnectableCellBase
         if (storageAmountBar != null)
         {
             storageAmountBar.fillAmount = (float)_currentExtractedAmount / extractionCapacity;
+        }
+    }
+
+    public void ExportResources()
+    {
+        // 経路の先にストレージセルがある場合、そこにリソースを保存する
+        if (!HasStorageCapacity(out var containable)) return;
+        
+        // ストレージに保存できる量を計算
+        var overflowAmount = containable.StoreResource(_currentExtractedAmount, resourceType);
+        _currentExtractedAmount = 0;
+
+        // ストレージに保存できなかった分は戻す
+        _currentExtractedAmount += overflowAmount;
+    }
+
+    public void AddPath(int length, List<ConnectableCellBase> path)
+    {
+        // 既に同じパスが存在する場合は追加しない
+        if (ExportPaths.Any(p => p.path.SequenceEqual(path))) return;
+        if (path.Last() is not IContainable)
+        {
+            Debug.LogWarning("パスの終点がストレージセルではありません。パスを追加できません。", this);
+            return;
+        }
+        
+        ExportPaths.Add((length, path));
+        ExportPaths = ExportPaths.OrderBy(p => p.length).ToHashSet();
+    }
+    
+    private void OnDrawGizmos()
+    {
+        foreach (var cell in ExportPaths)
+        {
+            if (cell.path == null || cell.path.Count == 0) continue;
+
+            // パスの先頭から終点までの線を描画
+            var startPadding = Vector3.up * 3f;
+            var endPadding = Vector3.up * 4f;
+            Gizmos.color = Color.blue;
+            Gizmos.DrawLine(transform.position + startPadding, cell.path.Last().transform.position + endPadding);
         }
     }
 }

@@ -53,7 +53,7 @@ public class GridFieldGenerator : MonoBehaviour
     /// <summary>
     /// グリット情報のクリア
     /// </summary>
-    public void ClearGrid(Transform parent)
+    public static void ClearGrid(Transform parent)
     {
         for (int i = parent.childCount - 1; i >= 0; i--)
         {

@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -45,53 +46,73 @@ public class PipelineNetworkManager : MonoBehaviour
         if (_pipelineNetworks.Any(network => network.Contains(cell))) return;
 
         // ネットワークを検索して、同じネットワークに属するセルがあるか確認
-        foreach (var network in
-                 _pipelineNetworks.Where(network => network.Any(cell.HasCellConnected)))
-        {
-            // 既存のネットワークに追加
-            network.Add(cell);
-            
-            if (cell is IContainable containableCell)
-            {
-                // IContainableセルの場合、ネットワークの最初のセルを設定
-                containableCell.networkPath = GetNearestPathByNetwork(cell);
-            }
-            return;
-        }
+        var connectedNetworks = _pipelineNetworks
+            .Where(network => network.Any(cell.HasCellConnected)).ToList();
 
-        // どのネットワークにも属していない場合、新しいネットワークを作成
-        _pipelineNetworks.Add(new List<ConnectableCellBase> { cell });
+        Debug.Log("connected: " + connectedNetworks.Count);
+        switch (connectedNetworks.Count)
+        {
+            case >= 2:
+            {
+                // 複数のネットワークに属している場合、統合する
+                var mergedNetwork = new List<ConnectableCellBase>();
+                foreach (var network in connectedNetworks)
+                {
+                    mergedNetwork.AddRange(network);
+                    _pipelineNetworks.Remove(network);
+                }
+
+                mergedNetwork.Add(cell);
+                _pipelineNetworks.Add(mergedNetwork);
+                RegisterAllNetworkPaths(mergedNetwork);
+                return;
+            }
+            case 1:
+                // 既存のネットワークに追加
+                connectedNetworks[0].Add(cell);
+                RegisterAllNetworkPaths(connectedNetworks[0]);
+                return;
+            default:
+                // どのネットワークにも属していない場合、新しいネットワークを作成
+                _pipelineNetworks.Add(new List<ConnectableCellBase> { cell });
+                break;
+        }
     }
 
-    public List<ConnectableCellBase> GetNearestPathByNetwork(ConnectableCellBase startCell)
+    private void RegisterAllNetworkPaths(List<ConnectableCellBase> network)
     {
-        if (startCell == null) return null;
+        // ネットワーク内のセルが2つ以上ある場合のみ経路を登録
+        if (network.Count < 2) return;
+
+        // ネットワーク内の各セルを起点として経路を登録
+        foreach (var startCell in network.Where(startCell => startCell is IExportable or IContainable))
+        {
+            RegisterNearestPathByNetwork(startCell);
+        }
+    }
+
+    private void RegisterNearestPathByNetwork(ConnectableCellBase startCell)
+    {
+        if (startCell == null) return;
 
         var network = _pipelineNetworks.FirstOrDefault(network => network.Contains(startCell));
         if (network == null)
         {
             Debug.LogWarning("指定されたセルはネットワークに属していません。");
-            return null;
+            return;
         }
 
         // BFSを用いて、ネットワーク内での最短経路を設定
         var queue = new Queue<ConnectableCellBase>();
         var visited = new HashSet<ConnectableCellBase>();
         var path = new Dictionary<ConnectableCellBase, ConnectableCellBase>();
-        ConnectableCellBase targetCell = null;
+        ConnectableCellBase endCell = null;
 
         queue.Enqueue(startCell);
         visited.Add(startCell);
         while (queue.Count > 0)
         {
             var currentCell = queue.Dequeue();
-
-            // 目的のセルに到達した場合、探索を終了
-            if (currentCell is IContainable)
-            {
-                targetCell = currentCell;
-                break;
-            }
 
             // ネットワーク内のセルを探索
             foreach (var adjacentCell in currentCell.GetAdjacentCells())
@@ -100,31 +121,50 @@ public class PipelineNetworkManager : MonoBehaviour
 
                 if (adjacentCell is not ConnectableCellBase connectableCell) continue;
 
-                if (!network.Contains(connectableCell)) continue;
-
                 queue.Enqueue(connectableCell);
                 visited.Add(connectableCell);
                 path[connectableCell] = currentCell;
+            }
+            
+            // 片方はIExportable、もう片方はIContainableにだけキャスト可能な場合を終了判定とする。
+
+            if (startCell is IExportable && currentCell is IContainable ||
+                startCell is IContainable && currentCell is IExportable)
+            {
+                endCell = currentCell;
+                break;
             }
         }
 
         if (path.Count == 0)
         {
             Debug.LogWarning("指定されたネットワーク内に経路が見つかりませんでした。");
-            return null;
+            return;
         }
 
         // 最短経路を設定
         var resultPath = new List<ConnectableCellBase>();
-        var current = targetCell;
+        
+        var current = endCell;
         while (current != null && path.ContainsKey(current))
         {
             resultPath.Add(current);
             current = path[current];
         }
+        Debug.Log(string.Join("->", resultPath.Select(cell => $"({cell.XIndex}, {cell.ZIndex})")));
 
-        // 経路を逆順にして、開始セルから目的セルへの順序にする
-        resultPath.Reverse(); 
-        return resultPath;
+        var length = resultPath.Count;
+
+        // 片方はIExportable、もう片方はIContainableにだけキャスト可能の場合に経路を追加
+        switch (startCell)
+        {
+            case IExportable exportableStart when endCell is IContainable:
+                resultPath.Reverse();
+                exportableStart.AddPath(length, resultPath);
+                break;
+            case IContainable when endCell is IExportable exportableEnd:
+                exportableEnd.AddPath(length, resultPath);
+                break;
+        }
     }
 }
