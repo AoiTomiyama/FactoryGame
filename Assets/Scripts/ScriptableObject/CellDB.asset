@@ -28,4 +28,7 @@ MonoBehaviour:
   - fieldCellPrefab: {fileID: 6212439157261283221, guid: 7e74f176962ae124980ebf269eae7b1b, type: 3}
     placeholderCellPrefab: {fileID: 4466352164537763720, guid: 4eea4101ab8839b43923bc39bad504a2, type: 3}
     cellType: 6
-  isInitialized: 1
+  - fieldCellPrefab: {fileID: 1329475835080766442, guid: 6b72c8934c608894ea0df10b5acfcc99, type: 3}
+    placeholderCellPrefab: {fileID: 807630649232458751, guid: bbebae66a966d764d872d1f582493e9e, type: 3}
+    cellType: 7
+  isInitialized: 0

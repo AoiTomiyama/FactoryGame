@@ -101,4 +101,5 @@ public enum CellType
     ResourceIron,
     Extractor,
     Storage,
+    ItemPipe,
 }
