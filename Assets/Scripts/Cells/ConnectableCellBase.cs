@@ -6,7 +6,7 @@ using UnityEngine;
 public abstract class ConnectableCellBase : CellBase
 {
     protected CellBase[] AdjacentCells { get; private set; }
-    private const int AdjacentCount = 4;
+    protected const int AdjacentCount = 4;
     protected event Action OnAdjacentConnected;
 
     protected virtual void Start()
@@ -39,6 +39,8 @@ public abstract class ConnectableCellBase : CellBase
             // 取得できたセルがEmptyCellであればスキップ
             if (foundCell is EmptyCell) continue;
             
+            if (AdjacentCells.Contains(foundCell)) continue;
+            
             // 取得できたセルをAdjacentCellsに追加
             AdjacentCells[i] = foundCell;
 
@@ -63,7 +65,7 @@ public abstract class ConnectableCellBase : CellBase
         // 接続表示（デバッグ用）
         Gizmos.color = Color.green;
         var startPadding = Vector3.up * 3f;
-        var endPadding = Vector3.up * 4f;
+        var endPadding = Vector3.up * 3.2f;
         foreach (var cell in AdjacentCells.Where(cell => cell != null))
         {
             Gizmos.DrawLine(transform.position + startPadding, cell.transform.position + endPadding);
