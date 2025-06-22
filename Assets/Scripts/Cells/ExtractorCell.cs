@@ -17,15 +17,10 @@ public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
     [SerializeField] private Image extractionProgressBar;
     [SerializeField] private Image storageAmountBar;
 
-    public int StorageAmount
-    {
-        get => _currentExtractedAmount;
-        set => _currentExtractedAmount = value;
-    }
+    public int StorageAmount { get; set; }
 
     public HashSet<(int length, List<ConnectableCellBase> path)> ExportPaths { get; set; } = new();
     private CellBase _forwardCell;
-    private int _currentExtractedAmount;
 
     protected override void Start()
     {
@@ -52,7 +47,7 @@ public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
         while (true)
         {
             // ストレージに保存できる容量があるか確認
-            if (_currentExtractedAmount < extractionCapacity)
+            if (StorageAmount < extractionCapacity)
             {
                 extractionProgressBar.fillAmount = 0f;
 
@@ -108,7 +103,7 @@ public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
         if (_forwardCell is ResourceCell resourceCell &&
             resourceCell.ResourceType == resourceType)
         {
-            _currentExtractedAmount += extractionAmount;
+            StorageAmount += extractionAmount;
         }
 
         ExportResources();
@@ -119,7 +114,7 @@ public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
     {
         if (storageAmountBar != null)
         {
-            storageAmountBar.fillAmount = (float)_currentExtractedAmount / extractionCapacity;
+            storageAmountBar.fillAmount = (float)StorageAmount / extractionCapacity;
         }
     }
 
@@ -129,11 +124,11 @@ public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
         if (!HasStorageCapacity(out var containable)) return;
         
         // ストレージに保存できる量を計算
-        var overflowAmount = containable.StoreResource(_currentExtractedAmount, resourceType);
-        _currentExtractedAmount = 0;
+        var overflowAmount = containable.StoreResource(StorageAmount, resourceType);
+        StorageAmount = 0;
 
         // ストレージに保存できなかった分は戻す
-        _currentExtractedAmount += overflowAmount;
+        StorageAmount += overflowAmount;
     }
 
     public void AddPath(int length, List<ConnectableCellBase> path)
