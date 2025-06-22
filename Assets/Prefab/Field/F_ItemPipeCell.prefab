@@ -81,6 +81,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 73083672ba857a84a8afb5eab27a077b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  pipeConnectionPrefab: {fileID: 4386132840877314966, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
 --- !u!4 &6040249969496787429 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 878906971913252476, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
@@ -95,32 +96,8 @@ PrefabInstance:
     m_TransformParent: {fileID: 6040249969496787429}
     m_Modifications:
     - target: {fileID: 3908655582398405483, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
-      propertyPath: m_LocalPosition.x
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3908655582398405483, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.5
-      objectReference: {fileID: 0}
-    - target: {fileID: 3908655582398405483, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
-      propertyPath: m_LocalPosition.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3908655582398405483, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
-      propertyPath: m_LocalRotation.w
-      value: 1
-      objectReference: {fileID: 0}
-    - target: {fileID: 3908655582398405483, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
-      propertyPath: m_LocalRotation.x
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3908655582398405483, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
-      propertyPath: m_LocalRotation.y
-      value: -0
-      objectReference: {fileID: 0}
-    - target: {fileID: 3908655582398405483, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
-      propertyPath: m_LocalRotation.z
-      value: -0
       objectReference: {fileID: 0}
     - target: {fileID: 3908655582398405483, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
