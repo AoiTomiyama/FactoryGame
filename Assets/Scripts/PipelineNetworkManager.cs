@@ -49,7 +49,6 @@ public class PipelineNetworkManager : MonoBehaviour
         var connectedNetworks = _pipelineNetworks
             .Where(network => network.Any(cell.HasCellConnected)).ToList();
 
-        Debug.Log("connected: " + connectedNetworks.Count);
         switch (connectedNetworks.Count)
         {
             case >= 2:

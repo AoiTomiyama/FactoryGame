@@ -148,6 +148,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         var objName = _selectedCell.name;
         var pos = _selectedCell.transform.position;
         var parent = _selectedCell.transform.parent;
+        var index = _selectedCell.transform.GetSiblingIndex();
 
         // セルを削除
         Destroy(_selectedCell.gameObject);
@@ -155,6 +156,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
 
         // 新しいセルを生成
         var newObj = Instantiate(prefab, pos, transform.rotation, parent);
+        newObj.transform.SetSiblingIndex(index);
         newObj.name = objName;
 
         // 新しいセルの情報を保存
