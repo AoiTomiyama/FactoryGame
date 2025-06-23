@@ -3,11 +3,11 @@ using UnityEngine;
 public sealed class ItemPipeCell : ConnectableCellBase
 {
     [SerializeField] private GameObject pipeConnectionPrefab;
-    private bool[] _isConnected;
+    private GameObject[] _adjacentPipes;
 
     protected override void Start()
     {
-        _isConnected = new bool[AdjacentCount];
+        _adjacentPipes = new GameObject[AdjacentCount];
         OnAdjacentConnected += OnConnected;
         base.Start();
     }
@@ -17,13 +17,25 @@ public sealed class ItemPipeCell : ConnectableCellBase
         for (var i = 0; i < AdjacentCount; i++)
         {
             var cell = AdjacentCells[i];
-            if (cell == null || _isConnected[i]) continue;
+            
+            var pipe = _adjacentPipes[i];
+            if (pipe != null)
+            {
+                if (cell == null)
+                {
+                    Destroy(pipe);
+                    _adjacentPipes[i] = null;
+                }
+                continue;
+            }
+
             if (cell is not (ItemPipeCell or IContainable or IExportable)) continue;
 
             var dir = cell.transform.position - transform.position;
-            Instantiate(pipeConnectionPrefab, transform.position + dir / 3f + CellModel.transform.localPosition,
+            var connectPipe = Instantiate(pipeConnectionPrefab,
+                transform.position + dir / 3f + CellModel.transform.localPosition,
                 Quaternion.identity, transform);
-            _isConnected[i] = true;
+            _adjacentPipes[i] = connectPipe;
         }
     }
 }

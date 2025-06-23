@@ -150,6 +150,11 @@ public class PlayerCursorBehaviour : MonoBehaviour
         var parent = _selectedCell.transform.parent;
         var index = _selectedCell.transform.GetSiblingIndex();
 
+        if (_selectedCell is ConnectableCellBase connectableCell) 
+        {
+            connectableCell.OnDisconnect();
+        }
+        
         // セルを削除
         Destroy(_selectedCell.gameObject);
         _selectedCell = null;

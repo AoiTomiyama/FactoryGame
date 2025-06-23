@@ -1,5 +1,3 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -38,6 +36,10 @@ public class PipelineNetworkManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// セルをネットワークに追加します。
+    /// </summary>
+    /// <param name="cell"></param>
     public void AddCellToNetwork(ConnectableCellBase cell)
     {
         if (cell == null) return;
@@ -78,7 +80,37 @@ public class PipelineNetworkManager : MonoBehaviour
         }
     }
 
-    private void RegisterAllNetworkPaths(List<ConnectableCellBase> network)
+    /// <summary>
+    /// セルをネットワークから削除します。
+    /// </summary>
+    /// <param name="cell"></param>
+    public void RemoveCellFromNetwork(ConnectableCellBase cell)
+    {
+        if (cell == null) return;
+
+        // ネットワークからセルを削除
+        var network = _pipelineNetworks.FirstOrDefault(n => n.Contains(cell));
+        if (network == null) return;
+
+        network.Remove(cell);
+
+        // ネットワークが空になった場合は削除
+        // 空でない場合は、経路を再登録
+        if (network.Count == 0)
+        {
+            _pipelineNetworks.Remove(network);
+        }
+        else
+        {
+            RegisterAllNetworkPaths(network);
+        }
+    }
+
+    /// <summary>
+    /// ネットワーク内の全てのセル間の経路を登録します。
+    /// </summary>
+    /// <param name="network"></param>
+    private static void RegisterAllNetworkPaths(List<ConnectableCellBase> network)
     {
         // ネットワーク内のセルが2つ以上ある場合のみ経路を登録
         if (network.Count < 2) return;
@@ -93,38 +125,39 @@ public class PipelineNetworkManager : MonoBehaviour
         }
     }
 
-    private void RegisterNearestPathByNetwork(ConnectableCellBase startCell, ConnectableCellBase endCell)
+    /// <summary>
+    /// ネットワーク内の2つのセル間の最短経路を登録します。
+    /// </summary>
+    /// <param name="startCell"></param>
+    /// <param name="endCell"></param>
+    private static void RegisterNearestPathByNetwork(ConnectableCellBase startCell, ConnectableCellBase endCell)
     {
         if (startCell == null) return;
 
         // BFSを用いて、ネットワーク内での最短経路を設定
         var queue = new Queue<ConnectableCellBase>();
-        var visited = new HashSet<ConnectableCellBase>();
         var path = new Dictionary<ConnectableCellBase, ConnectableCellBase>();
+        var visited = new HashSet<ConnectableCellBase> { startCell };
 
         queue.Enqueue(startCell);
-        visited.Add(startCell);
         while (queue.Count > 0)
         {
             var currentCell = queue.Dequeue();
 
             // ネットワーク内のセルを探索
-            foreach (var adjacentCell in currentCell.GetAdjacentCells())
+            // 検索条件
+            // ・ConnectableCellBase型である
+            // ・既に訪問済みでない
+            foreach (var connectableCell in currentCell.GetAdjacentCells()
+                         .OfType<ConnectableCellBase>()
+                         .Where(cell => !visited.Contains(cell)))
             {
-                if (adjacentCell == null || visited.Contains(adjacentCell)) continue;
-
-                if (adjacentCell is not ConnectableCellBase connectableCell) continue;
-
                 queue.Enqueue(connectableCell);
                 visited.Add(connectableCell);
                 path[connectableCell] = currentCell;
-            }
 
-            // 片方はIExportable、もう片方はIContainableにだけキャスト可能な場合を終了判定とする。
-
-            if (currentCell == endCell)
-            {
-                break;
+                // 終点に到達した場合、探索を終了
+                if (currentCell == endCell)　break;
             }
         }
 

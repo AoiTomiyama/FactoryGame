@@ -58,6 +58,30 @@ public abstract class ConnectableCellBase : CellBase
         OnAdjacentConnected?.Invoke();
     }
 
+    private void DisconnectAdjacentCells()
+    {
+        if (AdjacentCells == null || AdjacentCells.Length == 0) return;
+        // 接続を解除する
+        for (int i = 0; i < AdjacentCount; i++)
+        {
+            if (AdjacentCells[i] == null) continue;
+            if (AdjacentCells[i] is not ConnectableCellBase connectableCell) continue;
+
+            // 向こうのセルのAdjacentCellsから接続元のセルを削除
+            connectableCell.AdjacentCells = connectableCell.AdjacentCells
+                .Select(cell => cell != this ? cell : null).ToArray();
+            connectableCell.OnAdjacentConnected?.Invoke();
+            
+            AdjacentCells[i] = null;
+        }
+    }
+
+    public void OnDisconnect()
+    {
+        DisconnectAdjacentCells();
+        PipelineNetworkManager.Instance.RemoveCellFromNetwork(this);
+    }
+
     private void OnDrawGizmos()
     {
         if (AdjacentCells == null || AdjacentCells.Length == 0) return;

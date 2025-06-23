@@ -78,9 +78,12 @@ public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
             containable = null;
             return false;
         }
+
         containable = null;
         var hasCapacity = false;
-        
+
+        RefreshPaths();
+
         // 経路の先にストレージセルがある場合、そこにリソースを保存する
         foreach (var (_, path) in ExportPaths)
         {
@@ -88,13 +91,22 @@ public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
             if (path?.Last() is not IContainable storage) continue;
 
             if (storage.IsFull()) continue;
-            
+
             // 空きのあるストレージセルが見つかった場合は、trueを返す
             containable = storage;
             hasCapacity = true;
             break;
         }
+
         return hasCapacity;
+    }
+
+    private void RefreshPaths()
+    {
+        // ExportPathsを更新するために、現在のセルからストレージセルまでのパスを再計算
+        var refreshedPaths = ExportPaths.Where(pathInfo => pathInfo.path.All(cell => cell != null)).ToHashSet();
+        ExportPaths.Clear();
+        ExportPaths = refreshedPaths;
     }
 
     private void Extract()
@@ -122,7 +134,7 @@ public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
     {
         // 経路の先にストレージセルがある場合、そこにリソースを保存する
         if (!HasStorageCapacity(out var containable)) return;
-        
+
         // ストレージに保存できる量を計算
         var overflowAmount = containable.StoreResource(StorageAmount, resourceType);
         StorageAmount = 0;
@@ -135,16 +147,21 @@ public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
     {
         // 既に同じパスが存在する場合は追加しない
         if (ExportPaths.Any(p => p.path.SequenceEqual(path))) return;
+        if (path == null || path.Count == 0)
+        {
+            Debug.LogWarning("パスが空です。パスを追加できません。", this);
+            return;
+        }
         if (path.Last() is not IContainable)
         {
             Debug.LogWarning("パスの終点がストレージセルではありません。パスを追加できません。", this);
             return;
         }
-        
+
         ExportPaths.Add((length, path));
         ExportPaths = ExportPaths.OrderBy(p => p.length).ToHashSet();
     }
-    
+
     private void OnDrawGizmos()
     {
         foreach (var cell in ExportPaths)
