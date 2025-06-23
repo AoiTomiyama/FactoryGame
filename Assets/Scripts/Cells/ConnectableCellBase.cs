@@ -41,6 +41,13 @@ public abstract class ConnectableCellBase : CellBase
             
             if (AdjacentCells.Contains(foundCell)) continue;
             
+            if (GetType().Name == foundCell.GetType().Name)
+            {
+                if (GetType().Name != nameof(ItemPipeCell))
+                    // 同じタイプのセル同士は接続しない
+                    continue;
+            }
+            
             // 取得できたセルをAdjacentCellsに追加
             AdjacentCells[i] = foundCell;
 
@@ -82,7 +89,7 @@ public abstract class ConnectableCellBase : CellBase
         PipelineNetworkManager.Instance.RemoveCellFromNetwork(this);
     }
 
-    private void OnDrawGizmos()
+    protected virtual void OnDrawGizmos()
     {
         if (AdjacentCells == null || AdjacentCells.Length == 0) return;
 

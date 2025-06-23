@@ -17,7 +17,7 @@ public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
     [SerializeField] private Image extractionProgressBar;
     [SerializeField] private Image storageAmountBar;
 
-    public int StorageAmount { get; set; }
+    private int StorageAmount { get; set; }
 
     public HashSet<(int length, List<ConnectableCellBase> path)> ExportPaths { get; set; } = new();
     private CellBase _forwardCell;
@@ -162,8 +162,9 @@ public sealed class ExtractorCellBase : ConnectableCellBase, IExportable
         ExportPaths = ExportPaths.OrderBy(p => p.length).ToHashSet();
     }
 
-    private void OnDrawGizmos()
+    protected override void OnDrawGizmos()
     {
+        base.OnDrawGizmos();
         foreach (var cell in ExportPaths)
         {
             if (cell.path == null || cell.path.Count == 0) continue;
