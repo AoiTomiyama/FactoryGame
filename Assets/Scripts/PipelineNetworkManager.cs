@@ -138,6 +138,7 @@ public class PipelineNetworkManager : MonoBehaviour
         var queue = new Queue<ConnectableCellBase>();
         var path = new Dictionary<ConnectableCellBase, ConnectableCellBase>();
         var visited = new HashSet<ConnectableCellBase> { startCell };
+        var isReached = false;
 
         queue.Enqueue(startCell);
         while (queue.Count > 0)
@@ -152,13 +153,28 @@ public class PipelineNetworkManager : MonoBehaviour
                          .OfType<ConnectableCellBase>()
                          .Where(cell => !visited.Contains(cell)))
             {
-                queue.Enqueue(connectableCell);
                 visited.Add(connectableCell);
-                path[connectableCell] = currentCell;
 
-                // 終点に到達した場合、探索を終了
-                if (currentCell == endCell)　break;
+                if (currentCell is IContainable)
+                {
+                    // IContainableに到達した場合、指定された終点かどうかを判定
+                    if (currentCell == endCell)
+                    {
+                        path[connectableCell] = currentCell;
+                        isReached = true;
+                        break;
+                    }
+                    // 終点でない場合は、探索を続ける（登録は行わない）
+                    continue;
+                }
+
+                // 次の経路を登録
+                queue.Enqueue(connectableCell);
+                path[connectableCell] = currentCell;
             }
+            
+            // 終点に到達した場合は、探索を終了
+            if (isReached) break;
         }
 
         if (path.Count == 0)
