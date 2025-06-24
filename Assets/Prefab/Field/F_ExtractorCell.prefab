@@ -565,7 +565,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   resourceType: 1
-  extractionSecond: 1
+  extractionSecond: 0.2
   extractionAmount: 1
   extractionCapacity: 5
   extractionProgressBar: {fileID: 5612211340224938452}
