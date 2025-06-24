@@ -10,12 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 01ccd8a8a75391e49ac19b08351b909c, type: 3}
-  m_Name: ResourceIconSO
+  m_Name: ResourceDB
   m_EditorClassIdentifier: 
   resourceIcons:
   - resourceType: 1
+    prefab: {fileID: 8945298940271707279, guid: 5a0f32e1cf17ca144b829be60b2e0a79, type: 3}
     icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
   - resourceType: 2
+    prefab: {fileID: 8945298940271707279, guid: 2028cc990c9bd0a47b318f66ad41f3b5, type: 3}
     icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
   - resourceType: 0
+    prefab: {fileID: 0}
     icon: {fileID: 0}
