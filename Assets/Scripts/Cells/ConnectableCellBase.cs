@@ -7,7 +7,7 @@ public abstract class ConnectableCellBase : CellBase
 {
     protected CellBase[] AdjacentCells { get; private set; }
     protected const int AdjacentCount = 4;
-    protected event Action OnAdjacentConnected;
+    protected event Action OnConnectionChanged;
 
     protected virtual void Start()
     {
@@ -62,7 +62,7 @@ public abstract class ConnectableCellBase : CellBase
         }
         
         // 接続が完了したらイベントを呼び出す
-        OnAdjacentConnected?.Invoke();
+        OnConnectionChanged?.Invoke();
     }
 
     private void DisconnectAdjacentCells()
@@ -77,7 +77,7 @@ public abstract class ConnectableCellBase : CellBase
             // 向こうのセルのAdjacentCellsから接続元のセルを削除
             connectableCell.AdjacentCells = connectableCell.AdjacentCells
                 .Select(cell => cell != this ? cell : null).ToArray();
-            connectableCell.OnAdjacentConnected?.Invoke();
+            connectableCell.OnConnectionChanged?.Invoke();
             
             AdjacentCells[i] = null;
         }
@@ -85,6 +85,10 @@ public abstract class ConnectableCellBase : CellBase
 
     public void OnDisconnect()
     {
+        // 注: 以下の処理は本来ならOnDestroyで呼び出すのが望ましいが、
+        // PlayModeからEditorModeに切り替えたタイミングでも呼ばれてしまう（=null参照が起こる）ため、
+        // 独自の関数を定義し、外部から明示的に実行している。
+        
         DisconnectAdjacentCells();
         PipelineNetworkManager.Instance.RemoveCellFromNetwork(this);
     }

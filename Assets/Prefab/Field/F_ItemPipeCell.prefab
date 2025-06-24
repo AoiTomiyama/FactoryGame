@@ -81,7 +81,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 73083672ba857a84a8afb5eab27a077b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pipeConnectionPrefab: {fileID: 4386132840877314966, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
+  pipeConnectionPrefab: {fileID: 4386132840877314966, guid: 77765e0d16da208418a766d00615b003, type: 3}
 --- !u!4 &6040249969496787429 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 878906971913252476, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
