@@ -1,12 +1,13 @@
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "ResourceIconSO", menuName = "Scriptable Objects/ResourceIconSO")]
-public class ResourceIconSO : ScriptableObject
+public class ResourceSO : ScriptableObject
 {
     [System.Serializable]
     private struct ResourceIcon
     {
         public ResourceType resourceType;
+        public GameObject prefab;
         public Sprite icon;
     }
     [SerializeField] private ResourceIcon[] resourceIcons;
@@ -21,5 +22,17 @@ public class ResourceIconSO : ScriptableObject
         }
         Debug.LogWarning($"Resource icon not found for type: {resourceType}", this);
         return null; // or a default icon
+    }
+    public GameObject GetPrefab(ResourceType resourceType)
+    {
+        foreach (var resourceIcon in resourceIcons)
+        {
+            if (resourceIcon.resourceType == resourceType)
+            {
+                return resourceIcon.prefab;
+            }
+        }
+        Debug.LogWarning($"Resource prefab not found for type: {resourceType}", this);
+        return null; // or a default prefab
     }
 }
