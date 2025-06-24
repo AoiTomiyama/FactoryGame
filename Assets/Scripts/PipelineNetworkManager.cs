@@ -155,10 +155,10 @@ public class PipelineNetworkManager : MonoBehaviour
             {
                 visited.Add(connectableCell);
 
-                if (currentCell is IContainable)
+                if (connectableCell is IContainable)
                 {
                     // IContainableに到達した場合、指定された終点かどうかを判定
-                    if (currentCell == endCell)
+                    if (connectableCell == endCell)
                     {
                         path[connectableCell] = currentCell;
                         isReached = true;
