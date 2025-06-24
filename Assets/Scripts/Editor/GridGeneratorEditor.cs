@@ -20,11 +20,11 @@ public class GridGeneratorEditor : Editor
 
         if (GUILayout.Button("Clear Grid"))
         {
-            Clear(fieldGenerator);
+            Clear();
         }
     }
 
-    private void Clear(GridFieldGenerator fieldGenerator)
+    private void Clear()
     {
         if (_anchorTransform == null)
         {

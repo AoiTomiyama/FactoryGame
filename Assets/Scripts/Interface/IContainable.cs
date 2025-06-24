@@ -1,8 +1,6 @@
-using System.Collections.Generic;
-using UnityEngine;
-
 public interface IContainable
 {
+    public ResourceType StoredResourceType { get; }
     /// <summary>
     /// ストレージにリソースを追加します。入りきらなかった分は戻り値として返される
     /// </summary>

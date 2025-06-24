@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,7 +10,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
     [Header("UI設定")]
     [SerializeField] private Image storageAmountBar;
     [SerializeField] private Image resourceIconImage;
-    [SerializeField] private ResourceIconSO resourceIconSo;
+    [SerializeField] private ResourceSO resourceSo;
     public int StorageAmount
     {
         get => currentLoad;
@@ -19,10 +18,10 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
     }
 
     private ResourceType _storedResourceType = ResourceType.None;
-    private ResourceType StoredResourceType
+    public ResourceType StoredResourceType
     {
         get => _storedResourceType;
-        set
+        private set
         {
             _storedResourceType = value;
             UpdateResourceIcon();
@@ -125,6 +124,6 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         resourceIconImage.enabled = StoredResourceType != ResourceType.None;
         
         // アイコンを更新
-        resourceIconImage.sprite = resourceIconSo.GetIcon(StoredResourceType);
+        resourceIconImage.sprite = resourceSo.GetIcon(StoredResourceType);
     }
 }
