@@ -62,7 +62,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         if (IsFull()) return 0;
 
         // 入れようとしている値が許容量を越えている場合は十分量を返す。
-        var available = capacity - CurrentLoad;
+        var available = capacity - CurrentLoad - _allocatedAmount;
         if (available < amount)
         {
             _allocatedAmount += available;
