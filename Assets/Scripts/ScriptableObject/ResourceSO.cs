@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "ResourceIconSO", menuName = "Scriptable Objects/ResourceIconSO")]
@@ -10,29 +11,21 @@ public class ResourceSO : ScriptableObject
         public GameObject prefab;
         public Sprite icon;
     }
-    [SerializeField] private ResourceIcon[] resourceIcons;
-    public Sprite GetIcon(ResourceType resourceType)
-    {
-        foreach (var resourceIcon in resourceIcons)
-        {
-            if (resourceIcon.resourceType == resourceType)
-            {
-                return resourceIcon.icon;
-            }
-        }
-        Debug.LogWarning($"Resource icon not found for type: {resourceType}", this);
-        return null; // or a default icon
-    }
-    public GameObject GetPrefab(ResourceType resourceType)
-    {
-        foreach (var resourceIcon in resourceIcons)
-        {
-            if (resourceIcon.resourceType == resourceType)
-            {
-                return resourceIcon.prefab;
-            }
-        }
-        Debug.LogWarning($"Resource prefab not found for type: {resourceType}", this);
-        return null; // or a default prefab
-    }
+    [SerializeField] private ResourceIcon[] resourceInfos;
+    
+    /// <summary>
+    /// リソースタイプに応じたSpriteを取得する。
+    /// </summary>
+    /// <param name="resourceType">指定のタイプ</param>
+    /// <returns>一致したSprite</returns>
+    public Sprite GetIcon(ResourceType resourceType) => 
+        resourceInfos.FirstOrDefault(info => info.resourceType == resourceType).icon;
+
+    /// <summary>
+    /// リソースタイプに応じたPrefabを取得する。
+    /// </summary>
+    /// <param name="resourceType">指定のタイプ</param>
+    /// <returns>一致したPrefab</returns>
+    public GameObject GetPrefab(ResourceType resourceType) => 
+        resourceInfos.FirstOrDefault(info => info.resourceType == resourceType).prefab;
 }
