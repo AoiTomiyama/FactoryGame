@@ -152,8 +152,8 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
         StorageAmount -= allocatedAmount;
 
         var padding = Vector3.up * 1.1f;
-        var itemObj = Instantiate(resourceDatabase.GetPrefab(resourceType),
-            transform.position + padding, Quaternion.identity);
+        var itemObj = ResourceItemObjectPool.Instance.GetPrefab(resourceType);
+        itemObj.transform.position = transform.position + padding;
         
         // 始点から終点までのアニメーション
         itemObj.transform
@@ -167,7 +167,7 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
 
                 // ストレージに保存できなかった分は戻す
                 StorageAmount += overflowAmount;
-                Destroy(itemObj);
+                ResourceItemObjectPool.Instance.Return(resourceType, itemObj);
             });
     }
 
@@ -191,18 +191,24 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
         ExportPaths = ExportPaths.OrderBy(p => p.length).ToHashSet();
     }
 
-    protected override void OnDrawGizmos()
-    {
-        base.OnDrawGizmos();
-        foreach (var cell in ExportPaths)
-        {
-            if (cell.path == null || cell.path.Count == 0) continue;
-
-            // パスの先頭から終点までの線を描画
-            var startPadding = Vector3.up * 3f;
-            var endPadding = Vector3.up * 4f;
-            Gizmos.color = Color.blue;
-            Gizmos.DrawLine(transform.position + startPadding, cell.path.Last().transform.position + endPadding);
-        }
-    }
+    // 描画のし過ぎでシーンが重くなるためコメントアウト
+    // protected override void OnDrawGizmos()
+    // {
+    //     base.OnDrawGizmos();
+    //     Gizmos.color = Color.blue;
+    //     var startPadding = Vector3.up * 5f;
+    //     foreach (var (_, path) in ExportPaths.Where(pathInfo => pathInfo.path != null && pathInfo.path.Count != 0))
+    //     {
+    //         // パスの先頭から終点までの線を描画
+    //
+    //         ConnectableCellBase firstCell = this;
+    //         foreach (var cell in path)
+    //         {
+    //             Gizmos.DrawLine(firstCell.transform.position + startPadding, cell.transform.position + startPadding);
+    //             firstCell = cell;
+    //         }
+    //
+    //         startPadding += Vector3.up * 0.2f;
+    //     }
+    // }
 }
