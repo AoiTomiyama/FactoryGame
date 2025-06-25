@@ -12,14 +12,19 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
     [SerializeField] private float extractionSecond;
     [SerializeField] private int extractionAmount;
     [SerializeField] private int extractionCapacity;
+    [SerializeField] private float itemMoveBaseSecond;
 
     [Header("UI設定")]
     [SerializeField] private Image extractionProgressBar;
     [SerializeField] private Image storageAmountBar;
 
+    [Header("その他設定")]
+    [SerializeField] private ResourceSO resourceDatabase;
+
     private int StorageAmount { get; set; }
 
     public HashSet<(int length, List<ConnectableCellBase> path)> ExportPaths { get; set; } = new();
+    private List<ConnectableCellBase> _currentPath;
     private CellBase _forwardCell;
 
     protected override void Start()
@@ -92,7 +97,15 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
 
             if (storage.IsFull()) continue;
 
+            if (storage.StoredResourceType != ResourceType.None &&
+                storage.StoredResourceType != resourceType)
+            {
+                // ストレージセルのリソースタイプが異なる場合はスキップ
+                continue;
+            }
+
             // 空きのあるストレージセルが見つかった場合は、trueを返す
+            _currentPath = path;
             containable = storage;
             hasCapacity = true;
             break;
@@ -135,12 +148,27 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
         // 経路の先にストレージセルがある場合、そこにリソースを保存する
         if (!HasStorageCapacity(out var containable)) return;
 
-        // ストレージに保存できる量を計算
-        var overflowAmount = containable.StoreResource(StorageAmount, resourceType);
-        StorageAmount = 0;
+        var allocatedAmount = containable.AllocateStorage(StorageAmount);
+        StorageAmount -= allocatedAmount;
 
-        // ストレージに保存できなかった分は戻す
-        StorageAmount += overflowAmount;
+        var padding = Vector3.up * 1.1f;
+        var itemObj = Instantiate(resourceDatabase.GetPrefab(resourceType),
+            transform.position + padding, Quaternion.identity);
+        
+        // 始点から終点までのアニメーション
+        itemObj.transform
+            .DOPath(_currentPath.Select(cell => cell.transform.position + padding).ToArray(),
+                itemMoveBaseSecond * _currentPath.Count)
+            .SetEase(Ease.Linear)
+            .OnComplete(() =>
+            {
+                // ストレージに保存できる量を計算
+                var overflowAmount = containable.StoreResource(allocatedAmount, resourceType);
+
+                // ストレージに保存できなかった分は戻す
+                StorageAmount += overflowAmount;
+                Destroy(itemObj);
+            });
     }
 
     public void AddPath(int length, List<ConnectableCellBase> path)
@@ -152,6 +180,7 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
             Debug.LogWarning("パスが空です。パスを追加できません。", this);
             return;
         }
+
         if (path.Last() is not IContainable)
         {
             Debug.LogWarning("パスの終点がストレージセルではありません。パスを追加できません。", this);
