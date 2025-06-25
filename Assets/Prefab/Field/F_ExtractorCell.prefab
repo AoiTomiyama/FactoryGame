@@ -570,6 +570,7 @@ MonoBehaviour:
   extractionCapacity: 5
   extractionProgressBar: {fileID: 5612211340224938452}
   storageAmountBar: {fileID: 5684710347186014869}
+  resourceDatabase: {fileID: 11400000, guid: 5f6a275ee023b01479c5af4732e290af, type: 2}
 --- !u!4 &2416987904683171198 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 9028744536133712409, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
