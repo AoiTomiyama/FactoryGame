@@ -8,6 +8,13 @@ public interface IContainable
     /// <param name="resourceType">リソースの種類</param>
     /// <returns>ストレージに入りきらなかった量</returns>
     public int StoreResource(int amount, ResourceType resourceType);
+
+    /// <summary>
+    /// リソースの搬入を予約します。
+    /// </summary>
+    /// <param name="amount">予約する量</param>
+    /// <returns>予約に成功した量</returns>
+    public int AllocateStorage(int amount);
     
     /// <summary>
     /// 容量上限に達しているかどうかを確認。
