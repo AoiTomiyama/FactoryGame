@@ -1,0 +1,137 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Pool;
+
+public class ResourceItemObjectPool : MonoBehaviour
+{
+    private static ResourceItemObjectPool _instance;
+
+    public static ResourceItemObjectPool Instance
+    {
+        get
+        {
+            if (_instance != null) return _instance;
+            _instance = FindAnyObjectByType<ResourceItemObjectPool>();
+
+            if (_instance != null) return _instance;
+#if UNITY_EDITOR
+            Debug.LogError($"{nameof(ResourceItemObjectPool)}がシーンに存在しません。");
+#endif
+            return null;
+        }
+    }
+
+    [SerializeField] private ResourceSO resourceDatabase;
+    [SerializeField] private int defaultPoolCapacity = 100;
+    [SerializeField] private int maxPoolCapacity = 500;
+    
+    private Dictionary<ResourceType, ObjectPool<GameObject>> _pool;
+    private bool _initialized;
+    
+    private void Awake()
+    {
+        InitializePool();
+    }
+    
+    private void OnDestroy()
+    {
+        ClearPool();
+    }
+    
+    private void InitializePool()
+    {
+        if (_initialized) return;
+        _pool = new Dictionary<ResourceType, ObjectPool<GameObject>>();
+    
+        if (resourceDatabase == null)
+        {
+    #if UNITY_EDITOR
+            Debug.LogError("resourceDatabaseが設定されていません。");
+    #endif
+            return;
+        }
+    
+        var infos = resourceDatabase.GetAllInfos();
+        if (infos == null)
+        {
+    #if UNITY_EDITOR
+            Debug.LogError("resourceDatabase.GetAllInfos()がnullを返しました。");
+    #endif
+            return;
+        }
+    
+        foreach (var info in infos)
+        {
+            var prefab = info.prefab;
+            var type = info.resourceType;
+            if (prefab == null)
+            {
+    #if UNITY_EDITOR
+                Debug.LogWarning($"{type} のPrefabがnullです。");
+    #endif
+                continue;
+            }
+            if (_pool.ContainsKey(type))
+            {
+    #if UNITY_EDITOR
+                Debug.LogWarning($"{type} は既にプールに登録されています。");
+    #endif
+                continue;
+            }
+            _pool[type] = new ObjectPool<GameObject>(
+                createFunc: () => Instantiate(prefab, transform),
+                actionOnGet: obj => obj.SetActive(true),
+                actionOnRelease: obj => obj.SetActive(false),
+                actionOnDestroy: Destroy,
+                collectionCheck: true,
+                defaultCapacity: defaultPoolCapacity,
+                maxSize: maxPoolCapacity
+            );
+        }
+        _initialized = true;
+    }
+    
+    private void ClearPool()
+    {
+        if (_pool == null) return;
+        foreach (var pool in _pool.Values)
+        {
+            pool.Clear();
+        }
+        _pool.Clear();
+        _initialized = false;
+    }
+    
+    public GameObject GetPrefab(ResourceType resourceType)
+    {
+        if (!_initialized) InitializePool();
+        if (_pool != null && _pool.ContainsKey(resourceType)) return _pool[resourceType].Get();
+        
+#if UNITY_EDITOR
+        Debug.LogError($"{resourceType} のプールが存在しません。");
+#endif
+        return null;
+    }
+    
+    public void Return(ResourceType type, GameObject obj)
+    {
+        if (!_initialized) InitializePool();
+        if (_pool == null || !_pool.ContainsKey(type))
+        {
+    #if UNITY_EDITOR
+            Debug.LogError($"{type} のプールが存在しません。");
+    #endif
+            Destroy(obj);
+            return;
+        }
+        // 既にプールに戻されている場合は無視
+        if (!obj.activeInHierarchy)
+        {
+    #if UNITY_EDITOR
+            Debug.LogWarning("このオブジェクトは既にプールに戻されています。");
+    #endif
+            return;
+        }
+        _pool[type].Release(obj);
+    }
+}
