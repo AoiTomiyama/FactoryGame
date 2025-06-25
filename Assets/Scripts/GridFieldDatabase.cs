@@ -2,40 +2,10 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class GridFieldDatabase : MonoBehaviour
+public sealed class GridFieldDatabase : SingletonMonoBehaviour<GridFieldDatabase>
 {
-    private static GridFieldDatabase _instance;
-
-    public static GridFieldDatabase Instance
-    {
-        get
-        {
-            if (_instance != null) return _instance;
-            _instance = FindAnyObjectByType<GridFieldDatabase>();
-
-            if (_instance != null) return _instance;
-#if UNITY_EDITOR
-            Debug.LogError($"{nameof(GridFieldDatabase)}がシーンに存在しません。");
-#endif
-            return null;
-        }
-    }
-
     private CellBase[,] _gridCells;
     private int _gridSize;
-
-    private void Awake()
-    {
-        if (_instance == null)
-        {
-            _instance = this;
-        }
-        else
-        {
-            Debug.LogWarning("GridFieldDatabaseのインスタンスが複数存在します。最初のインスタンスを保持します。");
-            Destroy(gameObject);
-        }
-    }
 
     /// <summary>
     /// 配列の初期化とセルの保存を行う

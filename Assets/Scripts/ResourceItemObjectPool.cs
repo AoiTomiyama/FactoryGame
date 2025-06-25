@@ -2,33 +2,16 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
 
-public class ResourceItemObjectPool : MonoBehaviour
+public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItemObjectPool>
 {
-    private static ResourceItemObjectPool _instance;
-
-    public static ResourceItemObjectPool Instance
-    {
-        get
-        {
-            if (_instance != null) return _instance;
-            _instance = FindAnyObjectByType<ResourceItemObjectPool>();
-
-            if (_instance != null) return _instance;
-#if UNITY_EDITOR
-            Debug.LogError($"{nameof(ResourceItemObjectPool)}がシーンに存在しません。");
-#endif
-            return null;
-        }
-    }
-
     [SerializeField] private ResourceSO resourceDatabase;
     [SerializeField] private int defaultPoolCapacity = 100;
     [SerializeField] private int maxPoolCapacity = 500;
     
     private Dictionary<ResourceType, ObjectPool<GameObject>> _pool;
     private bool _initialized;
-    
-    private void Awake()
+
+    protected override void Awake()
     {
         InitializePool();
     }

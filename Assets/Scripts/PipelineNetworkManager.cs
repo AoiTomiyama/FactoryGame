@@ -2,39 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class PipelineNetworkManager : MonoBehaviour
+public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetworkManager>
 {
-    private static PipelineNetworkManager _instance;
-
-    public static PipelineNetworkManager Instance
-    {
-        get
-        {
-            if (_instance != null) return _instance;
-            _instance = FindAnyObjectByType<PipelineNetworkManager>();
-
-            if (_instance != null) return _instance;
-#if UNITY_EDITOR
-            Debug.LogError($"{nameof(PipelineNetworkManager)}がシーンに存在しません。");
-#endif
-            return null;
-        }
-    }
-
     private readonly List<List<ConnectableCellBase>> _pipelineNetworks = new();
-
-    private void Awake()
-    {
-        if (_instance == null)
-        {
-            _instance = this;
-        }
-        else
-        {
-            Debug.LogWarning("PipelineNetworkManagerのインスタンスが複数存在します。最初のインスタンスを保持します。");
-            Destroy(gameObject);
-        }
-    }
 
     /// <summary>
     /// セルをネットワークに追加します。
