@@ -76,7 +76,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         return amount;
     }
 
-    public int StoreResource(int amount, ResourceType resourceType)
+    public void StoreResource(int amount, ResourceType resourceType)
     {
         // 初めてのリソース追加
         if (StoredResourceType == ResourceType.None)
@@ -87,7 +87,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         if (StoredResourceType != resourceType)
         {
             // 設定済みのリソースタイプと異なる場合、追加できないので全量を戻す
-            return amount;
+            return;
         }
 
         // 現在量に追加し、予約量を減らす。
@@ -95,7 +95,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         _allocatedAmount -= amount;
         
         allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
-        return 0;
+        return;
     }
 
     /// <summary>

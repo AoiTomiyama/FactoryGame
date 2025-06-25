@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using DG.Tweening;
 using UnityEngine;
 
 public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetworkManager>
@@ -9,7 +10,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     /// <summary>
     /// セルをネットワークに追加します。
     /// </summary>
-    /// <param name="cell"></param>
+    /// <param name="cell">登録するセル</param>
     public void AddCellToNetwork(ConnectableCellBase cell)
     {
         if (cell == null) return;
@@ -53,7 +54,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     /// <summary>
     /// セルをネットワークから削除します。
     /// </summary>
-    /// <param name="cell"></param>
+    /// <param name="cell">削除するセル</param>
     public void RemoveCellFromNetwork(ConnectableCellBase cell)
     {
         if (cell == null) return;
@@ -79,7 +80,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     /// <summary>
     /// ネットワーク内の全てのセル間の経路を登録します。
     /// </summary>
-    /// <param name="network"></param>
+    /// <param name="network">検索対象のネットワーク</param>
     private static void RegisterAllNetworkPaths(List<ConnectableCellBase> network)
     {
         // ネットワーク内のセルが2つ以上ある場合のみ経路を登録
@@ -98,8 +99,8 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     /// <summary>
     /// ネットワーク内の2つのセル間の最短経路を登録します。
     /// </summary>
-    /// <param name="startCell"></param>
-    /// <param name="endCell"></param>
+    /// <param name="startCell">始点となるセル</param>
+    /// <param name="endCell">終点となるセル</param>
     private static void RegisterNearestPathByNetwork(ConnectableCellBase startCell, ConnectableCellBase endCell)
     {
         if (startCell == null) return;
@@ -134,6 +135,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
                         isReached = true;
                         break;
                     }
+
                     // 終点でない場合は、探索を続ける（登録は行わない）
                     continue;
                 }
@@ -142,7 +144,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
                 queue.Enqueue(connectableCell);
                 path[connectableCell] = currentCell;
             }
-            
+
             // 終点に到達した場合は、探索を終了
             if (isReached) break;
         }
@@ -164,6 +166,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
         }
 
         var length = resultPath.Count;
+        if (length == 0) return;
 
         // 片方はIExportable、もう片方はIContainableにだけキャスト可能の場合に経路を追加
         switch (startCell)
@@ -176,5 +179,79 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
                 exportableEnd.AddPath(length, resultPath);
                 break;
         }
+    }
+
+    /// <summary>
+    /// 始点から終点までの輸送を試行する
+    /// </summary>
+    /// <param name="exporter">始点となるセル</param>
+    /// <param name="exportAmount">輸送する量</param>
+    /// <param name="exportItemSpeed">輸送する速度</param>
+    /// <param name="exportBeginPos">アニメーション開始地点の座標</param>
+    /// <param name="allocated">予約に成功した輸送量</param>
+    /// <returns>輸送に成功したかどうか</returns>
+    public static bool TryExport(IExportable exporter, int exportAmount, float exportItemSpeed,
+        Vector3 exportBeginPos, out int allocated)
+    {
+        allocated = 0;
+
+        // 始点・終点・経路のいずれかがnullの場合はfalse
+        if (exporter == null) return false;
+        
+        var exportType = exporter.ResourceType;
+        List<ConnectableCellBase> path = null;
+        IContainable container = null;
+        var hasFoundPath = false;
+        exporter.RefreshPath();
+        
+        foreach (var (_, p) in exporter.ExportPaths)
+        {
+            // 検索条件
+            // ・終点がIContainableである。
+            // ・IContainableに許容量がある。
+            // ・IExportableとIContainableのタイプが不正でない
+            if (p?.LastOrDefault() is not IContainable containable ||
+                containable.IsFull() ||
+                (containable.StoredResourceType != ResourceType.None &&
+                 containable.StoredResourceType != exportType)) continue;
+            
+            // 一致した場合、要素を変数に保持。
+            path = p;
+            container = containable;
+            hasFoundPath = true;
+            break;
+        }
+
+        // 一致しなかった場合、falseを返す
+        if (!hasFoundPath) return false;
+        
+        // 予め終点にリソースの輸入を予約する。
+        var allocatedAmount = container.AllocateStorage(exportAmount);
+
+        // 予約分を保存
+        allocated = allocatedAmount;
+
+        var padding = Vector3.up * 1.1f;
+
+        // ObjectPoolからモデルを呼び出す
+        var itemObj = ResourceItemObjectPool.Instance.GetPrefab(exportType);
+        itemObj.transform.position = exportBeginPos + padding;
+
+        // 始点から終点までのアニメーション
+        itemObj.transform
+            .DOPath(path.Select(cell => cell.transform.position + padding).ToArray(),
+                exportItemSpeed * path.Count)
+            .SetEase(Ease.Linear)
+            .OnComplete(() =>
+            {
+                // ストレージに保存
+                container.StoreResource(allocatedAmount, exportType);
+
+                // ObjectPoolにモデルを返す
+                ResourceItemObjectPool.Instance.Return(exportType, itemObj);
+            });
+        
+        // 全ての処理が問題なく処理できたのでtrueを返す
+        return true;
     }
 }

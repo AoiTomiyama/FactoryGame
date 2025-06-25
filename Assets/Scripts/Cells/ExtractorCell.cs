@@ -23,8 +23,9 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
 
     private int StorageAmount { get; set; }
 
+    public ResourceType ResourceType => resourceType;
+
     public HashSet<(int length, List<ConnectableCellBase> path)> ExportPaths { get; set; } = new();
-    private List<ConnectableCellBase> _currentPath;
     private CellBase _forwardCell;
 
     protected override void Start()
@@ -66,60 +67,10 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
             else
             {
                 // 容量上限に達した場合はスペースが空くまで待機
-                yield return new WaitUntil(() => HasStorageCapacity(out _));
-                ExportResources();
+                yield return new WaitUntil(TryExportResources);
                 UpdateUI();
             }
         }
-    }
-
-    /// <summary>
-    /// 周囲のストレージセルが見つかり、かつ容量に空きがあるかを確認する
-    /// </summary>
-    private bool HasStorageCapacity(out IContainable containable)
-    {
-        if (ExportPaths == null || ExportPaths.Count == 0)
-        {
-            containable = null;
-            return false;
-        }
-
-        containable = null;
-        var hasCapacity = false;
-
-        RefreshPaths();
-
-        // 経路の先にストレージセルがある場合、そこにリソースを保存する
-        foreach (var (_, path) in ExportPaths)
-        {
-            // 経路の終点がストレージセルでない場合はスキップ
-            if (path?.Last() is not IContainable storage) continue;
-
-            if (storage.IsFull()) continue;
-
-            if (storage.StoredResourceType != ResourceType.None &&
-                storage.StoredResourceType != resourceType)
-            {
-                // ストレージセルのリソースタイプが異なる場合はスキップ
-                continue;
-            }
-
-            // 空きのあるストレージセルが見つかった場合は、trueを返す
-            _currentPath = path;
-            containable = storage;
-            hasCapacity = true;
-            break;
-        }
-
-        return hasCapacity;
-    }
-
-    private void RefreshPaths()
-    {
-        // ExportPathsを更新するために、現在のセルからストレージセルまでのパスを再計算
-        var refreshedPaths = ExportPaths.Where(pathInfo => pathInfo.path.All(cell => cell != null)).ToHashSet();
-        ExportPaths.Clear();
-        ExportPaths = refreshedPaths;
     }
 
     private void Extract()
@@ -131,9 +82,36 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
             StorageAmount += extractionAmount;
         }
 
-        ExportResources();
+        _ = TryExportResources();
         UpdateUI();
     }
+
+    private bool TryExportResources()
+    {
+        // ネットワークを経由してターゲットにリソースを送る
+        var isAllowedToTransfer = PipelineNetworkManager.TryExport(
+            exporter: this,
+            exportAmount: StorageAmount,
+            exportItemSpeed: itemMoveBaseSecond,
+            transform.position,
+            out var allocated);
+
+        if (isAllowedToTransfer)
+        {
+            StorageAmount -= allocated;
+        }
+
+        return isAllowedToTransfer;
+    }
+
+    public void RefreshPath()
+    {
+        // ExportPathsを更新するために、現在のセルからストレージセルまでのパスを再計算
+        var refreshedPaths = ExportPaths.Where(pathInfo => pathInfo.path.All(cell => cell != null)).ToHashSet();
+        ExportPaths.Clear();
+        ExportPaths = refreshedPaths;
+    }
+
 
     private void UpdateUI()
     {
@@ -141,34 +119,6 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
         {
             storageAmountBar.fillAmount = (float)StorageAmount / extractionCapacity;
         }
-    }
-
-    public void ExportResources()
-    {
-        // 経路の先にストレージセルがある場合、そこにリソースを保存する
-        if (!HasStorageCapacity(out var containable)) return;
-
-        var allocatedAmount = containable.AllocateStorage(StorageAmount);
-        StorageAmount -= allocatedAmount;
-
-        var padding = Vector3.up * 1.1f;
-        var itemObj = ResourceItemObjectPool.Instance.GetPrefab(resourceType);
-        itemObj.transform.position = transform.position + padding;
-        
-        // 始点から終点までのアニメーション
-        itemObj.transform
-            .DOPath(_currentPath.Select(cell => cell.transform.position + padding).ToArray(),
-                itemMoveBaseSecond * _currentPath.Count)
-            .SetEase(Ease.Linear)
-            .OnComplete(() =>
-            {
-                // ストレージに保存できる量を計算
-                var overflowAmount = containable.StoreResource(allocatedAmount, resourceType);
-
-                // ストレージに保存できなかった分は戻す
-                StorageAmount += overflowAmount;
-                ResourceItemObjectPool.Instance.Return(resourceType, itemObj);
-            });
     }
 
     public void AddPath(int length, List<ConnectableCellBase> path)
