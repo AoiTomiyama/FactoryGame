@@ -9,6 +9,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
 
     [Header("UI設定")]
     [SerializeField] private Image storageAmountBar;
+    [SerializeField] private Image allocatedAmountBar;
     [SerializeField] private Image resourceIconImage;
     [SerializeField] private ResourceSO resourceSo;
 
@@ -45,6 +46,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
     protected override void Start()
     {
         base.Start();
+        allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
         UpdateUI();
         UpdateResourceIcon();
     }
@@ -64,11 +66,13 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         if (available < amount)
         {
             _allocatedAmount += available;
+            allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
             return available;
         }
 
         // 容量バッファに予約
         _allocatedAmount += amount;
+        allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
         return amount;
     }
 
@@ -89,6 +93,8 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         // 現在量に追加し、予約量を減らす。
         CurrentLoad += amount;
         _allocatedAmount -= amount;
+        
+        allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
         return 0;
     }
 
