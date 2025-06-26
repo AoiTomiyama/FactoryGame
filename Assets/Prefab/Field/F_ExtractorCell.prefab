@@ -568,6 +568,7 @@ MonoBehaviour:
   extractionSecond: 0.2
   extractionAmount: 1
   extractionCapacity: 5
+  itemMoveBaseSecond: 0.2
   extractionProgressBar: {fileID: 5612211340224938452}
   storageAmountBar: {fileID: 5684710347186014869}
   resourceDatabase: {fileID: 11400000, guid: 5f6a275ee023b01479c5af4732e290af, type: 2}
