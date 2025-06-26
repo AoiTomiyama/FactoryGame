@@ -102,4 +102,5 @@ public enum CellType
     Extractor,
     Storage,
     ItemPipe,
+    ExportPipe,
 }
