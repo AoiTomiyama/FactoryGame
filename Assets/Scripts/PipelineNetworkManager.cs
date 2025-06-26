@@ -125,18 +125,18 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
                          .Where(cell => !visited.Contains(cell)))
             {
                 visited.Add(connectableCell);
-
-                if (connectableCell is IContainable)
+                
+                // 終点かどうかを判定
+                if (connectableCell == endCell)
                 {
-                    // IContainableに到達した場合、指定された終点かどうかを判定
-                    if (connectableCell == endCell)
-                    {
-                        path[connectableCell] = currentCell;
-                        isReached = true;
-                        break;
-                    }
-
-                    // 終点でない場合は、探索を続ける（登録は行わない）
+                    path[connectableCell] = currentCell;
+                    isReached = true;
+                    break;
+                }
+                
+                if (connectableCell is IContainable or IExportable)
+                {
+                    // 入力または出力の機能をもつセルは探索しない
                     continue;
                 }
 
@@ -189,32 +189,66 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     /// <param name="exportItemSpeed">輸送する速度</param>
     /// <param name="exportBeginPos">アニメーション開始地点の座標</param>
     /// <param name="allocated">予約に成功した輸送量</param>
+    /// <param name="logMode">falseが返されるときのログ表示（デバッグ用）</param>
     /// <returns>輸送に成功したかどうか</returns>
     public static bool TryExport(IExportable exporter, int exportAmount, float exportItemSpeed,
-        Vector3 exportBeginPos, out int allocated)
+        Vector3 exportBeginPos, out int allocated, bool logMode = false)
     {
         allocated = 0;
 
-        // 始点・終点・経路のいずれかがnullの場合はfalse
-        if (exporter == null) return false;
-        
+        // 始点がnullの場合はfalse
+        if (exporter == null)
+        {
+#if UNITY_EDITOR
+            if (logMode) Debug.LogWarning("出力元がnullです");
+#endif
+            return false;
+        }
+
         var exportType = exporter.ResourceType;
         List<ConnectableCellBase> path = null;
         IContainable container = null;
         var hasFoundPath = false;
         exporter.RefreshPath();
-        
+        if (exporter.ExportPaths.Count == 0)
+        {
+#if UNITY_EDITOR
+            if (logMode) Debug.LogWarning("パスが割り当てられていません");
+#endif
+            return false;
+        }
+
         foreach (var (_, p) in exporter.ExportPaths)
         {
             // 検索条件
             // ・終点がIContainableである。
             // ・IContainableに許容量がある。
             // ・IExportableとIContainableのタイプが不正でない
-            if (p?.LastOrDefault() is not IContainable containable ||
-                containable.IsFull() ||
-                (containable.StoredResourceType != ResourceType.None &&
-                 containable.StoredResourceType != exportType)) continue;
-            
+            if (p?.LastOrDefault() is not IContainable containable)
+            {
+#if UNITY_EDITOR
+                if (logMode) Debug.LogWarning("終点がContainableでないためスキップされました");
+#endif
+                continue;
+            }
+
+            if (containable.IsFull())
+            {
+#if UNITY_EDITOR
+                if (logMode) Debug.LogWarning("終点が容量限界のためスキップされました");
+#endif
+                continue;
+            }
+
+            if (containable.StoredResourceType != ResourceType.None &&
+                containable.StoredResourceType != exportType)
+            {
+#if UNITY_EDITOR
+                if (logMode) Debug.LogWarning("リソースタイプが不正のためスキップされました");
+#endif
+                continue;
+            }
+
             // 一致した場合、要素を変数に保持。
             path = p;
             container = containable;
@@ -223,8 +257,14 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
         }
 
         // 一致しなかった場合、falseを返す
-        if (!hasFoundPath) return false;
-        
+        if (!hasFoundPath)
+        {
+#if UNITY_EDITOR
+            if (logMode) Debug.LogWarning("有効なパスが見つかりません");
+#endif
+            return false;
+        }
+
         // 予め終点にリソースの輸入を予約する。
         var allocatedAmount = container.AllocateStorage(exportAmount);
 
@@ -250,7 +290,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
                 // ObjectPoolにモデルを返す
                 ResourceItemObjectPool.Instance.Return(exportType, itemObj);
             });
-        
+
         // 全ての処理が問題なく処理できたのでtrueを返す
         return true;
     }
