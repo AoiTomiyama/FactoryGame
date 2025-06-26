@@ -62,14 +62,14 @@ PrefabInstance:
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
       insertIndex: -1
-      addedObject: {fileID: 3686063221714057315}
+      addedObject: {fileID: 699830911260170433}
   m_SourcePrefab: {fileID: 100100000, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
 --- !u!1 &1329475835080766442 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
   m_PrefabInstance: {fileID: 6909021435120543641}
   m_PrefabAsset: {fileID: 0}
---- !u!114 &3686063221714057315
+--- !u!114 &699830911260170433
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -78,10 +78,13 @@ MonoBehaviour:
   m_GameObject: {fileID: 1329475835080766442}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 73083672ba857a84a8afb5eab27a077b, type: 3}
+  m_Script: {fileID: 11500000, guid: 87da69886f167334ebff65b93d1e5359, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  pipeConnectionPrefab: {fileID: 4386132840877314966, guid: 77765e0d16da208418a766d00615b003, type: 3}
+  pipeConnectionPrefab: {fileID: 4068375325743859050, guid: cb10f5926e6e5c847bbc796057bcba12, type: 3}
+  exportIntervalSecond: 0.15
+  maxExportAmount: 1
+  itemExportBaseSecond: 0.2
 --- !u!4 &6040249969496787429 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 878906971913252476, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}

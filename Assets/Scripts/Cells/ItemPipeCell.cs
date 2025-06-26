@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public sealed class ItemPipeCell : ConnectableCellBase
+public class ItemPipeCell : ConnectableCellBase
 {
     [SerializeField] private GameObject pipeConnectionPrefab;
     private GameObject[] _adjacentPipes;
