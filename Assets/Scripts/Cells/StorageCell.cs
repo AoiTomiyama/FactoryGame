@@ -104,13 +104,9 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
     /// <param name="amount">取り出す要求値</param>
     /// <param name="resourceType">取り出すリソースの種類</param>
     /// <returns>取り出しに成功した量</returns>
-    public int TakeResource(int amount, ResourceType resourceType)
+    public int TakeResource(int amount, out ResourceType resourceType)
     {
-        if (StoredResourceType != resourceType)
-        {
-            // 取り出せないので、0を返す
-            return 0;
-        }
+        resourceType = StoredResourceType;
 
         // 現在の容量から取り出す
         if (CurrentLoad - amount >= 0)
