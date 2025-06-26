@@ -25,8 +25,9 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
 
     public ResourceType ResourceType => resourceType;
 
-    public HashSet<(int length, List<ConnectableCellBase> path)> ExportPaths { get; set; } = new();
+    public HashSet<(int length, List<ConnectableCellBase> path)> ExportPaths { get; private set; } = new();
     private CellBase _forwardCell;
+    private bool _isExtractable;
 
     protected override void Start()
     {
@@ -38,6 +39,7 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
                 cell.ZIndex != ZIndex + Mathf.RoundToInt(transform.forward.z)) continue;
             // 前方のセルを見つけたら保存
             _forwardCell = cell;
+            _isExtractable = true;
             break;
         }
 
@@ -50,7 +52,7 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
 
     private IEnumerator ExtractEnumerator()
     {
-        while (true)
+        while (_isExtractable)
         {
             // ストレージに保存できる容量があるか確認
             if (StorageAmount < extractionCapacity)
@@ -82,13 +84,14 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
             StorageAmount += extractionAmount;
         }
 
+        // 抽出後、一度だけ輸出を試行する
         _ = TryExportResources();
         UpdateUI();
     }
 
     private bool TryExportResources()
     {
-        // ネットワークを経由してターゲットにリソースを送る
+        // ネットワークを介してターゲットにリソースを送る
         var isAllowedToTransfer = PipelineNetworkManager.TryExport(
             exporter: this,
             exportAmount: StorageAmount,
@@ -96,10 +99,8 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
             transform.position,
             out var allocated);
 
-        if (isAllowedToTransfer)
-        {
-            StorageAmount -= allocated;
-        }
+        // 輸出が確立されたら現在のリソース値から予約量を減らす
+        if (isAllowedToTransfer) StorageAmount -= allocated;
 
         return isAllowedToTransfer;
     }
