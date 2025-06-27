@@ -97,18 +97,19 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
             exportAmount: StorageAmount,
             exportItemSpeed: itemMoveBaseSecond,
             transform.position,
-            out var allocated);
+            allocated: out var allocatedAmount);
 
         // 輸出が確立されたら現在のリソース値から予約量を減らす
-        if (isAllowedToTransfer) StorageAmount -= allocated;
+        if (isAllowedToTransfer) StorageAmount -= allocatedAmount;
 
         return isAllowedToTransfer;
     }
 
     public void RefreshPath()
     {
-        // ExportPathsを更新するために、現在のセルからストレージセルまでのパスを再計算
-        var refreshedPaths = ExportPaths.Where(pathInfo => pathInfo.path.All(cell => cell != null)).ToHashSet();
+        // 経路内にnullが含まれている場合、経路として不正なので除外する
+        var refreshedPaths = ExportPaths.Where(pathInfo => pathInfo
+            .path.All(cell => cell != null)).ToHashSet();
         ExportPaths.Clear();
         ExportPaths = refreshedPaths;
     }

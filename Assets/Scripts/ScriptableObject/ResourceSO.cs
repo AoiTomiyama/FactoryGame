@@ -23,13 +23,5 @@ public class ResourceSO : ScriptableObject
     public Sprite GetIcon(ResourceType resourceType) =>
         resourceInfos.FirstOrDefault(info => info.resourceType == resourceType).icon;
 
-    /// <summary>
-    /// リソースタイプに応じたPrefabを取得する。
-    /// </summary>
-    /// <param name="resourceType">指定のタイプ</param>
-    /// <returns>一致したPrefab</returns>
-    public GameObject GetPrefab(ResourceType resourceType) =>
-        resourceInfos.FirstOrDefault(info => info.resourceType == resourceType).prefab;
-
     public ResourceInfo[] GetAllInfos() => (ResourceInfo[])resourceInfos.Clone();
 }

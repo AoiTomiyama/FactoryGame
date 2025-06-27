@@ -16,7 +16,7 @@ public abstract class ConnectableCellBase : CellBase
         ConnectAdjacentCells(this);
         PipelineNetworkManager.Instance.AddCellToNetwork(this);
     }
-    
+
     public bool HasCellConnected(CellBase cell) => AdjacentCells.Contains(cell);
     public CellBase[] GetAdjacentCells() => AdjacentCells;
 
@@ -29,25 +29,25 @@ public abstract class ConnectableCellBase : CellBase
         for (int i = 0; i < AdjacentCount; i++)
         {
             if (AdjacentCells[i] != null) continue;
-            
+
             if (!GridFieldDatabase.Instance.TryGetCellFromRange(XIndex, ZIndex, 1, out var foundCell,
                     excludingList)) continue;
-            
+
             // 取得できたセルを除外リストに追加
             excludingList.Add(foundCell);
-            
+
             // 取得できたセルがEmptyCellであればスキップ
             if (foundCell is EmptyCell) continue;
-            
+
             if (AdjacentCells.Contains(foundCell)) continue;
-            
-            if (GetType().Name == foundCell.GetType().Name)
+
+            if (GetType().Name != nameof(ItemPipeCell) &&
+                GetType().Name == foundCell.GetType().Name)
             {
-                if (GetType().Name != nameof(ItemPipeCell))
-                    // 同じタイプのセル同士は接続しない
-                    continue;
+                // 同じタイプのセル同士は接続しない
+                continue;
             }
-            
+
             // 取得できたセルをAdjacentCellsに追加
             AdjacentCells[i] = foundCell;
 
@@ -56,11 +56,11 @@ public abstract class ConnectableCellBase : CellBase
 
             // 接続先セルのAdjacentCellsに接続元のセルがなければ追加
             if (connectableCell.AdjacentCells.Contains(fromCell)) continue;
-            
+
             // 向こうのセルのAdjacentCellsに接続元のセルを追加
             connectableCell.ConnectAdjacentCells(fromCell);
         }
-        
+
         // 接続が完了したらイベントを呼び出す
         OnConnectionChanged?.Invoke();
     }
@@ -78,7 +78,7 @@ public abstract class ConnectableCellBase : CellBase
             connectableCell.AdjacentCells = connectableCell.AdjacentCells
                 .Select(cell => cell != this ? cell : null).ToArray();
             connectableCell.OnConnectionChanged?.Invoke();
-            
+
             AdjacentCells[i] = null;
         }
     }
@@ -88,7 +88,7 @@ public abstract class ConnectableCellBase : CellBase
         // 注: 以下の処理は本来ならOnDestroyで呼び出すのが望ましいが、
         // PlayModeからEditorModeに切り替えたタイミングでも呼ばれてしまう（=null参照が起こる）ため、
         // 独自の関数を定義し、外部から明示的に実行している。
-        
+
         DisconnectAdjacentCells();
         PipelineNetworkManager.Instance.RemoveCellFromNetwork(this);
     }

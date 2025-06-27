@@ -9,7 +9,7 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
     [SerializeField] private int maxPoolCapacity = 500;
     
     private Dictionary<ResourceType, ObjectPool<GameObject>> _pool;
-    private bool _initialized;
+    private bool _isInitialized;
 
     protected override void Awake()
     {
@@ -23,7 +23,7 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
     
     private void InitializePool()
     {
-        if (_initialized) return;
+        if (_isInitialized) return;
         _pool = new Dictionary<ResourceType, ObjectPool<GameObject>>();
     
         if (resourceDatabase == null)
@@ -71,7 +71,7 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
                 maxSize: maxPoolCapacity
             );
         }
-        _initialized = true;
+        _isInitialized = true;
     }
     
     private void ClearPool()
@@ -82,12 +82,12 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
             pool.Clear();
         }
         _pool.Clear();
-        _initialized = false;
+        _isInitialized = false;
     }
     
     public GameObject GetPrefab(ResourceType resourceType)
     {
-        if (!_initialized) InitializePool();
+        if (!_isInitialized) InitializePool();
         if (_pool != null && _pool.ContainsKey(resourceType)) return _pool[resourceType].Get();
         
 #if UNITY_EDITOR
@@ -98,7 +98,7 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
     
     public void Return(ResourceType type, GameObject obj)
     {
-        if (!_initialized) InitializePool();
+        if (!_isInitialized) InitializePool();
         if (_pool == null || !_pool.ContainsKey(type))
         {
     #if UNITY_EDITOR
