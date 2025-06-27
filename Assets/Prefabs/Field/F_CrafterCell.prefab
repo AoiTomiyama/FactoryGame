@@ -143,6 +143,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98e6290011147244bb842e7deef075d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  craftingSecond: 0
+  recipeData: {fileID: 11400000, guid: 26cc36b1f5f421e44b14563826ed8617, type: 2}
 --- !u!4 &8954265043846840594 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 878906971913252476, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
