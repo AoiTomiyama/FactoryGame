@@ -83,6 +83,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         _allocatedAmount -= amount;
 
         allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
+        UpdateResourceIcon();
     }
 
     /// <summary>

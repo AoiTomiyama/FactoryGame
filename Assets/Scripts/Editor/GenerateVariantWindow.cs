@@ -81,9 +81,10 @@ public class GenerateVariantWindow : EditorWindow
         if (!targetFolder.Contains(prefabName))
         {
             // PrefabVariantとして保存
-            // var savePath = Path.Combine(path, prefabName + ".prefab").Replace("\\", "/");
-            // PrefabUtility.SaveAsPrefabAsset(instance, savePath);
+            var savePath = Path.Combine(path, prefabName + ".prefab").Replace("\\", "/");
+            PrefabUtility.SaveAsPrefabAsset(instance, savePath);
             Debug.Log("PrefabVariant 作成完了: " + path);
+            AssetDatabase.Refresh();
         }
         else
         {

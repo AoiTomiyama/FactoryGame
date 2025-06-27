@@ -113,4 +113,5 @@ public enum CellType
     Storage,
     ItemPipe,
     ExportPipe,
+    Crafter,
 }

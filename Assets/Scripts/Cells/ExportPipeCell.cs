@@ -24,10 +24,7 @@ public class ExportPipeCell : ItemPipeCell, IExportable
         StartCoroutine(ExportEnumerator());
     }
 
-    private void SearchStorageCell()
-    {
-        _storages = AdjacentCells.OfType<StorageCell>().ToArray();
-    }
+    private void SearchStorageCell() => _storages = AdjacentCells.OfType<StorageCell>().ToArray();
 
     private IEnumerator ExportEnumerator()
     {

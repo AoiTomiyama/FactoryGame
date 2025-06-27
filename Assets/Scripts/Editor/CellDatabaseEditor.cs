@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -87,7 +88,7 @@ public class CellDatabaseEditor : Editor
             }
         }
 
-        database.SetCellInfos(list);
+        database.SetCellInfos(database.GetAllCellInfos().Concat(list));
         Debug.Log(list.Count > 0 ? "自動アサイン完了" : "未登録のセルはありません。");
         database.ValidateAndBuildLookup();
     }

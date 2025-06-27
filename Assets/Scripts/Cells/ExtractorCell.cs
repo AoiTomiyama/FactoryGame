@@ -37,7 +37,10 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
             if (cell == null) continue;
             if (cell.XIndex != XIndex + Mathf.RoundToInt(transform.forward.x) ||
                 cell.ZIndex != ZIndex + Mathf.RoundToInt(transform.forward.z)) continue;
-            // 前方のセルを見つけたら保存
+            if (cell is ResourceCell resourceCell &&
+                resourceCell.ResourceType == resourceType)
+                
+            // 有効なリソースセルを前方に見つけたら保存
             _forwardCell = cell;
             _isExtractable = true;
             break;
@@ -77,12 +80,8 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
 
     private void Extract()
     {
-        // 前方のセルがリソースセルで、指定されたリソースタイプと一致する場合
-        if (_forwardCell is ResourceCell resourceCell &&
-            resourceCell.ResourceType == resourceType)
-        {
-            StorageAmount += extractionAmount;
-        }
+        if (_forwardCell == null || _forwardCell is not ResourceCell) return;
+        StorageAmount += extractionAmount;
 
         // 抽出後、一度だけ輸出を試行する
         _ = TryExportResources();
