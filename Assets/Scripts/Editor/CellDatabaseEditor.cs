@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -68,29 +67,28 @@ public class CellDatabaseEditor : Editor
         }
 
         var length = Enum.GetNames(typeof(CellType)).Length;
-        var list = new CellInfo[length];
-        // 配列に割り当て
+        var list = new List<CellInfo>();
+        
         for (int i = 0; i < length; i++)
         {
-            var cellTypeName = Enum.GetName(typeof(CellType), i) + "Cell";
-
-            if (fieldDict.TryGetValue(cellTypeName, out var fieldPrefab))
+            var cellType = (CellType)i;
+            var cellTypeName = $"{cellType}Cell";
+        
+            if (fieldDict.TryGetValue(cellTypeName, out var fieldPrefab) &&
+                placeholderDict.TryGetValue(cellTypeName, out var placeholderPrefab) &&
+                !database.TryGetCellInfo(cellType, out _))
             {
-                list[i].fieldCellPrefab = fieldPrefab;
+                list.Add(new CellInfo
+                {
+                    fieldCellPrefab = fieldPrefab,
+                    placeholderCellPrefab = placeholderPrefab,
+                    cellType = cellType
+                });
             }
-
-            if (placeholderDict.TryGetValue(cellTypeName, out var placeholderPrefab))
-            {
-                list[i].placeholderCellPrefab = placeholderPrefab;
-            }
-
-            list[i].cellType = (CellType)i;
         }
 
         database.SetCellInfos(list);
+        Debug.Log(list.Count > 0 ? "自動アサイン完了" : "未登録のセルはありません。");
         database.ValidateAndBuildLookup();
-
-        Debug.Log("AutoAssignData 完了");
     }
-
 }
