@@ -266,7 +266,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
         }
 
         // 予め終点にリソースの輸入を予約する。
-        var allocatedAmount = container.AllocateStorage(exportAmount);
+        var allocatedAmount = container.AllocateStorage(exportAmount, exportType);
 
         // 予約分を保存
         allocated = allocatedAmount;
@@ -285,7 +285,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
             .OnComplete(() =>
             {
                 // ストレージに保存
-                container.StoreResource(allocatedAmount, exportType);
+                container.StoreResource(allocatedAmount);
 
                 // ObjectPoolにモデルを返す
                 ResourceItemObjectPool.Instance.Return(exportType, itemObj);

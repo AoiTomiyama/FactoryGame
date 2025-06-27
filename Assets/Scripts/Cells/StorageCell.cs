@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -20,6 +21,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
     }
 
     private int _allocatedAmount;
+    private int _reservedAmount;
 
     private ResourceType _storedResourceType = ResourceType.None;
 
@@ -51,51 +53,36 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         UpdateResourceIcon();
     }
 
-    /// <summary>
-    /// リソースの搬入を予約します。
-    /// </summary>
-    /// <param name="amount">予約する量</param>
-    /// <returns>予約に成功した量</returns>
-    public int AllocateStorage(int amount)
-    {
-        // 既に埋まっている場合は0
-        if (IsFull()) return 0;
-
-        // 入れようとしている値が許容量を越えている場合は十分量を返す。
-        var available = capacity - CurrentLoad - _allocatedAmount;
-        if (available < amount)
-        {
-            _allocatedAmount += available;
-            allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
-            return available;
-        }
-
-        // 容量バッファに予約
-        _allocatedAmount += amount;
-        allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
-        return amount;
-    }
-
-    public void StoreResource(int amount, ResourceType resourceType)
+    public int AllocateStorage(int amount, ResourceType resourceType)
     {
         // 初めてのリソース追加
-        if (StoredResourceType == ResourceType.None)
+        if (_storedResourceType == ResourceType.None)
         {
-            StoredResourceType = resourceType;
+            _storedResourceType = resourceType;
         }
 
-        if (StoredResourceType != resourceType)
-        {
-            // 設定済みのリソースタイプと異なる場合、追加できないので全量を戻す
-            return;
-        }
+        // 設定済みのリソースタイプと異なる場合、追加しない
+        if (_storedResourceType != resourceType) return 0;
 
+        // 既に容量限界に達している場合は0を返す
+        // 入れようとしている値が空き容量を越えている場合は空き容量を返す
+        // そうでない場合は指定された量を予約する
+        var available = capacity - CurrentLoad - _allocatedAmount;
+        var allocated = Mathf.Min(available, amount);
+        _allocatedAmount += allocated;
+        allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
+        return allocated;
+    }
+
+    public void StoreResource(int amount)
+    {
+        if (amount > _allocatedAmount) return;
+        
         // 現在量に追加し、予約量を減らす。
         CurrentLoad += amount;
         _allocatedAmount -= amount;
-        
+
         allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
-        return;
     }
 
     /// <summary>

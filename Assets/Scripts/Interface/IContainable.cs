@@ -5,15 +5,15 @@ public interface IContainable
     /// ストレージにリソースを追加します。入りきらなかった分は戻り値として返される
     /// </summary>
     /// <param name="amount">ストレージに入れる量</param>
-    /// <param name="resourceType">リソースの種類</param>
-    public void StoreResource(int amount, ResourceType resourceType);
+    public void StoreResource(int amount);
 
     /// <summary>
     /// リソースの搬入を予約します。
     /// </summary>
     /// <param name="amount">予約する量</param>
+    /// <param name="resourceType">リソースの種類</param>
     /// <returns>予約に成功した量</returns>
-    public int AllocateStorage(int amount);
+    public int AllocateStorage(int amount, ResourceType resourceType);
     
     /// <summary>
     /// 容量上限に達しているかどうかを確認。
