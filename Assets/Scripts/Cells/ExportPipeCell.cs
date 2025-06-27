@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -33,40 +34,38 @@ public class ExportPipeCell : ItemPipeCell, IExportable
         while (_isExportable)
         {
             // 周囲にストレージセルがあるかどうか
-            if (_storages == null || ExportPaths.Count == 0)
-            {
-                yield return new WaitForEndOfFrame();
-                continue;
-            }
+            yield return new WaitUntil(() => _storages != null && ExportPaths.Count != 0);
 
             var takenAmount = 0;
             Vector3 beginPos = default;
+            Action resourceUpdateAction = null;
 
             foreach (var cell in _storages)
             {
                 // 各ストレージからリソースをもらう
-                takenAmount = cell.TakeResource(maxExportAmount, out var type);
-                
+                takenAmount = cell.ReserveResource(maxExportAmount, out var type);
+
                 // 取得に失敗した場合、次のストレージへ
                 if (takenAmount <= 0) continue;
-                
+
                 // 成功した場合、リソースタイプとストレージの座標を保存
                 ResourceType = type;
                 beginPos = cell.transform.position;
+                resourceUpdateAction = () => cell.TakeResource(takenAmount);
                 break;
             }
 
             if (takenAmount > 0)
             {
-                Debug.Log("Trying To Export");
                 // リソースの輸出
                 yield return new WaitUntil(() => PipelineNetworkManager.TryExport(
-                    this,
-                    takenAmount,
-                    itemExportBaseSecond,
-                    beginPos,
-                    out _
+                    exporter: this,
+                    exportAmount: takenAmount,
+                    exportItemSpeed: itemExportBaseSecond,
+                    exportBeginPos: beginPos,
+                    allocated: out _
                 ));
+                resourceUpdateAction?.Invoke();
 
                 // 輸出後、インターバル分待機する
                 yield return new WaitForSeconds(exportIntervalSecond);
@@ -107,7 +106,7 @@ public class ExportPipeCell : ItemPipeCell, IExportable
 
     public void RefreshPath()
     {
-        // ExportPathsを更新するために、現在のセルからストレージセルまでのパスを再計算
+        // 経路内にnullが含まれている場合、経路として不正なので除外する
         var refreshedPaths = ExportPaths.Where(pathInfo => pathInfo
             .path.All(cell => cell != null)).ToHashSet();
         ExportPaths.Clear();

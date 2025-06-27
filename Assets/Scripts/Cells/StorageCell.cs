@@ -86,37 +86,36 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
     }
 
     /// <summary>
+    /// 指定した量のリソースをストレージから予約する。
+    /// 予約可能な最大量は現在のストレージ内のリソース量に制限される。
+    /// </summary>
+    /// <param name="amount">予約したいリソース量</param>
+    /// <param name="resourceType">取り出すリソースの種類</param>
+    /// <returns>実際に予約できたリソース量</returns>
+    public int ReserveResource(int amount, out ResourceType resourceType)
+    {
+        resourceType = StoredResourceType;
+        if (StoredResourceType == ResourceType.None) return 0;
+
+        // 予約可能な量を計算（現在のリソース量から既予約量を引いた分だけ予約可能）
+        var maxReservable = CurrentLoad - _reservedAmount;
+        var reservable = Mathf.Min(amount, Mathf.Max(0, maxReservable));
+        _reservedAmount += reservable;
+        return reservable;
+    }
+
+    /// <summary>
     /// ストレージからリソースを取り出します。取り出せる量は現在の容量に依存する
     /// </summary>
     /// <param name="amount">取り出す要求値</param>
-    /// <param name="resourceType">取り出すリソースの種類</param>
-    /// <returns>取り出しに成功した量</returns>
-    public int TakeResource(int amount, out ResourceType resourceType)
+    public void TakeResource(int amount)
     {
-        resourceType = StoredResourceType;
-
+        if (amount > _reservedAmount) return;
+        
         // 現在の容量から取り出す
-        if (CurrentLoad - amount >= 0)
-        {
-            CurrentLoad -= amount;
-            if (CurrentLoad == 0)
-            {
-                // 取り出した後に容量が0になった場合、リソースタイプをリセット
-                StoredResourceType = ResourceType.None;
-            }
-
-            return amount;
-        }
-
-        // 現在の容量が不足している場合は、現在の容量を全て取り出す
-        var takenAmount = CurrentLoad;
-        CurrentLoad = 0;
-
-        // リソースを全部取り出した後は、リソースタイプをリセット
-        StoredResourceType = ResourceType.None;
-
-        // 取り出せる量は現在の容量まで
-        return takenAmount;
+        CurrentLoad -= amount;
+        _reservedAmount -= amount;
+        if (CurrentLoad == 0) StoredResourceType = ResourceType.None;
     }
 
     public bool IsFull() => CurrentLoad + _allocatedAmount == capacity;
