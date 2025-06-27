@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
+using UnityEditor;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "CellDatabaseSO", menuName = "Scriptable Objects/CellDatabaseSO")]
@@ -20,6 +22,65 @@ public class CellDatabaseSO : ScriptableObject
     {
         if (isInitialized) return;
         ValidateAndBuildLookup();
+    }
+
+    public void AutoAssignData()
+    {
+        const string PlaceholderPrefabPrefix = "P_";
+        const string PlaceholderFileName = "Placeholder";
+        const string FieldPrefabPrefix = "F_";
+        const string FieldFileName = "Field";
+        const string PrefabFolderName = "Assets/Prefabs/";
+        const string Filter = "t:Prefab";
+        
+        // "Assets/Prefabs" 以下の .prefab ファイルを全検索
+        var placeholders = AssetDatabase.FindAssets(Filter, new[] { PrefabFolderName + PlaceholderFileName });
+        var fields = AssetDatabase.FindAssets(Filter, new[] { PrefabFolderName + FieldFileName });
+
+        // 辞書へ登録
+        var fieldDict = new Dictionary<string, GameObject>();
+        foreach (var guid in fields)
+        {
+            var path = AssetDatabase.GUIDToAssetPath(guid);
+            var fileName = Path.GetFileNameWithoutExtension(path);
+            
+            if (!fileName.StartsWith(FieldPrefabPrefix)) continue;
+            var key = fileName[FieldPrefabPrefix.Length..];
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            fieldDict[key] = prefab;
+        }
+
+        var placeholderDict = new Dictionary<string, GameObject>();
+        foreach (var guid in placeholders)
+        {
+            var path = AssetDatabase.GUIDToAssetPath(guid);
+            var fileName = Path.GetFileNameWithoutExtension(path);
+            
+            if (!fileName.StartsWith(PlaceholderPrefabPrefix)) continue;
+            var key = fileName[PlaceholderPrefabPrefix.Length..];
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            placeholderDict[key] = prefab;
+        }
+
+        // 配列に割り当て
+        for (int i = 0; i < Enum.GetNames(typeof(CellType)).Length; i++)
+        {
+            var cellTypeName = Enum.GetName(typeof(CellType), i) + "Cell";
+
+            if (fieldDict.TryGetValue(cellTypeName, out var fieldPrefab))
+            {
+                cellPairingInfos[i].fieldCellPrefab = fieldPrefab;
+            }
+
+            if (placeholderDict.TryGetValue(cellTypeName, out var placeholderPrefab))
+            {
+                cellPairingInfos[i].placeholderCellPrefab = placeholderPrefab;
+            }
+
+            cellPairingInfos[i].cellType = (CellType)i;
+        }
+
+        Debug.Log("AutoAssignData 完了");
     }
 
     public void ValidateAndBuildLookup()
@@ -71,7 +132,7 @@ public class CellDatabaseSO : ScriptableObject
 
         return true;
     }
-    
+
     public List<CellInfo> GetAllCellInfos()
     {
         if (!isInitialized)
@@ -99,7 +160,8 @@ public enum CellType
     ResourceWood,
     ResourceStone,
     ResourceIron,
-    Extractor,
+    ExtractorStone,
+    ExtractorWood,
     Storage,
     ItemPipe,
     ExportPipe,

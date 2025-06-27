@@ -13,7 +13,10 @@ public class CellDatabaseEditor : Editor
         if (GUILayout.Button("Validate Cell Info"))
         {
             cellDatabase.ValidateAndBuildLookup();
-            EditorUtility.SetDirty(cellDatabase);
+        }
+        if (GUILayout.Button("Auto Assign"))
+        {
+            cellDatabase.AutoAssignData();
         }
     }
 }

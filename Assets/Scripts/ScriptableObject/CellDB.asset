@@ -13,25 +13,28 @@ MonoBehaviour:
   m_Name: CellDB
   m_EditorClassIdentifier: 
   cellPairingInfos:
+  - fieldCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+    placeholderCellPrefab: {fileID: 3753479285475593560, guid: b98d1dbe996258f46a7bfc05a60b5025, type: 3}
+    cellType: 1
   - fieldCellPrefab: {fileID: 5281411090297953909, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
     placeholderCellPrefab: {fileID: 4939761327901212978, guid: 882fb4a7f7b4a7d4d9300a1c7d749528, type: 3}
     cellType: 2
   - fieldCellPrefab: {fileID: 8510216384174176173, guid: 3394ffad861065944ab3de864c7a2537, type: 3}
     placeholderCellPrefab: {fileID: 6436038730584001697, guid: 25fc3180cf825cf428f36d76b1fe7f9a, type: 3}
     cellType: 3
-  - fieldCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
-    placeholderCellPrefab: {fileID: 3753479285475593560, guid: b98d1dbe996258f46a7bfc05a60b5025, type: 3}
-    cellType: 1
   - fieldCellPrefab: {fileID: 1248816208215470868, guid: 5fcff706387ed944480fa78eb02e921f, type: 3}
     placeholderCellPrefab: {fileID: 8217202652066461179, guid: 6fb0b84c647911241bbcdeda1d86c789, type: 3}
     cellType: 5
+  - fieldCellPrefab: {fileID: 1248816208215470868, guid: 8a8aa33fc30077a4f974fe6357509114, type: 3}
+    placeholderCellPrefab: {fileID: 8217202652066461179, guid: bd32f30d54bdaf04a9cbb31c6857c703, type: 3}
+    cellType: 6
   - fieldCellPrefab: {fileID: 6212439157261283221, guid: 7e74f176962ae124980ebf269eae7b1b, type: 3}
     placeholderCellPrefab: {fileID: 4466352164537763720, guid: 4eea4101ab8839b43923bc39bad504a2, type: 3}
-    cellType: 6
+    cellType: 7
   - fieldCellPrefab: {fileID: 1329475835080766442, guid: 6b72c8934c608894ea0df10b5acfcc99, type: 3}
     placeholderCellPrefab: {fileID: 807630649232458751, guid: bbebae66a966d764d872d1f582493e9e, type: 3}
-    cellType: 7
+    cellType: 8
   - fieldCellPrefab: {fileID: 1329475835080766442, guid: 84cbd1373685a22468acaf6366567f5d, type: 3}
     placeholderCellPrefab: {fileID: 807630649232458751, guid: 23c4470fbcadd954cbfcf0de7f6d7500, type: 3}
-    cellType: 8
+    cellType: 9
   isInitialized: 0
