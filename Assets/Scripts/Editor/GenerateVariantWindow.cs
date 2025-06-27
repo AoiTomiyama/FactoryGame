@@ -38,7 +38,7 @@ public class GenerateVariantWindow : EditorWindow
 
         if (GUILayout.Button("バリアント作成"))
         {
-            CreateNewVariant(_modelPrefab, _baseFieldPrefab, PlaceholderFilePath, PlaceholderPrefabPrefix);
+            CreateNewVariant(_modelPrefab, _basePlaceholderPrefab, PlaceholderFilePath, PlaceholderPrefabPrefix);
             CreateNewVariant(_modelPrefab, _baseFieldPrefab, FieldFilePath, FieldPrefabPrefix);
         }
 
