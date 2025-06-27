@@ -64,7 +64,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: ad3596ec05e24464f94c3a29de7aedfd, type: 2}
+  - {fileID: 2100000, guid: 7cbcd12e13a14d34da48181e8f819cf7, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -150,7 +150,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: ad3596ec05e24464f94c3a29de7aedfd, type: 2}
+  - {fileID: 2100000, guid: 7cbcd12e13a14d34da48181e8f819cf7, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -182,7 +182,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3908655582398405483}
   m_Layer: 3
-  m_Name: ExtractorCellModel
+  m_Name: ExtractorWoodCellModel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
