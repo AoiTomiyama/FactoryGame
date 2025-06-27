@@ -125,7 +125,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
                          .Where(cell => !visited.Contains(cell)))
             {
                 visited.Add(connectableCell);
-                
+
                 // 終点かどうかを判定
                 if (connectableCell == endCell)
                 {
@@ -133,7 +133,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
                     isReached = true;
                     break;
                 }
-                
+
                 if (connectableCell is IContainable or IExportable)
                 {
                     // 入力または出力の機能をもつセルは探索しない
@@ -272,15 +272,16 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
         allocated = allocatedAmount;
 
         var padding = Vector3.up * 1.1f;
+        var startPos = exportBeginPos + padding;
 
         // ObjectPoolからモデルを呼び出す
         var itemObj = ResourceItemObjectPool.Instance.GetPrefab(exportType);
-        itemObj.transform.position = exportBeginPos + padding;
+        itemObj.transform.position = startPos;
 
         // 始点から終点までのアニメーション
+        var pathPos = path.Select(p => p.transform.position + padding).Prepend(startPos).ToArray();
         itemObj.transform
-            .DOPath(path.Select(cell => cell.transform.position + padding).ToArray(),
-                exportItemSpeed * path.Count)
+            .DOPath(pathPos, exportItemSpeed * path.Count)
             .SetEase(Ease.Linear)
             .OnComplete(() =>
             {
