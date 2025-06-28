@@ -46,7 +46,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
                 break;
             default:
                 // どのネットワークにも属していない場合、新しいネットワークを作成
-                _pipelineNetworks.Add(new List<ConnectableCellBase> { cell });
+                _pipelineNetworks.Add(new() { cell });
                 break;
         }
     }
@@ -91,7 +91,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
         {
             foreach (var endCell in network.Where(cell => cell is IContainable))
             {
-                RegisterNearestPathByNetwork(startCell, endCell);
+                RegisterAllPathByNetwork(startCell, endCell);
             }
         }
     }
@@ -101,38 +101,37 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     /// </summary>
     /// <param name="startCell">始点となるセル</param>
     /// <param name="endCell">終点となるセル</param>
-    private static void RegisterNearestPathByNetwork(ConnectableCellBase startCell, ConnectableCellBase endCell)
+    private static void RegisterAllPathByNetwork(ConnectableCellBase startCell, ConnectableCellBase endCell)
     {
         if (startCell == null) return;
 
-        // BFSを用いて、ネットワーク内での最短経路を設定
-        var queue = new Queue<ConnectableCellBase>();
-        var path = new Dictionary<ConnectableCellBase, ConnectableCellBase>();
+        // BFSを用いて、ネットワーク内での全経路を設定
+        var queue = new Queue<(ConnectableCellBase cell, Dictionary<ConnectableCellBase, ConnectableCellBase> path)>();
         var visited = new HashSet<ConnectableCellBase> { startCell };
-        var isReached = false;
+        var foundPaths = new List<Dictionary<ConnectableCellBase, ConnectableCellBase>>();
 
-        queue.Enqueue(startCell);
+        queue.Enqueue((startCell, new()));
+
         while (queue.Count > 0)
         {
-            var currentCell = queue.Dequeue();
+            var (currentCell, currentPath) = queue.Dequeue();
 
-            // ネットワーク内のセルを探索
-            // 検索条件
-            // ・ConnectableCellBase型である
-            // ・既に訪問済みでない
             foreach (var connectableCell in currentCell.GetAdjacentCells()
                          .OfType<ConnectableCellBase>()
                          .Where(cell => !visited.Contains(cell)))
             {
-                visited.Add(connectableCell);
+                var nextPath = new Dictionary<ConnectableCellBase, ConnectableCellBase>(currentPath)
+                {
+                    [connectableCell] = currentCell
+                };
 
-                // 終点かどうかを判定
                 if (connectableCell == endCell)
                 {
-                    path[connectableCell] = currentCell;
-                    isReached = true;
-                    break;
+                    foundPaths.Add(nextPath);
+                    continue;
                 }
+
+                visited.Add(connectableCell);
 
                 if (connectableCell is IContainable or IExportable)
                 {
@@ -140,44 +139,42 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
                     continue;
                 }
 
-                // 次の経路を登録
-                queue.Enqueue(connectableCell);
-                path[connectableCell] = currentCell;
+                queue.Enqueue((connectableCell, nextPath));
             }
-
-            // 終点に到達した場合は、探索を終了
-            if (isReached) break;
         }
 
-        if (path.Count == 0)
+        if (foundPaths.Count == 0)
         {
             Debug.LogWarning("指定されたネットワーク内に経路が見つかりませんでした。");
             return;
         }
 
-        // 最短経路を設定
-        var resultPath = new List<ConnectableCellBase>();
-
-        var current = endCell;
-        while (current != null && path.ContainsKey(current))
+        foreach (var path in foundPaths)
         {
-            resultPath.Add(current);
-            current = path[current];
-        }
+            // 最短経路を設定
+            var resultPath = new List<ConnectableCellBase>();
 
-        var length = resultPath.Count;
-        if (length == 0) return;
+            var current = endCell;
+            while (current != null && path.ContainsKey(current))
+            {
+                resultPath.Add(current);
+                current = path[current];
+            }
 
-        // 片方はIExportable、もう片方はIContainableにだけキャスト可能の場合に経路を追加
-        switch (startCell)
-        {
-            case IExportable exportableStart when endCell is IContainable:
-                resultPath.Reverse();
-                exportableStart.AddPath(length, resultPath);
-                break;
-            case IContainable when endCell is IExportable exportableEnd:
-                exportableEnd.AddPath(length, resultPath);
-                break;
+            var length = resultPath.Count;
+            if (length == 0) continue;
+
+            // 片方はIExportable、もう片方はIContainableにだけキャスト可能の場合に経路を追加
+            switch (startCell)
+            {
+                case IExportable exportableStart when endCell is IContainable:
+                    resultPath.Reverse();
+                    exportableStart.AddPath(length, resultPath);
+                    break;
+                case IContainable when endCell is IExportable exportableEnd:
+                    exportableEnd.AddPath(length, resultPath);
+                    break;
+            }
         }
     }
 
