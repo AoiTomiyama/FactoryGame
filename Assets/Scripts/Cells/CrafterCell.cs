@@ -32,8 +32,13 @@ public class CrafterCell : ConnectableCellBase, IExportable, IContainable
     protected override void Start()
     {
         base.Start();
-        OnConnectionChanged += OnConnect;
         InitAccessPoint();
+    }
+
+    protected override void SetConnectableDirections()
+    {
+        base.SetConnectableDirections();
+        _connectableDirections = _connectableDirections.Where(dir => dir != Vector3Int.RoundToInt(-transform.forward)).ToArray();
     }
 
     private void InitAccessPoint()
@@ -52,7 +57,6 @@ public class CrafterCell : ConnectableCellBase, IExportable, IContainable
 
     public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
-        Debug.Log(string.Join(",", _resourceInputs.Keys));
         if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return 0;
 
         // 初めてのリソース追加
@@ -86,13 +90,6 @@ public class CrafterCell : ConnectableCellBase, IExportable, IContainable
         inputStorage.allocated -= amount;
         _resourceInputs[dir] = inputStorage;
         UpdateUI();
-    }
-
-    private void OnConnect()
-    {
-        _output = AdjacentCells
-            .OfType<ConnectableCellBase>()
-            .FirstOrDefault(cell => (cell.transform.position - transform.position).normalized == Vector3.forward);
     }
 
     public void RefreshPath()

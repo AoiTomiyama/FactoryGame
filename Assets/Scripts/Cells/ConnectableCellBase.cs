@@ -5,6 +5,7 @@ using UnityEngine;
 
 public abstract class ConnectableCellBase : CellBase
 {
+    protected Vector3Int[] _connectableDirections;
     protected CellBase[] AdjacentCells { get; private set; }
     protected const int AdjacentCount = 4;
     protected event Action OnConnectionChanged;
@@ -12,9 +13,20 @@ public abstract class ConnectableCellBase : CellBase
     protected virtual void Start()
     {
         AdjacentCells = new CellBase[AdjacentCount];
-
+        SetConnectableDirections();
         ConnectAdjacentCells(this);
         PipelineNetworkManager.Instance.AddCellToNetwork(this);
+    }
+
+    protected virtual void SetConnectableDirections()
+    {
+        _connectableDirections = new[]
+        {
+            Vector3Int.right,
+            Vector3Int.forward,
+            Vector3Int.left,
+            Vector3Int.back,
+        };
     }
 
     public bool HasCellConnected(CellBase cell) => AdjacentCells.Contains(cell);
@@ -48,17 +60,26 @@ public abstract class ConnectableCellBase : CellBase
                 continue;
             }
 
-            // 取得できたセルをAdjacentCellsに追加
-            AdjacentCells[i] = foundCell;
-
             // 取得できたセルがConnectableCellBaseのであれば、接続を行う
-            if (foundCell is not ConnectableCellBase connectableCell) continue;
+            if (foundCell is ConnectableCellBase connectableCell)
+            {
+                var dir = Vector3Int.RoundToInt((transform.position - foundCell.transform.position).normalized);
+                if (!_connectableDirections.Contains(-dir) ||
+                    !connectableCell._connectableDirections.Contains(dir)) continue;
 
-            // 接続先セルのAdjacentCellsに接続元のセルがなければ追加
-            if (connectableCell.AdjacentCells.Contains(fromCell)) continue;
+                // 接続先セルのAdjacentCellsに接続元のセルがなければ追加
+                if (connectableCell.AdjacentCells.Contains(fromCell)) continue;
 
-            // 向こうのセルのAdjacentCellsに接続元のセルを追加
-            connectableCell.ConnectAdjacentCells(fromCell);
+                AdjacentCells[i] = foundCell;
+
+                // 向こうのセルのAdjacentCellsに接続元のセルを追加
+                connectableCell.ConnectAdjacentCells(fromCell);
+            }
+            else
+            {
+                // 取得できたセルをAdjacentCellsに追加
+                AdjacentCells[i] = foundCell;
+            }
         }
 
         // 接続が完了したらイベントを呼び出す
