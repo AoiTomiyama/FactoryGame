@@ -23,7 +23,7 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
 
     private int StorageAmount { get; set; }
 
-    public ResourceType ResourceType => resourceType;
+    public ResourceType ExportResourceType => resourceType;
 
     public HashSet<(int length, List<ConnectableCellBase> path)> ExportPaths { get; private set; } = new();
     private CellBase _forwardCell;
@@ -143,23 +143,23 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
     }
 
     // 描画のし過ぎでシーンが重くなるためコメントアウト
-    // protected override void OnDrawGizmos()
-    // {
-    //     base.OnDrawGizmos();
-    //     Gizmos.color = Color.blue;
-    //     var startPadding = Vector3.up * 5f;
-    //     foreach (var (_, path) in ExportPaths.Where(pathInfo => pathInfo.path != null && pathInfo.path.Count != 0))
-    //     {
-    //         // パスの先頭から終点までの線を描画
-    //
-    //         ConnectableCellBase firstCell = this;
-    //         foreach (var cell in path)
-    //         {
-    //             Gizmos.DrawLine(firstCell.transform.position + startPadding, cell.transform.position + startPadding);
-    //             firstCell = cell;
-    //         }
-    //
-    //         startPadding += Vector3.up * 0.2f;
-    //     }
-    // }
+    protected override void OnDrawGizmos()
+    {
+        base.OnDrawGizmos();
+        Gizmos.color = Color.blue;
+        var startPadding = Vector3.up * 5f;
+        foreach (var (_, path) in ExportPaths.Where(pathInfo => pathInfo.path != null && pathInfo.path.Count != 0))
+        {
+            // パスの先頭から終点までの線を描画
+    
+            ConnectableCellBase firstCell = this;
+            foreach (var cell in path)
+            {
+                Gizmos.DrawLine(firstCell.transform.position + startPadding, cell.transform.position + startPadding);
+                firstCell = cell;
+            }
+    
+            startPadding += Vector3.up * 0.2f;
+        }
+    }
 }

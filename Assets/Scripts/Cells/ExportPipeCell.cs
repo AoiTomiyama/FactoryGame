@@ -14,7 +14,7 @@ public class ExportPipeCell : ItemPipeCell, IExportable
     private bool _isExportable;
 
     public HashSet<(int length, List<ConnectableCellBase> path)> ExportPaths { get; private set; } = new();
-    public ResourceType ResourceType { get; private set; }
+    public ResourceType ExportResourceType { get; private set; }
 
     protected override void Start()
     {
@@ -46,7 +46,7 @@ public class ExportPipeCell : ItemPipeCell, IExportable
                 if (takenAmount <= 0) continue;
 
                 // 成功した場合、リソースタイプとストレージの座標を保存
-                ResourceType = type;
+                ExportResourceType = type;
                 beginPos = cell.transform.position;
                 resourceUpdateAction = () => cell.TakeResource(takenAmount);
                 break;

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -53,7 +54,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         UpdateResourceIcon();
     }
 
-    public int AllocateStorage(int amount, ResourceType resourceType)
+    public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
         // 初めてのリソース追加
         if (_storedResourceType == ResourceType.None)
@@ -74,7 +75,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         return allocated;
     }
 
-    public void StoreResource(int amount)
+    public void StoreResource(Vector3Int dir, int amount)
     {
         if (amount > _allocatedAmount) return;
         
@@ -119,7 +120,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         if (CurrentLoad == 0) StoredResourceType = ResourceType.None;
     }
 
-    public bool IsFull() => CurrentLoad + _allocatedAmount == capacity;
+    public bool IsValid() => CurrentLoad + _allocatedAmount < capacity;
 
     private void UpdateUI()
     {
