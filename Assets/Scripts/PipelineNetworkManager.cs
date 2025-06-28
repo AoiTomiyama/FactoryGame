@@ -202,10 +202,13 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
             return false;
         }
 
-        var exportType = exporter.ResourceType;
+        Vector3Int inputDirection = default;
         List<ConnectableCellBase> path = null;
         IContainable container = null;
+        var exportType = exporter.ExportResourceType;
+        var allocatedAmount = 0;
         var hasFoundPath = false;
+
         exporter.RefreshPath();
         if (exporter.ExportPaths.Count == 0)
         {
@@ -217,10 +220,6 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
 
         foreach (var (_, p) in exporter.ExportPaths)
         {
-            // 検索条件
-            // ・終点がIContainableである。
-            // ・IContainableに許容量がある。
-            // ・IExportableとIContainableのタイプが不正でない
             if (p?.LastOrDefault() is not IContainable containable)
             {
 #if UNITY_EDITOR
@@ -228,27 +227,19 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
 #endif
                 continue;
             }
+            
+            if (p.Count < 2) continue;
 
-            if (containable.IsFull())
-            {
-#if UNITY_EDITOR
-                if (logMode) Debug.LogWarning("終点が容量限界のためスキップされました");
-#endif
-                continue;
-            }
-
-            if (containable.StoredResourceType != ResourceType.None &&
-                containable.StoredResourceType != exportType)
-            {
-#if UNITY_EDITOR
-                if (logMode) Debug.LogWarning("リソースタイプが不正のためスキップされました");
-#endif
-                continue;
-            }
+            // 予め終点にリソースの輸入を予約する。
+            var dir = Vector3Int.RoundToInt((p.Last().transform.position　- p[^2].transform.position).normalized);
+            Debug.Log(dir);
+            allocatedAmount = containable.AllocateStorage(dir, exportAmount, exportType);
+            if (allocatedAmount <= 0) continue;
 
             // 一致した場合、要素を変数に保持。
-            path = p;
             container = containable;
+            inputDirection = dir;
+            path = p;
             hasFoundPath = true;
             break;
         }
@@ -261,9 +252,6 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
 #endif
             return false;
         }
-
-        // 予め終点にリソースの輸入を予約する。
-        var allocatedAmount = container.AllocateStorage(exportAmount, exportType);
 
         // 予約分を保存
         allocated = allocatedAmount;
@@ -283,7 +271,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
             .OnComplete(() =>
             {
                 // ストレージに保存
-                container.StoreResource(allocatedAmount);
+                container.StoreResource(inputDirection, allocatedAmount);
 
                 // ObjectPoolにモデルを返す
                 ResourceItemObjectPool.Instance.Return(exportType, itemObj);
