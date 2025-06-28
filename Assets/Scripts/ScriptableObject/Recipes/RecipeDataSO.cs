@@ -4,13 +4,6 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "RecipeDataSO", menuName = "Scriptable Objects/RecipeDataSO")]
 public class RecipeDataSO : ScriptableObject
 {
-    [Serializable]
-    public struct Ingredient
-    {
-        public ResourceType resourceType;
-        public int requiredAmount;
-    }
-
     [SerializeField] [Tooltip("必要となるリソース情報")]
     private Ingredient[] ingredients;
     
@@ -23,4 +16,11 @@ public class RecipeDataSO : ScriptableObject
     public Ingredient[] Ingredients => ingredients;
     public ResourceType Result => result;
     public int ResultAmount => resultAmount;
+}
+
+[Serializable]
+public struct Ingredient
+{
+    public ResourceType resourceType;
+    public int requiredAmount;
 }
