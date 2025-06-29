@@ -12,7 +12,6 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
     [SerializeField] private float extractionSecond;
     [SerializeField] private int extractionAmount;
     [SerializeField] private int extractionCapacity;
-    [SerializeField] private float itemMoveBaseSecond;
 
     [Header("UI設定")]
     [SerializeField] private Image extractionProgressBar;
@@ -91,11 +90,10 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
     private bool TryExportResources()
     {
         // ネットワークを介してターゲットにリソースを送る
-        var isAllowedToTransfer = PipelineNetworkManager.TryExport(
+        var isAllowedToTransfer = PipelineNetworkManager.Instance.TryExport(
             exporter: this,
             exportAmount: StorageAmount,
-            exportItemSpeed: itemMoveBaseSecond,
-            transform.position,
+            exportBeginPos: transform.position,
             allocated: out var allocatedAmount);
 
         // 輸出が確立されたら現在のリソース値から予約量を減らす

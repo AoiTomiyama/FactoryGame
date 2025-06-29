@@ -5,6 +5,7 @@ using UnityEngine;
 
 public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetworkManager>
 {
+    [SerializeField] private float itemTransferSecondPerCell;
     private readonly List<List<ConnectableCellBase>> _pipelineNetworks = new();
 
     /// <summary>
@@ -183,12 +184,11 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     /// </summary>
     /// <param name="exporter">始点となるセル</param>
     /// <param name="exportAmount">輸送する量</param>
-    /// <param name="exportItemSpeed">輸送する速度</param>
     /// <param name="exportBeginPos">アニメーション開始地点の座標</param>
     /// <param name="allocated">予約に成功した輸送量</param>
     /// <param name="logMode">falseが返されるときのログ表示（デバッグ用）</param>
     /// <returns>輸送に成功したかどうか</returns>
-    public static bool TryExport(IExportable exporter, int exportAmount, float exportItemSpeed,
+    public bool TryExport(IExportable exporter, int exportAmount,
         Vector3 exportBeginPos, out int allocated, bool logMode = false)
     {
         allocated = 0;
@@ -232,7 +232,6 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
 
             // 予め終点にリソースの輸入を予約する。
             var dir = Vector3Int.RoundToInt((p.Last().transform.position　- p[^2].transform.position).normalized);
-            Debug.Log(dir);
             allocatedAmount = containable.AllocateStorage(dir, exportAmount, exportType);
             if (allocatedAmount <= 0) continue;
 
@@ -266,7 +265,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
         // 始点から終点までのアニメーション
         var pathPos = path.Select(p => p.transform.position + padding).Prepend(startPos).ToArray();
         itemObj.transform
-            .DOPath(pathPos, exportItemSpeed * path.Count)
+            .DOPath(pathPos, itemTransferSecondPerCell * path.Count)
             .SetEase(Ease.Linear)
             .OnComplete(() =>
             {

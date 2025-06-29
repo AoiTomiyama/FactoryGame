@@ -8,7 +8,6 @@ public class ExportPipeCell : ItemPipeCell, IExportable
 {
     [SerializeField] private float exportIntervalSecond;
     [SerializeField] private int maxExportAmount;
-    [SerializeField] private float itemExportBaseSecond;
 
     private StorageCell[] _storages;
     private bool _isExportable;
@@ -55,10 +54,9 @@ public class ExportPipeCell : ItemPipeCell, IExportable
             if (takenAmount > 0)
             {
                 // リソースの輸出
-                yield return new WaitUntil(() => PipelineNetworkManager.TryExport(
+                yield return new WaitUntil(() => PipelineNetworkManager.Instance.TryExport(
                     exporter: this,
                     exportAmount: takenAmount,
-                    exportItemSpeed: itemExportBaseSecond,
                     exportBeginPos: beginPos,
                     allocated: out _
                 ));
