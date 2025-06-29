@@ -1,9 +1,17 @@
 using System;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "RecipeDataSO", menuName = "Scriptable Objects/RecipeDataSO")]
-public class RecipeDataSO : ScriptableObject
+[CreateAssetMenu(fileName = "RecipeDatabaseSO", menuName = "Scriptable Objects/RecipeDatabaseSO")]
+public class RecipeDatabaseSO : ScriptableObject
 {
+    public RecipeData[] recipes;
+}
+[Serializable]
+public class RecipeData
+{
+    [SerializeField] [Tooltip("レシピ名")]
+    private string recipeName;
+    
     [SerializeField] [Tooltip("必要となるリソース情報")]
     private Ingredient[] ingredients;
     

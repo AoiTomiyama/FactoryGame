@@ -9,13 +9,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1963b1d2ddc7c8748a4076ea2e2b0143, type: 3}
-  m_Name: TestRecipe
+  m_Script: {fileID: 11500000, guid: 97eba919ffde3064db57cb8fa07a9916, type: 3}
+  m_Name: RecipeDB
   m_EditorClassIdentifier: 
-  ingredients:
-  - resourceType: 1
-    requiredAmount: 2
-  - resourceType: 2
-    requiredAmount: 2
-  result: 2
-  resultAmount: 1
+  recipes:
+  - recipeName: TestRecipe
+    ingredients:
+    - resourceType: 1
+      requiredAmount: 2
+    - resourceType: 2
+      requiredAmount: 2
+    result: 2
+    resultAmount: 1
