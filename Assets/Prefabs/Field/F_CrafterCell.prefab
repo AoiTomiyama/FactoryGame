@@ -952,7 +952,7 @@ MonoBehaviour:
   craftingSecond: 5
   ingredientCapacity: 5
   craftedCapacity: 3
-  recipeData: {fileID: 11400000, guid: 26cc36b1f5f421e44b14563826ed8617, type: 2}
+  recipeDatabase: {fileID: 11400000, guid: 279a36cb76bd3fa419d433c0feceb0b5, type: 2}
   processBar: {fileID: 3239354270892396707}
   leftAmountBar: {fileID: 7702046538809387303}
   rightAmountBar: {fileID: 7306468011486244274}

@@ -12,7 +12,7 @@ public class CrafterCell : ConnectableCellBase, IExportable, IContainable
     [SerializeField] private int ingredientCapacity;
     [SerializeField] private int craftedCapacity;
     [SerializeField] [InlineSO]
-    private RecipeDataSO recipeData;
+    private RecipeDatabaseSO recipeDatabase;
 
     [Header("UI設定")]
     [SerializeField] private Image processBar;
@@ -67,7 +67,8 @@ public class CrafterCell : ConnectableCellBase, IExportable, IContainable
             // ストレージに保存できる容量があるか確認
             if (_craftedAmount < craftedCapacity)
             {
-                yield return new WaitUntil(HasEnoughIngredients);
+                RecipeData recipe = null;
+                yield return new WaitUntil(() => HasAvailableRecipe(out recipe));
                 processBar.fillAmount = 0f;
 
                 var tween = processBar
@@ -75,7 +76,7 @@ public class CrafterCell : ConnectableCellBase, IExportable, IContainable
                     .SetEase(Ease.Linear);
 
                 yield return tween.WaitForCompletion();
-                Craft();
+                Craft(recipe);
             }
             else
             {
@@ -90,14 +91,34 @@ public class CrafterCell : ConnectableCellBase, IExportable, IContainable
     /// クラフト素材が全て揃っていて、クラフト可能かの判定を行う
     /// </summary>
     /// <returns>素材が全て揃っているかどうか</returns>
-    private bool HasEnoughIngredients()
+    private bool HasAvailableRecipe(out RecipeData foundRecipeData)
     {
-        if (_craftedAmount + recipeData.ResultAmount > craftedCapacity) return false;
+        foreach (var recipe in recipeDatabase.recipes)
+        {
+            if (!CheckRecipe(recipe)) continue;
+            foundRecipeData = recipe;
+            return true;
+        }
+
+        foundRecipeData = null;
+        return false;
+    }
+
+    /// <summary>
+    /// 現在のストレージを参照して、レシピが有効かを調べる
+    /// </summary>
+    /// <param name="recipe">チェックするレシピ</param>
+    /// <returns>有効かどうか</returns>
+    private bool CheckRecipe(RecipeData recipe)
+    {
+        // 生成後が容量オーバーする場合はfalse
+        if (_craftedAmount + recipe.ResultAmount > craftedCapacity) return false;
         var usedKeys = new HashSet<Vector3Int>();
-        foreach (var ingredient in recipeData.Ingredients)
+
+        // レシピの要件を調べる
+        foreach (var ingredient in recipe.Ingredients)
         {
             var hasIngredient = false;
-
             foreach (var key in _resourceInputs.Keys)
             {
                 if (usedKeys.Contains(key)) continue;
@@ -116,18 +137,17 @@ public class CrafterCell : ConnectableCellBase, IExportable, IContainable
                 break;
             }
 
-            // 要件を満たせなかった場合、falseを返す。
+            // 一つでも要件が満たされなかったら検索を打ち切る
             if (!hasIngredient) return false;
         }
 
-        // 全ての要件を満たしたらtrue
         return true;
     }
 
-    private void Craft()
+    private void Craft(RecipeData recipe)
     {
         var usedKeys = new HashSet<Vector3Int>();
-        foreach (var ingredient in recipeData.Ingredients)
+        foreach (var ingredient in recipe.Ingredients)
         {
             foreach (var key in _resourceInputs.Keys)
             {
@@ -149,8 +169,8 @@ public class CrafterCell : ConnectableCellBase, IExportable, IContainable
             }
         }
 
-        _craftedAmount += recipeData.ResultAmount;
-        ExportResourceType = recipeData.Result;
+        _craftedAmount += recipe.ResultAmount;
+        ExportResourceType = recipe.Result;
 
         _ = TryExportResource();
         UpdateUI();
@@ -178,9 +198,6 @@ public class CrafterCell : ConnectableCellBase, IExportable, IContainable
         // 初めてのリソース追加
         if (inputStorage.type == ResourceType.None)
         {
-            // レシピ内に指定のタイプがあるか
-            if (recipeData.Ingredients.All(ing => ing.resourceType != resourceType)) return 0;
-
             inputStorage.type = resourceType;
         }
 
