@@ -17,5 +17,5 @@ MonoBehaviour:
     requiredAmount: 2
   - resourceType: 2
     requiredAmount: 2
-  result: 0
-  resultAmount: 0
+  result: 2
+  resultAmount: 1
