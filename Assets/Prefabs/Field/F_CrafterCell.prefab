@@ -926,6 +926,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2108987448181754806}
+    - targetCorrespondingSourceObject: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2694704082559079263}
   m_SourcePrefab: {fileID: 100100000, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
 --- !u!4 &954194638515672439 stripped
 Transform:
@@ -949,14 +952,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98e6290011147244bb842e7deef075d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  craftingSecond: 5
   ingredientCapacity: 5
-  craftedCapacity: 3
   recipeDatabase: {fileID: 11400000, guid: 279a36cb76bd3fa419d433c0feceb0b5, type: 2}
   processBar: {fileID: 3239354270892396707}
   leftAmountBar: {fileID: 7702046538809387303}
   rightAmountBar: {fileID: 7306468011486244274}
   craftedAmountBar: {fileID: 8727605458378704189}
+  exportableModule: {fileID: 2694704082559079263}
+--- !u!114 &2694704082559079263
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4459558688149977885}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3580f0e0101e45fabe313752dd8d8e08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  exporterCapacity: 5
+  exportIntervalSecond: 0.1
 --- !u!4 &8954265043846840594 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 878906971913252476, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}

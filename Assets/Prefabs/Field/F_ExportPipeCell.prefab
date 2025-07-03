@@ -63,6 +63,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
       insertIndex: -1
       addedObject: {fileID: 699830911260170433}
+    - targetCorrespondingSourceObject: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4309742068122855696}
   m_SourcePrefab: {fileID: 100100000, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
 --- !u!1 &1329475835080766442 stripped
 GameObject:
@@ -82,9 +85,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   pipeConnectionPrefab: {fileID: 4068375325743859050, guid: cb10f5926e6e5c847bbc796057bcba12, type: 3}
-  exportIntervalSecond: 0.15
-  maxExportAmount: 1
-  itemExportBaseSecond: 0.2
+  exportableModule: {fileID: 4309742068122855696}
+--- !u!114 &4309742068122855696
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1329475835080766442}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3580f0e0101e45fabe313752dd8d8e08, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  exporterCapacity: 1
+  exportIntervalSecond: 0.1
 --- !u!4 &6040249969496787429 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 878906971913252476, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
