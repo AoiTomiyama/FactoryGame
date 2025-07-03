@@ -1,5 +1,4 @@
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using DG.Tweening;
 using UnityEngine;
@@ -11,7 +10,6 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
     [SerializeField] private ResourceType resourceType;
     [SerializeField] private float extractionSecond;
     [SerializeField] private int extractionAmount;
-    [SerializeField] private int extractionCapacity;
 
     [Header("UI設定")]
     [SerializeField] private Image extractionProgressBar;
@@ -19,145 +17,69 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
 
     [Header("その他設定")]
     [SerializeField] private ResourceSO resourceDatabase;
+    [SerializeField] private ExporterModule exportableModule;
 
-    private int StorageAmount { get; set; }
-
-    public ResourceType ExportResourceType => resourceType;
-
-    public HashSet<(int length, List<ConnectableCellBase> path)> ExportPaths { get; private set; } = new();
+    public ExporterModule ExportableModule => exportableModule;
     private CellBase _forwardCell;
-    private bool _isExtractable;
+    private bool _isActivate;
 
     protected override void Start()
     {
         base.Start();
-        foreach (var cell in AdjacentCells)
-        {
-            if (cell == null) continue;
-            if (cell.XIndex != XIndex + Mathf.RoundToInt(transform.forward.x) ||
-                cell.ZIndex != ZIndex + Mathf.RoundToInt(transform.forward.z)) continue;
-            if (cell is ResourceCell resourceCell &&
-                resourceCell.ResourceType == resourceType)
-                
-            // 有効なリソースセルを前方に見つけたら保存
-            _forwardCell = cell;
-            _isExtractable = true;
-            break;
-        }
-
+        _isActivate = true;
         extractionProgressBar.fillAmount = 0;
         storageAmountBar.fillAmount = 0;
+        
+        _forwardCell = AdjacentCells
+            .OfType<ResourceCell>()
+            .FirstOrDefault(cell =>
+                cell.XIndex == XIndex + Mathf.RoundToInt(transform.forward.x) &&
+                cell.ZIndex == ZIndex + Mathf.RoundToInt(transform.forward.z) &&
+                cell.ResourceType == resourceType);
 
-        if (_forwardCell == null || _forwardCell is not ResourceCell) return;
-        StartCoroutine(ExtractEnumerator());
+        if (_forwardCell == null) return;
+        if (ExportableModule == null)
+        {
+#if UNITY_EDITOR
+            Debug.LogError($"{nameof(ExportableModule)}がnullです。");
+#endif
+            return;
+        }
+
+        ExportableModule.ExportResourceType = resourceType;
+        StartCoroutine(ExtractFromForwardResourceEnumerator());
     }
 
-    private IEnumerator ExtractEnumerator()
+    private IEnumerator ExtractFromForwardResourceEnumerator()
     {
-        while (_isExtractable)
+        while (_isActivate)
         {
-            // ストレージに保存できる容量があるか確認
-            if (StorageAmount < extractionCapacity)
-            {
-                extractionProgressBar.fillAmount = 0f;
+            // 容量に空きが出るまで待機
+            yield return new WaitUntil(() => ExportableModule.ExportResourceAmount < ExportableModule.ExporterCapacity);
+            
+            extractionProgressBar.fillAmount = 0f;
 
-                var tween = extractionProgressBar
-                    .DOFillAmount(1f, extractionSecond)
-                    .SetEase(Ease.Linear);
+            var tween = extractionProgressBar
+                .DOFillAmount(1f, extractionSecond)
+                .SetEase(Ease.Linear);
 
-                yield return tween.WaitForCompletion();
-                Extract();
-            }
-            else
-            {
-                // 容量上限に達した場合はスペースが空くまで待機
-                yield return new WaitUntil(TryExportResources);
-                UpdateUI();
-            }
+            // 抽出が終わるまで待機
+            yield return tween.WaitForCompletion();
+            
+            // 輸出モジュールにリソースを転送するまで待機
+            var available = ExportableModule.ExporterCapacity - ExportableModule.ExportResourceAmount;
+            var gainAmount = Mathf.Min(available, extractionAmount);
+            
+            yield return new WaitUntil(() => ExportableModule.TryStackToExporter(gainAmount));
+            UpdateUI();
         }
     }
-
-    private void Extract()
-    {
-        if (_forwardCell == null || _forwardCell is not ResourceCell) return;
-        StorageAmount += extractionAmount;
-
-        // 抽出後、一度だけ輸出を試行する
-        _ = TryExportResources();
-        UpdateUI();
-    }
-
-    private bool TryExportResources()
-    {
-        // ネットワークを介してターゲットにリソースを送る
-        var isAllowedToTransfer = PipelineNetworkManager.Instance.TryExport(
-            exporter: this,
-            exportAmount: StorageAmount,
-            exportBeginPos: transform.position,
-            allocated: out var allocatedAmount);
-
-        // 輸出が確立されたら現在のリソース値から予約量を減らす
-        if (isAllowedToTransfer) StorageAmount -= allocatedAmount;
-
-        return isAllowedToTransfer;
-    }
-
-    public void RefreshPath()
-    {
-        // 経路内にnullが含まれている場合、経路として不正なので除外する
-        var refreshedPaths = ExportPaths.Where(pathInfo => pathInfo
-            .path.All(cell => cell != null)).ToHashSet();
-        ExportPaths.Clear();
-        ExportPaths = refreshedPaths;
-    }
-
 
     private void UpdateUI()
     {
         if (storageAmountBar != null)
         {
-            storageAmountBar.fillAmount = (float)StorageAmount / extractionCapacity;
-        }
-    }
-
-    public void AddPath(int length, List<ConnectableCellBase> path)
-    {
-        // 既に同じパスが存在する場合は追加しない
-        if (ExportPaths.Any(p => p.path.SequenceEqual(path))) return;
-        if (path == null || path.Count == 0)
-        {
-            Debug.LogWarning("パスが空です。パスを追加できません。", this);
-            return;
-        }
-
-        if (path.Last() is not IContainable)
-        {
-            Debug.LogWarning("パスの終点がストレージセルではありません。パスを追加できません。", this);
-            return;
-        }
-
-        ExportPaths.Add((length, path));
-        ExportPaths = ExportPaths.OrderBy(p => p.length).ToHashSet();
-    }
-
-    // 描画のし過ぎでシーンが重くなるためコメントアウト
-    protected override void OnDrawGizmos()
-    {
-        base.OnDrawGizmos();
-        Gizmos.color = Color.blue;
-        var startPadding = Vector3.up * 5f;
-        foreach (var (_, path) in ExportPaths.Where(pathInfo => pathInfo.path != null && pathInfo.path.Count != 0))
-        {
-            // パスの先頭から終点までの線を描画
-    
-            ConnectableCellBase firstCell = this;
-            foreach (var cell in path)
-            {
-                Gizmos.DrawLine(firstCell.transform.position + startPadding, cell.transform.position + startPadding);
-                firstCell = cell;
-            }
-    
-            startPadding += Vector3.up * 0.2f;
+            storageAmountBar.fillAmount = (float)ExportableModule.ExportResourceAmount / ExportableModule.ExporterCapacity;
         }
     }
 }

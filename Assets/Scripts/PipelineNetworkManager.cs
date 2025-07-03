@@ -82,7 +82,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     /// ネットワーク内の全てのセル間の経路を登録します。
     /// </summary>
     /// <param name="network">検索対象のネットワーク</param>
-    private static void RegisterAllNetworkPaths(List<ConnectableCellBase> network)
+    private void RegisterAllNetworkPaths(List<ConnectableCellBase> network)
     {
         // ネットワーク内のセルが2つ以上ある場合のみ経路を登録
         if (network.Count < 2) return;
@@ -102,7 +102,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     /// </summary>
     /// <param name="startCell">始点となるセル</param>
     /// <param name="endCell">終点となるセル</param>
-    private static void RegisterAllPathByNetwork(ConnectableCellBase startCell, ConnectableCellBase endCell)
+    private void RegisterAllPathByNetwork(ConnectableCellBase startCell, ConnectableCellBase endCell)
     {
         if (startCell == null) return;
 
@@ -162,19 +162,12 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
                 current = path[current];
             }
 
-            var length = resultPath.Count;
-            if (length == 0) continue;
+            if (resultPath.Count == 0) continue;
 
-            // 片方はIExportable、もう片方はIContainableにだけキャスト可能の場合に経路を追加
-            switch (startCell)
+            if (startCell is IExportable exportableStart)
             {
-                case IExportable exportableStart when endCell is IContainable:
-                    resultPath.Reverse();
-                    exportableStart.AddPath(length, resultPath);
-                    break;
-                case IContainable when endCell is IExportable exportableEnd:
-                    exportableEnd.AddPath(length, resultPath);
-                    break;
+                resultPath.Reverse();
+                AddPath(exportableStart.ExportableModule, resultPath);
             }
         }
     }
@@ -188,7 +181,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     /// <param name="allocated">予約に成功した輸送量</param>
     /// <param name="logMode">falseが返されるときのログ表示（デバッグ用）</param>
     /// <returns>輸送に成功したかどうか</returns>
-    public bool TryExport(IExportable exporter, int exportAmount,
+    public bool TryExport(ExporterModule exporter, int exportAmount,
         Vector3 exportBeginPos, out int allocated, bool logMode = false)
     {
         allocated = 0;
@@ -209,7 +202,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
         var allocatedAmount = 0;
         var hasFoundPath = false;
 
-        exporter.RefreshPath();
+        RefreshPath(exporter);
         if (exporter.ExportPaths.Count == 0)
         {
 #if UNITY_EDITOR
@@ -218,7 +211,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
             return false;
         }
 
-        foreach (var (_, p) in exporter.ExportPaths)
+        foreach (var p in exporter.ExportPaths)
         {
             if (p?.LastOrDefault() is not IContainable containable)
             {
@@ -278,5 +271,36 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
 
         // 全ての処理が問題なく処理できたのでtrueを返す
         return true;
+    }
+
+    private static void RefreshPath(ExporterModule exporter)
+    {
+        // 経路内にnullが含まれている場合、経路として不正なので除外する
+        var refreshedPaths = exporter.ExportPaths.Where(p => p.All(cell => cell != null)).ToHashSet();
+        exporter.ExportPaths.Clear();
+        exporter.ExportPaths = refreshedPaths;
+    }
+
+    private void AddPath(ExporterModule exporter, List<ConnectableCellBase> path)
+    {
+        // 既に同じパスが存在する場合は追加しない
+        if (exporter.ExportPaths.Any(p => p.SequenceEqual(path))) return;
+        if (path == null || path.Count == 0)
+        {
+            Debug.LogWarning("パスが空です。パスを追加できません。", this);
+            return;
+        }
+
+        if (path.Last() is not IContainable)
+        {
+            Debug.LogWarning("パスの終点がストレージセルではありません。パスを追加できません。", this);
+            return;
+        }
+
+        // 各セルごとに設定されたフィルタリングをチェックする
+        if (exporter.OnFilterPath != null && !exporter.OnFilterPath.Invoke(path)) return;
+
+        exporter.ExportPaths.Add(path);
+        exporter.ExportPaths = exporter.ExportPaths.OrderBy(p => p.Count).ToHashSet();
     }
 }
