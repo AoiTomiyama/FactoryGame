@@ -14,6 +14,9 @@ public class RecipeData
     
     [SerializeField] [Tooltip("必要となるリソース情報")]
     private Ingredient[] ingredients;
+
+    [SerializeField] [Tooltip("作成にかかる時間")]
+    private float craftSecond;
     
     [SerializeField] [Tooltip("出来上がる成果物")]
     private ResourceType result;
@@ -24,6 +27,8 @@ public class RecipeData
     public Ingredient[] Ingredients => ingredients;
     public ResourceType Result => result;
     public int ResultAmount => resultAmount;
+
+    public float CraftSecond => craftSecond;
 }
 
 [Serializable]

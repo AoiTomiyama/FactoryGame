@@ -8,7 +8,6 @@ using UnityEngine.UI;
 public class CrafterCell : ConnectableCellBase, IExportable, IContainable
 {
     [Header("クラフト設定")]
-    [SerializeField] private float craftingSecond;
     [SerializeField] private int ingredientCapacity;
     [SerializeField] private int craftedCapacity;
     [SerializeField] [InlineSO]
@@ -71,9 +70,9 @@ public class CrafterCell : ConnectableCellBase, IExportable, IContainable
                 yield return new WaitUntil(() => HasAvailableRecipe(out recipe));
                 processBar.fillAmount = 0f;
 
-                var tween = processBar
-                    .DOFillAmount(1f, craftingSecond)
-                    .SetEase(Ease.Linear);
+            var tween = processBar
+                .DOFillAmount(1f, recipe.CraftSecond)
+                .SetEase(Ease.Linear);
 
                 yield return tween.WaitForCompletion();
                 Craft(recipe);
