@@ -19,5 +19,6 @@ MonoBehaviour:
       requiredAmount: 2
     - resourceType: 2
       requiredAmount: 2
+    craftSecond: 5
     result: 2
     resultAmount: 1
