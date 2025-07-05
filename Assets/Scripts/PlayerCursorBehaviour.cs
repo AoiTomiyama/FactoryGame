@@ -102,14 +102,8 @@ public class PlayerCursorBehaviour : MonoBehaviour
 
     private void OnRightClick(InputAction.CallbackContext context)
     {
-        if (!context.performed) return;
-        // if (raycaster.IsPointerOverUI(_mousePosition)) return;
-        //
-        // // 右クリックでデフォルトのセルに置き換える
-        // if (!TryReplaceCell(defaultCellPrefab))
-        // {
-        //     Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
-        // }
+        // if (!context.performed) return;
+        // TODO: 右クリックでセルごとの詳細情報の表示機能を作る
     }
 
     private bool TryReplaceCell(GameObject prefab)

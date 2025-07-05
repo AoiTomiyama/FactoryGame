@@ -21,11 +21,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
     [Header("その他の設定")]
     [SerializeField] private ExporterModule exportableModule;
     public ExporterModule ExportableModule => exportableModule;
-
-    // 入力関連
     private readonly Dictionary<Vector3Int, (ResourceType type, int amount, int allocated)> _resourceInputs = new();
-
-    // 出力関連
     private bool _isActivate;
 
     protected override void Start()
