@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using DG.Tweening;
+using TMPro;
 using UnityEngine;
 
 public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetworkManager>
@@ -254,6 +255,12 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
         // ObjectPoolからモデルを呼び出す
         var itemObj = ResourceItemObjectPool.Instance.GetPrefab(exportType);
         itemObj.transform.position = startPos;
+        var textMesh = itemObj.GetComponentInChildren<TextMeshPro>();
+        if (textMesh != null)
+        {
+            // Textが存在する場合、予約量を表示
+            textMesh.text = allocatedAmount.ToString();
+        }
 
         // 始点から終点までのアニメーション
         var pathPos = path.Select(p => p.transform.position + padding).Prepend(startPos).ToArray();
