@@ -15,6 +15,7 @@ public class ExporterModule : MonoBehaviour
     public Vector3 ExportBeginPos { get; set; }
     public ResourceType ExportResourceType { get; set; }
     public int ExportResourceAmount { get; private set; }
+    public Action OnExport { get; set; }
     private bool _isActivate;
 
     public int ExporterCapacity => exporterCapacity;
@@ -61,7 +62,11 @@ public class ExporterModule : MonoBehaviour
             allocated: out var allocatedAmount);
 
         // 輸出が確立されたら現在のリソース値から予約量を減らす
-        if (isAllowedToTransfer) ExportResourceAmount -= allocatedAmount;
+        if (isAllowedToTransfer)
+        {
+            ExportResourceAmount -= allocatedAmount;
+            OnExport?.Invoke();
+        }
 
         return isAllowedToTransfer;
     }

@@ -47,6 +47,7 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable
         }
 
         ExportableModule.ExportResourceType = resourceType;
+        ExportableModule.OnExport += UpdateUI;
         StartCoroutine(ExtractFromForwardResourceEnumerator());
     }
 

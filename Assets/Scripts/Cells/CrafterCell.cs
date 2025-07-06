@@ -42,6 +42,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
         InitAccessPoint();
 
         _isActivate = true;
+        ExportableModule.OnExport += UpdateUI;
 
         StartCoroutine(CraftEnumerator());
     }

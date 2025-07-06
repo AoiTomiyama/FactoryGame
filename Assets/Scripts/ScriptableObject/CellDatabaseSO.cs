@@ -28,7 +28,7 @@ public class CellDatabaseSO : ScriptableObject
     /// </summary>
     public void ValidateAndBuildLookup()
     {
-        _infoLookup = new Dictionary<CellType, CellInfo>();
+        _infoLookup = new();
 
         var hashSet = new HashSet<CellType>();
 
