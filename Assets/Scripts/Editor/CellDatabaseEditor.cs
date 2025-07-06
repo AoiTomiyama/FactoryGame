@@ -79,7 +79,7 @@ public class CellDatabaseEditor : Editor
                 placeholderDict.TryGetValue(cellTypeName, out var placeholderPrefab) &&
                 !database.TryGetCellInfo(cellType, out _))
             {
-                list.Add(new CellInfo
+                list.Add(new()
                 {
                     fieldCellPrefab = fieldPrefab,
                     placeholderCellPrefab = placeholderPrefab,

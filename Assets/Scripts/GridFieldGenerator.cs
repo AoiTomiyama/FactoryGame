@@ -72,7 +72,7 @@ public class GridFieldGenerator : MonoBehaviour
         // プロップのノイズオフセットをランダムに設定
         for (var index = 0; index < propPrefabs.Length; index++)
         {
-            propPrefabs[index].NoiseOffset = new Vector3(Random.Range(0f, 100f), 0, Random.Range(0f, 100f));
+            propPrefabs[index].NoiseOffset = new(Random.Range(0f, 100f), 0, Random.Range(0f, 100f));
         }
 
         if (parent != null)
@@ -155,18 +155,18 @@ public class GridFieldGenerator : MonoBehaviour
         for (int x = 0; x <= gridSize; x++)
         {
             var fx = x * cellSize;
-            points[index++] = new Vector3(fx, 0, 0);
-            points[index++] = new Vector3(fx, 0, gridSize * cellSize);
-            points[index++] = new Vector3(fx, 0, 0);
+            points[index++] = new(fx, 0, 0);
+            points[index++] = new(fx, 0, gridSize * cellSize);
+            points[index++] = new(fx, 0, 0);
         }
 
         // 横線
         for (int z = 0; z <= gridSize; z++)
         {
             var fz = z * cellSize;
-            points[index++] = new Vector3(0, 0, fz);
-            points[index++] = new Vector3(gridSize * cellSize, 0, fz);
-            points[index++] = new Vector3(0, 0, fz);
+            points[index++] = new(0, 0, fz);
+            points[index++] = new(gridSize * cellSize, 0, fz);
+            points[index++] = new(0, 0, fz);
         }
 
         var lr = obj.AddComponent<LineRenderer>();

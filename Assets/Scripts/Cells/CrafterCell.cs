@@ -57,15 +57,8 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
     private void InitAccessPoint()
     {
         // 入力は左右のみ登録する
-        var inputDirections = new[]
-        {
-            Vector3Int.RoundToInt(transform.right),
-            Vector3Int.RoundToInt(-transform.right)
-        };
-        foreach (var dir in inputDirections)
-        {
-            _resourceInputs.TryAdd(dir, (ResourceType.None, 0, 0));
-        }
+        _resourceInputs.TryAdd(GetDirection(Directions.Right), (ResourceType.None, 0, 0));
+        _resourceInputs.TryAdd(GetDirection(Directions.Left), (ResourceType.None, 0, 0));
     }
 
     private IEnumerator CraftEnumerator()
@@ -220,8 +213,8 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
 
     private void UpdateUI()
     {
-        leftAmountBar.fillAmount = (float)_resourceInputs[Vector3Int.RoundToInt(-transform.right)].amount / ingredientCapacity;
-        rightAmountBar.fillAmount = (float)_resourceInputs[Vector3Int.RoundToInt(transform.right)].amount / ingredientCapacity;
+        leftAmountBar.fillAmount = (float)_resourceInputs[GetDirection(Directions.Left)].amount / ingredientCapacity;
+        rightAmountBar.fillAmount = (float)_resourceInputs[GetDirection(Directions.Right)].amount / ingredientCapacity;
         craftedAmountBar.fillAmount = (float)ExportableModule.ExportResourceAmount / ExportableModule.ExporterCapacity;
     }
 }

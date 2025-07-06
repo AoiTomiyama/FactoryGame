@@ -24,7 +24,7 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
     private void InitializePool()
     {
         if (_isInitialized) return;
-        _pool = new Dictionary<ResourceType, ObjectPool<GameObject>>();
+        _pool = new();
     
         if (resourceDatabase == null)
         {
@@ -61,7 +61,7 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
     #endif
                 continue;
             }
-            _pool[type] = new ObjectPool<GameObject>(
+            _pool[type] = new(
                 createFunc: () => Instantiate(prefab, transform),
                 actionOnGet: obj => obj.SetActive(true),
                 actionOnRelease: obj => obj.SetActive(false),

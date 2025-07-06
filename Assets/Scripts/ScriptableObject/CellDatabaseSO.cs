@@ -84,7 +84,7 @@ public class CellDatabaseSO : ScriptableObject
             ValidateAndBuildLookup();
         }
 
-        return new List<CellInfo>(_infoLookup.Values);
+        return new(_infoLookup.Values);
     }
 
     public void SetCellInfos(IEnumerable<CellInfo> cellInfos)

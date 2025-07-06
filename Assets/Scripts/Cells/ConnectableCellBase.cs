@@ -10,6 +10,23 @@ public abstract class ConnectableCellBase : CellBase
     protected const int AdjacentCount = 4;
     protected event Action OnConnectionChanged;
 
+    protected enum Directions
+    {
+        Right,
+        Forward,
+        Left,
+        Back,
+    }
+
+    protected Vector3Int GetDirection(Directions direction) => direction switch
+    {
+        Directions.Right => Vector3Int.RoundToInt(transform.right),
+        Directions.Left => Vector3Int.RoundToInt(-transform.right),
+        Directions.Forward => Vector3Int.RoundToInt(transform.forward),
+        Directions.Back => Vector3Int.RoundToInt(-transform.forward),
+        _ => Vector3Int.zero,
+    };
+
     protected virtual void Start()
     {
         AdjacentCells = new CellBase[AdjacentCount];
