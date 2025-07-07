@@ -29,6 +29,8 @@ public class RecipeData
     public int ResultAmount => resultAmount;
 
     public float CraftSecond => craftSecond;
+
+    public string RecipeName => recipeName;
 }
 
 [Serializable]

@@ -136,6 +136,6 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         resourceIconImage.enabled = StoredResourceType != ResourceType.None;
 
         // アイコンを更新
-        resourceIconImage.sprite = resourceSo.GetIcon(StoredResourceType);
+        resourceIconImage.sprite = resourceSo.GetInfo(StoredResourceType).Icon;
     }
 }

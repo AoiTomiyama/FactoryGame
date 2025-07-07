@@ -45,8 +45,8 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
     
         foreach (var info in infos)
         {
-            var prefab = info.prefab;
-            var type = info.resourceType;
+            var prefab = info.Prefab;
+            var type = info.ResourceType;
             if (prefab == null)
             {
     #if UNITY_EDITOR
