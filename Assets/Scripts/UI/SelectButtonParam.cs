@@ -1,11 +1,12 @@
 using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class SelectButtonParam : MonoBehaviour
 {
     [SerializeField] private Image cellIcon;
-    [SerializeField] private Text cellNameText;
+    [SerializeField] private TextMeshProUGUI cellNameText;
     [SerializeField] private Button button;
 
     /// <summary>
@@ -13,7 +14,10 @@ public class SelectButtonParam : MonoBehaviour
     /// </summary>
     public void Set(Image icon, string cellName, Action onClick)
     {
-        cellIcon.sprite = icon.sprite;
+        if (icon != null)
+        {
+            cellIcon.sprite = icon.sprite;
+        }
         cellNameText.text = cellName;
         button.onClick.AddListener(() => onClick?.Invoke());
     }
