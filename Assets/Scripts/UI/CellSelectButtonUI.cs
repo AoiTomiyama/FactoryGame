@@ -3,7 +3,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class SelectButtonParam : MonoBehaviour
+public class CellSelectButtonUI : MonoBehaviour
 {
     [SerializeField] private Image cellIcon;
     [SerializeField] private TextMeshProUGUI cellNameText;

@@ -4,13 +4,13 @@ using UnityEngine;
 /// <summary>
 /// レシピ一つ分のUIパラメータを保持するラッパークラス
 /// </summary>
-public class RecipeUIParam : MonoBehaviour
+public class RecipeElementUI : MonoBehaviour
 {
     [Tooltip("材料のUI")]
-    [SerializeField] private ResourceUIParam ingredientUI;
+    [SerializeField] private ResourceRowUI ingredientRowUI;
     
     [Tooltip("成果物のUI")]
-    [SerializeField] private ResourceUIParam resultUI;
+    [SerializeField] private ResourceRowUI resultRowUI;
     
     [Tooltip("作成にかかる時間UI")]
     [SerializeField] private TextMeshProUGUI craftTimeTextBox;
@@ -27,19 +27,19 @@ public class RecipeUIParam : MonoBehaviour
         craftTimeTextBox.text = $"{recipe.CraftSecond} s";
         
         // 素材UIをレシピの数だけ複製して、値を変更する
-        var parent = ingredientUI.transform.parent;
+        var parent = ingredientRowUI.transform.parent;
         foreach (var ingredient in recipe.Ingredients)
         {
-            var ingredientParam = Instantiate(ingredientUI, parent);
+            var ingredientParam = Instantiate(ingredientRowUI, parent);
             var resourceInfo = resourceDatabase.GetInfo(ingredient.resourceType);
             
             ingredientParam.Set(resourceInfo.Icon, resourceInfo.Name, ingredient.requiredAmount);
         }
         
         // 元のIngredientUIを削除
-        Destroy(ingredientUI.gameObject);
+        Destroy(ingredientRowUI.gameObject);
         
         var resultInfo = resourceDatabase.GetInfo(recipe.Result);
-        resultUI.Set(resultInfo.Icon, resultInfo.Name, recipe.ResultAmount);
+        resultRowUI.Set(resultInfo.Icon, resultInfo.Name, recipe.ResultAmount);
     }
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class SelectButtonBuilder : MonoBehaviour
 {
-    [SerializeField] private SelectButtonParam buttonPrefab;
+    [SerializeField] private CellSelectButtonUI buttonPrefab;
     [SerializeField] private CellDatabaseSO cellDatabase;
 
     private void Start()

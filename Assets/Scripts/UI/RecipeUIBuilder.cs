@@ -1,9 +1,9 @@
 using UnityEngine;
 
-public class RecipeUIGenerator : MonoBehaviour
+public class RecipeUIBuilder : MonoBehaviour
 {
     [SerializeField] private RecipeDatabaseSO recipeDatabase;
-    [SerializeField] private RecipeUIParam recipeUIParam;
+    [SerializeField] private RecipeElementUI recipeElementUI;
 
     private void Start()
     {
@@ -16,7 +16,7 @@ public class RecipeUIGenerator : MonoBehaviour
         foreach (var recipe in recipeDatabase.recipes)
         {
             // レシピ情報をラッパクラスに渡してUIを生成
-            var recipeUI = Instantiate(recipeUIParam, transform);
+            var recipeUI = Instantiate(recipeElementUI, transform);
             recipeUI.CreateRecipeUI(recipe);
         }
     }
