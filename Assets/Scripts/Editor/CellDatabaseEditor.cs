@@ -81,9 +81,9 @@ public class CellDatabaseEditor : Editor
             {
                 list.Add(new()
                 {
-                    fieldCellPrefab = fieldPrefab,
-                    placeholderCellPrefab = placeholderPrefab,
-                    cellType = cellType
+                    FieldCellPrefab = fieldPrefab,
+                    PlaceholderCellPrefab = placeholderPrefab,
+                    CellType = cellType
                 });
             }
         }

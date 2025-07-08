@@ -34,23 +34,23 @@ public class CellDatabaseSO : ScriptableObject
 
         foreach (var info in cellPairingInfos)
         {
-            if (hashSet.Contains(info.cellType))
+            if (hashSet.Contains(info.CellType))
             {
-                Debug.LogWarning("重複する CellType が存在します: " + info.cellType, this);
+                Debug.LogWarning("重複する CellType が存在します: " + info.CellType, this);
             }
 
-            if (info.fieldCellPrefab == null)
+            if (info.FieldCellPrefab == null)
             {
-                Debug.LogWarning($"CellType {info.cellType} に fieldCellPrefab が設定されていません", this);
+                Debug.LogWarning($"CellType {info.CellType} に fieldCellPrefab が設定されていません", this);
             }
 
-            if (info.placeholderCellPrefab == null)
+            if (info.PlaceholderCellPrefab == null)
             {
-                Debug.LogWarning($"CellType {info.cellType} に placeholderCellPrefab が設定されていません", this);
+                Debug.LogWarning($"CellType {info.CellType} に placeholderCellPrefab が設定されていません", this);
             }
 
-            hashSet.Add(info.cellType);
-            _infoLookup[info.cellType] = info;
+            hashSet.Add(info.CellType);
+            _infoLookup[info.CellType] = info;
         }
 
         isInitialized = true;
@@ -96,9 +96,30 @@ public class CellDatabaseSO : ScriptableObject
 [Serializable]
 public struct CellInfo
 {
-    public GameObject fieldCellPrefab;
-    public GameObject placeholderCellPrefab;
-    public CellType cellType;
+    [SerializeField] private string cellName;
+    [SerializeField] private GameObject fieldCellPrefab;
+    [SerializeField] private GameObject placeholderCellPrefab;
+    [SerializeField] private CellType cellType;
+
+    public string CellName => cellName;
+
+    public GameObject FieldCellPrefab
+    {
+        get => fieldCellPrefab;
+        set => fieldCellPrefab = value;
+    }
+
+    public GameObject PlaceholderCellPrefab
+    {
+        get => placeholderCellPrefab;
+        set => placeholderCellPrefab = value;
+    }
+
+    public CellType CellType
+    {
+        get => cellType;
+        set => cellType = value;
+    }
 }
 
 public enum CellType

@@ -92,7 +92,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
 
         if (!cellDatabaseSo.TryGetCellInfo(selectedCellType, out var cellInfo)) return;
-        var obj = cellInfo.fieldCellPrefab;
+        var obj = cellInfo.FieldCellPrefab;
 
         if (!TryReplaceCell(obj))
         {
@@ -167,7 +167,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (cellDatabaseSo.TryGetCellInfo(selectedCellType, out var cellInfo))
         {
             Destroy(_placeholderCell);
-            _placeholderCell = Instantiate(cellInfo.placeholderCellPrefab, transform.position, transform.rotation, transform);
+            _placeholderCell = Instantiate(cellInfo.PlaceholderCellPrefab, transform.position, transform.rotation, transform);
         }
         else
         {
