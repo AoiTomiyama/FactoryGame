@@ -7,7 +7,7 @@ public abstract class UIStatusRowBase : MonoBehaviour
 
     public virtual void RenderUIByData(UIElementDataBase data)
     {
-        statusNameText.text = data.statusName;
+        statusNameText.text = data.StatusName;
     }
 }
 

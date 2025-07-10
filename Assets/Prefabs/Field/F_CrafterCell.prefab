@@ -952,6 +952,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98e6290011147244bb842e7deef075d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  uiElementData:
+  - rid: -2
   ingredientCapacity: 5
   recipeDatabase: {fileID: 11400000, guid: 279a36cb76bd3fa419d433c0feceb0b5, type: 2}
   processBar: {fileID: 3239354270892396707}
@@ -959,6 +961,11 @@ MonoBehaviour:
   rightAmountBar: {fileID: 7702046538809387303}
   craftedAmountBar: {fileID: 8727605458378704189}
   exportableModule: {fileID: 2694704082559079263}
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
 --- !u!114 &2694704082559079263
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -14,6 +14,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private Camera _camera;
     private CellBase _selectedCell;
     private GameObject _placeholderCell;
+    private IUIRenderable _renderableCell;
 
     [SerializeField] private CellType selectedCellType;
     [SerializeField] private UIRaycaster raycaster;
@@ -102,8 +103,15 @@ public class PlayerCursorBehaviour : MonoBehaviour
 
     private void OnRightClick(InputAction.CallbackContext context)
     {
-        // if (!context.performed) return;
+        if (!context.performed) return;
         // TODO: 右クリックでセルごとの詳細情報の表示機能を作る
+        if (raycaster.IsPointerOverUI(_mousePosition)) return;
+
+        if (_selectedCell is IUIRenderable uiRenderable)
+        {
+            uiRenderable.IsUIActive = true;
+            uiRenderable.UpdateUI();
+        }
     }
 
     private bool TryReplaceCell(GameObject prefab)

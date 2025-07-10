@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
 
-public class CellStatusView : MonoBehaviour
+public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
 {
     [SerializeField] private StatusRowInfo[] statusRowPrefabs;
     [SerializeField] private Transform statsRowContainer;
     [SerializeField] private int defaultPoolCapacity = 100;
     [SerializeField] private int maxPoolCapacity = 500;
 
-    private readonly Dictionary<UIStatusRowType, ObjectPool<UIStatusRowBase>> _statsRowUIPool = new();
-    private readonly Queue<(UIStatusRowType, UIStatusRowBase)> _activeStatsRows = new();
+    private readonly Dictionary<UIStatusRowType, ObjectPool<UIStatusRowBase>> _statusRowUIPool = new();
+    private readonly Stack<(UIStatusRowType, UIStatusRowBase)> _activeStatusRows = new();
 
     private void Start()
     {
@@ -30,10 +30,10 @@ public class CellStatusView : MonoBehaviour
                 continue;
             }
 
-            _statsRowUIPool[info.RowType] = new(
+            _statusRowUIPool[info.RowType] = new(
                 createFunc: () => Instantiate(info.Prefab, transform),
-                actionOnGet: statsRow => statsRow.gameObject.SetActive(false),
-                actionOnRelease: statsRow => statsRow.gameObject.SetActive(true),
+                actionOnGet: statsRow => statsRow.gameObject.SetActive(true),
+                actionOnRelease: statsRow => statsRow.gameObject.SetActive(false),
                 actionOnDestroy: statsRow => Destroy(statsRow.gameObject),
                 collectionCheck: true,
                 defaultCapacity: defaultPoolCapacity,
@@ -42,26 +42,26 @@ public class CellStatusView : MonoBehaviour
         }
     }
 
-    public UIStatusRowBase CreateStatusRow(UIStatusRowType statsRowType, UIElementDataBase data)
+    public UIStatusRowBase CreateStatusRow(UIElementDataBase data)
     {
-        if (!_statsRowUIPool.TryGetValue(statsRowType, out var pool))
+        if (!_statusRowUIPool.TryGetValue(data.UIStatusRowType, out var pool))
         {
-            Debug.LogError($"No pool found for {statsRowType}");
+            Debug.LogError($"No pool found for {data.UIStatusRowType}");
             return null;
         }
 
         var rowUI = pool.Get();
         rowUI.RenderUIByData(data);
 
-        _activeStatsRows.Enqueue((statsRowType, rowUI));
+        _activeStatusRows.Push((data.UIStatusRowType, rowUI));
         return rowUI;
     }
 
     public void ResetStatusUI()
     {
-        foreach (var (statsRowType, rowUI) in _activeStatsRows)
+        foreach (var (statsRowType, rowUI) in _activeStatusRows)
         {
-            _statsRowUIPool[statsRowType].Release(rowUI);
+            _statusRowUIPool[statsRowType].Release(rowUI);
         }
     }
 }

@@ -1,12 +1,10 @@
-using System;
-using System.Linq;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-public sealed class StorageCell : ConnectableCellBase, IContainable
+public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderable
 {
     [Header("ストレージセルの設定")]
-    [SerializeField] [InspectorReadOnly] private int currentLoad;
     [SerializeField] private int capacity;
 
     [Header("UI設定")]
@@ -15,76 +13,96 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
     [SerializeField] private Image resourceIconImage;
     [SerializeField] private ResourceSO resourceSo;
 
-    public int StorageAmount
-    {
-        get => currentLoad;
-        set => currentLoad = value;
-    }
-
+    private int _currentLoad;
     private int _allocatedAmount;
     private int _reservedAmount;
 
-    private ResourceType _storedResourceType = ResourceType.None;
+    private UIElementDataBase[] _uiElementDataBases;
+    private readonly Dictionary<string, UIStatusRowBase> _renderedUI = new();
+    public bool IsUIActive { get; set; }
 
-    public ResourceType StoredResourceType
-    {
-        get => _storedResourceType;
-        private set
-        {
-            _storedResourceType = value;
-            UpdateResourceIcon();
-        }
-    }
+    private ResourceType StoredResourceType { get; set; } = ResourceType.None;
 
-    private int CurrentLoad
+    private enum Label
     {
-        get => currentLoad;
-        set
-        {
-            currentLoad = value;
-            UpdateUI();
-        }
+        CellName,
+        Amount,
+        Allocated,
+        Reserved
     }
 
     protected override void Start()
     {
         base.Start();
-        allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
-        UpdateUI();
-        UpdateResourceIcon();
+        _uiElementDataBases = new UIElementDataBase[]
+        {
+            new TextElementData(nameof(Label.CellName), "Storage"),
+            new StorageElementData(nameof(Label.Amount), capacity, _currentLoad, StoredResourceType),
+            new GaugeElementData(nameof(Label.Allocated), capacity, _allocatedAmount),
+            new GaugeElementData(nameof(Label.Reserved), capacity, _reservedAmount),
+        };
+    }
+
+    public void UpdateUI()
+    {
+        if (!IsUIActive) return;
+
+        foreach (var data in _uiElementDataBases)
+        {
+            if (data is GaugeElementData gaugeData)
+            {
+                gaugeData.Max = capacity;
+                gaugeData.Current = data.StatusName switch
+                {
+                    nameof(Label.Allocated) => _allocatedAmount,
+                    nameof(Label.Reserved) => _reservedAmount,
+                    _ => _currentLoad
+                };
+            
+                if (gaugeData is StorageElementData storageData)
+                {
+                    storageData.ResourceType = StoredResourceType;
+                }
+            }
+            if (_renderedUI.TryGetValue(data.StatusName, out var uiElement))
+            {
+                uiElement.RenderUIByData(data);
+                continue;
+            }
+
+            _renderedUI[data.StatusName] = CellStatusView.Instance.CreateStatusRow(data);
+        }
     }
 
     public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
         // 初めてのリソース追加
-        if (_storedResourceType == ResourceType.None)
+        if (StoredResourceType == ResourceType.None)
         {
-            _storedResourceType = resourceType;
+            StoredResourceType = resourceType;
         }
 
         // 設定済みのリソースタイプと異なる場合、追加しない
-        if (_storedResourceType != resourceType) return 0;
+        if (StoredResourceType != resourceType) return 0;
 
         // 既に容量限界に達している場合は0を返す
         // 入れようとしている値が空き容量を越えている場合は空き容量を返す
         // そうでない場合は指定された量を予約する
-        var available = capacity - CurrentLoad - _allocatedAmount;
+        var available = capacity - _currentLoad - _allocatedAmount;
         var allocated = Mathf.Min(available, amount);
         _allocatedAmount += allocated;
-        allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
+        UpdateUI();
         return allocated;
     }
 
     public void StoreResource(Vector3Int dir, int amount)
     {
         if (amount > _allocatedAmount) return;
-        
-        // 現在量に追加し、予約量を減らす。
-        CurrentLoad += amount;
-        _allocatedAmount -= amount;
 
-        allocatedAmountBar.fillAmount = (float)_allocatedAmount / capacity;
-        UpdateResourceIcon();
+        // 現在量に追加し、予約量を減らす。
+        _currentLoad += amount;
+        _allocatedAmount -= amount;
+        UpdateUI();
     }
 
     /// <summary>
@@ -100,9 +118,10 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
         if (StoredResourceType == ResourceType.None) return 0;
 
         // 予約可能な量を計算（現在のリソース量から既予約量を引いた分だけ予約可能）
-        var maxReservable = CurrentLoad - _reservedAmount;
+        var maxReservable = _currentLoad - _reservedAmount;
         var reservable = Mathf.Min(amount, Mathf.Max(0, maxReservable));
         _reservedAmount += reservable;
+        UpdateUI();
         return reservable;
     }
 
@@ -113,29 +132,11 @@ public sealed class StorageCell : ConnectableCellBase, IContainable
     public void TakeResource(int amount)
     {
         if (amount > _reservedAmount) return;
-        
+
         // 現在の容量から取り出す
-        CurrentLoad -= amount;
+        _currentLoad -= amount;
         _reservedAmount -= amount;
-        if (CurrentLoad == 0) StoredResourceType = ResourceType.None;
-    }
-
-    public bool IsValid() => CurrentLoad + _allocatedAmount < capacity;
-
-    private void UpdateUI()
-    {
-        if (storageAmountBar == null) return;
-
-        // ストレージの容量に応じてUIを更新
-        storageAmountBar.fillAmount = (float)CurrentLoad / capacity;
-    }
-
-    private void UpdateResourceIcon()
-    {
-        // リソースタイプがNoneの場合はアイコンを非表示にする
-        resourceIconImage.enabled = StoredResourceType != ResourceType.None;
-
-        // アイコンを更新
-        resourceIconImage.sprite = resourceSo.GetInfo(StoredResourceType).Icon;
+        UpdateUI();
+        if (_currentLoad == 0) StoredResourceType = ResourceType.None;
     }
 }

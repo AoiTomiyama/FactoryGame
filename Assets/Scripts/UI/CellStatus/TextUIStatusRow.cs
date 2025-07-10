@@ -14,6 +14,6 @@ public class TextUIStatusRow : UIStatusRowBase
             return;
         }
 
-        statusText.text = textData.text;
+        statusText.text = textData.Text;
     }
 }

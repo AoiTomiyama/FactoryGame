@@ -20,7 +20,7 @@ public class GaugeUIStatusRow : UIStatusRowBase
             return;
         }
 
-        Gauge.fillAmount = gaugeData.current / gaugeData.max;
-        GaugeText.text = $"{gaugeData.current}/{gaugeData.max}";
+        Gauge.fillAmount = gaugeData.Current / gaugeData.Max;
+        GaugeText.text = $"{gaugeData.Current}/{gaugeData.Max}";
     }
 }

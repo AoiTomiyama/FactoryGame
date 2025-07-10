@@ -11,28 +11,22 @@ public class StorageUIStatusRow : GaugeUIStatusRow
     public override void RenderUIByData(UIElementDataBase data)
     {
         base.RenderUIByData(data);
-        if (Gauge == null || resourceIcon == null || resourceText == null)
-        {
-            Debug.LogError("Gauge Image, Resource Icon or Resource Text is not assigned.");
-            return;
-        }
-
         if (data is not StorageElementData storageData)
         {
             Debug.LogError("Invalid data type for StorageStatsRowUI.");
             return;
         }
 
-        Gauge.fillAmount = storageData.current / storageData.max;
-        GaugeText.text = $"{storageData.current}/{storageData.max}";
+        Gauge.fillAmount = storageData.Current / storageData.Max;
+        GaugeText.text = $"{storageData.Current}/{storageData.Max}";
 
-        resourceIcon.enabled = storageData.resourceType != ResourceType.None;
-        if (storageData.resourceType == ResourceType.None)
+        resourceIcon.enabled = storageData.ResourceType != ResourceType.None;
+        if (storageData.ResourceType == ResourceType.None)
         {
             resourceText.text = "";
         }
 
-        var info = resourceDatabase.GetInfo(storageData.resourceType);
+        var info = resourceDatabase.GetInfo(storageData.ResourceType);
         resourceIcon.sprite = info.Icon;
         resourceText.text = info.Name;
     }
