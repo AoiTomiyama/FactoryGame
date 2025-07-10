@@ -7,60 +7,62 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
     [SerializeField] private ResourceSO resourceDatabase;
     [SerializeField] private int defaultPoolCapacity = 100;
     [SerializeField] private int maxPoolCapacity = 500;
-    
+
     private Dictionary<ResourceType, ObjectPool<GameObject>> _pool;
     private bool _isInitialized;
 
-    protected override void Awake()
+    private void Start()
     {
         InitializePool();
     }
-    
+
     private void OnDestroy()
     {
         ClearPool();
     }
-    
+
     private void InitializePool()
     {
         if (_isInitialized) return;
         _pool = new();
-    
+
         if (resourceDatabase == null)
         {
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
             Debug.LogError("resourceDatabaseが設定されていません。");
-    #endif
+#endif
             return;
         }
-    
+
         var infos = resourceDatabase.GetAllInfos();
         if (infos == null)
         {
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
             Debug.LogError("resourceDatabase.GetAllInfos()がnullを返しました。");
-    #endif
+#endif
             return;
         }
-    
+
         foreach (var info in infos)
         {
             var prefab = info.Prefab;
             var type = info.ResourceType;
             if (prefab == null)
             {
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
                 Debug.LogWarning($"{type} のPrefabがnullです。");
-    #endif
+#endif
                 continue;
             }
+
             if (_pool.ContainsKey(type))
             {
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
                 Debug.LogWarning($"{type} は既にプールに登録されています。");
-    #endif
+#endif
                 continue;
             }
+
             _pool[type] = new(
                 createFunc: () => Instantiate(prefab, transform),
                 actionOnGet: obj => obj.SetActive(true),
@@ -71,9 +73,10 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
                 maxSize: maxPoolCapacity
             );
         }
+
         _isInitialized = true;
     }
-    
+
     private void ClearPool()
     {
         if (_pool == null) return;
@@ -81,40 +84,43 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
         {
             pool.Clear();
         }
+
         _pool.Clear();
         _isInitialized = false;
     }
-    
+
     public GameObject GetPrefab(ResourceType resourceType)
     {
         if (!_isInitialized) InitializePool();
         if (_pool != null && _pool.ContainsKey(resourceType)) return _pool[resourceType].Get();
-        
+
 #if UNITY_EDITOR
         Debug.LogError($"{resourceType} のプールが存在しません。");
 #endif
         return null;
     }
-    
+
     public void Return(ResourceType type, GameObject obj)
     {
         if (!_isInitialized) InitializePool();
         if (_pool == null || !_pool.ContainsKey(type))
         {
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
             Debug.LogError($"{type} のプールが存在しません。");
-    #endif
+#endif
             Destroy(obj);
             return;
         }
+
         // 既にプールに戻されている場合は無視
         if (!obj.activeInHierarchy)
         {
-    #if UNITY_EDITOR
+#if UNITY_EDITOR
             Debug.LogWarning("このオブジェクトは既にプールに戻されています。");
-    #endif
+#endif
             return;
         }
+
         _pool[type].Release(obj);
     }
 }
