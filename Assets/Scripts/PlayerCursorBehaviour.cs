@@ -119,6 +119,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         _renderingCell = renderingCell;
         _renderingCell.IsUIActive = true;
         _renderingCell.UpdateUI();
+        CellStatusView.Instance.SetStatusWindowActive(true);
     }
 
     private bool TryReplaceCell(GameObject prefab)

@@ -5,6 +5,8 @@ using UnityEngine.Pool;
 
 public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
 {
+    [SerializeField] private Transform statusRowContainer;
+    [SerializeField] private Transform elementWindowTransform;
     [SerializeField] private StatusRowInfo[] statusRowPrefabs;
     [SerializeField] private int defaultPoolCapacity = 100;
     [SerializeField] private int maxPoolCapacity = 500;
@@ -34,7 +36,7 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
             }
 
             _statusRowUIPool[info.RowType] = new(
-                createFunc: () => Instantiate(info.Prefab, transform),
+                createFunc: () => Instantiate(info.Prefab, statusRowContainer),
                 actionOnGet: statsRow => statsRow.gameObject.SetActive(true),
                 actionOnRelease: statsRow => statsRow.gameObject.SetActive(false),
                 actionOnDestroy: statsRow => Destroy(statsRow.gameObject),
@@ -42,6 +44,14 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
                 defaultCapacity: defaultPoolCapacity,
                 maxSize: maxPoolCapacity
             );
+        }
+    }
+
+    public void SetStatusWindowActive(bool isActive)
+    {
+        if (elementWindowTransform != null)
+        {
+            elementWindowTransform.gameObject.SetActive(isActive);
         }
     }
 
