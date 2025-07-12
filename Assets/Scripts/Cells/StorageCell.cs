@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,6 +11,8 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
     private int _allocatedAmount;
     private int _reservedAmount;
 
+    [SerializeField]
+    private List<LabelName> labelNames;
     private readonly Dictionary<Label, UIStatusRowBase> _renderedUI = new();
     private Dictionary<Label, UIElementDataBase> _uiElementDataBases;
     public bool IsUIActive { get; set; }
@@ -24,17 +27,34 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
         Reserved
     }
 
+    [Serializable]
+    private struct LabelName
+    {
+        public Label label;
+        public string name;
+    }
+
     protected override void Start()
     {
         base.Start();
         _uiElementDataBases = new()
         {
-            { Label.CellName, new TextElementData("Name", "Storage") },
-            { Label.Location, new TextElementData("Location", $"({XIndex}, {ZIndex})") },
-            { Label.Amount, new StorageElementData("A", capacity, _currentLoad, StoredResourceType) },
-            { Label.Allocated, new GaugeElementData("B", capacity, _allocatedAmount) },
-            { Label.Reserved, new GaugeElementData("C", capacity, _reservedAmount) }
+            { Label.CellName, new TextElementData("-", "Storage") },
+            { Label.Location, new TextElementData("-", $"({XIndex}, {ZIndex})") },
+            { Label.Amount, new StorageElementData("-", capacity, _currentLoad, StoredResourceType) },
+            { Label.Allocated, new GaugeElementData("-", capacity, _allocatedAmount) },
+            { Label.Reserved, new GaugeElementData("-", capacity, _reservedAmount) }
         };
+        
+        var usedLabels = new HashSet<Label>();
+        foreach (var labelName in labelNames)
+        {
+            if (!usedLabels.Add(labelName.label)) continue; // 重複ラベルはスキップ
+            if (_uiElementDataBases.TryGetValue(labelName.label, out var data))
+            {
+                data.StatusName = labelName.name + ":";
+            }
+        }
     }
 
     public void UpdateUI()

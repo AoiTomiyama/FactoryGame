@@ -1,6 +1,6 @@
 ﻿public abstract class UIElementDataBase
 {
-    public readonly string StatusName;
+    public string StatusName;
 
     protected UIElementDataBase(string statusName)
     {
