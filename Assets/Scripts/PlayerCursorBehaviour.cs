@@ -8,7 +8,6 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private InputAction leftClickAction;
     [SerializeField] private InputAction rightClickAction;
     [SerializeField] private InputAction rotateAction;
-    [SerializeField] private GameObject defaultCellPrefab;
     [SerializeField] private CellDatabaseSO cellDatabaseSo;
 
     private Camera _camera;
@@ -106,6 +105,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!context.performed) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
         if (_selectedCell is not IUIRenderable renderingCell) return;
+        CellStatusView.Instance.SetStatusWindowActive(true);
         
         if (_renderingCell != null)
         {
@@ -119,7 +119,6 @@ public class PlayerCursorBehaviour : MonoBehaviour
         _renderingCell = renderingCell;
         _renderingCell.IsUIActive = true;
         _renderingCell.UpdateUI();
-        CellStatusView.Instance.SetStatusWindowActive(true);
     }
 
     private bool TryReplaceCell(GameObject prefab)

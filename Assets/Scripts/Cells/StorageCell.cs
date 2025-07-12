@@ -47,14 +47,13 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
             {
                 case StorageElementData storageData:
                     storageData.ResourceType = StoredResourceType;
+                    storageData.Current = _currentLoad;
                     break;
                 case GaugeElementData gaugeData:
-                    gaugeData.Max = capacity;
                     gaugeData.Current = label switch
                     {
                         Label.Allocated => _allocatedAmount,
                         Label.Reserved => _reservedAmount,
-                        Label.Amount => _currentLoad,
                         _ => 0
                     };
                     break;
@@ -75,6 +74,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
 
     public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
+        Debug.Log("AllocateStorage");
         // 初めてのリソース追加
         if (StoredResourceType == ResourceType.None)
         {
@@ -90,7 +90,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
         var available = capacity - _currentLoad - _allocatedAmount;
         var allocated = Mathf.Min(available, amount);
         _allocatedAmount += allocated;
-        UpdateUI();
+        if (allocated > 0) UpdateUI();
         return allocated;
     }
 
