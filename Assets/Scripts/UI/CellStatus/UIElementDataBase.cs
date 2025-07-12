@@ -12,7 +12,7 @@
 
 public class TextElementData : UIElementDataBase
 {
-    public readonly string Text;
+    public string Text;
 
     public TextElementData(string statusName, string text) : base(statusName)
     {

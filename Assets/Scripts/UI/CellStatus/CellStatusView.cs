@@ -6,7 +6,6 @@ using UnityEngine.Pool;
 public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
 {
     [SerializeField] private StatusRowInfo[] statusRowPrefabs;
-    [SerializeField] private Transform statsRowContainer;
     [SerializeField] private int defaultPoolCapacity = 100;
     [SerializeField] private int maxPoolCapacity = 500;
 
@@ -17,7 +16,9 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
     {
         if (statusRowPrefabs == null || statusRowPrefabs.Length == 0)
         {
+#if UNITY_EDITOR
             Debug.LogError("StatsRowPrefabs is not assigned or empty.");
+#endif
             return;
         }
 
@@ -26,7 +27,9 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
             if (info.RowType == UIStatusRowType.None) continue;
             if (info.Prefab == null)
             {
+#if UNITY_EDITOR
                 Debug.LogError($"Prefab for {info.RowType} is null.");
+#endif
                 continue;
             }
 
@@ -46,11 +49,14 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
     {
         if (!_statusRowUIPool.TryGetValue(data.UIStatusRowType, out var pool))
         {
+#if UNITY_EDITOR
             Debug.LogError($"No pool found for {data.UIStatusRowType}");
+#endif
             return null;
         }
 
         var rowUI = pool.Get();
+        rowUI.transform.SetAsLastSibling();
         rowUI.RenderUIByData(data);
 
         _activeStatusRows.Push((data.UIStatusRowType, rowUI));
@@ -59,10 +65,22 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
 
     public void ResetStatusUI()
     {
-        foreach (var (statsRowType, rowUI) in _activeStatusRows)
+        while (_activeStatusRows.Count > 0)
         {
+            var (statsRowType, rowUI) = _activeStatusRows.Pop();
             _statusRowUIPool[statsRowType].Release(rowUI);
         }
+    }
+
+    private void OnDestroy()
+    {
+        foreach (var pool in _statusRowUIPool.Values)
+        {
+            pool.Clear();
+        }
+
+        _statusRowUIPool.Clear();
+        _activeStatusRows.Clear();
     }
 }
 

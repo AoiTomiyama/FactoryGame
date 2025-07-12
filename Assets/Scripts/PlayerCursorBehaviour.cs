@@ -14,7 +14,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private Camera _camera;
     private CellBase _selectedCell;
     private GameObject _placeholderCell;
-    private IUIRenderable _renderableCell;
+    private IUIRenderable _renderingCell;
 
     [SerializeField] private CellType selectedCellType;
     [SerializeField] private UIRaycaster raycaster;
@@ -104,14 +104,21 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private void OnRightClick(InputAction.CallbackContext context)
     {
         if (!context.performed) return;
-        // TODO: 右クリックでセルごとの詳細情報の表示機能を作る
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
-
-        if (_selectedCell is IUIRenderable uiRenderable)
+        if (_selectedCell is not IUIRenderable renderingCell) return;
+        
+        if (_renderingCell != null)
         {
-            uiRenderable.IsUIActive = true;
-            uiRenderable.UpdateUI();
+            // 直前に選択されていたオブジェクトと同じ場合は何もしない
+            if (renderingCell == _renderingCell) return;
+                
+            _renderingCell.IsUIActive = false;
+            _renderingCell.ResetUI();
+            CellStatusView.Instance.ResetStatusUI();
         }
+        _renderingCell = renderingCell;
+        _renderingCell.IsUIActive = true;
+        _renderingCell.UpdateUI();
     }
 
     private bool TryReplaceCell(GameObject prefab)
@@ -151,11 +158,11 @@ public class PlayerCursorBehaviour : MonoBehaviour
         var parent = _selectedCell.transform.parent;
         var index = _selectedCell.transform.GetSiblingIndex();
 
-        if (_selectedCell is ConnectableCellBase connectableCell) 
+        if (_selectedCell is ConnectableCellBase connectableCell)
         {
             connectableCell.OnDisconnect();
         }
-        
+
         // セルを削除
         Destroy(_selectedCell.gameObject);
         _selectedCell = null;
@@ -168,21 +175,22 @@ public class PlayerCursorBehaviour : MonoBehaviour
         // 新しいセルの情報を保存
         GridFieldDatabase.Instance.SaveCell(x, z, newObj);
     }
-    
+
     public void SetSelectedCellType(CellType cellType)
     {
         selectedCellType = cellType;
         if (cellDatabaseSo.TryGetCellInfo(selectedCellType, out var cellInfo))
         {
             Destroy(_placeholderCell);
-            _placeholderCell = Instantiate(cellInfo.PlaceholderCellPrefab, transform.position, transform.rotation, transform);
+            _placeholderCell = Instantiate(cellInfo.PlaceholderCellPrefab, transform.position, transform.rotation,
+                transform);
         }
         else
         {
             Debug.LogWarning($"CellType {selectedCellType} の情報が見つかりません。");
         }
     }
-    
+
     private void OnRotateObject(InputAction.CallbackContext context)
     {
         if (!context.performed) return;

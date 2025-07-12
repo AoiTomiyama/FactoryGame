@@ -1,31 +1,24 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 
 public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderable
 {
     [Header("ストレージセルの設定")]
     [SerializeField] private int capacity;
 
-    [Header("UI設定")]
-    [SerializeField] private Image storageAmountBar;
-    [SerializeField] private Image allocatedAmountBar;
-    [SerializeField] private Image resourceIconImage;
-    [SerializeField] private ResourceSO resourceSo;
-
     private int _currentLoad;
     private int _allocatedAmount;
     private int _reservedAmount;
 
-    private UIElementDataBase[] _uiElementDataBases;
-    private readonly Dictionary<string, UIStatusRowBase> _renderedUI = new();
+    private readonly Dictionary<Label, UIStatusRowBase> _renderedUI = new();
+    private Dictionary<Label, UIElementDataBase> _uiElementDataBases;
     public bool IsUIActive { get; set; }
-
     private ResourceType StoredResourceType { get; set; } = ResourceType.None;
 
     private enum Label
     {
         CellName,
+        Location,
         Amount,
         Allocated,
         Reserved
@@ -34,12 +27,13 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
     protected override void Start()
     {
         base.Start();
-        _uiElementDataBases = new UIElementDataBase[]
+        _uiElementDataBases = new()
         {
-            new TextElementData(nameof(Label.CellName), "Storage"),
-            new StorageElementData(nameof(Label.Amount), capacity, _currentLoad, StoredResourceType),
-            new GaugeElementData(nameof(Label.Allocated), capacity, _allocatedAmount),
-            new GaugeElementData(nameof(Label.Reserved), capacity, _reservedAmount),
+            { Label.CellName, new TextElementData("Name", "Storage") },
+            { Label.Location, new TextElementData("Location", $"({XIndex}, {ZIndex})") },
+            { Label.Amount, new StorageElementData("A", capacity, _currentLoad, StoredResourceType) },
+            { Label.Allocated, new GaugeElementData("B", capacity, _allocatedAmount) },
+            { Label.Reserved, new GaugeElementData("C", capacity, _reservedAmount) }
         };
     }
 
@@ -47,32 +41,37 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
     {
         if (!IsUIActive) return;
 
-        foreach (var data in _uiElementDataBases)
+        foreach (var (label, data) in _uiElementDataBases)
         {
-            if (data is GaugeElementData gaugeData)
+            switch (data)
             {
-                gaugeData.Max = capacity;
-                gaugeData.Current = data.StatusName switch
-                {
-                    nameof(Label.Allocated) => _allocatedAmount,
-                    nameof(Label.Reserved) => _reservedAmount,
-                    _ => _currentLoad
-                };
-            
-                if (gaugeData is StorageElementData storageData)
-                {
+                case StorageElementData storageData:
                     storageData.ResourceType = StoredResourceType;
-                }
-            }
-            if (_renderedUI.TryGetValue(data.StatusName, out var uiElement))
-            {
-                uiElement.RenderUIByData(data);
-                continue;
+                    break;
+                case GaugeElementData gaugeData:
+                    gaugeData.Max = capacity;
+                    gaugeData.Current = label switch
+                    {
+                        Label.Allocated => _allocatedAmount,
+                        Label.Reserved => _reservedAmount,
+                        Label.Amount => _currentLoad,
+                        _ => 0
+                    };
+                    break;
             }
 
-            _renderedUI[data.StatusName] = CellStatusView.Instance.CreateStatusRow(data);
+            if (_renderedUI.TryGetValue(label, out var uiElement))
+            {
+                uiElement.RenderUIByData(data);
+            }
+            else
+            {
+                _renderedUI[label] = CellStatusView.Instance.CreateStatusRow(data);
+            }
         }
     }
+
+    public void ResetUI() => _renderedUI.Clear();
 
     public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
