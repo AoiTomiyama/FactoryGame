@@ -1,6 +1,6 @@
 ﻿public interface IUIRenderable
 {
         public bool IsUIActive { set; }
-        public void UpdateUI();
+        public void InitUI();
         public void ResetUI();
 }

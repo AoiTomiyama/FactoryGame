@@ -64,7 +64,7 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IUIRendera
         }
 
         ExportableModule.ExportResourceType = resourceType;
-        ExportableModule.OnExport += UpdateUI;
+        ExportableModule.OnExport += InitUI;
         StartCoroutine(ExtractFromForwardResourceEnumerator());
     }
 
@@ -91,7 +91,7 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IUIRendera
 
     public void ResetUI() => _renderedUI.Clear();
 
-    public void UpdateUI()
+    public void InitUI()
     {
         if (!IsUIActive) return;
 
@@ -140,7 +140,7 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IUIRendera
                     x => _elapsedTime = x,
                     extractionSecond,
                     extractionSecond)
-                .OnUpdate(UpdateUI)
+                .OnUpdate(InitUI)
                 .SetEase(Ease.Linear);
 
             // 抽出が終わるまで待機
@@ -152,7 +152,7 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IUIRendera
             var gainAmount = Mathf.Min(available, extractionAmount);
 
             yield return new WaitUntil(() => ExportableModule.TryStackToExporter(gainAmount));
-            UpdateUI();
+            InitUI();
         }
     }
 }

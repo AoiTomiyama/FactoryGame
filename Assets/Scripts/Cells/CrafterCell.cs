@@ -64,7 +64,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IUIRe
         SetDefaultUIData();
 
         _isActivate = true;
-        ExportableModule.OnExport += UpdateUI;
+        ExportableModule.OnExport += InitUI;
 
         StartCoroutine(CraftEnumerator());
     }
@@ -92,7 +92,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IUIRe
         }
     }
 
-    public void UpdateUI()
+    public void InitUI()
     {
         if (!IsUIActive) return;
 
@@ -180,20 +180,20 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IUIRe
                     getter: () => _elapsedProcessTime,
                     setter: t => _elapsedProcessTime = t,
                     endValue: _processTime, duration: _processTime)
-                .OnUpdate(UpdateUI)
+                .OnUpdate(InitUI)
                 .SetEase(Ease.Linear);
 
             // クラフトが完了するまで待機
             yield return tween.WaitForCompletion();
             _elapsedProcessTime = 0f;
-            UpdateUI();
+            InitUI();
 
             var result = Craft(recipe);
             var available = ExportableModule.ExporterCapacity - ExportableModule.ExportResourceAmount;
             var gainAmount = Mathf.Min(available, result);
             ExportableModule.ExportResourceType = recipe.Result;
             yield return new WaitUntil(() => ExportableModule.TryStackToExporter(gainAmount));
-            UpdateUI();
+            InitUI();
         }
     }
 
@@ -303,7 +303,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IUIRe
         var allocated = Mathf.Min(available, amount);
         inputStorage.allocated += allocated;
         _resourceInputs[dir] = inputStorage;
-        UpdateUI();
+        InitUI();
         return allocated;
     }
 
@@ -315,6 +315,6 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IUIRe
         inputStorage.amount += amount;
         inputStorage.allocated -= amount;
         _resourceInputs[dir] = inputStorage;
-        UpdateUI();
+        InitUI();
     }
 }

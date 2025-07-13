@@ -118,7 +118,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         }
         _renderingCell = renderingCell;
         _renderingCell.IsUIActive = true;
-        _renderingCell.UpdateUI();
+        _renderingCell.InitUI();
     }
 
     private bool TryReplaceCell(CellBase cellBase)

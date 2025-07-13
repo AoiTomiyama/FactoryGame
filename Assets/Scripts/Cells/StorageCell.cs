@@ -7,25 +7,17 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
     [Header("ストレージセルの設定")]
     [SerializeField] private int capacity;
 
-    private int _currentLoad;
-    private int _allocatedAmount;
-    private int _reservedAmount;
-
     [SerializeField]
     private List<LabelName> labelNames;
-    private readonly Dictionary<Label, UIStatusRowBase> _renderedUI = new();
-    private Dictionary<Label, UIElementDataBase> _uiElementDataBases;
-    public bool IsUIActive { get; set; }
-    private ResourceType StoredResourceType { get; set; } = ResourceType.None;
 
-    private enum Label
-    {
-        CellName,
-        Location,
-        Amount,
-        Allocated,
-        Reserved
-    }
+    public int Capacity => capacity;
+    public int CurrentLoad { get; private set; }
+    public int AllocatedAmount { get; private set; }
+    public int ReservedAmount { get; private set; }
+    public bool IsUIActive { get; set; }
+    public ResourceType StoredResourceType { get; private set; } = ResourceType.None;
+    
+    private UIElementRenderer _renderer;
 
     [Serializable]
     private struct LabelName
@@ -37,71 +29,18 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
     protected override void Start()
     {
         base.Start();
-        SetDefaultUIData();
+        _renderer = new(new StorageCellProvider(this));
     }
+    
+    public void InitUI() => _renderer.InitUI();
 
-    private void SetDefaultUIData()
-    {
-        _uiElementDataBases = new()
-        {
-            { Label.CellName, new TextElementData("-", "Storage") },
-            { Label.Location, new TextElementData("-", $"({XIndex}, {ZIndex})") },
-            { Label.Amount, new StorageElementData("-", capacity) },
-            { Label.Allocated, new GaugeElementData("-", capacity) },
-            { Label.Reserved, new GaugeElementData("-", capacity) }
-        };
-        
-        var usedLabels = new HashSet<Label>();
-        foreach (var labelName in labelNames)
-        {
-            if (!usedLabels.Add(labelName.label)) continue; // 重複ラベルはスキップ
-            if (_uiElementDataBases.TryGetValue(labelName.label, out var data))
-            {
-                data.StatusName = labelName.name + ":";
-            }
-        }
-    }
-
-    public void UpdateUI()
+    private void UpdateUI()
     {
         if (!IsUIActive) return;
-
-        foreach (var (label, data) in _uiElementDataBases)
-        {
-            if (data is GaugeElementData gaugeData)
-            {
-                gaugeData.Current = label switch
-                {
-                    Label.Allocated => _allocatedAmount,
-                    Label.Reserved => _reservedAmount,
-                    Label.Amount => _currentLoad,
-                    _ => 0
-                };
-                gaugeData.GaugeText = label switch
-                {
-                    Label.Allocated => $"{_allocatedAmount}/{capacity}",
-                    Label.Reserved => $"{_reservedAmount}/{capacity}",
-                    Label.Amount => $"{_currentLoad}/{capacity}",
-                    _ => ""
-                };
-            }
-            if (data is StorageElementData storageData)
-            {
-                storageData.ResourceType = StoredResourceType;
-            }
-
-            if (_renderedUI.TryGetValue(label, out var uiElement))
-            {
-                uiElement.RenderUIByData(data);
-            }
-            else
-            {
-                _renderedUI[label] = CellStatusView.Instance.CreateStatusRow(data);
-            }
-        }
+        _renderer.UpdateUI();
     }
 
-    public void ResetUI() => _renderedUI.Clear();
+    public void ResetUI() => _renderer.ResetUI();
 
     public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
@@ -117,20 +56,20 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
         // 既に容量限界に達している場合は0を返す
         // 入れようとしている値が空き容量を越えている場合は空き容量を返す
         // そうでない場合は指定された量を予約する
-        var available = capacity - _currentLoad - _allocatedAmount;
+        var available = capacity - CurrentLoad - AllocatedAmount;
         var allocated = Mathf.Min(available, amount);
-        _allocatedAmount += allocated;
+        AllocatedAmount += allocated;
         if (allocated > 0) UpdateUI();
         return allocated;
     }
 
     public void StoreResource(Vector3Int dir, int amount)
     {
-        if (amount > _allocatedAmount) return;
+        if (amount > AllocatedAmount) return;
 
         // 現在量に追加し、予約量を減らす。
-        _currentLoad += amount;
-        _allocatedAmount -= amount;
+        CurrentLoad += amount;
+        AllocatedAmount -= amount;
         UpdateUI();
     }
 
@@ -147,10 +86,10 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
         if (StoredResourceType == ResourceType.None) return 0;
 
         // 予約可能な量を計算（現在のリソース量から既予約量を引いた分だけ予約可能）
-        var maxReservable = _currentLoad - _reservedAmount;
+        var maxReservable = CurrentLoad - ReservedAmount;
         var reservable = Mathf.Min(amount, Mathf.Max(0, maxReservable));
-        _reservedAmount += reservable;
-        UpdateUI();
+        ReservedAmount += reservable;
+        if (reservable > 0) UpdateUI();
         return reservable;
     }
 
@@ -160,12 +99,12 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
     /// <param name="amount">取り出す要求値</param>
     public void TakeResource(int amount)
     {
-        if (amount > _reservedAmount) return;
+        if (amount > ReservedAmount) return;
 
         // 現在の容量から取り出す
-        _currentLoad -= amount;
-        _reservedAmount -= amount;
+        CurrentLoad -= amount;
+        ReservedAmount -= amount;
         UpdateUI();
-        if (_currentLoad == 0) StoredResourceType = ResourceType.None;
+        if (CurrentLoad == 0) StoredResourceType = ResourceType.None;
     }
 }

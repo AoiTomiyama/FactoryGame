@@ -28,7 +28,7 @@ public sealed class ResourceCell : CellBase, IUIRenderable
         };
     }
 
-    public void UpdateUI()
+    public void InitUI()
     {
         if (!IsUIActive) return;
 
