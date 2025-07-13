@@ -175,7 +175,6 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IUIRe
             RecipeData recipe = null;
             yield return new WaitUntil(() => HasAvailableRecipe(out recipe));
             _processTime = recipe.CraftSecond;
-            _elapsedProcessTime = 0f;
 
             var tween = DOTween.To(
                     getter: () => _elapsedProcessTime,
@@ -186,6 +185,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IUIRe
 
             // クラフトが完了するまで待機
             yield return tween.WaitForCompletion();
+            _elapsedProcessTime = 0f;
             UpdateUI();
 
             var result = Craft(recipe);
