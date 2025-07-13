@@ -121,11 +121,11 @@ public class PlayerCursorBehaviour : MonoBehaviour
         _renderingCell.UpdateUI();
     }
 
-    private bool TryReplaceCell(GameObject prefab)
+    private bool TryReplaceCell(CellBase cellBase)
     {
-        if (prefab == null)
+        if (cellBase == null)
         {
-            Debug.LogError("Prefabが未割り当てです。");
+            Debug.LogError("cellBaseが未割り当てです。");
             return false;
         }
 
@@ -141,14 +141,14 @@ public class PlayerCursorBehaviour : MonoBehaviour
             return false;
         }
 
-        ReplaceCell(prefab);
+        ReplaceCell(cellBase);
         return true;
     }
 
     /// <summary>
     /// 選択されているセルを新しいセルに置き換える
     /// </summary>
-    private void ReplaceCell(GameObject prefab)
+    private void ReplaceCell(CellBase cellBase)
     {
         // 選択されているセルの情報を取得
         var x = _selectedCell.XIndex;
@@ -168,12 +168,13 @@ public class PlayerCursorBehaviour : MonoBehaviour
         _selectedCell = null;
 
         // 新しいセルを生成
-        var newObj = Instantiate(prefab, pos, transform.rotation, parent);
+        var newObj = Instantiate(cellBase, pos, transform.rotation, parent);
         newObj.transform.SetSiblingIndex(index);
         newObj.name = objName;
 
         // 新しいセルの情報を保存
         GridFieldDatabase.Instance.SaveCell(x, z, newObj);
+        _selectedCell = newObj;
     }
 
     public void SetSelectedCellType(CellType cellType)

@@ -97,13 +97,17 @@ public class CellDatabaseSO : ScriptableObject
 public struct CellInfo
 {
     [SerializeField] private string cellName;
-    [SerializeField] private GameObject fieldCellPrefab;
+    [SerializeField] private CellBase fieldCellPrefab;
     [SerializeField] private GameObject placeholderCellPrefab;
     [SerializeField] private CellType cellType;
 
-    public string CellName => cellName;
+    public string CellName
+    {
+        get => cellName;
+        set => cellName = value;
+    }
 
-    public GameObject FieldCellPrefab
+    public CellBase FieldCellPrefab
     {
         get => fieldCellPrefab;
         set => fieldCellPrefab = value;

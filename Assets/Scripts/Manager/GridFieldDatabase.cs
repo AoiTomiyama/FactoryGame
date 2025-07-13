@@ -26,7 +26,7 @@ public sealed class GridFieldDatabase : SingletonMonoBehaviour<GridFieldDatabase
             var separator = transform.GetChild(x);
             for (int z = 0; z < size; z++)
             {
-                var cell = separator.GetChild(z).gameObject;
+                var cell = separator.GetChild(z).GetComponent<CellBase>();
                 SaveCell(x, z, cell);
             }
         }
@@ -35,7 +35,7 @@ public sealed class GridFieldDatabase : SingletonMonoBehaviour<GridFieldDatabase
     /// <summary>
     /// セルを配列に保存する
     /// </summary>
-    public void SaveCell(int x, int z, GameObject cellObject)
+    public void SaveCell(int x, int z, CellBase cellBase)
     {
         // 配列の初期化チェック
         if (_gridCells == null)
@@ -45,9 +45,9 @@ public sealed class GridFieldDatabase : SingletonMonoBehaviour<GridFieldDatabase
         }
 
         // 引数のチェック
-        if (cellObject == null)
+        if (cellBase == null)
         {
-            Debug.LogError($"引数{nameof(cellObject)}がnullです。");
+            Debug.LogError($"引数{nameof(cellBase)}がnullです。");
             return;
         }
 
@@ -55,12 +55,6 @@ public sealed class GridFieldDatabase : SingletonMonoBehaviour<GridFieldDatabase
         if (IsOutOfRange(x, z))
         {
             Debug.LogError($"({x}, {z}) は範囲外です。");
-            return;
-        }
-
-        if (!cellObject.TryGetComponent<CellBase>(out var cellBase))
-        {
-            Debug.LogError($"{nameof(CellBase)}が未割り当てです。");
             return;
         }
 

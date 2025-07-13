@@ -47,6 +47,7 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
         {
             var prefab = info.Prefab;
             var type = info.ResourceType;
+            if (type == ResourceType.None) continue;
             if (prefab == null)
             {
 #if UNITY_EDITOR

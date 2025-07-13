@@ -43,7 +43,7 @@ public class CellDatabaseEditor : Editor
         var fields = AssetDatabase.FindAssets(Filter, new[] { FieldFilePath });
 
         // 辞書へ登録
-        var fieldDict = new Dictionary<string, GameObject>();
+        var fieldDict = new Dictionary<string, CellBase>();
         foreach (var guid in fields)
         {
             var path = AssetDatabase.GUIDToAssetPath(guid);
@@ -51,7 +51,7 @@ public class CellDatabaseEditor : Editor
 
             if (!fileName.StartsWith(FieldPrefabPrefix)) continue;
             var key = fileName[FieldPrefabPrefix.Length..];
-            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path).GetComponent<CellBase>();
             fieldDict[key] = prefab;
         }
 
@@ -81,6 +81,7 @@ public class CellDatabaseEditor : Editor
             {
                 list.Add(new()
                 {
+                    CellName = Enum.GetName(typeof(CellType), cellType),
                     FieldCellPrefab = fieldPrefab,
                     PlaceholderCellPrefab = placeholderPrefab,
                     CellType = cellType
