@@ -37,13 +37,18 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
     protected override void Start()
     {
         base.Start();
+        SetDefaultUIData();
+    }
+
+    private void SetDefaultUIData()
+    {
         _uiElementDataBases = new()
         {
             { Label.CellName, new TextElementData("-", "Storage") },
             { Label.Location, new TextElementData("-", $"({XIndex}, {ZIndex})") },
-            { Label.Amount, new StorageElementData("-", capacity, _currentLoad, StoredResourceType) },
-            { Label.Allocated, new GaugeElementData("-", capacity, _allocatedAmount) },
-            { Label.Reserved, new GaugeElementData("-", capacity, _reservedAmount) }
+            { Label.Amount, new StorageElementData("-", capacity) },
+            { Label.Allocated, new GaugeElementData("-", capacity) },
+            { Label.Reserved, new GaugeElementData("-", capacity) }
         };
         
         var usedLabels = new HashSet<Label>();
@@ -63,20 +68,26 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
 
         foreach (var (label, data) in _uiElementDataBases)
         {
-            switch (data)
+            if (data is GaugeElementData gaugeData)
             {
-                case StorageElementData storageData:
-                    storageData.ResourceType = StoredResourceType;
-                    storageData.Current = _currentLoad;
-                    break;
-                case GaugeElementData gaugeData:
-                    gaugeData.Current = label switch
-                    {
-                        Label.Allocated => _allocatedAmount,
-                        Label.Reserved => _reservedAmount,
-                        _ => 0
-                    };
-                    break;
+                gaugeData.Current = label switch
+                {
+                    Label.Allocated => _allocatedAmount,
+                    Label.Reserved => _reservedAmount,
+                    Label.Amount => _currentLoad,
+                    _ => 0
+                };
+                gaugeData.GaugeText = label switch
+                {
+                    Label.Allocated => $"{_allocatedAmount}/{capacity}",
+                    Label.Reserved => $"{_reservedAmount}/{capacity}",
+                    Label.Amount => $"{_currentLoad}/{capacity}",
+                    _ => ""
+                };
+            }
+            if (data is StorageElementData storageData)
+            {
+                storageData.ResourceType = StoredResourceType;
             }
 
             if (_renderedUI.TryGetValue(label, out var uiElement))
@@ -94,7 +105,6 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
 
     public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
-        Debug.Log("AllocateStorage");
         // 初めてのリソース追加
         if (StoredResourceType == ResourceType.None)
         {

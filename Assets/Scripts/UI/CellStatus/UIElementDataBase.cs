@@ -19,11 +19,6 @@ public class TextElementData : UIElementDataBase
         Text = text;
     }
 
-    public override string ToString()
-    {
-        return $"{StatusName}: {Text}";
-    }
-
     public override UIStatusRowType UIStatusRowType => UIStatusRowType.Text;
 }
 
@@ -31,34 +26,22 @@ public class GaugeElementData : UIElementDataBase
 {
     public float Max;
     public float Current;
+    public string GaugeText;
 
-    public GaugeElementData(string statusName, int max, int current) : base(statusName)
+    public GaugeElementData(string statusName, int max) : base(statusName)
     {
         Max = max;
-        Current = current;
     }
 
     public override UIStatusRowType UIStatusRowType => UIStatusRowType.Gauge;
-
-    public override string ToString()
-    {
-        return $"{StatusName}: {Current}/{Max}";
-    }
 }
 
 public class StorageElementData : GaugeElementData
 {
     public ResourceType ResourceType;
 
-    public StorageElementData(string statusName, int max, int current, ResourceType resourceType)
-        : base(statusName, max, current)
+    public StorageElementData(string statusName, int max) : base(statusName, max)
     {
-        ResourceType = resourceType;
-    }
-
-    public override string ToString()
-    {
-        return $"{StatusName}: {Current}/{Max} ({ResourceType})";
     }
 
     public override UIStatusRowType UIStatusRowType => UIStatusRowType.Storage;

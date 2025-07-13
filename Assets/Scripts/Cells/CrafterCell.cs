@@ -1,28 +1,48 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using DG.Tweening;
 using UnityEngine;
-using UnityEngine.UI;
 
-public class CrafterCell : ConnectableCellBase, IContainable, IExportable
+public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IUIRenderable
 {
     [Header("クラフト設定")]
     [SerializeField] private int ingredientCapacity;
     [SerializeField] [InlineSO]
     private RecipeDatabaseSO recipeDatabase;
 
-    [Header("UI設定")]
-    [SerializeField] private Image processBar;
-    [SerializeField] private Image leftAmountBar;
-    [SerializeField] private Image rightAmountBar;
-    [SerializeField] private Image craftedAmountBar;
-
     [Header("その他の設定")]
     [SerializeField] private ExporterModule exportableModule;
     public ExporterModule ExportableModule => exportableModule;
     private readonly Dictionary<Vector3Int, (ResourceType type, int amount, int allocated)> _resourceInputs = new();
     private bool _isActivate;
+
+
+    [SerializeField]
+    private List<LabelName> labelNames;
+    private readonly Dictionary<Label, UIStatusRowBase> _renderedUI = new();
+    private Dictionary<Label, UIElementDataBase> _uiElementDataBases;
+    private float _processTime;
+    private float _elapsedProcessTime;
+    public bool IsUIActive { get; set; }
+
+    private enum Label
+    {
+        CellName,
+        Location,
+        LeftStorage,
+        RightStorage,
+        OutputStorage,
+        Process,
+    }
+
+    [Serializable]
+    private struct LabelName
+    {
+        public Label label;
+        public string name;
+    }
 
     protected override void Start()
     {
@@ -32,6 +52,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
             Debug.LogError($"{nameof(ExportableModule)}がnullです。");
 #endif
         }
+
         ExportableModule.OnFilterPath += path =>
         {
             var exportDir = Vector3Int.RoundToInt((path[0].transform.position - transform.position).normalized);
@@ -40,12 +61,94 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
         };
         base.Start();
         InitAccessPoint();
+        SetDefaultUIData();
 
         _isActivate = true;
         ExportableModule.OnExport += UpdateUI;
 
         StartCoroutine(CraftEnumerator());
     }
+
+    private void SetDefaultUIData()
+    {
+        _uiElementDataBases = new()
+        {
+            { Label.CellName, new TextElementData("-", "Crafter") },
+            { Label.Location, new TextElementData("-", $"({XIndex}, {ZIndex})") },
+            { Label.LeftStorage, new StorageElementData("-", ingredientCapacity) },
+            { Label.RightStorage, new StorageElementData("-", ingredientCapacity) },
+            { Label.OutputStorage, new StorageElementData("-", ExportableModule.ExporterCapacity) },
+            { Label.Process, new GaugeElementData("-", 1) }
+        };
+
+        var usedLabels = new HashSet<Label>();
+        foreach (var labelName in labelNames)
+        {
+            if (!usedLabels.Add(labelName.label)) continue; // 重複ラベルはスキップ
+            if (_uiElementDataBases.TryGetValue(labelName.label, out var data))
+            {
+                data.StatusName = labelName.name + ":";
+            }
+        }
+    }
+
+    public void UpdateUI()
+    {
+        if (!IsUIActive) return;
+
+        foreach (var (label, data) in _uiElementDataBases)
+        {
+            if (data is GaugeElementData gaugeData)
+            {
+                switch (label)
+                {
+                    case Label.Process:
+                        gaugeData.Current = _elapsedProcessTime;
+                        gaugeData.Max = _processTime;
+                        gaugeData.GaugeText = $"{_processTime - _elapsedProcessTime:F1} sec";
+                        break;
+                    case Label.LeftStorage:
+                        gaugeData.Current = _resourceInputs[GetDirection(Directions.Left)].amount;
+                        gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
+                        break;
+                    case Label.RightStorage:
+                        gaugeData.Current = _resourceInputs[GetDirection(Directions.Right)].amount;
+                        gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
+                        break;
+                    case Label.OutputStorage:
+                        gaugeData.Current = ExportableModule.ExportResourceAmount;
+                        gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
+                        break;
+                    default:
+                        gaugeData.Current = 0;
+                        gaugeData.GaugeText = "";
+                        break;
+                }
+            }
+
+            if (data is StorageElementData storageData)
+            {
+                storageData.ResourceType = label switch
+                {
+                    Label.LeftStorage => _resourceInputs[GetDirection(Directions.Left)].type,
+                    Label.RightStorage => _resourceInputs[GetDirection(Directions.Right)].type,
+                    Label.OutputStorage => ExportableModule.ExportResourceType,
+                    _ => 0
+                };
+            }
+
+            if (_renderedUI.TryGetValue(label, out var uiElement))
+            {
+                uiElement.RenderUIByData(data);
+            }
+            else
+            {
+                _renderedUI[label] = CellStatusView.Instance.CreateStatusRow(data);
+            }
+        }
+    }
+
+    public void ResetUI() => _renderedUI.Clear();
 
     protected override void SetConnectableDirections()
     {
@@ -71,14 +174,19 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
             // 作成可能なレシピが見つかるまで待機
             RecipeData recipe = null;
             yield return new WaitUntil(() => HasAvailableRecipe(out recipe));
-            processBar.fillAmount = 0f;
+            _processTime = recipe.CraftSecond;
+            _elapsedProcessTime = 0f;
 
-            var tween = processBar
-                .DOFillAmount(1f, recipe.CraftSecond)
+            var tween = DOTween.To(
+                    getter: () => _elapsedProcessTime,
+                    setter: t => _elapsedProcessTime = t,
+                    endValue: _processTime, duration: _processTime)
+                .OnUpdate(UpdateUI)
                 .SetEase(Ease.Linear);
 
             // クラフトが完了するまで待機
             yield return tween.WaitForCompletion();
+            UpdateUI();
 
             var result = Craft(recipe);
             var available = ExportableModule.ExporterCapacity - ExportableModule.ExportResourceAmount;
@@ -175,7 +283,6 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
         return recipe.ResultAmount;
     }
 
-
     public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
         if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return 0;
@@ -209,12 +316,5 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
         inputStorage.allocated -= amount;
         _resourceInputs[dir] = inputStorage;
         UpdateUI();
-    }
-
-    private void UpdateUI()
-    {
-        leftAmountBar.fillAmount = (float)_resourceInputs[GetDirection(Directions.Left)].amount / ingredientCapacity;
-        rightAmountBar.fillAmount = (float)_resourceInputs[GetDirection(Directions.Right)].amount / ingredientCapacity;
-        craftedAmountBar.fillAmount = (float)ExportableModule.ExportResourceAmount / ExportableModule.ExporterCapacity;
     }
 }
