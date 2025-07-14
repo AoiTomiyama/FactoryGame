@@ -40,19 +40,3 @@ public class UIElementRenderer
     
     public void ResetUI() => _renderedUI.Clear();
 }
-
-public enum Label
-{
-    CellName,
-    Location,
-    Amount,
-    Allocated,
-    Reserved
-}
-
-[Serializable]
-public struct LabelName
-{
-    public Label label;
-    public string name;
-}
