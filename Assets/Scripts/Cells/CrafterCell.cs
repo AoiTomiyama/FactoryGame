@@ -5,7 +5,7 @@ using System.Linq;
 using DG.Tweening;
 using UnityEngine;
 
-public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IUIRenderable
+public class CrafterCell : ConnectableCellBase, IContainable, IExportable
 {
     [Header("クラフト設定")]
     [SerializeField] private int ingredientCapacity;

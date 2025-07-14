@@ -5,7 +5,7 @@ using System.Linq;
 using DG.Tweening;
 using UnityEngine;
 
-public sealed class ExtractorCell : ConnectableCellBase, IExportable, IUIRenderable
+public sealed class ExtractorCell : ConnectableCellBase, IExportable
 {
     [Header("抽出設定")]
     [SerializeField] private ResourceType resourceType;
