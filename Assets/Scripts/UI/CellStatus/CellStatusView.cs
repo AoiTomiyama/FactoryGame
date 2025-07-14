@@ -13,8 +13,20 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
 
     private readonly Dictionary<UIStatusRowType, ObjectPool<UIStatusRowBase>> _statusRowUIPool = new();
     private readonly Stack<(UIStatusRowType, UIStatusRowBase)> _activeStatusRows = new();
+    private UIElementRenderer _uiRenderer;
+
+    protected override void Awake()
+    {
+        base.Awake();
+        _uiRenderer = new();
+    }
 
     private void Start()
+    {
+        InitializeUIElementPool();
+    }
+
+    private void InitializeUIElementPool()
     {
         if (statusRowPrefabs == null || statusRowPrefabs.Length == 0)
         {
@@ -46,6 +58,9 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
             );
         }
     }
+
+    public void SetDataProvider(IUIDataProvider provider) => _uiRenderer.InitUI(provider);
+    public void UpdateUI() => _uiRenderer.UpdateUI();
 
     public void SetStatusWindowActive(bool isActive)
     {
@@ -80,6 +95,7 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
             var (statsRowType, rowUI) = _activeStatusRows.Pop();
             _statusRowUIPool[statsRowType].Release(rowUI);
         }
+        _uiRenderer.ResetUI();
     }
 
     private void OnDestroy()

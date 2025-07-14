@@ -13,7 +13,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private Camera _camera;
     private CellBase _selectedCell;
     private GameObject _placeholderCell;
-    private IUIRenderable _renderingCell;
+    private IDataProvidable _renderingCell;
 
     [SerializeField] private CellType selectedCellType;
     [SerializeField] private UIRaycaster raycaster;
@@ -104,7 +104,12 @@ public class PlayerCursorBehaviour : MonoBehaviour
     {
         if (!context.performed) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
-        if (_selectedCell is not IUIRenderable renderingCell) return;
+        ShowUIStatus();
+    }
+
+    private void ShowUIStatus()
+    {
+        if (_selectedCell is not IDataProvidable renderingCell) return;
         CellStatusView.Instance.SetStatusWindowActive(true);
         
         if (_renderingCell != null)
@@ -113,12 +118,19 @@ public class PlayerCursorBehaviour : MonoBehaviour
             if (renderingCell == _renderingCell) return;
                 
             _renderingCell.IsUIActive = false;
-            _renderingCell.ResetUI();
             CellStatusView.Instance.ResetStatusUI();
         }
         _renderingCell = renderingCell;
         _renderingCell.IsUIActive = true;
-        _renderingCell.InitUI();
+        
+        // データプロバイダーを取得
+        var provider = _renderingCell.GetDataProvider();
+        
+        // プロバイダーの読み取り先を現在のセルに設定
+        provider.SwitchSystem(renderingCell);
+        
+        // データプロバイダーを設定
+        CellStatusView.Instance.SetDataProvider(provider);
     }
 
     private bool TryReplaceCell(CellBase cellBase)

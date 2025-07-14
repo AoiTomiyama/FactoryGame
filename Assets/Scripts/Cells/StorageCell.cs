@@ -1,14 +1,10 @@
-using System;
-using System.Collections.Generic;
 using UnityEngine;
 
-public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderable
+public sealed class StorageCell : ConnectableCellBase, IContainable, IDataProvidable
 {
     [Header("ストレージセルの設定")]
     [SerializeField] private int capacity;
-
-    [SerializeField]
-    private List<LabelName> labelNames;
+    [SerializeField] private StorageProvider dataProvider;
 
     public int Capacity => capacity;
     public int CurrentLoad { get; private set; }
@@ -16,31 +12,13 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IUIRenderab
     public int ReservedAmount { get; private set; }
     public bool IsUIActive { get; set; }
     public ResourceType StoredResourceType { get; private set; } = ResourceType.None;
+    public IUIDataProvider GetDataProvider() => dataProvider;
     
-    private UIElementRenderer _renderer;
-
-    [Serializable]
-    private struct LabelName
-    {
-        public Label label;
-        public string name;
-    }
-
-    protected override void Start()
-    {
-        base.Start();
-        _renderer = new(new StorageCellProvider(this));
-    }
-    
-    public void InitUI() => _renderer.InitUI();
-
     private void UpdateUI()
     {
         if (!IsUIActive) return;
-        _renderer.UpdateUI();
+        CellStatusView.Instance.UpdateUI();
     }
-
-    public void ResetUI() => _renderer.ResetUI();
 
     public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {

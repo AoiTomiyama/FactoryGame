@@ -149,14 +149,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   capacity: 20
-  labelNames:
-  - label: 0
-    name: Name
-  - label: 1
-    name: Location
-  - label: 2
-    name: A
-  - label: 3
-    name: B
-  - label: 4
-    name: C
+  dataProvider: {fileID: 11400000, guid: 5948687587f871c47b4cc6a544a3b392, type: 2}
