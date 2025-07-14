@@ -1,4 +1,5 @@
 using System;
+using UnityEditor;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -103,7 +104,7 @@ public class GridFieldGenerator : MonoBehaviour
                 }
 
                 // セルの生成
-                var tile = Instantiate(obj, separator.transform);
+                var tile = (GameObject)PrefabUtility.InstantiatePrefab(obj, separator.transform);
                 tile.transform.position = pos;
                 tile.name = $"Tile_{x}_{z}";
             }
