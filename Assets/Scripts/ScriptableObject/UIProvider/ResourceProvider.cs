@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "ResourceProvider", menuName = "Scriptable Objects/ResourceProvider")]
+[CreateAssetMenu(fileName = "ResourceProvider", menuName = "Scriptable Objects/Provider/ResourceProvider")]
 public class ResourceProvider : ProviderBase<ResourceCell>
 {
     [SerializeField] private ResourceSO resourceDatabase;

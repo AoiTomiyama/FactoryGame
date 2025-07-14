@@ -10,7 +10,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
       propertyPath: m_Name
-      value: F_StoneResourceCell
+      value: F_ResourceStoneCell
       objectReference: {fileID: 0}
     - target: {fileID: 9028744536133712409, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
       propertyPath: m_LocalPosition.x
@@ -87,6 +87,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   resourceType: 1
+  resourceProvider: {fileID: 11400000, guid: e35025f2c9f1ad442b2b014ac1176f36, type: 2}
 --- !u!1001 &5928024374696459847
 PrefabInstance:
   m_ObjectHideFlags: 0
