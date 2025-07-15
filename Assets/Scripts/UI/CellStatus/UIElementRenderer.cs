@@ -1,10 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 public class UIElementRenderer
 {
     private Dictionary<LabelEnum, UIElementDataBase> _elementDataBases;
-    private Dictionary<LabelEnum, UIStatusRowBase> _renderedUI = new();
+    private readonly Dictionary<LabelEnum, UIStatusRowBase> _renderedUI = new();
     private IUIDataProvider _dataProvider;
 
     public void InitUI(IUIDataProvider dataProvider)
@@ -16,7 +15,7 @@ public class UIElementRenderer
         _elementDataBases = _dataProvider.CreateUIElementData();
         
         // 各UI要素を初期化
-        _renderedUI = new();
+        ResetUI();
         foreach (var (label, data) in _elementDataBases)
         {
             _renderedUI[label] = CellStatusView.Instance.CreateStatusRow(data);

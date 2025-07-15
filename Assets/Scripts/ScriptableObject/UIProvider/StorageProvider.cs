@@ -3,13 +3,13 @@
 [CreateAssetMenu(fileName = "StorageCellProvider", menuName = "Scriptable Objects/Provider/StorageCellProvider")]
 public class StorageProvider : ProviderBase<StorageCell>
 {
-    protected override UIElementDataBase Create(LabelEnum labelEnum) => labelEnum switch
+    protected override UIElementDataBase Create(LabelEnum label) => label switch
     {
-        LabelEnum.CellName => new TextElementData(GetName(labelEnum), "Storage"),
-        LabelEnum.Location => new TextElementData(GetName(labelEnum), $"({Cell.XIndex}, {Cell.ZIndex})"),
-        LabelEnum.Amount => new StorageElementData(GetName(labelEnum), Cell.Capacity),
+        LabelEnum.CellName => new TextElementData(GetName(label), "Storage"),
+        LabelEnum.Location => new TextElementData(GetName(label), $"({Cell.XIndex}, {Cell.ZIndex})"),
+        LabelEnum.Amount => new StorageElementData(GetName(label), Cell.Capacity),
         LabelEnum.Allocated or LabelEnum.Reserved
-            => new GaugeElementData(GetName(labelEnum), Cell.Capacity),
+            => new GaugeElementData(GetName(label), Cell.Capacity),
         _ => throw new System.NotImplementedException(),
     };
 
