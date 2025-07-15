@@ -84,6 +84,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 87da69886f167334ebff65b93d1e5359, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  allowedDirections: -1
   pipeConnectionPrefab: {fileID: 4068375325743859050, guid: cb10f5926e6e5c847bbc796057bcba12, type: 3}
   exportableModule: {fileID: 4309742068122855696}
 --- !u!114 &4309742068122855696

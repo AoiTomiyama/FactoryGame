@@ -5,19 +5,14 @@ using UnityEngine;
 
 public abstract class ConnectableCellBase : CellBase
 {
-    protected Vector3Int[] _connectableDirections;
-    protected CellBase[] AdjacentCells { get; private set; }
+    [SerializeField] private Directions allowedDirections =
+        Directions.Forward | Directions.Back | Directions.Right | Directions.Left;
+    
+    private readonly HashSet<Vector3Int> _connectableDirections = new();
     protected const int AdjacentCount = 4;
+    
     protected event Action OnConnectionChanged;
-
-    protected Vector3Int GetDirection(Directions direction) => direction switch
-    {
-        Directions.Right => Vector3Int.RoundToInt(transform.right),
-        Directions.Left => Vector3Int.RoundToInt(-transform.right),
-        Directions.Forward => Vector3Int.RoundToInt(transform.forward),
-        Directions.Back => Vector3Int.RoundToInt(-transform.forward),
-        _ => Vector3Int.zero,
-    };
+    protected CellBase[] AdjacentCells { get; private set; }
 
     protected virtual void Start()
     {
@@ -27,16 +22,26 @@ public abstract class ConnectableCellBase : CellBase
         PipelineNetworkManager.Instance.AddCellToNetwork(this);
     }
 
-    protected virtual void SetConnectableDirections()
+    private void SetConnectableDirections()
     {
-        _connectableDirections = new[]
+        var values = (Directions[])Enum.GetValues(typeof(Directions));
+        foreach (var direction in values)
         {
-            Vector3Int.right,
-            Vector3Int.forward,
-            Vector3Int.left,
-            Vector3Int.back,
-        };
+            if (!Has(allowedDirections, direction)) continue;
+            _connectableDirections.Add(DirectionToVector(direction));
+        }
     }
+
+    private static bool Has(Directions value, Directions flag) => (value & flag) == flag;
+
+    protected Vector3Int DirectionToVector(Directions direction) => direction switch
+    {
+        Directions.Forward => Vector3Int.RoundToInt(transform.forward),
+        Directions.Back => Vector3Int.RoundToInt(-transform.forward),
+        Directions.Right => Vector3Int.RoundToInt(transform.right),
+        Directions.Left => Vector3Int.RoundToInt(-transform.right),
+        _ => Vector3Int.zero,
+    };
 
     public bool HasCellConnected(CellBase cell) => AdjacentCells.Contains(cell);
     public CellBase[] GetAdjacentCells() => AdjacentCells;
@@ -137,10 +142,12 @@ public abstract class ConnectableCellBase : CellBase
         }
     }
 }
+
+[Flags]
 public enum Directions
 {
-    Right,
-    Forward,
-    Left,
-    Back,
+    Forward = 1 << 0,
+    Back = 1 << 1,
+    Right = 1 << 2,
+    Left = 1 << 3,
 }

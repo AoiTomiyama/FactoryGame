@@ -1,7 +1,5 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using DG.Tweening;
 using UnityEngine;
 
@@ -24,7 +22,6 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
     public bool IsUIActive { private get; set; }
     public ExporterModule ExportableModule => exportableModule;
     public int IngredientCapacity => ingredientCapacity;
-
     public IUIDataProvider GetDataProvider() => crafterProvider;
 
     public struct ResourceInputData
@@ -34,6 +31,15 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         public int Allocated { get; set; }
     }
     protected override void Start()
+    {
+        ModuleSetUp();
+        base.Start();
+        InitAccessPoint();
+        _isActivate = true;
+        StartCoroutine(CraftEnumerator());
+    }
+
+    private void ModuleSetUp()
     {
         if (ExportableModule == null)
         {
@@ -48,15 +54,11 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
             var forward = Vector3Int.RoundToInt(transform.forward);
             return exportDir == forward;
         };
-        base.Start();
-        InitAccessPoint();
-
-        _isActivate = true;
+        
         ExportableModule.OnExport += UpdateUI;
-
-        StartCoroutine(CraftEnumerator());
     }
-    public ResourceInputData GetInput(Directions direction) => _resourceInputs.GetValueOrDefault(GetDirection(direction), new());
+
+    public ResourceInputData GetInput(Directions direction) => _resourceInputs.GetValueOrDefault(DirectionToVector(direction), new());
 
     private void UpdateUI()
     {
@@ -64,20 +66,11 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         CellStatusView.Instance.UpdateUI();
     }
 
-    protected override void SetConnectableDirections()
-    {
-        base.SetConnectableDirections();
-        
-        // セルの後方を接続対象から除外する
-        _connectableDirections = _connectableDirections.Where(dir => dir != Vector3Int.RoundToInt(-transform.forward))
-            .ToArray();
-    }
-
     private void InitAccessPoint()
     {
         // 入力は左右のみ登録する
-        _resourceInputs.TryAdd(GetDirection(Directions.Right), new());
-        _resourceInputs.TryAdd(GetDirection(Directions.Left), new());
+        _resourceInputs.TryAdd(DirectionToVector(Directions.Right), new());
+        _resourceInputs.TryAdd(DirectionToVector(Directions.Left), new());
     }
 
     private IEnumerator CraftEnumerator()

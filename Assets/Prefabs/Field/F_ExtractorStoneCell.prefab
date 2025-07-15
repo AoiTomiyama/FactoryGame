@@ -146,6 +146,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3fb507c8d35e7e40921cc20f23577e2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  allowedDirections: -1
   resourceType: 1
   extractionSecond: 0.6
   extractionAmount: 1
