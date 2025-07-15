@@ -46,7 +46,8 @@ public enum Label
     Amount,
     Allocated,
     Reserved,
-    ResourceName
+    ResourceName,
+    Progress
 }
 
 [Serializable]

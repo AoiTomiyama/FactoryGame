@@ -37,6 +37,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IDataProvid
         var available = capacity - CurrentLoad - AllocatedAmount;
         var allocated = Mathf.Min(available, amount);
         AllocatedAmount += allocated;
+        
         if (allocated > 0) UpdateUI();
         return allocated;
     }
