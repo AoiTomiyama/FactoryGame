@@ -9,22 +9,21 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private InputAction rightClickAction;
     [SerializeField] private InputAction rotateAction;
     [SerializeField] private CellDatabaseSO cellDatabaseSo;
+    [SerializeField] private UIRaycaster raycaster;
+    [SerializeField] private Transform selectionMarker;
 
     private Camera _camera;
     private CellBase _selectedCell;
     private GameObject _placeholderCell;
     private IDataProvidable _renderingCell;
-
-    [SerializeField] private CellType selectedCellType;
-    [SerializeField] private UIRaycaster raycaster;
-
+    private CellType _selectedCellType = CellType.Empty;
     private Vector2 _mousePosition;
 
     private void Start()
     {
         _camera = Camera.main;
 
-        SetSelectedCellType(selectedCellType);
+        SetSelectedCellType(_selectedCellType);
     }
 
     private void OnEnable()
@@ -91,7 +90,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!context.performed) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
 
-        if (!cellDatabaseSo.TryGetCellInfo(selectedCellType, out var cellInfo)) return;
+        if (!cellDatabaseSo.TryGetCellInfo(_selectedCellType, out var cellInfo)) return;
         var obj = cellInfo.FieldCellPrefab;
 
         if (!TryReplaceCell(obj))
@@ -131,6 +130,8 @@ public class PlayerCursorBehaviour : MonoBehaviour
         
         // データプロバイダーを設定
         CellStatusView.Instance.SetDataProvider(provider);
+        
+        selectionMarker.transform.position = _selectedCell.transform.position;
     }
 
     private bool TryReplaceCell(CellBase cellBase)
@@ -147,7 +148,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
             return false;
         }
 
-        if (selectedCellType != CellType.Empty && _selectedCell is not EmptyCell)
+        if (_selectedCellType != CellType.Empty && _selectedCell is not EmptyCell)
         {
             Debug.Log("既にセルが存在します。置き換えはできません");
             return false;
@@ -191,8 +192,8 @@ public class PlayerCursorBehaviour : MonoBehaviour
 
     public void SetSelectedCellType(CellType cellType)
     {
-        selectedCellType = cellType;
-        if (cellDatabaseSo.TryGetCellInfo(selectedCellType, out var cellInfo))
+        _selectedCellType = cellType;
+        if (cellDatabaseSo.TryGetCellInfo(_selectedCellType, out var cellInfo))
         {
             Destroy(_placeholderCell);
             _placeholderCell = Instantiate(cellInfo.PlaceholderCellPrefab, transform.position, transform.rotation,
@@ -200,7 +201,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning($"CellType {selectedCellType} の情報が見つかりません。");
+            Debug.LogWarning($"CellType {_selectedCellType} の情報が見つかりません。");
         }
     }
 
