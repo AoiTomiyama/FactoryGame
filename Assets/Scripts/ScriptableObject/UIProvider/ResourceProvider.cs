@@ -8,8 +8,8 @@ public class ResourceProvider : ProviderBase<ResourceCell>
     protected override UIElementDataBase Create(LabelEnum label) => label switch
     {
         LabelEnum.CellName => new TextElementData(GetName(label), "Resource"),
-        LabelEnum.Location => new TextElementData(GetName(label), $"({System.XIndex}, {System.ZIndex})"),
-        LabelEnum.ResourceName => new TextElementData(GetName(label), resourceDatabase.GetInfo(System.ResourceType).Name),
+        LabelEnum.Location => new TextElementData(GetName(label), $"({Cell.XIndex}, {Cell.ZIndex})"),
+        LabelEnum.ResourceName => new TextElementData(GetName(label), resourceDatabase.GetInfo(Cell.ResourceType).Name),
         _ => throw new System.NotImplementedException(),
     };
 
@@ -17,7 +17,7 @@ public class ResourceProvider : ProviderBase<ResourceCell>
     {
         if (label == LabelEnum.Location && data is TextElementData textData)
         {
-            textData.Text = $"({System.XIndex}, {System.ZIndex})";
+            textData.Text = $"({Cell.XIndex}, {Cell.ZIndex})";
         }
     }
 }

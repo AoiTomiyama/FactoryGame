@@ -6,10 +6,10 @@ public class StorageProvider : ProviderBase<StorageCell>
     protected override UIElementDataBase Create(LabelEnum labelEnum) => labelEnum switch
     {
         LabelEnum.CellName => new TextElementData(GetName(labelEnum), "Storage"),
-        LabelEnum.Location => new TextElementData(GetName(labelEnum), $"({System.XIndex}, {System.ZIndex})"),
-        LabelEnum.Amount => new StorageElementData(GetName(labelEnum), System.Capacity),
-        LabelEnum.Allocated => new GaugeElementData(GetName(labelEnum), System.Capacity),
-        LabelEnum.Reserved => new GaugeElementData(GetName(labelEnum), System.Capacity),
+        LabelEnum.Location => new TextElementData(GetName(labelEnum), $"({Cell.XIndex}, {Cell.ZIndex})"),
+        LabelEnum.Amount => new StorageElementData(GetName(labelEnum), Cell.Capacity),
+        LabelEnum.Allocated => new GaugeElementData(GetName(labelEnum), Cell.Capacity),
+        LabelEnum.Reserved => new GaugeElementData(GetName(labelEnum), Cell.Capacity),
         _ => throw new System.NotImplementedException(),
     };
 
@@ -17,30 +17,30 @@ public class StorageProvider : ProviderBase<StorageCell>
     {
         if (data is StorageElementData s)
         {
-            s.ResourceType = System.StoredResourceType;
+            s.ResourceType = Cell.StoredResourceType;
         }
 
         if (data is GaugeElementData g)
         {
             g.Current = label switch
             {
-                LabelEnum.Allocated => System.AllocatedAmount,
-                LabelEnum.Reserved => System.ReservedAmount,
-                LabelEnum.Amount => System.CurrentLoad,
+                LabelEnum.Allocated => Cell.AllocatedAmount,
+                LabelEnum.Reserved => Cell.ReservedAmount,
+                LabelEnum.Amount => Cell.CurrentLoad,
                 _ => g.Current
             };
             g.GaugeText = label switch
             {
-                LabelEnum.Allocated => $"{System.AllocatedAmount}/{System.Capacity}",
-                LabelEnum.Reserved => $"{System.ReservedAmount}/{System.Capacity}",
-                LabelEnum.Amount => $"{System.CurrentLoad}/{System.Capacity}",
+                LabelEnum.Allocated => $"{Cell.AllocatedAmount}/{Cell.Capacity}",
+                LabelEnum.Reserved => $"{Cell.ReservedAmount}/{Cell.Capacity}",
+                LabelEnum.Amount => $"{Cell.CurrentLoad}/{Cell.Capacity}",
                 _ => g.GaugeText
             };
         }
 
         if (data is TextElementData t)
         {
-            if (label == LabelEnum.Location) t.Text = $"({System.XIndex}, {System.ZIndex})";
+            if (label == LabelEnum.Location) t.Text = $"({Cell.XIndex}, {Cell.ZIndex})";
         }
     }
 }

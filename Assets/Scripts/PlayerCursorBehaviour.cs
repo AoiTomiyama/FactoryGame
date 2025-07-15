@@ -81,6 +81,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!target.TryGetComponent<CellBase>(out var cellBase)) return;
         _selectedCell = cellBase;
         transform.position = _selectedCell.transform.position;
+        
         if (_selectedCell is not EmptyCell) return;
         _selectedCell.CellModel.SetActive(false);
     }
@@ -99,73 +100,12 @@ public class PlayerCursorBehaviour : MonoBehaviour
         }
     }
 
-    private void OnRightClick(InputAction.CallbackContext context)
-    {
-        if (!context.performed) return;
-        if (raycaster.IsPointerOverUI(_mousePosition)) return;
-        UpdateUIStatusWindow();
-    }
-
-    private void UpdateUIStatusWindow()
-    {
-        // 選択中のセルがインターフェイスを持たない場合
-        if (_selectedCell is not IDataProvidable renderingCell)
-        {
-            DeactivateCurrentStatus();
-            CellStatusView.Instance.SetStatusWindowActive(false);
-            return;
-        }
-
-        // ステータスUIを表示
-        CellStatusView.Instance.SetStatusWindowActive(true);
-
-        // 現在のセルが選択されているセルと同じ場合は何もしない
-        if (_renderingCell == renderingCell) return;
-
-        DeactivateCurrentStatus();
-
-        // 新しいセルを設定
-        _renderingCell = renderingCell;
-        _renderingCell.IsUIActive = true;
-
-        // データプロバイダーを取得・設定
-        var provider = _renderingCell.GetDataProvider();
-        provider.SwitchSystem(renderingCell);
-        CellStatusView.Instance.SetDataProvider(provider);
-
-        // マーカーの位置を更新
-        selectionMarker.transform.position = _selectedCell.transform.position;
-    }
-    
-    /// <summary>
-    /// 現在のステータスを非アクティブにする
-    /// </summary>
-    private void DeactivateCurrentStatus()
-    {
-        if (_renderingCell == null) return;
-        
-        _renderingCell.IsUIActive = false;
-        _renderingCell = null;
-        CellStatusView.Instance.ResetStatusUI();
-    }
-
     private bool TryReplaceCell(CellBase cellBase)
     {
-        if (cellBase == null)
+        if (cellBase == null ||
+            _selectedCell == null ||
+            _selectedCellType != CellType.Empty && _selectedCell is not EmptyCell)
         {
-            Debug.LogError("cellBaseが未割り当てです。");
-            return false;
-        }
-
-        if (_selectedCell == null)
-        {
-            Debug.LogWarning("セルが選択されていません。");
-            return false;
-        }
-
-        if (_selectedCellType != CellType.Empty && _selectedCell is not EmptyCell)
-        {
-            Debug.Log("既にセルが存在します。置き換えはできません");
             return false;
         }
 
@@ -205,6 +145,57 @@ public class PlayerCursorBehaviour : MonoBehaviour
         GridFieldDatabase.Instance.SaveCell(x, z, newObj);
         _selectedCell = newObj;
     }
+
+    private void OnRightClick(InputAction.CallbackContext context)
+    {
+        if (!context.performed) return;
+        if (raycaster.IsPointerOverUI(_mousePosition)) return;
+        UpdateUIStatusWindow();
+    }
+
+    private void UpdateUIStatusWindow()
+    {
+        // 選択中のセルがインターフェイスを持たない場合
+        if (_selectedCell is not IDataProvidable renderingCell)
+        {
+            DeactivateCurrentStatus();
+            CellStatusView.Instance.SetStatusWindowActive(false);
+            return;
+        }
+
+        // ステータスUIを表示
+        CellStatusView.Instance.SetStatusWindowActive(true);
+
+        // 現在のセルが選択されているセルと同じ場合は何もしない
+        if (_renderingCell == renderingCell) return;
+
+        DeactivateCurrentStatus();
+
+        // 新しいセルを設定
+        _renderingCell = renderingCell;
+        _renderingCell.IsUIActive = true;
+
+        // データプロバイダーを取得・設定
+        var provider = _renderingCell.GetDataProvider();
+        provider.SwitchSystem(renderingCell);
+        CellStatusView.Instance.SetDataProvider(provider);
+
+        // マーカーの位置を更新
+        selectionMarker.transform.position = _selectedCell.transform.position;
+    }
+
+    /// <summary>
+    /// 現在のステータスを非アクティブにする
+    /// </summary>
+    private void DeactivateCurrentStatus()
+    {
+        if (_renderingCell == null) return;
+
+        _renderingCell.IsUIActive = false;
+        _renderingCell = null;
+        CellStatusView.Instance.ResetStatusUI();
+    }
+
 
     public void SetSelectedCellType(CellType cellType)
     {

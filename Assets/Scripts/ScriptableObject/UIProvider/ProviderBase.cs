@@ -7,23 +7,14 @@ public abstract class ProviderBase<T> : ScriptableObject, IUIDataProvider where 
 {
     [SerializeField] protected LabelName[] labelEntries;
 
-    protected T System;
+    protected T Cell;
     private Dictionary<LabelEnum, string> _labelMap;
-    public void SwitchSystem(IDataProvidable system) => System = system as T;
+    public void SwitchSystem(IDataProvidable system) => Cell = system as T;
 
     /// <summary>
     /// ラベル名のマッピングを初期化します。
     /// </summary>
-    private void InitMap()
-    {
-        if (labelEntries == null || labelEntries.Length == 0)
-        {
-            Debug.LogWarning("Label entries are not set or empty in " + name, this);
-            return;
-        }
-
-        _labelMap ??= labelEntries.ToDictionary(e => e.Label, e => e.Name);
-    }
+    private void InitMap() => _labelMap = labelEntries.ToDictionary(e => e.Label, e => e.Name);
 
     /// <summary>
     /// 指定されたラベルに対応する名前を取得します。
@@ -31,7 +22,7 @@ public abstract class ProviderBase<T> : ScriptableObject, IUIDataProvider where 
     /// </summary>
     protected string GetName(LabelEnum label)
     {
-        InitMap();
+        if (_labelMap == null) InitMap();
         return _labelMap.GetValueOrDefault(label, "-");
     }
 
@@ -46,6 +37,7 @@ public abstract class ProviderBase<T> : ScriptableObject, IUIDataProvider where 
             Debug.LogWarning($"ラベル名の設定がありません： ${nameof(T)}Provider");
             return null;
         }
+
         var labels = labelEntries.Select(labelSet => labelSet.Label).ToArray();
 
         var dict = new Dictionary<LabelEnum, UIElementDataBase>(labels.Length);
@@ -55,7 +47,18 @@ public abstract class ProviderBase<T> : ScriptableObject, IUIDataProvider where 
         return dict;
     }
 
+    /// <summary>
+    /// 渡されたラベルに対応するUI要素データを作成します。
+    /// </summary>
+    /// <param name="label">指定のラベル</param>
+    /// <returns>作成されたUIデータ</returns>
     protected abstract UIElementDataBase Create(LabelEnum label);
+    
+    /// <summary>
+    /// ラベルに応じてUIデータを更新します。
+    /// </summary>
+    /// <param name="label">指定のラベル</param>
+    /// <param name="data">更新するUIデータ</param>
     public abstract void UpdateData(LabelEnum label, UIElementDataBase data);
 }
 

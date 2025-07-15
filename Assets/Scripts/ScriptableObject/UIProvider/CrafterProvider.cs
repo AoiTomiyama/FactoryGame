@@ -6,10 +6,10 @@ public class CrafterProvider : ProviderBase<CrafterCell>
     protected override UIElementDataBase Create(LabelEnum label) => label switch
     {
         LabelEnum.CellName => new TextElementData(GetName(label), "Crafter"),
-        LabelEnum.Location => new TextElementData(GetName(label), $"({System.XIndex}, {System.ZIndex})"),
-        LabelEnum.LeftStorage => new StorageElementData(GetName(label), System.IngredientCapacity),
-        LabelEnum.RightStorage => new StorageElementData(GetName(label), System.IngredientCapacity),
-        LabelEnum.OutputStorage => new StorageElementData(GetName(label), System.ExportableModule.ExporterCapacity),
+        LabelEnum.Location => new TextElementData(GetName(label), $"({Cell.XIndex}, {Cell.ZIndex})"),
+        LabelEnum.LeftStorage => new StorageElementData(GetName(label), Cell.IngredientCapacity),
+        LabelEnum.RightStorage => new StorageElementData(GetName(label), Cell.IngredientCapacity),
+        LabelEnum.OutputStorage => new StorageElementData(GetName(label), Cell.ExportableModule.ExporterCapacity),
         LabelEnum.Progress => new GaugeElementData(GetName(label), 1),
         _ => throw new System.NotImplementedException(),
     };
@@ -21,20 +21,20 @@ public class CrafterProvider : ProviderBase<CrafterCell>
             switch (label)
             {
                 case LabelEnum.Progress:
-                    gaugeData.Current = System.ElapsedProcessTime;
-                    gaugeData.Max = System.ProcessTime;
-                    gaugeData.GaugeText = $"{System.ProcessTime - System.ElapsedProcessTime:F1} sec";
+                    gaugeData.Current = Cell.ElapsedProcessTime;
+                    gaugeData.Max = Cell.ProcessTime;
+                    gaugeData.GaugeText = $"{Cell.ProcessTime - Cell.ElapsedProcessTime:F1} sec";
                     break;
                 case LabelEnum.LeftStorage:
-                    gaugeData.Current = System.GetInput(Directions.Left).Amount;
+                    gaugeData.Current = Cell.GetInput(Directions.Left).Amount;
                     gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
                     break;
                 case LabelEnum.RightStorage:
-                    gaugeData.Current = System.GetInput(Directions.Right).Amount;
+                    gaugeData.Current = Cell.GetInput(Directions.Right).Amount;
                     gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
                     break;
                 case LabelEnum.OutputStorage:
-                    gaugeData.Current = System.ExportableModule.ExportResourceAmount;
+                    gaugeData.Current = Cell.ExportableModule.ExportResourceAmount;
                     gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
                     break;
                 default:
@@ -48,9 +48,9 @@ public class CrafterProvider : ProviderBase<CrafterCell>
         {
             storageData.ResourceType = label switch
             {
-                LabelEnum.LeftStorage => System.GetInput(Directions.Left).Type,
-                LabelEnum.RightStorage => System.GetInput(Directions.Right).Type,
-                LabelEnum.OutputStorage => System.ExportableModule.ExportResourceType,
+                LabelEnum.LeftStorage => Cell.GetInput(Directions.Left).Type,
+                LabelEnum.RightStorage => Cell.GetInput(Directions.Right).Type,
+                LabelEnum.OutputStorage => Cell.ExportableModule.ExportResourceType,
                 _ => 0
             };
         }
