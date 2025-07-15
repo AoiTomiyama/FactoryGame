@@ -221,7 +221,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
             if (p.Count < 2) continue;
 
             // 予め終点にリソースの輸入を予約する。
-            var dir = Vector3Int.RoundToInt((p.Last().transform.position　- p[^2].transform.position).normalized);
+            var dir = (p.Last().transform.position　- p[^2].transform.position).ToCardinalDirection();
             allocatedAmount = containable.AllocateStorage(dir, exportAmount, exportType);
             if (allocatedAmount <= 0) continue;
 

@@ -36,10 +36,10 @@ public abstract class ConnectableCellBase : CellBase
 
     protected Vector3Int DirectionEnumToVector(Directions direction) => direction switch
     {
-        Directions.Forward => Vector3Int.RoundToInt(transform.forward),
-        Directions.Back => Vector3Int.RoundToInt(-transform.forward),
-        Directions.Right => Vector3Int.RoundToInt(transform.right),
-        Directions.Left => Vector3Int.RoundToInt(-transform.right),
+        Directions.Forward => transform.forward.ToCardinalDirection(),
+        Directions.Back => -transform.forward.ToCardinalDirection(),
+        Directions.Right => transform.right.ToCardinalDirection(),
+        Directions.Left => -transform.right.ToCardinalDirection(),
         _ => Vector3Int.zero,
     };
 
@@ -77,7 +77,7 @@ public abstract class ConnectableCellBase : CellBase
             // 取得できたセルがConnectableCellBaseのであれば、接続を行う
             if (foundCell is ConnectableCellBase connectableCell)
             {
-                var dir = Vector3Int.RoundToInt((transform.position - foundCell.transform.position).normalized);
+                var dir = (transform.position - foundCell.transform.position).ToCardinalDirection();
                 if (!_connectableDirections.Contains(-dir) ||
                     !connectableCell._connectableDirections.Contains(dir)) continue;
 
