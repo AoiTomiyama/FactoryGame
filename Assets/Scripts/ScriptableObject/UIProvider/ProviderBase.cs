@@ -38,13 +38,7 @@ public abstract class ProviderBase<T> : ScriptableObject, IUIDataProvider where 
             return null;
         }
 
-        var labels = labelEntries.Select(labelSet => labelSet.Label).ToArray();
-
-        var dict = new Dictionary<LabelEnum, UIElementDataBase>(labels.Length);
-        foreach (var label in labels)
-            dict.Add(label, Create(label));
-
-        return dict;
+        return labelEntries.Select(labelName => labelName.Label).ToDictionary(label => label, Create);
     }
 
     /// <summary>
@@ -53,7 +47,7 @@ public abstract class ProviderBase<T> : ScriptableObject, IUIDataProvider where 
     /// <param name="label">指定のラベル</param>
     /// <returns>作成されたUIデータ</returns>
     protected abstract UIElementDataBase Create(LabelEnum label);
-    
+
     /// <summary>
     /// ラベルに応じてUIデータを更新します。
     /// </summary>
