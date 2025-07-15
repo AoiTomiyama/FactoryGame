@@ -148,6 +148,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   allowedDirections: 13
   ingredientCapacity: 5
+  importDirection: 12
+  exportDirection: 1
   recipeDatabase: {fileID: 11400000, guid: 279a36cb76bd3fa419d433c0feceb0b5, type: 2}
   exportableModule: {fileID: 2694704082559079263}
   crafterProvider: {fileID: 11400000, guid: f3015e67d52fe27469418f95f292754d, type: 2}

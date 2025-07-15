@@ -1,5 +1,7 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using DG.Tweening;
 using UnityEngine;
 
@@ -7,16 +9,19 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
 {
     [Header("クラフト設定")]
     [SerializeField] private int ingredientCapacity;
+    [SerializeField] private Directions importDirection;
+    [SerializeField] private Directions exportDirection;
     [SerializeField] [InlineSO]
     private RecipeDatabaseSO recipeDatabase;
 
     [Header("その他の設定")]
     [SerializeField] private ExporterModule exportableModule;
     [SerializeField] private CrafterProvider crafterProvider;
-    
+
     private readonly Dictionary<Vector3Int, ResourceInputData> _resourceInputs = new();
+    private readonly HashSet<Vector3Int> _exportableDirections = new();
     private bool _isActivate;
-    
+
     public float ProcessTime { get; private set; }
     public float ElapsedProcessTime { get; private set; }
     public bool IsUIActive { private get; set; }
@@ -30,6 +35,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         public int Amount { get; set; }
         public int Allocated { get; set; }
     }
+
     protected override void Start()
     {
         ModuleSetUp();
@@ -50,27 +56,30 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
 
         ExportableModule.OnFilterPath += path =>
         {
-            var exportDir = Vector3Int.RoundToInt((path[0].transform.position - transform.position).normalized);
-            var forward = Vector3Int.RoundToInt(transform.forward);
-            return exportDir == forward;
+            var dir = (path[0].transform.position - transform.position).ToCardinalDirection();
+            return _exportableDirections.Any(exportableDirection => dir == exportableDirection);
         };
-        
+
         ExportableModule.OnExport += UpdateUI;
     }
 
-    public ResourceInputData GetInput(Directions direction) => _resourceInputs.GetValueOrDefault(DirectionToVector(direction), new());
+    private void InitAccessPoint()
+    {
+        var values = (Directions[])Enum.GetValues(typeof(Directions));
+        foreach (var direction in values)
+        {
+            if (HasFlag(importDirection, direction)) _resourceInputs.TryAdd(DirectionEnumToVector(direction), new());
+            if (HasFlag(exportDirection, direction)) _exportableDirections.Add(DirectionEnumToVector(direction));
+        }
+    }
+
+    public ResourceInputData GetInput(Directions direction) =>
+        _resourceInputs.GetValueOrDefault(DirectionEnumToVector(direction), new());
 
     private void UpdateUI()
     {
         if (!IsUIActive) return;
         CellStatusView.Instance.UpdateUI();
-    }
-
-    private void InitAccessPoint()
-    {
-        // 入力は左右のみ登録する
-        _resourceInputs.TryAdd(DirectionToVector(Directions.Right), new());
-        _resourceInputs.TryAdd(DirectionToVector(Directions.Left), new());
     }
 
     private IEnumerator CraftEnumerator()

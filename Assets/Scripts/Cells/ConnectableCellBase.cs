@@ -27,14 +27,14 @@ public abstract class ConnectableCellBase : CellBase
         var values = (Directions[])Enum.GetValues(typeof(Directions));
         foreach (var direction in values)
         {
-            if (!Has(allowedDirections, direction)) continue;
-            _connectableDirections.Add(DirectionToVector(direction));
+            if (!HasFlag(allowedDirections, direction)) continue;
+            _connectableDirections.Add(DirectionEnumToVector(direction));
         }
     }
 
-    private static bool Has(Directions value, Directions flag) => (value & flag) == flag;
+    protected static bool HasFlag(Directions value, Directions flag) => (value & flag) == flag;
 
-    protected Vector3Int DirectionToVector(Directions direction) => direction switch
+    protected Vector3Int DirectionEnumToVector(Directions direction) => direction switch
     {
         Directions.Forward => Vector3Int.RoundToInt(transform.forward),
         Directions.Back => Vector3Int.RoundToInt(-transform.forward),
