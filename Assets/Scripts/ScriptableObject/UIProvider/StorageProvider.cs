@@ -1,25 +1,19 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 [CreateAssetMenu(fileName = "StorageCellProvider", menuName = "Scriptable Objects/Provider/StorageCellProvider")]
 public class StorageProvider : ProviderBase<StorageCell>
 {
-    public override Dictionary<Label, UIElementDataBase> CreateUIElementData()
+    protected override UIElementDataBase Create(LabelEnum labelEnum) => labelEnum switch
     {
-        return new()
-        {
-            { Label.CellName, new TextElementData(GetName(Label.CellName), "Storage") },
-            {
-                Label.Location,
-                new TextElementData(GetName(Label.Location), $"({System.XIndex}, {System.ZIndex})")
-            },
-            { Label.Amount, new StorageElementData(GetName(Label.Amount), System.Capacity) },
-            { Label.Allocated, new GaugeElementData(GetName(Label.Allocated), System.Capacity) },
-            { Label.Reserved, new GaugeElementData(GetName(Label.Reserved), System.Capacity) }
-        };
-    }
+        LabelEnum.CellName => new TextElementData(GetName(labelEnum), "Storage"),
+        LabelEnum.Location => new TextElementData(GetName(labelEnum), $"({System.XIndex}, {System.ZIndex})"),
+        LabelEnum.Amount => new StorageElementData(GetName(labelEnum), System.Capacity),
+        LabelEnum.Allocated => new GaugeElementData(GetName(labelEnum), System.Capacity),
+        LabelEnum.Reserved => new GaugeElementData(GetName(labelEnum), System.Capacity),
+        _ => throw new System.NotImplementedException(),
+    };
 
-    public override void UpdateData(Label label, UIElementDataBase data)
+    public override void UpdateData(LabelEnum label, UIElementDataBase data)
     {
         if (data is StorageElementData s)
         {
@@ -30,23 +24,23 @@ public class StorageProvider : ProviderBase<StorageCell>
         {
             g.Current = label switch
             {
-                Label.Allocated => System.AllocatedAmount,
-                Label.Reserved => System.ReservedAmount,
-                Label.Amount => System.CurrentLoad,
+                LabelEnum.Allocated => System.AllocatedAmount,
+                LabelEnum.Reserved => System.ReservedAmount,
+                LabelEnum.Amount => System.CurrentLoad,
                 _ => g.Current
             };
             g.GaugeText = label switch
             {
-                Label.Allocated => $"{System.AllocatedAmount}/{System.Capacity}",
-                Label.Reserved => $"{System.ReservedAmount}/{System.Capacity}",
-                Label.Amount => $"{System.CurrentLoad}/{System.Capacity}",
+                LabelEnum.Allocated => $"{System.AllocatedAmount}/{System.Capacity}",
+                LabelEnum.Reserved => $"{System.ReservedAmount}/{System.Capacity}",
+                LabelEnum.Amount => $"{System.CurrentLoad}/{System.Capacity}",
                 _ => g.GaugeText
             };
         }
 
         if (data is TextElementData t)
         {
-            if (label == Label.Location) t.Text = $"({System.XIndex}, {System.ZIndex})";
+            if (label == LabelEnum.Location) t.Text = $"({System.XIndex}, {System.ZIndex})";
         }
     }
 }

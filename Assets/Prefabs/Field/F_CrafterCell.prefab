@@ -149,19 +149,7 @@ MonoBehaviour:
   ingredientCapacity: 5
   recipeDatabase: {fileID: 11400000, guid: 279a36cb76bd3fa419d433c0feceb0b5, type: 2}
   exportableModule: {fileID: 2694704082559079263}
-  labelNames:
-  - label: 0
-    name: Name
-  - label: 1
-    name: Location
-  - label: 2
-    name: Left
-  - label: 3
-    name: Right
-  - label: 4
-    name: Output
-  - label: 5
-    name: Process
+  crafterProvider: {fileID: 11400000, guid: f3015e67d52fe27469418f95f292754d, type: 2}
 --- !u!114 &2694704082559079263
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -10,14 +10,6 @@ public abstract class ConnectableCellBase : CellBase
     protected const int AdjacentCount = 4;
     protected event Action OnConnectionChanged;
 
-    protected enum Directions
-    {
-        Right,
-        Forward,
-        Left,
-        Back,
-    }
-
     protected Vector3Int GetDirection(Directions direction) => direction switch
     {
         Directions.Right => Vector3Int.RoundToInt(transform.right),
@@ -144,4 +136,11 @@ public abstract class ConnectableCellBase : CellBase
             Gizmos.DrawLine(transform.position + startPadding, cell.transform.position + endPadding);
         }
     }
+}
+public enum Directions
+{
+    Right,
+    Forward,
+    Left,
+    Back,
 }

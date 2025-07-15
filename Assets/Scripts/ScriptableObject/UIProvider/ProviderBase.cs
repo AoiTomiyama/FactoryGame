@@ -8,7 +8,7 @@ public abstract class ProviderBase<T> : ScriptableObject, IUIDataProvider where 
     [SerializeField] protected LabelName[] labelEntries;
 
     protected T System;
-    private Dictionary<Label, string> _labelMap;
+    private Dictionary<LabelEnum, string> _labelMap;
     public void SwitchSystem(IDataProvidable system) => System = system as T;
 
     /// <summary>
@@ -22,24 +22,44 @@ public abstract class ProviderBase<T> : ScriptableObject, IUIDataProvider where 
             return;
         }
 
-        _labelMap ??= labelEntries.ToDictionary(e => e.Label1, e => e.Name);
+        _labelMap ??= labelEntries.ToDictionary(e => e.Label, e => e.Name);
     }
 
     /// <summary>
     /// 指定されたラベルに対応する名前を取得します。
     /// 存在しない場合は "-" を返します。
     /// </summary>
-    protected string GetName(Label label)
+    protected string GetName(LabelEnum label)
     {
         InitMap();
         return _labelMap.GetValueOrDefault(label, "-");
     }
 
-    public abstract Dictionary<Label, UIElementDataBase> CreateUIElementData();
-    public abstract void UpdateData(Label label, UIElementDataBase data);
+    /// <summary>
+    /// 割り当てられたラベル名に応じてUIを作成します。
+    /// </summary>
+    /// <returns></returns>
+    public Dictionary<LabelEnum, UIElementDataBase> CreateUIElementData()
+    {
+        if (labelEntries == null || labelEntries.Length == 0)
+        {
+            Debug.LogWarning($"ラベル名の設定がありません： ${nameof(T)}Provider");
+            return null;
+        }
+        var labels = labelEntries.Select(labelSet => labelSet.Label).ToArray();
+
+        var dict = new Dictionary<LabelEnum, UIElementDataBase>(labels.Length);
+        foreach (var label in labels)
+            dict.Add(label, Create(label));
+
+        return dict;
+    }
+
+    protected abstract UIElementDataBase Create(LabelEnum label);
+    public abstract void UpdateData(LabelEnum label, UIElementDataBase data);
 }
 
-public enum Label
+public enum LabelEnum
 {
     CellName,
     Location,
@@ -47,16 +67,19 @@ public enum Label
     Allocated,
     Reserved,
     ResourceName,
-    Progress
+    Progress,
+    LeftStorage,
+    RightStorage,
+    OutputStorage,
 }
 
 [Serializable]
 public struct LabelName
 {
-    [SerializeField] private Label label;
+    [SerializeField] private LabelEnum label;
     [SerializeField] private string name;
 
-    public Label Label1 => label;
+    public LabelEnum Label => label;
 
     public string Name => name;
 }

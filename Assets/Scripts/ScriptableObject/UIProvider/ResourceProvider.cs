@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "ResourceProvider", menuName = "Scriptable Objects/Provider/ResourceProvider")]
@@ -6,22 +5,17 @@ public class ResourceProvider : ProviderBase<ResourceCell>
 {
     [SerializeField] private ResourceSO resourceDatabase;
 
-    public override Dictionary<Label, UIElementDataBase> CreateUIElementData()
+    protected override UIElementDataBase Create(LabelEnum label) => label switch
     {
-        return new()
-        {
-            { Label.CellName, new TextElementData(GetName(Label.CellName), "Resource") },
-            { Label.Location, new TextElementData(GetName(Label.Location), $"({System.XIndex}, {System.ZIndex})") },
-            {
-                Label.ResourceName,
-                new TextElementData(GetName(Label.ResourceName), resourceDatabase.GetInfo(System.ResourceType).Name)
-            }
-        };
-    }
+        LabelEnum.CellName => new TextElementData(GetName(label), "Resource"),
+        LabelEnum.Location => new TextElementData(GetName(label), $"({System.XIndex}, {System.ZIndex})"),
+        LabelEnum.ResourceName => new TextElementData(GetName(label), resourceDatabase.GetInfo(System.ResourceType).Name),
+        _ => throw new System.NotImplementedException(),
+    };
 
-    public override void UpdateData(Label label, UIElementDataBase data)
+    public override void UpdateData(LabelEnum label, UIElementDataBase data)
     {
-        if (label == Label.Location && data is TextElementData textData)
+        if (label == LabelEnum.Location && data is TextElementData textData)
         {
             textData.Text = $"({System.XIndex}, {System.ZIndex})";
         }

@@ -3,8 +3,8 @@ using System.Collections.Generic;
 
 public class UIElementRenderer
 {
-    private Dictionary<Label, UIElementDataBase> _elementDataBases;
-    private Dictionary<Label, UIStatusRowBase> _renderedUI = new();
+    private Dictionary<LabelEnum, UIElementDataBase> _elementDataBases;
+    private Dictionary<LabelEnum, UIStatusRowBase> _renderedUI = new();
     private IUIDataProvider _dataProvider;
 
     public void InitUI(IUIDataProvider dataProvider)

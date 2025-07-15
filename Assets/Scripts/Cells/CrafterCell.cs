@@ -5,7 +5,7 @@ using System.Linq;
 using DG.Tweening;
 using UnityEngine;
 
-public class CrafterCell : ConnectableCellBase, IContainable, IExportable
+public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IDataProvidable
 {
     [Header("クラフト設定")]
     [SerializeField] private int ingredientCapacity;
@@ -14,36 +14,25 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
 
     [Header("その他の設定")]
     [SerializeField] private ExporterModule exportableModule;
-    public ExporterModule ExportableModule => exportableModule;
-    private readonly Dictionary<Vector3Int, (ResourceType type, int amount, int allocated)> _resourceInputs = new();
+    [SerializeField] private CrafterProvider crafterProvider;
+    
+    private readonly Dictionary<Vector3Int, ResourceInputData> _resourceInputs = new();
     private bool _isActivate;
+    
+    public float ProcessTime { get; private set; }
+    public float ElapsedProcessTime { get; private set; }
+    public bool IsUIActive { private get; set; }
+    public ExporterModule ExportableModule => exportableModule;
+    public int IngredientCapacity => ingredientCapacity;
 
+    public IUIDataProvider GetDataProvider() => crafterProvider;
 
-    [SerializeField]
-    private List<LabelName> labelNames;
-    private readonly Dictionary<Label, UIStatusRowBase> _renderedUI = new();
-    private Dictionary<Label, UIElementDataBase> _uiElementDataBases;
-    private float _processTime;
-    private float _elapsedProcessTime;
-    public bool IsUIActive { get; set; }
-
-    private enum Label
+    public struct ResourceInputData
     {
-        CellName,
-        Location,
-        LeftStorage,
-        RightStorage,
-        OutputStorage,
-        Process,
+        public ResourceType Type { get; set; }
+        public int Amount { get; set; }
+        public int Allocated { get; set; }
     }
-
-    [Serializable]
-    private struct LabelName
-    {
-        public Label label;
-        public string name;
-    }
-
     protected override void Start()
     {
         if (ExportableModule == null)
@@ -61,98 +50,25 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
         };
         base.Start();
         InitAccessPoint();
-        SetDefaultUIData();
 
         _isActivate = true;
-        ExportableModule.OnExport += InitUI;
+        ExportableModule.OnExport += UpdateUI;
 
         StartCoroutine(CraftEnumerator());
     }
+    public ResourceInputData GetInput(Directions direction) => _resourceInputs.GetValueOrDefault(GetDirection(direction), new());
 
-    private void SetDefaultUIData()
-    {
-        _uiElementDataBases = new()
-        {
-            { Label.CellName, new TextElementData("-", "Crafter") },
-            { Label.Location, new TextElementData("-", $"({XIndex}, {ZIndex})") },
-            { Label.LeftStorage, new StorageElementData("-", ingredientCapacity) },
-            { Label.RightStorage, new StorageElementData("-", ingredientCapacity) },
-            { Label.OutputStorage, new StorageElementData("-", ExportableModule.ExporterCapacity) },
-            { Label.Process, new GaugeElementData("-", 1) }
-        };
-
-        var usedLabels = new HashSet<Label>();
-        foreach (var labelName in labelNames)
-        {
-            if (!usedLabels.Add(labelName.label)) continue; // 重複ラベルはスキップ
-            if (_uiElementDataBases.TryGetValue(labelName.label, out var data))
-            {
-                data.StatusName = labelName.name + ":";
-            }
-        }
-    }
-
-    public void InitUI()
+    private void UpdateUI()
     {
         if (!IsUIActive) return;
-
-        foreach (var (label, data) in _uiElementDataBases)
-        {
-            if (data is GaugeElementData gaugeData)
-            {
-                switch (label)
-                {
-                    case Label.Process:
-                        gaugeData.Current = _elapsedProcessTime;
-                        gaugeData.Max = _processTime;
-                        gaugeData.GaugeText = $"{_processTime - _elapsedProcessTime:F1} sec";
-                        break;
-                    case Label.LeftStorage:
-                        gaugeData.Current = _resourceInputs[GetDirection(Directions.Left)].amount;
-                        gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
-                        break;
-                    case Label.RightStorage:
-                        gaugeData.Current = _resourceInputs[GetDirection(Directions.Right)].amount;
-                        gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
-                        break;
-                    case Label.OutputStorage:
-                        gaugeData.Current = ExportableModule.ExportResourceAmount;
-                        gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
-                        break;
-                    default:
-                        gaugeData.Current = 0;
-                        gaugeData.GaugeText = "";
-                        break;
-                }
-            }
-
-            if (data is StorageElementData storageData)
-            {
-                storageData.ResourceType = label switch
-                {
-                    Label.LeftStorage => _resourceInputs[GetDirection(Directions.Left)].type,
-                    Label.RightStorage => _resourceInputs[GetDirection(Directions.Right)].type,
-                    Label.OutputStorage => ExportableModule.ExportResourceType,
-                    _ => 0
-                };
-            }
-
-            if (_renderedUI.TryGetValue(label, out var uiElement))
-            {
-                uiElement.RenderUIByData(data);
-            }
-            else
-            {
-                _renderedUI[label] = CellStatusView.Instance.CreateStatusRow(data);
-            }
-        }
+        CellStatusView.Instance.UpdateUI();
     }
-
-    public void ResetUI() => _renderedUI.Clear();
 
     protected override void SetConnectableDirections()
     {
         base.SetConnectableDirections();
+        
+        // セルの後方を接続対象から除外する
         _connectableDirections = _connectableDirections.Where(dir => dir != Vector3Int.RoundToInt(-transform.forward))
             .ToArray();
     }
@@ -160,8 +76,8 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
     private void InitAccessPoint()
     {
         // 入力は左右のみ登録する
-        _resourceInputs.TryAdd(GetDirection(Directions.Right), (ResourceType.None, 0, 0));
-        _resourceInputs.TryAdd(GetDirection(Directions.Left), (ResourceType.None, 0, 0));
+        _resourceInputs.TryAdd(GetDirection(Directions.Right), new());
+        _resourceInputs.TryAdd(GetDirection(Directions.Left), new());
     }
 
     private IEnumerator CraftEnumerator()
@@ -174,26 +90,26 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
             // 作成可能なレシピが見つかるまで待機
             RecipeData recipe = null;
             yield return new WaitUntil(() => HasAvailableRecipe(out recipe));
-            _processTime = recipe.CraftSecond;
+            ProcessTime = recipe.CraftSecond;
 
             var tween = DOTween.To(
-                    getter: () => _elapsedProcessTime,
-                    setter: t => _elapsedProcessTime = t,
-                    endValue: _processTime, duration: _processTime)
-                .OnUpdate(InitUI)
+                    getter: () => ElapsedProcessTime,
+                    setter: t => ElapsedProcessTime = t,
+                    endValue: ProcessTime, duration: ProcessTime)
+                .OnUpdate(UpdateUI)
                 .SetEase(Ease.Linear);
 
             // クラフトが完了するまで待機
             yield return tween.WaitForCompletion();
-            _elapsedProcessTime = 0f;
-            InitUI();
+            ElapsedProcessTime = 0f;
+            UpdateUI();
 
             var result = Craft(recipe);
             var available = ExportableModule.ExporterCapacity - ExportableModule.ExportResourceAmount;
             var gainAmount = Mathf.Min(available, result);
             ExportableModule.ExportResourceType = recipe.Result;
             yield return new WaitUntil(() => ExportableModule.TryStackToExporter(gainAmount));
-            InitUI();
+            UpdateUI();
         }
     }
 
@@ -235,8 +151,8 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
                 if (usedKeys.Contains(key)) continue;
 
                 var input = _resourceInputs[key];
-                if (input.type != ingredient.resourceType ||
-                    input.amount < ingredient.requiredAmount)
+                if (input.Type != ingredient.resourceType ||
+                    input.Amount < ingredient.requiredAmount)
                 {
                     // 要件を満たさない場合、スキップする
                     continue;
@@ -265,15 +181,15 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
                 if (usedKeys.Contains(key)) continue;
 
                 var input = _resourceInputs[key];
-                if (input.type != ingredient.resourceType ||
-                    input.amount < ingredient.requiredAmount)
+                if (input.Type != ingredient.resourceType ||
+                    input.Amount < ingredient.requiredAmount)
                 {
                     // 要件を満たさない場合、スキップする
                     continue;
                 }
 
                 // 一度レシピの要件を満たした入力は除外する
-                input.amount -= ingredient.requiredAmount;
+                input.Amount -= ingredient.requiredAmount;
                 _resourceInputs[key] = input;
                 usedKeys.Add(key);
                 break;
@@ -288,22 +204,22 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
         if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return 0;
 
         // 初めてのリソース追加
-        if (inputStorage.type == ResourceType.None)
+        if (inputStorage.Type == ResourceType.None)
         {
-            inputStorage.type = resourceType;
+            inputStorage.Type = resourceType;
         }
 
         // 設定済みのリソースタイプと異なる場合、追加しない
-        if (inputStorage.type != resourceType) return 0;
+        if (inputStorage.Type != resourceType) return 0;
 
         // 既に容量限界に達している場合は0を返す
         // 入れようとしている値が空き容量を越えている場合は空き容量を返す
         // そうでない場合は指定された量を予約する
-        var available = ingredientCapacity - inputStorage.amount - inputStorage.allocated;
+        var available = IngredientCapacity - inputStorage.Amount - inputStorage.Allocated;
         var allocated = Mathf.Min(available, amount);
-        inputStorage.allocated += allocated;
+        inputStorage.Allocated += allocated;
         _resourceInputs[dir] = inputStorage;
-        InitUI();
+        UpdateUI();
         return allocated;
     }
 
@@ -312,9 +228,9 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable
         if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return;
 
         // 現在量に追加し、予約量を減らす。
-        inputStorage.amount += amount;
-        inputStorage.allocated -= amount;
+        inputStorage.Amount += amount;
+        inputStorage.Allocated -= amount;
         _resourceInputs[dir] = inputStorage;
-        InitUI();
+        UpdateUI();
     }
 }
