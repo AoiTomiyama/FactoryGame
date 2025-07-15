@@ -7,10 +7,10 @@ public class CrafterProvider : ProviderBase<CrafterCell>
     {
         LabelEnum.CellName => new TextElementData(GetName(label), "Crafter"),
         LabelEnum.Location => new TextElementData(GetName(label), $"({Cell.XIndex}, {Cell.ZIndex})"),
-        LabelEnum.LeftStorage => new StorageElementData(GetName(label), Cell.IngredientCapacity),
-        LabelEnum.RightStorage => new StorageElementData(GetName(label), Cell.IngredientCapacity),
-        LabelEnum.OutputStorage => new StorageElementData(GetName(label), Cell.ExportableModule.ExporterCapacity),
         LabelEnum.Progress => new GaugeElementData(GetName(label), 1),
+        LabelEnum.OutputStorage => new StorageElementData(GetName(label), Cell.ExportableModule.ExporterCapacity),
+        LabelEnum.LeftStorage or LabelEnum.RightStorage 
+            => new StorageElementData(GetName(label), Cell.IngredientCapacity),
         _ => throw new System.NotImplementedException(),
     };
 
@@ -26,11 +26,8 @@ public class CrafterProvider : ProviderBase<CrafterCell>
                     gaugeData.GaugeText = $"{Cell.ProcessTime - Cell.ElapsedProcessTime:F1} sec";
                     break;
                 case LabelEnum.LeftStorage:
-                    gaugeData.Current = Cell.GetInput(Directions.Left).Amount;
-                    gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
-                    break;
                 case LabelEnum.RightStorage:
-                    gaugeData.Current = Cell.GetInput(Directions.Right).Amount;
+                    gaugeData.Current = Cell.GetInput(LabelToDir(label)).Amount;
                     gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
                     break;
                 case LabelEnum.OutputStorage:
@@ -48,11 +45,20 @@ public class CrafterProvider : ProviderBase<CrafterCell>
         {
             storageData.ResourceType = label switch
             {
-                LabelEnum.LeftStorage => Cell.GetInput(Directions.Left).Type,
-                LabelEnum.RightStorage => Cell.GetInput(Directions.Right).Type,
+                LabelEnum.LeftStorage or LabelEnum.RightStorage => Cell.GetInput(LabelToDir(label)).Type,
                 LabelEnum.OutputStorage => Cell.ExportableModule.ExportResourceType,
                 _ => 0
             };
         }
+    }
+    
+    private static Directions LabelToDir(LabelEnum label)
+    {
+        return label switch
+        {
+            LabelEnum.LeftStorage => Directions.Left,
+            LabelEnum.RightStorage => Directions.Right,
+            _ => throw new System.NotImplementedException($"Unsupported label: {label}")
+        };
     }
 }

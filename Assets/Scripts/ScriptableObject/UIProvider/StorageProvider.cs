@@ -8,8 +8,8 @@ public class StorageProvider : ProviderBase<StorageCell>
         LabelEnum.CellName => new TextElementData(GetName(labelEnum), "Storage"),
         LabelEnum.Location => new TextElementData(GetName(labelEnum), $"({Cell.XIndex}, {Cell.ZIndex})"),
         LabelEnum.Amount => new StorageElementData(GetName(labelEnum), Cell.Capacity),
-        LabelEnum.Allocated => new GaugeElementData(GetName(labelEnum), Cell.Capacity),
-        LabelEnum.Reserved => new GaugeElementData(GetName(labelEnum), Cell.Capacity),
+        LabelEnum.Allocated or LabelEnum.Reserved
+            => new GaugeElementData(GetName(labelEnum), Cell.Capacity),
         _ => throw new System.NotImplementedException(),
     };
 
