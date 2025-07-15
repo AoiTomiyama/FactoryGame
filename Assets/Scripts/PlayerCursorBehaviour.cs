@@ -103,35 +103,50 @@ public class PlayerCursorBehaviour : MonoBehaviour
     {
         if (!context.performed) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
-        ShowUIStatus();
+        UpdateUIStatusWindow();
     }
 
-    private void ShowUIStatus()
+    private void UpdateUIStatusWindow()
     {
-        if (_selectedCell is not IDataProvidable renderingCell) return;
-        CellStatusView.Instance.SetStatusWindowActive(true);
-        
-        if (_renderingCell != null)
+        // 選択中のセルがインターフェイスを持たない場合
+        if (_selectedCell is not IDataProvidable renderingCell)
         {
-            // 直前に選択されていたオブジェクトと同じ場合は何もしない
-            if (renderingCell == _renderingCell) return;
-                
-            _renderingCell.IsUIActive = false;
-            CellStatusView.Instance.ResetStatusUI();
+            DeactivateCurrentStatus();
+            CellStatusView.Instance.SetStatusWindowActive(false);
+            return;
         }
+
+        // ステータスUIを表示
+        CellStatusView.Instance.SetStatusWindowActive(true);
+
+        // 現在のセルが選択されているセルと同じ場合は何もしない
+        if (_renderingCell == renderingCell) return;
+
+        DeactivateCurrentStatus();
+
+        // 新しいセルを設定
         _renderingCell = renderingCell;
         _renderingCell.IsUIActive = true;
-        
-        // データプロバイダーを取得
+
+        // データプロバイダーを取得・設定
         var provider = _renderingCell.GetDataProvider();
-        
-        // プロバイダーの読み取り先を現在のセルに設定
         provider.SwitchSystem(renderingCell);
-        
-        // データプロバイダーを設定
         CellStatusView.Instance.SetDataProvider(provider);
-        
+
+        // マーカーの位置を更新
         selectionMarker.transform.position = _selectedCell.transform.position;
+    }
+    
+    /// <summary>
+    /// 現在のステータスを非アクティブにする
+    /// </summary>
+    private void DeactivateCurrentStatus()
+    {
+        if (_renderingCell == null) return;
+        
+        _renderingCell.IsUIActive = false;
+        _renderingCell = null;
+        CellStatusView.Instance.ResetStatusUI();
     }
 
     private bool TryReplaceCell(CellBase cellBase)
@@ -155,6 +170,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         }
 
         ReplaceCell(cellBase);
+        UpdateUIStatusWindow();
         return true;
     }
 
