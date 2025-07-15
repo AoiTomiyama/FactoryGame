@@ -21,6 +21,11 @@ public abstract class SingletonMonoBehaviour<T> : MonoBehaviour where T : Single
 
     protected virtual void Awake()
     {
+        if (GetType() != typeof(T))
+        {
+            Debug.LogError($"Singletonの型が一致しません。期待される型: {typeof(T)}, 実際の型: {GetType()}");
+            return;
+        }
         if (_instance == null)
         {
             _instance = (T)this;
