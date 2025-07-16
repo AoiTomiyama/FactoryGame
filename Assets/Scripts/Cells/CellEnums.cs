@@ -44,3 +44,11 @@ public enum CellType
     ExportPipe,
     Crafter,
 }
+    
+public enum PipeColorEnum
+{
+    Default,
+    Red,
+    Green,
+    Blue,
+}

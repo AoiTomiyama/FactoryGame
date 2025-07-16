@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -158,28 +159,39 @@ public class PlayerCursorBehaviour : MonoBehaviour
         {
             if (!database.TryGetCellInfo(cellType, out var cellInfo)) continue;
 
-            SetSelectedCellType(cellInfo.CellType, cellInfo.FieldCellPrefab, cellInfo.PlaceholderCellPrefab);
+            _selectedCellType = cellInfo.CellType;
+            Destroy(_placeholderCell);
+            _placeholderCell = Instantiate(cellInfo.PlaceholderCellPrefab, transform.position, transform.rotation,
+                transform);
+
+            if (_cachedCell != null)
+            {
+                Destroy(_cachedCell.gameObject);
+            }
+
+            _cachedCell = Instantiate(cellInfo.FieldCellPrefab, transform.position, transform.rotation, transform);
+            _cachedCell.gameObject.SetActive(false);
             return;
         }
 
         Debug.LogWarning($"CellType {_selectedCellType} の情報が見つかりません。");
     }
 
-    public void SetSelectedCellType(CellType type, CellBase cellBase, GameObject placeholder)
+    public void UpdateCellData(Func<CellBase, GameObject, (CellBase, GameObject)> cellFunc)
     {
-        if (cellBase == null || placeholder == null) return;
+        if (_selectedCell == null || _cachedCell == null) return;
 
-        _selectedCellType = type;
-        Destroy(_placeholderCell);
-        _placeholderCell = Instantiate(placeholder, transform.position, transform.rotation, transform);
-        if (_cachedCell != null)
+        var (updatedCell, updatedPlaceholder) = cellFunc(_cachedCell, _placeholderCell);
+        if (updatedCell != null)
         {
-            Destroy(_cachedCell.gameObject);
+            _cachedCell = updatedCell;
+            _cachedCell.gameObject.SetActive(false);
         }
 
-        _cachedCell = Instantiate(cellBase, transform.position, transform.rotation, transform);
-        _cachedCell.gameObject.SetActive(false);
-        _cachedCell.name = $"InactiveCell_{_selectedCellType}";
+        if (updatedPlaceholder != null)
+        {
+            _placeholderCell = updatedPlaceholder;
+        }
     }
 
     private void OnRotateObject(InputAction.CallbackContext context)

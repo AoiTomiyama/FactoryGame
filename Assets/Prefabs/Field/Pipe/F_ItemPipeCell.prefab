@@ -83,6 +83,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   allowedDirections: -1
   pipeColor: 0
+  pipeColorMapping: {fileID: 11400000, guid: 684a4b5dbf6b46b468aefcfeed65d12e, type: 2}
+  pipeRenderers:
+  - {fileID: 3738946843280689935}
   pipeConnectionPrefab: {fileID: 4386132840877314966, guid: 77765e0d16da208418a766d00615b003, type: 3}
 --- !u!4 &6040249969496787429 stripped
 Transform:
@@ -122,6 +125,11 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
+--- !u!23 &3738946843280689935 stripped
+MeshRenderer:
+  m_CorrespondingSourceObject: {fileID: 4724710955165586140, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
+  m_PrefabInstance: {fileID: 8246904336720517587}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &4921508912306225848 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3908655582398405483, guid: 3f43c999e944ebf4e918ce7503bb2545, type: 3}
