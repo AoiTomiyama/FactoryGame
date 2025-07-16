@@ -6,7 +6,7 @@ public class ItemPipeCell : ConnectableCellBase
     [SerializeField] private GameObject pipeConnectionPrefab;
     private GameObject[] _adjacentPipes;
 
-    protected override void Start()
+    public override void InitializeSystem()
     {
         _adjacentPipes = new GameObject[AdjacentCount];
         OnConnectionChanged += UpdateConnection;
@@ -21,7 +21,7 @@ public class ItemPipeCell : ConnectableCellBase
             pipeCell.pipeColor == PipeColorEnum.Default ||
             pipeCell.pipeColor == pipeColor;
 
-        base.Start();
+        base.InitializeSystem();
     }
 
     /// <summary>

@@ -25,9 +25,9 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IDataProvi
     public bool IsUIActive { private get; set; }
     public IUIDataProvider GetDataProvider() => extractorProvider;
 
-    protected override void Start()
+    public override void InitializeSystem()
     {
-        base.Start();
+        base.InitializeSystem();
         _isActivate = true;
 
         _forwardCell = AdjacentCells

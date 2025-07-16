@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public abstract class CellBase : MonoBehaviour
@@ -6,8 +7,12 @@ public abstract class CellBase : MonoBehaviour
     public int ZIndex { get; set; }
     public GameObject CellModel { get; private set; }
 
-    protected virtual void Awake()
+    private void Awake()
     {
         CellModel = transform.GetChild(0).gameObject;
+    }
+
+    public virtual void InitializeSystem()
+    {
     }
 }

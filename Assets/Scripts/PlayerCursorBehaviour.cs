@@ -10,12 +10,11 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private InputAction rotateAction;
     [SerializeField] private CellDatabaseSO[] cellDatabaseArr;
     [SerializeField] private UIRaycaster raycaster;
-    [SerializeField] private Transform selectionMarker;
 
     private Camera _camera;
     private CellBase _selectedCell;
     private GameObject _placeholderCell;
-    private IDataProvidable _renderingCell;
+    private CellBase _cachedCell;
     private CellType _selectedCellType = CellType.Empty;
     private Vector2 _mousePosition;
 
@@ -91,38 +90,30 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!context.performed) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
 
-        foreach (var database in cellDatabaseArr)
+        if (!TryReplaceCell(_cachedCell))
         {
-            if (!database.TryGetCellInfo(_selectedCellType, out var cellInfo)) continue;
-            
-            var cell = cellInfo.FieldCellPrefab;
-            if (!TryReplaceCell(cell))
-            {
-                Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
-            }
-
-            return;
+            Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
         }
     }
 
-    private bool TryReplaceCell(CellBase cellBase)
+    private bool TryReplaceCell(CellBase cachedCell)
     {
-        if (cellBase == null ||
+        if (cachedCell == null ||
             _selectedCell == null ||
             _selectedCellType != CellType.Empty && _selectedCell is not EmptyCell)
         {
             return false;
         }
 
-        ReplaceCell(cellBase);
-        UpdateUIStatusWindow();
+        ReplaceCell(cachedCell);
+        CellStatusView.Instance.UpdateUIStatusWindow(_selectedCell);
         return true;
     }
 
     /// <summary>
     /// 選択されているセルを新しいセルに置き換える
     /// </summary>
-    private void ReplaceCell(CellBase cellBase)
+    private void ReplaceCell(CellBase cachedCell)
     {
         // 選択されているセルの情報を取得
         var x = _selectedCell.XIndex;
@@ -142,12 +133,15 @@ public class PlayerCursorBehaviour : MonoBehaviour
         _selectedCell = null;
 
         // 新しいセルを生成
-        var newObj = Instantiate(cellBase, pos, transform.rotation, parent);
+        var newObj = Instantiate(cachedCell, pos, transform.rotation, parent);
         newObj.transform.SetSiblingIndex(index);
         newObj.name = objName;
 
         // 新しいセルの情報を保存
         GridFieldDatabase.Instance.SaveCell(x, z, newObj);
+        newObj.gameObject.SetActive(true);
+        newObj.InitializeSystem();
+
         _selectedCell = newObj;
     }
 
@@ -155,67 +149,37 @@ public class PlayerCursorBehaviour : MonoBehaviour
     {
         if (!context.performed) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
-        UpdateUIStatusWindow();
+        CellStatusView.Instance.UpdateUIStatusWindow(_selectedCell);
     }
-
-    private void UpdateUIStatusWindow()
-    {
-        // 選択中のセルがインターフェイスを持たない場合
-        if (_selectedCell is not IDataProvidable renderingCell)
-        {
-            DeactivateCurrentStatus();
-            CellStatusView.Instance.SetStatusWindowActive(false);
-            return;
-        }
-
-        // ステータスUIを表示
-        CellStatusView.Instance.SetStatusWindowActive(true);
-
-        // 現在のセルが選択されているセルと同じ場合は何もしない
-        if (_renderingCell == renderingCell) return;
-
-        DeactivateCurrentStatus();
-
-        // 新しいセルを設定
-        _renderingCell = renderingCell;
-        _renderingCell.IsUIActive = true;
-
-        // データプロバイダーを取得・設定
-        var provider = _renderingCell.GetDataProvider();
-        provider.SwitchSystem(renderingCell);
-        CellStatusView.Instance.SetDataProvider(provider);
-
-        // マーカーの位置を更新
-        selectionMarker.transform.position = _selectedCell.transform.position;
-    }
-
-    /// <summary>
-    /// 現在のステータスを非アクティブにする
-    /// </summary>
-    private void DeactivateCurrentStatus()
-    {
-        if (_renderingCell == null) return;
-
-        _renderingCell.IsUIActive = false;
-        _renderingCell = null;
-        CellStatusView.Instance.ResetStatusUI();
-    }
-
 
     public void SetSelectedCellType(CellType cellType)
     {
-        _selectedCellType = cellType;
         foreach (var database in cellDatabaseArr)
         {
-            if (!database.TryGetCellInfo(_selectedCellType, out var cellInfo)) continue;
-            
-            Destroy(_placeholderCell);
-            _placeholderCell = Instantiate(cellInfo.PlaceholderCellPrefab, transform.position, transform.rotation,
-                transform);
+            if (!database.TryGetCellInfo(cellType, out var cellInfo)) continue;
+
+            SetSelectedCellType(cellInfo.CellType, cellInfo.FieldCellPrefab, cellInfo.PlaceholderCellPrefab);
             return;
         }
 
         Debug.LogWarning($"CellType {_selectedCellType} の情報が見つかりません。");
+    }
+
+    public void SetSelectedCellType(CellType type, CellBase cellBase, GameObject placeholder)
+    {
+        if (cellBase == null || placeholder == null) return;
+
+        _selectedCellType = type;
+        Destroy(_placeholderCell);
+        _placeholderCell = Instantiate(placeholder, transform.position, transform.rotation, transform);
+        if (_cachedCell != null)
+        {
+            Destroy(_cachedCell.gameObject);
+        }
+
+        _cachedCell = Instantiate(cellBase, transform.position, transform.rotation, transform);
+        _cachedCell.gameObject.SetActive(false);
+        _cachedCell.name = $"InactiveCell_{_selectedCellType}";
     }
 
     private void OnRotateObject(InputAction.CallbackContext context)

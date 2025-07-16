@@ -7,9 +7,12 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
 {
     [SerializeField] private Transform statusRowContainer;
     [SerializeField] private Transform elementWindowTransform;
+    [SerializeField] private Transform selectionMarker;
     [SerializeField] private StatusRowInfo[] statusRowPrefabs;
     [SerializeField] private int defaultPoolCapacity = 100;
     [SerializeField] private int maxPoolCapacity = 500;
+    
+    private IDataProvidable _renderingCell;
 
     private readonly Dictionary<UIStatusRowType, ObjectPool<UIStatusRowBase>> _statusRowUIPool = new();
     private readonly Stack<(UIStatusRowType, UIStatusRowBase)> _activeStatusRows = new();
@@ -59,7 +62,6 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
         }
     }
 
-    public void SetDataProvider(IUIDataProvider provider) => _uiRenderer.InitUI(provider);
     public void UpdateUI() => _uiRenderer.UpdateUI();
 
     public void SetStatusWindowActive(bool isActive)
@@ -87,8 +89,51 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
         _activeStatusRows.Push((data.UIStatusRowType, rowUI));
         return rowUI;
     }
+    
+    public void UpdateUIStatusWindow(CellBase selectedCell)
+    {
+        // 選択中のセルがインターフェイスを持たない場合
+        if (selectedCell is not IDataProvidable renderingCell)
+        {
+            DeactivateCurrentStatus();
+            SetStatusWindowActive(false);
+            return;
+        }
 
-    public void ResetStatusUI()
+        // ステータスUIを表示
+        SetStatusWindowActive(true);
+
+        // 現在のセルが選択されているセルと同じ場合は何もしない
+        if (_renderingCell == renderingCell) return;
+
+        DeactivateCurrentStatus();
+
+        // 新しいセルを設定
+        _renderingCell = renderingCell;
+        _renderingCell.IsUIActive = true;
+
+        // データプロバイダーを取得・設定
+        var provider = _renderingCell.GetDataProvider();
+        provider.SwitchSystem(renderingCell);
+        _uiRenderer.InitUI(provider);
+
+        // マーカーの位置を更新
+        selectionMarker.transform.position = selectedCell.transform.position;
+    }
+
+    /// <summary>
+    /// 現在のステータスを非アクティブにする
+    /// </summary>
+    private void DeactivateCurrentStatus()
+    {
+        if (_renderingCell == null) return;
+
+        _renderingCell.IsUIActive = false;
+        _renderingCell = null;
+        ResetStatusUI();
+    }
+
+    private void ResetStatusUI()
     {
         while (_activeStatusRows.Count > 0)
         {

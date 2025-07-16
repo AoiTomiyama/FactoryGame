@@ -9,11 +9,11 @@ public class ExportPipeCell : ItemPipeCell, IExportable
     private StorageCell[] _storages = { };
     private bool _isActivate;
 
-    protected override void Start()
+    public override void InitializeSystem()
     {
         ExportableModule.OnFilterPath += path => !_storages.Contains(path.Last());
         OnConnectionChanged += () => _storages = AdjacentCells.OfType<StorageCell>().ToArray();
-        base.Start();
+        base.InitializeSystem();
         _isActivate = true;
         if (ExportableModule == null)
         {

@@ -36,10 +36,10 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         public int Allocated { get; set; }
     }
 
-    protected override void Start()
+    public override void InitializeSystem()
     {
         ModuleSetUp();
-        base.Start();
+        base.InitializeSystem();
         InitAccessPoint();
         _isActivate = true;
         StartCoroutine(CraftEnumerator());

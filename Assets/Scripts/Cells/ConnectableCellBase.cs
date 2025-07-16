@@ -14,7 +14,7 @@ public abstract class ConnectableCellBase : CellBase
     protected event Func<CellBase, bool> OnFilterAdjacentCell;
     protected CellBase[] AdjacentCells { get; private set; }
 
-    protected virtual void Start()
+    public override void InitializeSystem()
     {
         AdjacentCells = new CellBase[AdjacentCount];
         SetConnectableDirections();
