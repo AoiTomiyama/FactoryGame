@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c991c243980b7784799c4200cd165029, type: 3}
+  m_Name: GeneralCellDB
+  m_EditorClassIdentifier: 
+  extraFolderPath: /General
+  cellPairingInfos:
+  - cellName: Empty
+    fieldCellPrefab: {fileID: 3770124899431596774, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
+    placeholderCellPrefab: {fileID: 3753479285475593560, guid: b98d1dbe996258f46a7bfc05a60b5025, type: 3}
+    cellType: 1
+  - cellName: ResourceWood
+    fieldCellPrefab: {fileID: 5769533041299315922, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
+    placeholderCellPrefab: {fileID: 4939761327901212978, guid: 882fb4a7f7b4a7d4d9300a1c7d749528, type: 3}
+    cellType: 2
+  - cellName: ResourceStone
+    fieldCellPrefab: {fileID: 5343849778207179629, guid: 3394ffad861065944ab3de864c7a2537, type: 3}
+    placeholderCellPrefab: {fileID: 6436038730584001697, guid: 25fc3180cf825cf428f36d76b1fe7f9a, type: 3}
+    cellType: 3
+  - cellName: ExtractorStone
+    fieldCellPrefab: {fileID: 7232298883473130837, guid: 5fcff706387ed944480fa78eb02e921f, type: 3}
+    placeholderCellPrefab: {fileID: 8217202652066461179, guid: 6fb0b84c647911241bbcdeda1d86c789, type: 3}
+    cellType: 5
+  - cellName: ExtractorWood
+    fieldCellPrefab: {fileID: 7232298883473130837, guid: 8a8aa33fc30077a4f974fe6357509114, type: 3}
+    placeholderCellPrefab: {fileID: 8217202652066461179, guid: bd32f30d54bdaf04a9cbb31c6857c703, type: 3}
+    cellType: 6
+  - cellName: Storage
+    fieldCellPrefab: {fileID: -1806236426522654810, guid: 7e74f176962ae124980ebf269eae7b1b, type: 3}
+    placeholderCellPrefab: {fileID: 4466352164537763720, guid: 4eea4101ab8839b43923bc39bad504a2, type: 3}
+    cellType: 7
+  - cellName: Crafter
+    fieldCellPrefab: {fileID: 2108987448181754806, guid: 389174aece626a7489a52865b7fa4f40, type: 3}
+    placeholderCellPrefab: {fileID: 8732916053966372837, guid: 3e0ec0cebefd42849a0af4af342a746c, type: 3}
+    cellType: 13
+  isInitialized: 0

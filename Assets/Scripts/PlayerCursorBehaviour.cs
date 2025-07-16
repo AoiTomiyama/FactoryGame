@@ -8,7 +8,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
     [SerializeField] private InputAction leftClickAction;
     [SerializeField] private InputAction rightClickAction;
     [SerializeField] private InputAction rotateAction;
-    [SerializeField] private CellDatabaseSO cellDatabaseSo;
+    [SerializeField] private CellDatabaseSO[] cellDatabaseArr;
     [SerializeField] private UIRaycaster raycaster;
     [SerializeField] private Transform selectionMarker;
 
@@ -81,7 +81,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!target.TryGetComponent<CellBase>(out var cellBase)) return;
         _selectedCell = cellBase;
         transform.position = _selectedCell.transform.position;
-        
+
         if (_selectedCell is not EmptyCell) return;
         _selectedCell.CellModel.SetActive(false);
     }
@@ -91,12 +91,17 @@ public class PlayerCursorBehaviour : MonoBehaviour
         if (!context.performed) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
 
-        if (!cellDatabaseSo.TryGetCellInfo(_selectedCellType, out var cellInfo)) return;
-        var obj = cellInfo.FieldCellPrefab;
-
-        if (!TryReplaceCell(obj))
+        foreach (var database in cellDatabaseArr)
         {
-            Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
+            if (!database.TryGetCellInfo(_selectedCellType, out var cellInfo)) continue;
+            
+            var cell = cellInfo.FieldCellPrefab;
+            if (!TryReplaceCell(cell))
+            {
+                Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
+            }
+
+            return;
         }
     }
 
@@ -200,16 +205,17 @@ public class PlayerCursorBehaviour : MonoBehaviour
     public void SetSelectedCellType(CellType cellType)
     {
         _selectedCellType = cellType;
-        if (cellDatabaseSo.TryGetCellInfo(_selectedCellType, out var cellInfo))
+        foreach (var database in cellDatabaseArr)
         {
+            if (!database.TryGetCellInfo(_selectedCellType, out var cellInfo)) continue;
+            
             Destroy(_placeholderCell);
             _placeholderCell = Instantiate(cellInfo.PlaceholderCellPrefab, transform.position, transform.rotation,
                 transform);
+            return;
         }
-        else
-        {
-            Debug.LogWarning($"CellType {_selectedCellType} の情報が見つかりません。");
-        }
+
+        Debug.LogWarning($"CellType {_selectedCellType} の情報が見つかりません。");
     }
 
     private void OnRotateObject(InputAction.CallbackContext context)

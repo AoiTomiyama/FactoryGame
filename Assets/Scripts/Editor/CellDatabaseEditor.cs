@@ -15,7 +15,6 @@ public class CellDatabaseEditor : Editor
     private const string FieldPrefabPrefix = "F_";
     private const string FieldFilePath = PrefabFolderPath + "Field";
     private const string Filter = "t:Prefab";
-
     [SerializeField] private GameObject basePrefab;
     [SerializeField] private GameObject modelPrefab;
 
@@ -36,11 +35,11 @@ public class CellDatabaseEditor : Editor
         }
     }
 
-    private static void AutoAssignData(CellDatabaseSO database)
+    private void AutoAssignData(CellDatabaseSO database)
     {
         // "Assets/Prefabs" 以下の .prefab ファイルを全検索
-        var placeholders = AssetDatabase.FindAssets(Filter, new[] { PlaceholderFilePath });
-        var fields = AssetDatabase.FindAssets(Filter, new[] { FieldFilePath });
+        var placeholders = AssetDatabase.FindAssets(Filter, new[] { PlaceholderFilePath + database.ExtraFolderPath });
+        var fields = AssetDatabase.FindAssets(Filter, new[] { FieldFilePath + database.ExtraFolderPath });
 
         // 辞書へ登録
         var fieldDict = new Dictionary<string, CellBase>();
@@ -67,12 +66,10 @@ public class CellDatabaseEditor : Editor
             placeholderDict[key] = prefab;
         }
 
-        var length = Enum.GetNames(typeof(CellType)).Length;
         var list = new List<CellInfo>();
-        
-        for (int i = 0; i < length; i++)
+        var values = (CellType[])Enum.GetValues(typeof(CellType));
+        foreach (var cellType in values)
         {
-            var cellType = (CellType)i;
             var cellTypeName = $"{cellType}Cell";
         
             if (fieldDict.TryGetValue(cellTypeName, out var fieldPrefab) &&

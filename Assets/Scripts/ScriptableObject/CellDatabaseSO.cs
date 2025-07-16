@@ -6,11 +6,14 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "CellDatabaseSO", menuName = "Scriptable Objects/CellDatabaseSO")]
 public class CellDatabaseSO : ScriptableObject
 {
+    [SerializeField] private string extraFolderPath;
     [SerializeField] private CellInfo[] cellPairingInfos;
-    private Dictionary<CellType, CellInfo> _infoLookup;
+    private readonly Dictionary<CellType, CellInfo> _infoLookup = new();
 
     [InspectorReadOnly] [Tooltip("ヴァリデーション済みかどうか")] [SerializeField]
     private bool isInitialized;
+
+    public string ExtraFolderPath => extraFolderPath;
 
     private void OnValidate()
     {
@@ -28,7 +31,7 @@ public class CellDatabaseSO : ScriptableObject
     /// </summary>
     public void ValidateAndBuildLookup()
     {
-        _infoLookup = new();
+        _infoLookup.Clear();
 
         var hashSet = new HashSet<CellType>();
 
@@ -63,7 +66,9 @@ public class CellDatabaseSO : ScriptableObject
     {
         if (!isInitialized)
         {
+#if UNITY_EDITOR
             Debug.LogError($"{nameof(CellDatabaseSO)}が初期化されていません。ヴァリデーションを実行");
+#endif
             ValidateAndBuildLookup();
         }
 
@@ -80,7 +85,9 @@ public class CellDatabaseSO : ScriptableObject
     {
         if (!isInitialized)
         {
+#if UNITY_EDITOR
             Debug.LogError($"{nameof(CellDatabaseSO)}が初期化されていません。ヴァリデーションを実行");
+#endif
             ValidateAndBuildLookup();
         }
 
