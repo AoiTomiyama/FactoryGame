@@ -56,20 +56,6 @@ public abstract class ProviderBase<T> : ScriptableObject, IUIDataProvider where 
     public abstract void UpdateData(LabelEnum label, UIElementDataBase data);
 }
 
-public enum LabelEnum
-{
-    CellName,
-    Location,
-    Amount,
-    Allocated,
-    Reserved,
-    ResourceName,
-    Progress,
-    LeftStorage,
-    RightStorage,
-    OutputStorage,
-}
-
 [Serializable]
 public struct LabelName
 {

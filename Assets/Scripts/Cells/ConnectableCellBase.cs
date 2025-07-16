@@ -144,12 +144,3 @@ public abstract class ConnectableCellBase : CellBase
         }
     }
 }
-
-[Flags]
-public enum Directions
-{
-    Forward = 1 << 0,
-    Back = 1 << 1,
-    Right = 1 << 2,
-    Left = 1 << 3,
-}

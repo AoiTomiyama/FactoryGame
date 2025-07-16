@@ -9,12 +9,3 @@ public sealed class ResourceCell : CellBase, IDataProvidable
     public bool IsUIActive { set { } }
     public IUIDataProvider GetDataProvider() => resourceProvider;
 }
-
-public enum ResourceType
-{
-    None,
-    Stone,
-    Wood,
-    Iron,
-    Gold
-}

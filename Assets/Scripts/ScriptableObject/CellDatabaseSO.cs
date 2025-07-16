@@ -132,18 +132,3 @@ public struct CellInfo
         set => cellType = value;
     }
 }
-
-public enum CellType
-{
-    None,
-    Empty,
-    ResourceWood,
-    ResourceStone,
-    ResourceIron,
-    ExtractorStone,
-    ExtractorWood,
-    Storage,
-    ItemPipe,
-    ExportPipe,
-    Crafter,
-}

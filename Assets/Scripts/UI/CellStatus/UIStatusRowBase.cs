@@ -10,11 +10,3 @@ public abstract class UIStatusRowBase : MonoBehaviour
         statusNameText.text = data.StatusName;
     }
 }
-
-public enum UIStatusRowType
-{
-    None,
-    Text,
-    Gauge,
-    Storage,
-}
