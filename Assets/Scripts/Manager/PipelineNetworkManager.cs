@@ -7,7 +7,7 @@ using UnityEngine;
 public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetworkManager>
 {
     [SerializeField] private float itemTransferSecondPerCell;
-    private readonly List<List<ConnectableCellBase>> _pipelineNetworks = new();
+    private readonly HashSet<HashSet<ConnectableCellBase>> _pipelineNetworks = new();
 
     /// <summary>
     /// セルをネットワークに追加します。
@@ -29,10 +29,10 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
             case >= 2:
             {
                 // 複数のネットワークに属している場合、統合する
-                var mergedNetwork = new List<ConnectableCellBase>();
+                var mergedNetwork = new HashSet<ConnectableCellBase>();
                 foreach (var network in connectedNetworks)
                 {
-                    mergedNetwork.AddRange(network);
+                    mergedNetwork = mergedNetwork.Concat(network).ToHashSet();
                     _pipelineNetworks.Remove(network);
                 }
 
@@ -75,6 +75,14 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
         }
         else
         {
+            foreach (var startCell in network.OfType<IExportable>())
+            {
+                // ExportableModuleのExportPathsから、削除されたセルを含む経路を削除
+                startCell.ExportableModule.ExportPaths =
+                    startCell.ExportableModule.ExportPaths
+                        .Where(path => !path.Contains(cell)).ToHashSet();
+            }
+
             RegisterAllNetworkPaths(network);
         }
     }
@@ -83,7 +91,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     /// ネットワーク内の全てのセル間の経路を登録します。
     /// </summary>
     /// <param name="network">検索対象のネットワーク</param>
-    private void RegisterAllNetworkPaths(List<ConnectableCellBase> network)
+    private void RegisterAllNetworkPaths(HashSet<ConnectableCellBase> network)
     {
         // ネットワーク内のセルが2つ以上ある場合のみ経路を登録
         if (network.Count < 2) return;
@@ -217,7 +225,7 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
 #endif
                 continue;
             }
-            
+
             if (p.Count < 2) continue;
 
             // 予め終点にリソースの輸入を予約する。
