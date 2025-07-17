@@ -18,20 +18,8 @@ MonoBehaviour:
     fieldCellPrefab: {fileID: 3686063221714057315, guid: 6b72c8934c608894ea0df10b5acfcc99, type: 3}
     placeholderCellPrefab: {fileID: 807630649232458751, guid: bbebae66a966d764d872d1f582493e9e, type: 3}
     cellType: 8
-  - cellName: ItemRedPipe
-    fieldCellPrefab: {fileID: 2670884958092774570, guid: 7215b02376a470e408c7d716a42f3bd8, type: 3}
-    placeholderCellPrefab: {fileID: 8267962788306963395, guid: 84cc77cd41d3c154581ab00041597d61, type: 3}
-    cellType: 9
-  - cellName: ItemGreenPipe
-    fieldCellPrefab: {fileID: 677305379831954482, guid: dd80c803419b7744ab15ebd387f67bbb, type: 3}
-    placeholderCellPrefab: {fileID: 8267962788306963395, guid: b29e57dffcaa397438c75c8e69ecc073, type: 3}
-    cellType: 10
-  - cellName: ItemBluePipe
-    fieldCellPrefab: {fileID: 677305379831954482, guid: a81f247bfbd5bc24a95b7fa3512adc0c, type: 3}
-    placeholderCellPrefab: {fileID: 8267962788306963395, guid: 3d6fa01b31984774fa8d27cd6b3373b0, type: 3}
-    cellType: 11
   - cellName: ExportPipe
     fieldCellPrefab: {fileID: 699830911260170433, guid: 84cbd1373685a22468acaf6366567f5d, type: 3}
     placeholderCellPrefab: {fileID: 807630649232458751, guid: 23c4470fbcadd954cbfcf0de7f6d7500, type: 3}
-    cellType: 12
+    cellType: 9
   isInitialized: 1

@@ -38,9 +38,6 @@ public enum CellType
     ExtractorWood,
     Storage,
     ItemPipe,
-    ItemRedPipe,
-    ItemGreenPipe,
-    ItemBluePipe,
     ExportPipe,
     Crafter,
 }

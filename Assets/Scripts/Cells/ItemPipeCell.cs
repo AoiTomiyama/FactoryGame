@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 public class ItemPipeCell : ConnectableCellBase
@@ -10,12 +7,6 @@ public class ItemPipeCell : ConnectableCellBase
     [SerializeField] private Renderer[] pipeRenderers;
     [SerializeField] private GameObject pipeConnectionPrefab;
     private GameObject[] _adjacentPipes;
-    private Dictionary<PipeColorEnum, Material> _colorDict;
-
-    private void Start()
-    {
-        SetPipeColor(pipeColor);
-    }
 
     public void SetPipeColor(PipeColorEnum color)
     {
@@ -23,7 +14,7 @@ public class ItemPipeCell : ConnectableCellBase
         pipeColor = color;
         foreach (var pipeRenderer in pipeRenderers)
         {
-            pipeRenderer.material = pipeColorMapping.GetPipeColor(color);
+            pipeRenderer.material = pipeColorMapping.GetPipeMaterial(color);
         }
     }
 
@@ -79,7 +70,7 @@ public class ItemPipeCell : ConnectableCellBase
                 // パイプの色を設定
                 foreach (var pipeRenderer in connectPipe.GetComponentsInChildren<Renderer>())
                 {
-                    pipeRenderer.material = pipeColorMapping.GetPipeColor(pipeColor);
+                    pipeRenderer.material = pipeColorMapping.GetPipeMaterial(pipeColor);
                 }
             }
 

@@ -24,7 +24,7 @@ public class PipeColorMapping : ScriptableObject
         _colorDict = colorMappings.ToDictionary(map => map.Color, map => map.Material);
     }
 
-    public Material GetPipeColor(PipeColorEnum color)
+    public Material GetPipeMaterial(PipeColorEnum color)
     {
         if (_colorDict == null || _colorDict.Count == 0) return null;
 
