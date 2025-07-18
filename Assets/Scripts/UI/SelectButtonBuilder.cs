@@ -1,19 +1,26 @@
-using System;
 using System.Linq;
 using UnityEngine;
 
 public class SelectButtonBuilder : MonoBehaviour
 {
     [SerializeField] private CellSelectButtonUI buttonPrefab;
+    [SerializeField] private SubMenuUIBuilder subMenuUIBuilder;
     [SerializeField] private CellDatabaseSO cellDatabase;
-    [SerializeField] private PlayerCursorBehaviour playerCursor;
-    [SerializeField] private PipeColorMapping pipeColorMapping;
+    [SerializeField] private CellPlacer placer;
     [SerializeField] private Color defaultBackgroundColor = Color.white;
     [SerializeField] private Color openedSubMenuColor = Color.white;
-    [SerializeField] private Color subMenuColor = Color.white;
     [SerializeField] private CellType[] subMenuInfos;
 
     private void Start()
+    {
+        if (placer == null)
+        {
+            placer = FindAnyObjectByType<CellPlacer>();
+        }
+        GenerateButtons();
+    }
+
+    private void GenerateButtons()
     {
         var list = cellDatabase.GetAllCellInfos();
 
@@ -31,7 +38,7 @@ public class SelectButtonBuilder : MonoBehaviour
             {
                 buttonParam.SubMenuActive = true;
                 buttonParam.SetColor(defaultBackgroundColor);
-                var onToggle = CreateSubMenuSystem(type);
+                var onToggle = subMenuUIBuilder.CreateSubMenuSystem(type);
                 onToggle += isActive => buttonParam.SubMenuActive = !isActive;
                 onToggle += isActive => buttonParam.SetColor(isActive ? openedSubMenuColor : defaultBackgroundColor);
                 buttonParam.name = $"{type}SubMenuButton";
@@ -39,54 +46,10 @@ public class SelectButtonBuilder : MonoBehaviour
             }
             else
             {
-                buttonParam.Set(null, cellInfo.CellName, () => playerCursor.SetSelectedCellType(type));
+                buttonParam.Set(null, cellInfo.CellName, () => placer.SetSelectedCellType(type));
                 buttonParam.name = $"{type}Button";
                 buttonParam.SetColor(defaultBackgroundColor);
             }
         }
-    }
-
-    private Action<bool> CreateSubMenuSystem(CellType type)
-    {
-        if (type != CellType.ItemPipe) return null;
-
-        // ItemPipeの場合、パイプの色を選択するサブメニューを作成
-        var colors = (PipeColorEnum[])Enum.GetValues(typeof(PipeColorEnum));
-        Action<bool> onToggle = null;
-        foreach (var color in colors)
-        {
-            var subButton = Instantiate(buttonPrefab, transform);
-            subButton.SetColor(subMenuColor);
-            subButton.Set(null, $"{color}", () =>
-            {
-                SubMenuButtonClick(type, color);
-            });
-            onToggle += isActive => subButton.gameObject.SetActive(isActive);
-            subButton.gameObject.SetActive(false);
-        }
-        return onToggle;
-    }
-    
-    private void SubMenuButtonClick(CellType type, PipeColorEnum color)
-    {
-        playerCursor.SetSelectedCellType(type);
-        if (color == PipeColorEnum.Default) return;
-        playerCursor.UpdateCellData((cellBase, placeholder) =>
-        {
-            if (cellBase is not ItemPipeCell itemPipeCell)
-            {
-                return (cellBase, placeholder);
-            }
-
-            itemPipeCell.SetPipeColor(color);
-            if (placeholder.TryGetComponent<PlaceholderCell>(out var placeholderCell))
-            {
-                var material = pipeColorMapping.GetPipeMaterial(color);
-                placeholderCell.SetMaterial(material);
-            }
-            
-
-            return (itemPipeCell, placeholder);
-        });
     }
 }
