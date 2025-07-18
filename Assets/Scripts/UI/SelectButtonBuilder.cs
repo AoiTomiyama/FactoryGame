@@ -57,7 +57,7 @@ public class SelectButtonBuilder : MonoBehaviour
         {
             var subButton = Instantiate(buttonPrefab, transform);
             subButton.SetColor(subMenuColor);
-            subButton.Set(null, $"{type}-{color}", () =>
+            subButton.Set(null, $"{color}", () =>
             {
                 SubMenuButtonClick(type, color);
             });
@@ -79,10 +79,12 @@ public class SelectButtonBuilder : MonoBehaviour
             }
 
             itemPipeCell.SetPipeColor(color);
-            foreach (var placeholderRenderer in placeholder.GetComponentsInChildren<Renderer>())
+            if (placeholder.TryGetComponent<PlaceholderCell>(out var placeholderCell))
             {
-                placeholderRenderer.material = pipeColorMapping.GetPipeMaterial(color);
+                var material = pipeColorMapping.GetPipeMaterial(color);
+                placeholderCell.SetMaterial(material);
             }
+            
 
             return (itemPipeCell, placeholder);
         });
