@@ -1,19 +1,18 @@
+using System;
+using System.Linq;
+
 public class CrossedPipeCell : ConnectableCellBase
 {
-    public CellBase[] GetAdjacentCells(CellBase fromCell)
+    public CellBase[] GetCrossedAdjacentCells(CellBase fromCell)
     {
-        // 取得可能な隣接セルを取得元から交差する位置にあるものに限定する
-        var allAdjacentCells = GetAdjacentCells();
-        var filteredCells = new CellBase[allAdjacentCells.Length];
-        var index = 0;
-        foreach (var cell in allAdjacentCells)
+        if (AdjacentCells == null || AdjacentCells.Length == 0)
         {
-            // fromCellの位置と同じXまたはZ座標を持つセルのみを追加
-            if (cell.XIndex == fromCell.XIndex || cell.ZIndex == fromCell.ZIndex)
-            {
-                filteredCells[index++] = cell;
-            }
+            return Array.Empty<CellBase>();
         }
-        return filteredCells;
+
+        // 取得可能な隣接セルを取得元から交差する位置にあるものに限定する
+        return AdjacentCells
+            .Where(cell => cell != null && (cell.XIndex == fromCell.XIndex || cell.ZIndex == fromCell.ZIndex))
+            .ToArray();
     }
 }

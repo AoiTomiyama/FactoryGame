@@ -34,7 +34,7 @@ public class CellPlacer : MonoBehaviour
         _selectedCell = cellBase;
         transform.position = _selectedCell.transform.position;
 
-        if (_selectedCell is not EmptyCell) return;
+        if (cellBase is not EmptyCell) return;
         _selectedCell.CellModel.SetActive(false);
     }
 
@@ -44,8 +44,7 @@ public class CellPlacer : MonoBehaviour
     public void ReplaceCell()
     {
         // 置こうとしているセル、および選択されているセルがEmptyCellでない場合、上書きが発生してしまうため中断する
-        if (_cachedCell == null ||
-            _selectedCell == null ||
+        if (_cachedCell == null || _selectedCell == null ||
             _cachedCell is not EmptyCell && _selectedCell is not EmptyCell)
         {
             Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");

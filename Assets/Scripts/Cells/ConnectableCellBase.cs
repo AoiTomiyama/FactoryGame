@@ -66,7 +66,7 @@ public abstract class ConnectableCellBase : CellBase
 
             if (AdjacentCells.Contains(foundCell)) continue;
 
-            if (GetType().Name != nameof(ItemPipeCell) &&
+            if (this is IExportable or IContainable &&
                 GetType().Name == foundCell.GetType().Name)
             {
                 // 同じタイプのセル同士は接続しない
