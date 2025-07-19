@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using DG.Tweening;
 using TMPro;
@@ -126,21 +127,29 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
         {
             var (currentCell, currentPath) = queue.Dequeue();
 
-            foreach (var connectableCell in currentCell.GetAdjacentCells()
+            var adjacentCells =
+                currentCell is CrossedPipeCell crossedPipeCell
+                    ? crossedPipeCell.GetAdjacentCells(currentPath[currentCell])
+                    : currentCell.GetAdjacentCells();
+
+            foreach (var connectableCell in adjacentCells
                          .OfType<ConnectableCellBase>()
-                         .Where(cell => !visited.Contains(cell)))
+                         .Where(cell => !visited.Contains(cell) && cell != startCell))
             {
+                // 接続可能なセルを見つけた場合、経路を更新
                 var nextPath = new Dictionary<ConnectableCellBase, ConnectableCellBase>(currentPath)
                 {
                     [connectableCell] = currentCell
                 };
 
+                // 終点に到達した場合、経路を保存
                 if (connectableCell == endCell)
                 {
                     foundPaths.Add(nextPath);
                     continue;
                 }
 
+                // セルを訪問済みとしてマーク
                 visited.Add(connectableCell);
 
                 if (connectableCell is IContainable or IExportable)

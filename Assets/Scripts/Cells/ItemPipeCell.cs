@@ -12,9 +12,10 @@ public class ItemPipeCell : ConnectableCellBase
     {
         if (color == pipeColor) return;
         pipeColor = color;
+        var material = pipeColorMapping.GetPipeMaterial(pipeColor);
         foreach (var pipeRenderer in pipeRenderers)
         {
-            pipeRenderer.material = pipeColorMapping.GetPipeMaterial(color);
+            pipeRenderer.material = material;
         }
     }
 
@@ -59,7 +60,7 @@ public class ItemPipeCell : ConnectableCellBase
             }
 
             // 隣接セルが ItemPipeCell, IContainable, IExportable のいずれかでなければスキップ
-            if (cell is not (ItemPipeCell or IContainable or IExportable)) continue;
+            if (cell is not (ItemPipeCell or IContainable or IExportable or CrossedPipeCell)) continue;
 
             var dir = cell.transform.position - transform.position;
             var pos = transform.position + dir / 3f + CellModel.transform.localPosition;
@@ -67,10 +68,11 @@ public class ItemPipeCell : ConnectableCellBase
             connectPipe.transform.forward = dir.normalized;
             if (pipeColor != PipeColorEnum.Default)
             {
+                var material = pipeColorMapping.GetPipeMaterial(pipeColor);
                 // パイプの色を設定
                 foreach (var pipeRenderer in connectPipe.GetComponentsInChildren<Renderer>())
                 {
-                    pipeRenderer.material = pipeColorMapping.GetPipeMaterial(pipeColor);
+                    pipeRenderer.material = material;
                 }
             }
 
