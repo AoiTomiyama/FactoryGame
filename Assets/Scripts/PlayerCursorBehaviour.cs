@@ -13,6 +13,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
 
     private Camera _camera;
     private Vector2 _mousePosition;
+    private bool _isLeftClickPressed;
 
     private void Start()
     {
@@ -23,6 +24,14 @@ public class PlayerCursorBehaviour : MonoBehaviour
         _camera = Camera.main;
     }
 
+    private void Update()
+    {
+        if (_isLeftClickPressed)
+        {
+            OnLeftClickPressed();
+        }
+    }
+
     private void OnEnable()
     {
         mouseAction.Enable();
@@ -31,7 +40,8 @@ public class PlayerCursorBehaviour : MonoBehaviour
         rotateAction.Enable();
 
         mouseAction.performed += OnMouseMove;
-        leftClickAction.performed += OnLeftClick;
+        leftClickAction.started += OnLeftClickDown;
+        leftClickAction.canceled += OnLeftClickUp;
         rightClickAction.performed += OnRightClick;
         rotateAction.performed += OnRotateObject;
     }
@@ -39,7 +49,8 @@ public class PlayerCursorBehaviour : MonoBehaviour
     private void OnDisable()
     {
         mouseAction.performed -= OnMouseMove;
-        leftClickAction.performed -= OnLeftClick;
+        leftClickAction.started -= OnLeftClickDown;
+        leftClickAction.canceled -= OnLeftClickUp;
         rightClickAction.performed -= OnRightClick;
         rotateAction.performed -= OnRotateObject;
 
@@ -63,11 +74,22 @@ public class PlayerCursorBehaviour : MonoBehaviour
         }
     }
 
-    private void OnLeftClick(InputAction.CallbackContext context)
+    private void OnLeftClickDown(InputAction.CallbackContext context)
     {
-        if (!context.performed) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
-        placer.ReplaceCell();
+        _isLeftClickPressed = true;
+        placer.PointerBegin();
+    }
+
+    private void OnLeftClickPressed()
+    {
+        placer.PointerMove();
+    }
+    
+    private void OnLeftClickUp(InputAction.CallbackContext context)
+    {
+        _isLeftClickPressed = false;
+        placer.PointerEnd();
     }
 
     private void OnRightClick(InputAction.CallbackContext context)

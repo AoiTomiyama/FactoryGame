@@ -18,6 +18,10 @@ MonoBehaviour:
     fieldCellPrefab: {fileID: 3686063221714057315, guid: 6b72c8934c608894ea0df10b5acfcc99, type: 3}
     placeholderCellPrefab: {fileID: 807630649232458751, guid: bbebae66a966d764d872d1f582493e9e, type: 3}
     cellType: 8
+  - cellName: CrossedItemPipe
+    fieldCellPrefab: {fileID: 1448914678170953819, guid: 684f7a6d7706dc146a2bc44be40d58dc, type: 3}
+    placeholderCellPrefab: {fileID: 3122997218153001049, guid: 6e5693d02a0970a4691b377d0c82c324, type: 3}
+    cellType: 9
   - cellName: ExportPipe
     fieldCellPrefab: {fileID: 699830911260170433, guid: 84cbd1373685a22468acaf6366567f5d, type: 3}
     placeholderCellPrefab: {fileID: 807630649232458751, guid: 23c4470fbcadd954cbfcf0de7f6d7500, type: 3}

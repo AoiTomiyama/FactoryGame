@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Linq;
 using DG.Tweening;
 using TMPro;
@@ -128,20 +126,10 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
         {
             var (currentCell, currentPath) = queue.Dequeue();
 
-            CellBase[] adjacentCells;
-            if (currentCell is CrossedPipeCell crossedPipeCell)
-            {
-                var previous = currentPath[currentCell];
-                if (previous == null)
-                {
-                    Debug.Log("next is null");
-                }
-                adjacentCells = crossedPipeCell.GetCrossedAdjacentCells(previous);
-            }
-            else
-            {
-                adjacentCells = currentCell.GetAdjacentCells();
-            }
+            var adjacentCells =
+                currentCell is CrossedPipeCell crossedPipeCell
+                    ? crossedPipeCell.GetCrossedAdjacentCells(currentPath[currentCell])
+                    : currentCell.GetAdjacentCells();
 
             foreach (var connectableCell in adjacentCells
                          .OfType<ConnectableCellBase>()
