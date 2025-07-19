@@ -17,6 +17,11 @@ public class SelectButtonBuilder : MonoBehaviour
         {
             placer = FindAnyObjectByType<CellPlacer>();
         }
+
+        if (subMenuUIBuilder != null)
+        {
+            subMenuUIBuilder.SetDatabase(buttonPrefab, placer);
+        }
         GenerateButtons();
     }
 
