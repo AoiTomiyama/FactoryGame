@@ -43,11 +43,13 @@ public class CellPlacer : MonoBehaviour
     /// </summary>
     public void ReplaceCell()
     {
+        // 置こうとしているセル、および選択されているセルがEmptyCellでない場合、上書きが発生してしまうため中断する
         if (_cachedCell == null ||
             _selectedCell == null ||
-            _selectedCellType != CellType.Empty && _selectedCell is not EmptyCell)
+            _cachedCell is not EmptyCell && _selectedCell is not EmptyCell)
         {
             Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
+            return;
         }
         
         // 選択されているセルの情報を取得
