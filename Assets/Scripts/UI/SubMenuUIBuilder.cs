@@ -3,10 +3,17 @@ using UnityEngine;
 
 public class SubMenuUIBuilder : MonoBehaviour
 {
-    [SerializeField] private CellSelectButtonUI buttonPrefab;
     [SerializeField] private PipeColorMapping pipeColorMapping;
-    [SerializeField] private CellPlacer placer;
     [SerializeField] private Color subMenuColor = Color.white;
+
+    private CellSelectButtonUI _buttonPrefab;
+    private CellPlacer _cellPlacer;
+
+    public void SetDatabase(CellSelectButtonUI button, CellPlacer placer)
+    {
+        _buttonPrefab = button;
+        _cellPlacer = placer;
+    }
 
     public Action<bool> CreateSubMenuSystem(CellType type)
     {
@@ -18,13 +25,13 @@ public class SubMenuUIBuilder : MonoBehaviour
                 var colors = (PipeColorEnum[])Enum.GetValues(typeof(PipeColorEnum));
                 foreach (var color in colors)
                 {
-                    var subButton = Instantiate(buttonPrefab, transform);
+                    var subButton = Instantiate(_buttonPrefab, transform);
                     subButton.SetColor(subMenuColor);
                     subButton.Set(null, $"{color}", () =>
                     {
-                        placer.SetSelectedCellType(type);
+                        _cellPlacer.SetSelectedCellType(type);
                         if (color == PipeColorEnum.Default) return;
-                        placer.UpdateCellData((cellBase, placeholder) =>
+                        _cellPlacer.UpdateCellData((cellBase, placeholder) =>
                         {
                             if (cellBase is not ItemPipeCell itemPipeCell)
                             {
@@ -37,7 +44,6 @@ public class SubMenuUIBuilder : MonoBehaviour
                                 var material = pipeColorMapping.GetPipeMaterial(color);
                                 placeholderCell.SetMaterial(material);
                             }
-
 
                             return (itemPipeCell, placeholder);
                         });
