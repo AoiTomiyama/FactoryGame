@@ -70,6 +70,11 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
         {
             elementWindowTransform.gameObject.SetActive(isActive);
         }
+        
+        if (selectionMarker != null)
+        {
+            selectionMarker.gameObject.SetActive(isActive);
+        }
     }
 
     public UIStatusRowBase CreateStatusRow(UIElementDataBase data)
