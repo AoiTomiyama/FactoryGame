@@ -60,7 +60,7 @@ public class ItemPipeCell : ConnectableCellBase
             }
 
             // 隣接セルが ItemPipeCell, IContainable, IExportable のいずれかでなければスキップ
-            if (cell is not (ItemPipeCell or IContainable or IExportable or CrossedPipeCell)) continue;
+            if (cell is not ConnectableCellBase) continue;
 
             var dir = cell.transform.position - transform.position;
             var pos = transform.position + dir / 3f + CellModel.transform.localPosition;
