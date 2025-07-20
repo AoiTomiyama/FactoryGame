@@ -1,5 +1,9 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
@@ -107,82 +111,155 @@ public sealed class PipelineNetworkManager : SingletonMonoBehaviour<PipelineNetw
     }
 
     /// <summary>
-    /// ネットワーク内の2つのセル間の最短経路を登録します。
+    /// ネットワーク内の2つのセル間の最短経路を非同期・マルチスレッドで登録します。
+    /// </summary>
+    /// <param name="startCell">始点となるセル</param>
+    /// <param name="endCell">終点となるセル</param>
+    /// <param name="token">キャンセレーショントークン</param>
+    private async UniTask RegisterAllPathByNetworkAsync(
+        ConnectableCellBase startCell,
+        ConnectableCellBase endCell,
+        CancellationToken token = default)
+    {
+        if (startCell == null) return;
+
+        // 重い処理をワーカースレッドで実行
+        var foundPaths = await UniTask.RunOnThreadPool(() =>
+        {
+            // スレッドセーフなコレクション
+            // ConcurrentBagを使用して、見つかったパスを保存
+            var foundPaths = new ConcurrentBag<Dictionary<ConnectableCellBase, ConnectableCellBase>>();
+
+            // BFSのため、訪問済みを管理するためのConcurrentDictionary
+            var visited = new ConcurrentDictionary<ConnectableCellBase, bool>();
+
+            // 各スレッドで処理するためのキュー
+            var workQueue =
+                new ConcurrentQueue<(ConnectableCellBase cell,
+                    Dictionary<ConnectableCellBase, ConnectableCellBase> path, int depth)>();
+
+            // 始点セルをキューに追加
+            visited[startCell] = true;
+            workQueue.Enqueue((startCell, new(), 0));
+
+            // 探索の深さとスレッド数の制限
+            const int MaxDepth = 50;
+            const int MaxThreads = 10;
+
+            // Parallel.Forを使用して、複数のスレッドでBFS探索を行う
+            Parallel.For(0, MaxThreads, new() { CancellationToken = token }, _ =>
+            {
+                // 各スレッドでローカルキューを使用
+                var localQueue =
+                    new Queue<(ConnectableCellBase, Dictionary<ConnectableCellBase, ConnectableCellBase>, int)>();
+
+                // トークンがキャンセルされるまでループ
+                while (!token.IsCancellationRequested)
+                {
+                    // グローバルキューから作業を取得
+                    var hasWork = false;
+                    for (int i = 0; i < 10 && workQueue.TryDequeue(out var workItem); i++)
+                    {
+                        localQueue.Enqueue(workItem);
+                        hasWork = true;
+                    }
+
+                    // もしローカルキューが空で、グローバルキューも空ならば終了
+                    if (!hasWork)
+                    {
+                        Thread.Sleep(1);
+                        if (!workQueue.TryDequeue(out var lastItem)) break;
+                        localQueue.Enqueue(lastItem);
+                    }
+
+                    // ローカルキューの処理
+                    while (localQueue.Count > 0 && !token.IsCancellationRequested)
+                    {
+                        // キューから現在のセル、パス、深さを取得
+                        var (currentCell, currentPath, depth) = localQueue.Dequeue();
+
+                        // 深さ制限を超えた場合はスキップ
+                        if (depth >= MaxDepth) continue;
+
+                        // 現在のセルの隣接セルを取得
+                        var adjacentCells = currentCell is CrossedPipeCell crossedPipeCell
+                            ? crossedPipeCell.GetCrossedAdjacentCells(currentPath.GetValueOrDefault(currentCell))
+                            : currentCell.GetAdjacentCells();
+
+                        foreach (var cell in adjacentCells)
+                        {
+                            // 接続可能なセルでない、または既に訪問済みのセルはスキップ
+                            if (cell is not ConnectableCellBase connectableCell ||
+                                !visited.TryAdd(connectableCell, true) ||
+                                cell == startCell) continue;
+
+                            // 接続可能なセルを見つけた場合、経路を更新
+                            var nextPath = new Dictionary<ConnectableCellBase, ConnectableCellBase>(currentPath)
+                            {
+                                [connectableCell] = currentCell
+                            };
+
+                            // 終点に到達
+                            if (connectableCell == endCell)
+                            {
+                                foundPaths.Add(nextPath);
+                                continue;
+                            }
+
+                            // 探索継続の条件
+                            if (connectableCell is IContainable or IExportable) continue;
+
+                            // 次のセルと経路をキューに追加
+                            workQueue.Enqueue((connectableCell, nextPath, depth + 1));
+                        }
+                    }
+                }
+            });
+
+            // キューに残っているパスを全て取得してリストに変換
+            return foundPaths.ToList();
+        }, cancellationToken: token);
+
+        if (foundPaths.Count == 0) return;
+
+        // パス登録（メインスレッドに戻して実行）
+        await UniTask.SwitchToMainThread(token);
+
+        foreach (var path in foundPaths)
+        {
+            var resultPath = new List<ConnectableCellBase>();
+            var current = endCell;
+
+            // 終点から始点までのパスを逆順に辿る
+            while (current != null && path.TryGetValue(current, out var next))
+            {
+                resultPath.Add(current);
+                current = next;
+            }
+
+            // パスが空でない場合、始点セルがIExportableであればパスを登録
+            if (resultPath.Count > 0 && startCell is IExportable exportableStart)
+            {
+                resultPath.Reverse();
+                AddPath(exportableStart.ExportableModule, resultPath);
+            }
+
+            // 大量のパスがある場合はフレーム制御
+            if (foundPaths.Count > 20)
+            {
+                await UniTask.Yield(PlayerLoopTiming.Update, token);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 同期版のラッパー（後方互換性のため）
     /// </summary>
     /// <param name="startCell">始点となるセル</param>
     /// <param name="endCell">終点となるセル</param>
     private void RegisterAllPathByNetwork(ConnectableCellBase startCell, ConnectableCellBase endCell)
     {
-        if (startCell == null) return;
-
-        // BFSを用いて、ネットワーク内での全経路を設定
-        var queue = new Queue<(ConnectableCellBase cell, Dictionary<ConnectableCellBase, ConnectableCellBase> path)>();
-        var visited = new HashSet<ConnectableCellBase> { startCell };
-        var foundPaths = new List<Dictionary<ConnectableCellBase, ConnectableCellBase>>();
-
-        queue.Enqueue((startCell, new()));
-
-        while (queue.Count > 0)
-        {
-            var (currentCell, currentPath) = queue.Dequeue();
-
-            var adjacentCells =
-                currentCell is CrossedPipeCell crossedPipeCell
-                    ? crossedPipeCell.GetCrossedAdjacentCells(currentPath[currentCell])
-                    : currentCell.GetAdjacentCells();
-
-            foreach (var connectableCell in adjacentCells
-                         .OfType<ConnectableCellBase>()
-                         .Where(cell => !visited.Contains(cell) && cell != startCell))
-            {
-                // 接続可能なセルを見つけた場合、経路を更新
-                var nextPath = new Dictionary<ConnectableCellBase, ConnectableCellBase>(currentPath)
-                {
-                    [connectableCell] = currentCell
-                };
-
-                // 終点に到達した場合、経路を保存
-                if (connectableCell == endCell)
-                {
-                    foundPaths.Add(nextPath);
-                    continue;
-                }
-
-                // セルを訪問済みとしてマーク
-                visited.Add(connectableCell);
-
-                if (connectableCell is IContainable or IExportable)
-                {
-                    // 入力または出力の機能をもつセルは探索しない
-                    continue;
-                }
-
-                queue.Enqueue((connectableCell, nextPath));
-            }
-        }
-
-        if (foundPaths.Count == 0) return;
-
-        foreach (var path in foundPaths)
-        {
-            // 最短経路を設定
-            var resultPath = new List<ConnectableCellBase>();
-
-            var current = endCell;
-            while (current != null && path.ContainsKey(current))
-            {
-                resultPath.Add(current);
-                current = path[current];
-            }
-
-            if (resultPath.Count == 0) continue;
-
-            if (startCell is IExportable exportableStart)
-            {
-                resultPath.Reverse();
-                AddPath(exportableStart.ExportableModule, resultPath);
-            }
-        }
+        RegisterAllPathByNetworkAsync(startCell, endCell).Forget();
     }
 
     /// <summary>
