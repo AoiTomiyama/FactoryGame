@@ -14,8 +14,18 @@ public class CellPlacer : MonoBehaviour
     private Vector3Int _dragBeginPos;
 
     private void Start() => SetSelectedCellType(_selectedCellType);
-    public void PointerBegin() => _dragBeginPos = Vector3Int.RoundToInt(_selectedCell.transform.position);
-    public void PointerMove() => FindRangedGrid(_dragBeginPos, Vector3Int.RoundToInt(_selectedCell.transform.position));
+    public void PointerBegin()
+    {
+        if (_selectedCell == null) return;
+        _dragBeginPos = Vector3Int.RoundToInt(_selectedCell.transform.position);
+    }
+
+    public void PointerMove()
+    {
+        if (_selectedCell == null) return;
+        FindRangedGrid(_dragBeginPos, Vector3Int.RoundToInt(_selectedCell.transform.position));
+    }
+
     public void PointerEnd() => ReplaceRangedCells();
     public void TransferDataToUI() => CellStatusView.Instance.UpdateUIStatusWindow(_selectedCell);
 
@@ -89,10 +99,10 @@ public class CellPlacer : MonoBehaviour
         foreach (var (cell, placeholder) in _selectedRangeCells)
         {
             if (newSet.Contains(cell)) continue;
-            
+
             // すでに置いてあるセルの表示を元に戻す
             cell.CellModel.SetActive(true);
-            
+
             // プレースホルダーを削除
             Destroy(placeholder.gameObject);
         }
