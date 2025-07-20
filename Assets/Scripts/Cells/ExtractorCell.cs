@@ -1,5 +1,6 @@
-using System.Collections;
 using System.Linq;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using UnityEngine;
 
@@ -17,6 +18,7 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IDataProvi
 
     private CellBase _forwardCell;
     private bool _isActivate;
+    private CancellationTokenSource _cts;
 
     public ExporterModule ExportableModule => exportableModule;
     public float ElapsedTime { get; private set; }
@@ -48,7 +50,17 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IDataProvi
 
         ExportableModule.ExportResourceType = ResourceType;
         ExportableModule.OnExport += UpdateUI;
-        StartCoroutine(ExtractFromForwardResourceEnumerator());
+        
+        _cts = new();
+        TakeResourcesFromAdjacentStorageAsync(_cts.Token).Forget();
+    }
+    
+    private void OnDestroy()
+    {
+        _isActivate = false;
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
     }
 
     private void UpdateUI()
@@ -57,12 +69,21 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IDataProvi
         CellStatusView.Instance.UpdateUI();
     }
 
-    private IEnumerator ExtractFromForwardResourceEnumerator()
+    private async UniTask TakeResourcesFromAdjacentStorageAsync(CancellationToken token)
     {
-        while (_isActivate)
+        if (ExportableModule == null)
+        {
+#if UNITY_EDITOR
+            Debug.LogWarning($"{nameof(ExportableModule)}がnullです。エクスポート処理を中断します。");
+#endif
+            return;
+        }
+
+        while (_isActivate && !token.IsCancellationRequested)
         {
             // 容量に空きが出るまで待機
-            yield return new WaitUntil(() => ExportableModule.ExportResourceAmount < ExportableModule.ExporterCapacity);
+            await UniTask.WaitUntil(() => ExportableModule.ExportResourceAmount < ExportableModule.ExporterCapacity,
+                cancellationToken: token);
 
             var tween = DOTween.To(
                     () => ElapsedTime,
@@ -73,14 +94,14 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IDataProvi
                 .SetEase(Ease.Linear);
 
             // 抽出が終わるまで待機
-            yield return tween.WaitForCompletion();
+            await tween.ToUniTask(cancellationToken: token);
             ElapsedTime = 0;
 
             // 輸出モジュールにリソースを転送するまで待機
             var available = ExportableModule.ExporterCapacity - ExportableModule.ExportResourceAmount;
             var gainAmount = Mathf.Min(available, extractionAmount);
 
-            yield return new WaitUntil(() => ExportableModule.TryStackToExporter(gainAmount));
+            await UniTask.WaitUntil(() => ExportableModule.TryStackToExporter(gainAmount), cancellationToken: token);
             UpdateUI();
         }
     }

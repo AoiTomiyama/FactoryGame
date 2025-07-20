@@ -1,7 +1,8 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using UnityEngine;
 
@@ -29,6 +30,8 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
     public int IngredientCapacity => ingredientCapacity;
     public IUIDataProvider GetDataProvider() => crafterProvider;
 
+    private CancellationTokenSource _cts;
+
     public struct ResourceInputData
     {
         public ResourceType Type { get; set; }
@@ -42,7 +45,16 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         base.InitializeSystem();
         InitAccessPoint();
         _isActivate = true;
-        StartCoroutine(CraftEnumerator());
+        _cts = new();
+        CraftAsync(_cts.Token).Forget();
+    }
+
+    private void OnDestroy()
+    {
+        _isActivate = false;
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
     }
 
     private void ModuleSetUp()
@@ -81,28 +93,40 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         if (!IsUIActive) return;
         CellStatusView.Instance.UpdateUI();
     }
-
-    private IEnumerator CraftEnumerator()
+    
+    private async UniTask CraftAsync(CancellationToken token)
     {
-        while (_isActivate)
+        while (_isActivate && !token.IsCancellationRequested)
         {
             // 容量に空きが出るまで待機
-            yield return new WaitUntil(() => ExportableModule.ExportResourceAmount < ExportableModule.ExporterCapacity);
+            await UniTask.WaitUntil(() => ExportableModule.ExportResourceAmount < ExportableModule.ExporterCapacity, cancellationToken: token);
 
             // 作成可能なレシピが見つかるまで待機
             RecipeData recipe = null;
-            yield return new WaitUntil(() => HasAvailableRecipe(out recipe));
+            await UniTask.WaitUntil(() => HasAvailableRecipe(out recipe), cancellationToken: token);
             ProcessTime = recipe.CraftSecond;
 
-            var tween = DOTween.To(
-                    getter: () => ElapsedProcessTime,
-                    setter: t => ElapsedProcessTime = t,
-                    endValue: ProcessTime, duration: ProcessTime)
-                .OnUpdate(UpdateUI)
-                .SetEase(Ease.Linear);
+            
+            Tween tween = null;
+            try
+            {
+                tween = DOTween.To(
+                        getter: () => ElapsedProcessTime,
+                        setter: t => ElapsedProcessTime = t,
+                        endValue: ProcessTime, duration: ProcessTime)
+                    .OnUpdate(UpdateUI)
+                    .SetEase(Ease.Linear);
+
+                // クラフトが完了するまで待機（キャンセル対応）
+                await tween.ToUniTask(cancellationToken: token);
+            }
+            finally
+            {
+                // キャンセルされた場合はTweenを破棄
+                tween?.Kill();
+            }
 
             // クラフトが完了するまで待機
-            yield return tween.WaitForCompletion();
             ElapsedProcessTime = 0f;
             UpdateUI();
 
@@ -110,7 +134,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
             var available = ExportableModule.ExporterCapacity - ExportableModule.ExportResourceAmount;
             var gainAmount = Mathf.Min(available, result);
             ExportableModule.ExportResourceType = recipe.Result;
-            yield return new WaitUntil(() => ExportableModule.TryStackToExporter(gainAmount));
+            await UniTask.WaitUntil(() => ExportableModule.TryStackToExporter(gainAmount), cancellationToken: token);
             UpdateUI();
         }
     }

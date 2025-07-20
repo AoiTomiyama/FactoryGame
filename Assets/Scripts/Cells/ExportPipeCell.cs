@@ -1,5 +1,6 @@
-using System.Collections;
 using System.Linq;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 public class ExportPipeCell : ItemPipeCell, IExportable
@@ -8,6 +9,7 @@ public class ExportPipeCell : ItemPipeCell, IExportable
     public ExporterModule ExportableModule => exportableModule;
     private StorageCell[] _storages = { };
     private bool _isActivate;
+    private CancellationTokenSource _cts;
 
     public override void InitializeSystem()
     {
@@ -22,23 +24,33 @@ public class ExportPipeCell : ItemPipeCell, IExportable
 #endif
         }
 
-        StartCoroutine(TakeResourcesFromAdjacentStorageEnumerator());
+        _cts = new();
+        TakeResourcesFromAdjacentStorageAsync(_cts.Token).Forget();
+    }
+    
+    private void OnDestroy()
+    {
+        _isActivate = false;
+        _cts?.Cancel();
+        _cts?.Dispose();
+        _cts = null;
     }
 
-    private IEnumerator TakeResourcesFromAdjacentStorageEnumerator()
+    private async UniTask TakeResourcesFromAdjacentStorageAsync(CancellationToken token)
     {
         if (ExportableModule == null)
         {
 #if UNITY_EDITOR
             Debug.LogWarning($"{nameof(ExportableModule)}がnullです。エクスポート処理を中断します。");
 #endif
-            yield break;
+            return;
         }
 
-        while (_isActivate)
+        while (_isActivate && !token.IsCancellationRequested)
         {
             // 周囲にストレージセルがあるかどうか
-            yield return new WaitUntil(() => _storages.Length > 0 && ExportableModule.ExportPaths is { Count: > 0 });
+            await UniTask.WaitUntil(() => _storages.Length > 0 && ExportableModule.ExportPaths is { Count: > 0 },
+                cancellationToken: token);
 
             var takenAmount = 0;
             StorageCell storageCell = null;
@@ -64,13 +76,14 @@ public class ExportPipeCell : ItemPipeCell, IExportable
             if (takenAmount > 0 && storageCell != null)
             {
                 // リソースの輸出
-                yield return new WaitUntil(() => ExportableModule.TryStackToExporter(takenAmount));
-                yield return new WaitUntil(() => ExportableModule.ExportResourceAmount == 0);
+                await UniTask.WaitUntil(() => ExportableModule.TryStackToExporter(takenAmount),
+                    cancellationToken: token);
+                await UniTask.WaitUntil(() => ExportableModule.ExportResourceAmount == 0, cancellationToken: token);
                 storageCell.TakeResource(takenAmount);
             }
             else
             {
-                yield return new WaitForEndOfFrame();
+                await UniTask.Yield(cancellationToken: token);
             }
         }
     }
