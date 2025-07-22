@@ -14,13 +14,14 @@ public class CellPlacer : MonoBehaviour
     private Vector3Int _dragBeginPos;
 
     private void Start() => SetSelectedCellType(_selectedCellType);
+
     public void PointerBegin()
     {
         if (_selectedCell == null) return;
         _dragBeginPos = Vector3Int.RoundToInt(_selectedCell.transform.position);
     }
 
-    public void PointerMove()
+    public void PointerDrag()
     {
         if (_selectedCell == null) return;
         FindRangedGrid(_dragBeginPos, Vector3Int.RoundToInt(_selectedCell.transform.position));
@@ -74,15 +75,13 @@ public class CellPlacer : MonoBehaviour
             var z = isX ? fixedCoord : i;
 
             var cell = GridFieldDatabase.Instance.GetCell(x, z);
-            if (cell != null)
+            if (cell == null) continue;
+            // _cachedCellがEmptyCellの場合は、全て置き換える
+            // そうでない場合は、置く先がEmptyCellでない場合、置き換えを行う
+            if (_cachedCell is EmptyCell || cell is EmptyCell)
             {
-                // _cachedCellがEmptyCellの場合は、全て置き換える
-                // そうでない場合は、置く先がEmptyCellでない場合、置き換えを行う
-                if (_cachedCell is EmptyCell || cell is EmptyCell)
-                {
-                    // 置き換え可能なセルを選択
-                    newSelection.Add(cell);
-                }
+                // 置き換え可能なセルを選択
+                newSelection.Add(cell);
             }
         }
 
@@ -104,11 +103,12 @@ public class CellPlacer : MonoBehaviour
             cell.CellModel.SetActive(true);
 
             // プレースホルダーを削除
-            Destroy(placeholder.gameObject);
+            // Destroy(placeholder.gameObject);
+            placeholder.SetActive(false);
         }
 
         // 既存の選択範囲をクリア
-        _selectedRangeCells.Clear();
+        // _selectedRangeCells.Clear();
 
         // 新しい選択範囲に含まれるセルを追加
         foreach (var cell in newSelection)
@@ -117,6 +117,10 @@ public class CellPlacer : MonoBehaviour
             if (!oldSet.TryGetValue(cell, out var placeholder))
             {
                 placeholder = Instantiate(_placeholderCell, cell.transform.position, transform.rotation);
+            }
+            else
+            {
+                placeholder.SetActive(true);
             }
 
             _selectedRangeCells.Add((cell, placeholder));
@@ -166,22 +170,27 @@ public class CellPlacer : MonoBehaviour
         Destroy(replaceTarget.gameObject);
 
         // 新しいセルを生成
-        var newObj = Instantiate(_cachedCell, pos, transform.rotation, parent);
-        newObj.transform.SetSiblingIndex(index);
-        newObj.name = objName;
+        var newCell = Instantiate(_cachedCell, pos, transform.rotation, parent);
+        newCell.transform.SetSiblingIndex(index);
+        newCell.name = objName;
 
         // 新しいセルの情報を保存
-        GridFieldDatabase.Instance.SaveCell(x, z, newObj);
-        newObj.gameObject.SetActive(true);
-        newObj.InitializeSystem();
+        GridFieldDatabase.Instance.SaveCell(x, z, newCell);
+        newCell.gameObject.SetActive(true);
+        newCell.InitializeSystem();
 
         if (_cachedCell is not EmptyCell)
         {
-            CellStatusView.Instance.UpdateUIStatusWindow(newObj);
+            CellStatusView.Instance.UpdateUIStatusWindow(newCell);
         }
         else
         {
             CellStatusView.Instance.SetStatusWindowActive(false);
+        }
+
+        if (_selectedCell == replaceTarget)
+        {
+            _selectedCell = newCell;
         }
     }
 

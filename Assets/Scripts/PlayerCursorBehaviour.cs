@@ -21,6 +21,7 @@ public class PlayerCursorBehaviour : MonoBehaviour
         {
             placer = FindAnyObjectByType<CellPlacer>();
         }
+
         _camera = Camera.main;
     }
 
@@ -83,9 +84,9 @@ public class PlayerCursorBehaviour : MonoBehaviour
 
     private void OnLeftClickPressed()
     {
-        placer.PointerMove();
+        placer.PointerDrag();
     }
-    
+
     private void OnLeftClickUp(InputAction.CallbackContext context)
     {
         _isLeftClickPressed = false;
