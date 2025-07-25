@@ -64,7 +64,7 @@ public class ItemPipeCell : ConnectableCellBase
 
             var dir = cell.transform.position - transform.position;
             var pos = transform.position + dir / 3f + CellModel.transform.localPosition;
-            var connectPipe = Instantiate(pipeConnectionPrefab, pos, Quaternion.identity, transform);
+            var connectPipe = Instantiate(pipeConnectionPrefab, pos, Quaternion.identity, CellModel.transform);
             connectPipe.transform.forward = dir.normalized;
             if (pipeColor != PipeColorEnum.Default)
             {
