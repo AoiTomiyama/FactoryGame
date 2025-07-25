@@ -16,16 +16,11 @@ public class CellStatusView : SingletonMonoBehaviour<CellStatusView>
 
     private readonly Dictionary<UIStatusRowType, ObjectPool<UIStatusRowBase>> _statusRowUIPool = new();
     private readonly Stack<(UIStatusRowType, UIStatusRowBase)> _activeStatusRows = new();
-    private UIElementRenderer _uiRenderer;
-
-    protected override void Awake()
-    {
-        base.Awake();
-        _uiRenderer = new();
-    }
+    private readonly UIElementRenderer _uiRenderer = new();
 
     private void Start()
     {
+        SetStatusWindowActive(false);
         InitializeUIElementPool();
     }
 
