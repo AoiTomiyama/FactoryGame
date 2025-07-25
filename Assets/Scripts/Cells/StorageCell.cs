@@ -22,23 +22,26 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IDataProvid
 
     public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
-        // 初めてのリソース追加
-        if (StoredResourceType == ResourceType.None)
-        {
-            StoredResourceType = resourceType;
-        }
-
-        // 設定済みのリソースタイプと異なる場合、追加しない
-        if (StoredResourceType != resourceType) return 0;
-
         // 既に容量限界に達している場合は0を返す
         // 入れようとしている値が空き容量を越えている場合は空き容量を返す
         // そうでない場合は指定された量を予約する
         var available = capacity - CurrentLoad - AllocatedAmount;
         var allocated = Mathf.Min(available, amount);
         AllocatedAmount += allocated;
+
+        if (allocated > 0)
+        {
+            // 初めてのリソース追加
+            if (StoredResourceType == ResourceType.None)
+            {
+                StoredResourceType = resourceType;
+            }
+
+            // 設定済みのリソースタイプと異なる場合、追加しない
+            if (StoredResourceType != resourceType) return 0;
+            UpdateUI();
+        }
         
-        if (allocated > 0) UpdateUI();
         return allocated;
     }
 

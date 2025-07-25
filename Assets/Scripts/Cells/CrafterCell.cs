@@ -229,15 +229,6 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
     {
         if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return 0;
 
-        // 初めてのリソース追加
-        if (inputStorage.Type == ResourceType.None)
-        {
-            inputStorage.Type = resourceType;
-        }
-
-        // 設定済みのリソースタイプと異なる場合、追加しない
-        if (inputStorage.Type != resourceType) return 0;
-
         // 既に容量限界に達している場合は0を返す
         // 入れようとしている値が空き容量を越えている場合は空き容量を返す
         // そうでない場合は指定された量を予約する
@@ -245,7 +236,18 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         var allocated = Mathf.Min(available, amount);
         inputStorage.Allocated += allocated;
         _resourceInputs[dir] = inputStorage;
-        UpdateUI();
+        if (allocated > 0)
+        {
+            // 初めてのリソース追加
+            if (inputStorage.Type == ResourceType.None)
+            {
+                inputStorage.Type = resourceType;
+            }
+
+            // 設定済みのリソースタイプと異なる場合、追加しない
+            if (inputStorage.Type != resourceType) return 0;
+            UpdateUI();
+        }
         return allocated;
     }
 
