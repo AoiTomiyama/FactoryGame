@@ -107,8 +107,6 @@ public class CellPlacer : MonoBehaviour
             placeholder.SetActive(false);
         }
 
-        // 既存の選択範囲をクリア
-        // _selectedRangeCells.Clear();
 
         // 新しい選択範囲に含まれるセルを追加
         foreach (var cell in newSelection)
@@ -133,7 +131,11 @@ public class CellPlacer : MonoBehaviour
         foreach (var (cell, placeholder) in _selectedRangeCells)
         {
             // 選択されているセルを置き換える
-            ReplaceCell(cell);
+            if (placeholder.activeSelf)
+            {
+                ReplaceCell(cell);
+            }
+
             Destroy(placeholder);
         }
 
