@@ -27,7 +27,7 @@ public class ExporterModule : MonoBehaviour
         ExportBeginPos = transform.position;
         _isActivate = true;
         _cts = new();
-        _ = ExportAsync(_cts.Token);
+        // _ = ExportAsync(_cts.Token);
     }
 
     private void OnDestroy()
@@ -61,6 +61,17 @@ public class ExporterModule : MonoBehaviour
                 await UniTask.Delay(TimeSpan.FromSeconds(exportIntervalSecond), cancellationToken: token);
             }
         }
+    }
+
+    public bool TryExport(out int amount, out ResourceType resourceType)
+    {
+        amount = 0;
+        resourceType = ResourceType.None;
+        if (ExportResourceAmount <= 0) return false;
+        amount = ExportResourceAmount;
+        resourceType = ExportResourceType;
+        ExportResourceAmount = 0;
+        return true;
     }
 
     private bool TryExportResource()

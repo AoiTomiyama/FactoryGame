@@ -130,7 +130,7 @@ public abstract class ConnectableCellBase : CellBase
         PipelineNetworkManager.Instance.RemoveCellFromNetwork(this);
     }
 
-    protected virtual void OnDrawGizmos()
+    private void OnDrawGizmosSelected()
     {
         if (AdjacentCells == null || AdjacentCells.Length == 0) return;
 

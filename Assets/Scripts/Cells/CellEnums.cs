@@ -41,6 +41,7 @@ public enum CellType
     CrossedItemPipe,
     ExportPipe,
     Crafter,
+    Conveyor,
 }
     
 public enum PipeColorEnum

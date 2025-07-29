@@ -41,5 +41,9 @@ MonoBehaviour:
   - cellName: Crafter
     fieldCellPrefab: {fileID: 2108987448181754806, guid: 389174aece626a7489a52865b7fa4f40, type: 3}
     placeholderCellPrefab: {fileID: 8732916053966372837, guid: 3e0ec0cebefd42849a0af4af342a746c, type: 3}
-    cellType: 13
-  isInitialized: 0
+    cellType: 11
+  - cellName: Conveyor
+    fieldCellPrefab: {fileID: 177518240655023122, guid: 8eb7cf53876d07649996986c20e7dd38, type: 3}
+    placeholderCellPrefab: {fileID: 2992925618999745592, guid: aa41f68824fdb2146bd2abfc5a2e9702, type: 3}
+    cellType: 12
+  isInitialized: 1

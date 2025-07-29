@@ -235,7 +235,6 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         var available = IngredientCapacity - inputStorage.Amount - inputStorage.Allocated;
         var allocated = Mathf.Min(available, amount);
         inputStorage.Allocated += allocated;
-        _resourceInputs[dir] = inputStorage;
         if (allocated > 0)
         {
             // 初めてのリソース追加
@@ -246,8 +245,10 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
 
             // 設定済みのリソースタイプと異なる場合、追加しない
             if (inputStorage.Type != resourceType) return 0;
+            Debug.Log("HOge");
             UpdateUI();
         }
+        _resourceInputs[dir] = inputStorage;
         return allocated;
     }
 
