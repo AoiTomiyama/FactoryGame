@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
@@ -15,11 +16,21 @@ public class ConveyorCell : ConnectableCellBase
     private ConveyorCell _outputConveyor;
     private CancellationTokenSource _cts;
 
+    /// <summary>
+    /// 輸送するリソースの情報群
+    /// </summary>
     private struct ResourceTransferInfo
     {
-        public GameObject ResourcePrefab;
-        public int Amount;
-        public ResourceType Type;
+        public readonly GameObject ResourcePrefab;
+        public readonly int Amount;
+        public readonly ResourceType Type;
+
+        public ResourceTransferInfo(GameObject resourcePrefab, int amount, ResourceType type)
+        {
+            ResourcePrefab = resourcePrefab;
+            Amount = amount;
+            Type = type;
+        }
     }
 
     public override void InitializeSystem()
@@ -76,25 +87,25 @@ public class ConveyorCell : ConnectableCellBase
             // 前方のセルが存在しない場合、またはリソースを持たない場合は待機
             await UniTask.WaitUntil(() => _outputConveyor != null && _resourceTransferInfo != null,
                 cancellationToken: token);
+
             // リソースの予約
             await UniTask.WaitUntil(() => !_outputConveyor._hasResource, cancellationToken: token);
+
+            // リソースを受け付け可能かを更新
             _hasResource = false;
             _outputConveyor._hasResource = true;
-            var tempInfo = _resourceTransferInfo;
+
+            var tempInfo = _resourceTransferInfo ?? default;
             _resourceTransferInfo = null;
 
             // 移動アニメーション
             var dir = DirectionEnumToVector(Directions.Forward);
             var padding = Vector3.up * 1.1f;
+            var startPos = transform.position + padding;
             var endPos = transform.position + dir + padding;
 
-            var tween = tempInfo?.ResourcePrefab.transform
-                .DOMove(endPos, transferSecond);
-
-            await tween.ToUniTask(cancellationToken: token);
-
             // 値の更新
-            _outputConveyor._resourceTransferInfo = tempInfo;
+            _outputConveyor._resourceTransferInfo = await Transfer(token, startPos, endPos, tempInfo);
         }
     }
 
@@ -105,7 +116,7 @@ public class ConveyorCell : ConnectableCellBase
             // 後方のセルが存在しない場合、またはリソースを既に持っている場合は待機
             await UniTask.WaitUntil(() => _backwardCell != null && _resourceTransferInfo == null,
                 cancellationToken: token);
-            
+
             var amount = 0;
             var type = ResourceType.None;
 
@@ -118,30 +129,10 @@ public class ConveyorCell : ConnectableCellBase
             var padding = Vector3.up * 1.1f;
             var startPos = _backwardCell.ExportableModule.ExportBeginPos + padding;
             var endPos = transform.position + padding;
-
-            var itemObj = ResourceItemObjectPool.Instance.GetPrefab(type);
-            itemObj.transform.position = startPos;
-
-            var textMesh = itemObj.GetComponentInChildren<TextMeshPro>();
-            if (textMesh != null)
-            {
-                // Textが存在する場合、予約量を表示
-                textMesh.text = amount.ToString();
-            }
-
-            var tween = itemObj.transform
-                .DOMove(endPos, transferSecond)
-                .SetEase(Ease.Linear);
-
-            await tween.ToUniTask(cancellationToken: token);
+            var info = new ResourceTransferInfo(null, amount, type);
 
             // 取得したリソースを保存
-            _resourceTransferInfo = new ResourceTransferInfo
-            {
-                ResourcePrefab = itemObj,
-                Amount = amount,
-                Type = type
-            };
+            _resourceTransferInfo = await Transfer(token, startPos, endPos, info);
         }
     }
 
@@ -164,33 +155,53 @@ public class ConveyorCell : ConnectableCellBase
             {
                 // 値が更新されるまで繰り返す
                 allocated = _forwardCell.AllocateStorage(dir, amount, type);
-                if (allocated > 0)
-                {
-                    _hasResource = false;
-                }
-
                 return allocated > 0;
             }, cancellationToken: token);
 
+            _hasResource = false;
+            var tempInfo = _resourceTransferInfo ?? default;
+            _resourceTransferInfo = null;
+
             // 移動アニメーション
             var padding = Vector3.up * 1.1f;
+            var startPos = transform.position + padding;
             var endPos = transform.position + dir + padding;
 
-            if (prefab != null)
-            {
-                var tween = prefab.transform
-                    .DOMove(endPos, transferSecond)
-                    .SetEase(Ease.Linear);
-
-                await tween.ToUniTask(cancellationToken: token);
-            }
-
+            _ = await Transfer(token, startPos, endPos, tempInfo);
             ResourceItemObjectPool.Instance.Return(type, prefab);
 
             // 値の更新
             _forwardCell.StoreResource(dir, allocated);
-            _resourceTransferInfo = null;
         }
+    }
+
+    private async UniTask<ResourceTransferInfo> Transfer(CancellationToken token, Vector3 from, Vector3 to,
+        ResourceTransferInfo info)
+    {
+        var type = info.Type;
+        var amount = info.Amount;
+        var resourcePrefab = info.ResourcePrefab;
+
+        // リソースのPrefabが存在しない場合、新たに生成
+        if (resourcePrefab == null)
+        {
+            resourcePrefab = ResourceItemObjectPool.Instance.GetPrefab(type);
+            resourcePrefab.transform.position = from;
+
+            var textMesh = resourcePrefab.GetComponentInChildren<TextMeshPro>();
+            if (textMesh != null)
+            {
+                // Textが存在する場合、予約量を表示
+                textMesh.text = amount.ToString();
+            }
+        }
+
+        var tween = resourcePrefab.transform
+            .DOMove(to, transferSecond)
+            .SetEase(Ease.Linear);
+
+        await tween.ToUniTask(cancellationToken: token);
+        return new(resourcePrefab, amount, type);
     }
 
     private void OnDrawGizmos()
