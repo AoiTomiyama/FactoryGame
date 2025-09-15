@@ -1,4 +1,5 @@
 using System;
+using System.Security.Cryptography;
 using UnityEditor;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -33,15 +34,18 @@ public class GridFieldGenerator : MonoBehaviour
     [Tooltip("周波数の増加")] [SerializeField]
     private float lacunarity = 2f;
 
+    [Tooltip("ノイズ生成のシード値。")] [SerializeField]
+    private int seedValue;
+
     [Serializable]
     private struct PropPrefab
     {
         [SerializeField] [Tooltip("プロップのプレハブ")]
         public GameObject prefab;
-        
+
         [SerializeField] [Range(0, 1)] [Tooltip("ノイズ値の閾値")]
         public float threshold;
-        
+
         [Tooltip("ノイズオフセットのランダム値")]
         public Vector3 NoiseOffset { get; set; }
     }
@@ -49,6 +53,14 @@ public class GridFieldGenerator : MonoBehaviour
     private void Start()
     {
         GridFieldDatabase.Instance.InitializeCells(gridSize);
+    }
+    
+    /// <summary>
+    /// シード値をランダムに設定
+    /// </summary>
+    public void GenerateRandomSeedValue()
+    {
+        seedValue = Random.Range(int.MinValue, int.MaxValue);
     }
 
     /// <summary>
@@ -70,10 +82,11 @@ public class GridFieldGenerator : MonoBehaviour
     /// </summary>
     public void GenerateGrid(Transform parent)
     {
-        // プロップのノイズオフセットをランダムに設定
-        for (var index = 0; index < propPrefabs.Length; index++)
+        // プロップのノイズオフセットをシード値から決定
+        for (var i = 0; i < propPrefabs.Length; i++)
         {
-            propPrefabs[index].NoiseOffset = new(Random.Range(0f, 100f), 0, Random.Range(0f, 100f));
+            var hashedValue = GetHashedValue(seedValue + propPrefabs[i].prefab.GetInstanceID()) % 1000000;
+            propPrefabs[i].NoiseOffset = new(hashedValue, 0, hashedValue);
         }
 
         if (parent != null)
@@ -109,6 +122,24 @@ public class GridFieldGenerator : MonoBehaviour
                 tile.name = $"Tile_{x}_{z}";
             }
         }
+    }
+
+    /// <summary>
+    /// SHA256でハッシュ化した値を取得
+    /// </summary>
+    /// <param name="input">元になる数値</param>
+    /// <returns>ハッシュ化した数値</returns>
+    private static int GetHashedValue(int input)
+    {
+        using var sha = SHA256.Create();
+
+        // int → byte[4] に変換
+        var data = BitConverter.GetBytes(input);
+
+        var hash = sha.ComputeHash(data);
+
+        // 先頭4バイトをintに変換
+        return BitConverter.ToInt32(hash, 0);
     }
 
     /// <summary>
