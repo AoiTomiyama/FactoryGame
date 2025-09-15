@@ -47,14 +47,14 @@ public class GridFieldGenerator : MonoBehaviour
         public float threshold;
 
         [Tooltip("ノイズオフセットのランダム値")]
-        public Vector3 NoiseOffset { get; set; }
+        public Vector3Int NoiseOffset { get; set; }
     }
 
     private void Start()
     {
         GridFieldDatabase.Instance.InitializeCells(gridSize);
     }
-    
+
     /// <summary>
     /// シード値をランダムに設定
     /// </summary>
@@ -85,8 +85,7 @@ public class GridFieldGenerator : MonoBehaviour
         // プロップのノイズオフセットをシード値から決定
         for (var i = 0; i < propPrefabs.Length; i++)
         {
-            var hashedValue = GetHashedValue(seedValue + propPrefabs[i].prefab.GetInstanceID()) % 1000000;
-            propPrefabs[i].NoiseOffset = new(hashedValue, 0, hashedValue);
+            propPrefabs[i].NoiseOffset = GetHashedVector(seedValue + propPrefabs[i].prefab.GetInstanceID());
         }
 
         if (parent != null)
@@ -128,18 +127,25 @@ public class GridFieldGenerator : MonoBehaviour
     /// SHA256でハッシュ化した値を取得
     /// </summary>
     /// <param name="input">元になる数値</param>
-    /// <returns>ハッシュ化した数値</returns>
-    private static int GetHashedValue(int input)
+    /// <returns>ハッシュ化したベクトル(x, 0, z)</returns>
+    private static Vector3Int GetHashedVector(int input)
     {
         using var sha = SHA256.Create();
 
         // int → byte[4] に変換
         var data = BitConverter.GetBytes(input);
 
+        // SHA256でハッシュ化
         var hash = sha.ComputeHash(data);
 
-        // 先頭4バイトをintに変換
-        return BitConverter.ToInt32(hash, 0);
+        // ハッシュ値の一部を取り出す
+        // 値が大きすぎるとノイズの計算が不安定になるので、-10,000,000 ～ 10,000,000 の範囲に正規化
+        const int NormalizeFactor = 10000000;
+
+        var x = BitConverter.ToInt32(hash, 0) % NormalizeFactor;
+        var z = BitConverter.ToInt32(hash, 4) % NormalizeFactor;
+
+        return new(x, 0, z);
     }
 
     /// <summary>
