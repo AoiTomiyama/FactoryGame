@@ -22,6 +22,11 @@ public class GridGeneratorEditor : Editor
         {
             Clear();
         }
+
+        if (GUILayout.Button("Generate Seed Value"))
+        {
+            fieldGenerator.GenerateRandomSeedValue();
+        }
     }
 
     private void Clear()
