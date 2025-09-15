@@ -25,17 +25,16 @@ public class GridFieldGenerator : MonoBehaviour
     [Tooltip("初期周波数")] [SerializeField]
     private float baseFrequency = 0.05f;
 
-    [Tooltip("初期振幅")] [SerializeField]
-    private float baseAmplitude = 1f;
-
-    [Tooltip("振幅の減衰")] [SerializeField]
+    [Tooltip("振幅の減衰。0に近づけるほどオクターブの上昇における振れ幅の変化が緩やかになる。")] [SerializeField] [Range(0f, 1f)]
     private float persistence = 0.5f;
 
-    [Tooltip("周波数の増加")] [SerializeField]
+    [Tooltip("周波数の増加。高くするとオクターブの上昇における周波数の上昇が加速する。")] [SerializeField]
     private float lacunarity = 2f;
 
     [Tooltip("ノイズ生成のシード値。")] [SerializeField]
     private int seedValue;
+    
+    private int _oldSeedValue;
 
     [Serializable]
     private struct PropPrefab
@@ -47,7 +46,7 @@ public class GridFieldGenerator : MonoBehaviour
         public float threshold;
 
         [Tooltip("ノイズオフセットのランダム値")]
-        public Vector3Int NoiseOffset { get; set; }
+        public Vector2Int NoiseOffset { get; set; }
     }
 
     private void Start()
@@ -82,7 +81,8 @@ public class GridFieldGenerator : MonoBehaviour
     /// </summary>
     public void GenerateGrid(Transform parent)
     {
-        // プロップのノイズオフセットをシード値から決定
+        // プロップのノイズオフセットをシード値とインスタンスIDから決定
+        // これにより、同じシード値であれば常に同じ配置になるが、異なるプレハブを使うと異なる配置になる
         for (var i = 0; i < propPrefabs.Length; i++)
         {
             propPrefabs[i].NoiseOffset = GetHashedVector(seedValue + propPrefabs[i].prefab.GetInstanceID());
@@ -106,7 +106,7 @@ public class GridFieldGenerator : MonoBehaviour
                 var obj = emptyCellPrefab;
                 foreach (var p in propPrefabs)
                 {
-                    var noiseValue = Fbm(x + p.NoiseOffset.x, z + p.NoiseOffset.z);
+                    var noiseValue = Fbm(x + p.NoiseOffset.x, z + p.NoiseOffset.y, seedValue);
 
                     if (noiseValue <= p.threshold) continue;
 
@@ -128,7 +128,7 @@ public class GridFieldGenerator : MonoBehaviour
     /// </summary>
     /// <param name="input">元になる数値</param>
     /// <returns>ハッシュ化したベクトル(x, 0, z)</returns>
-    private static Vector3Int GetHashedVector(int input)
+    private static Vector2Int GetHashedVector(int input)
     {
         using var sha = SHA256.Create();
 
@@ -143,9 +143,9 @@ public class GridFieldGenerator : MonoBehaviour
         const int NormalizeFactor = 10000000;
 
         var x = BitConverter.ToInt32(hash, 0) % NormalizeFactor;
-        var z = BitConverter.ToInt32(hash, 4) % NormalizeFactor;
+        var y = BitConverter.ToInt32(hash, 4) % NormalizeFactor;
 
-        return new(x, 0, z);
+        return new(x, y);
     }
 
     /// <summary>
@@ -153,8 +153,9 @@ public class GridFieldGenerator : MonoBehaviour
     /// </summary>
     /// <param name="x">ノイズ生成用のX座標</param>
     /// <param name="y">ノイズ生成用のY座標</param>
+    /// <param name="seed">オクターブ毎に加えるオフセットに使うシード値</param>
     /// <returns>0.0～1.0 の範囲に正規化されたfBm値</returns>
-    private float Fbm(float x, float y)
+    private float Fbm(float x, float y, int seed)
     {
         // 各オクターブのノイズ値を累積
         var total = 0f;
@@ -163,7 +164,7 @@ public class GridFieldGenerator : MonoBehaviour
         var frequency = baseFrequency;
 
         // 最初の振幅（寄与の大きさを決める）
-        var amplitude = baseAmplitude;
+        var amplitude = 1f;
 
         // 正規化用に、各オクターブの振幅の合計を保持
         var maxValue = 0f;
@@ -173,6 +174,11 @@ public class GridFieldGenerator : MonoBehaviour
         {
             // 周波数を掛けた座標で Perlin ノイズをサンプリングし、振幅を掛けて合算
             total += Mathf.PerlinNoise(x * frequency, y * frequency) * amplitude;
+            
+            // シード値に基づくオフセットを加算して、各オクターブで異なるノイズになるようにする
+            var offset = GetHashedVector(seed + i);
+            x += offset.x;
+            y += offset.y;
 
             // 正規化用に最大値を更新
             maxValue += amplitude;
