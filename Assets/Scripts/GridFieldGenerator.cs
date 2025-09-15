@@ -19,16 +19,16 @@ public class GridFieldGenerator : MonoBehaviour
     [SerializeField] private PropPrefab[] propPrefabs;
 
     [Header("ノイズの設定")]
-    [Tooltip("繰り返しの回数")] [SerializeField]
+    [Tooltip("繰り返しの回数")] [SerializeField] [Range(1, 10)]
     private int octaves = 5;
 
-    [Tooltip("初期周波数")] [SerializeField]
+    [Tooltip("初期周波数")] [SerializeField] [Range(0.01f, 0.2f)]
     private float baseFrequency = 0.05f;
 
     [Tooltip("振幅の減衰。0に近づけるほどオクターブの上昇における振れ幅の変化が緩やかになる。")] [SerializeField] [Range(0f, 1f)]
     private float persistence = 0.5f;
 
-    [Tooltip("周波数の増加。高くするとオクターブの上昇における周波数の上昇が加速する。")] [SerializeField]
+    [Tooltip("周波数の増加。高くするとオクターブの上昇における周波数の上昇が加速する。")] [SerializeField] [Range(1f, 4f)]
     private float lacunarity = 2f;
 
     [Tooltip("ノイズ生成のシード値。")] [SerializeField]
