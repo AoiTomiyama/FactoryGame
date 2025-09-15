@@ -145,27 +145,41 @@ public class GridFieldGenerator : MonoBehaviour
     /// <summary>
     /// フラクタルブラウン運動によるノイズを生成
     /// </summary>
+    /// <param name="x">ノイズ生成用のX座標</param>
+    /// <param name="y">ノイズ生成用のY座標</param>
+    /// <returns>0.0～1.0 の範囲に正規化されたfBm値</returns>
     private float Fbm(float x, float y)
     {
+        // 各オクターブのノイズ値を累積
         var total = 0f;
+
+        // 最初の周波数（スケール感を決める）
         var frequency = baseFrequency;
+
+        // 最初の振幅（寄与の大きさを決める）
         var amplitude = baseAmplitude;
+
+        // 正規化用に、各オクターブの振幅の合計を保持
         var maxValue = 0f;
 
+        // 指定したオクターブ数だけ繰り返す
         for (int i = 0; i < octaves; i++)
         {
-            // ノイズ値を計算
+            // 周波数を掛けた座標で Perlin ノイズをサンプリングし、振幅を掛けて合算
             total += Mathf.PerlinNoise(x * frequency, y * frequency) * amplitude;
 
-            // 最大値を更新
+            // 正規化用に最大値を更新
             maxValue += amplitude;
-            amplitude *= persistence;
-            frequency *= lacunarity;
+
+            // 次のオクターブのために、振幅と周波数を更新
+            amplitude *= persistence; // 振幅を減衰させる（通常 0～1）
+            frequency *= lacunarity; // 周波数を上げる（通常 >1）
         }
 
-        // 正規化して返す
+        // 振幅合計で割ることで [0,1] の範囲に正規化して返す
         return total / maxValue;
     }
+
 
     /// <summary>
     /// フィールドに合わせたグリッドラインを生成
