@@ -37,9 +37,6 @@ public enum CellType
     ExtractorStone,
     ExtractorWood,
     Storage,
-    ItemPipe,
-    CrossedItemPipe,
-    ExportPipe,
     Crafter,
     Conveyor,
 }

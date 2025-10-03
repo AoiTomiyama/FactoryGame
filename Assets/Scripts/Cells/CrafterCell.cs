@@ -66,12 +66,6 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
 #endif
         }
 
-        ExportableModule.OnFilterPath += path =>
-        {
-            var dir = (path[0].transform.position - transform.position).ToCardinalDirection();
-            return _exportableDirections.Any(exportableDirection => dir == exportableDirection);
-        };
-
         ExportableModule.OnExport += UpdateUI;
     }
 

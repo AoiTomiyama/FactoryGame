@@ -19,7 +19,6 @@ public abstract class ConnectableCellBase : CellBase
         AdjacentCells = new CellBase[AdjacentCount];
         SetConnectableDirections();
         ConnectAdjacentCells(this);
-        PipelineNetworkManager.Instance.AddCellToNetwork(this);
     }
 
     private void SetConnectableDirections()
@@ -127,7 +126,6 @@ public abstract class ConnectableCellBase : CellBase
         // 独自の関数を定義し、外部から明示的に実行している。
 
         DisconnectAdjacentCells();
-        PipelineNetworkManager.Instance.RemoveCellFromNetwork(this);
     }
 
     private void OnDrawGizmosSelected()
