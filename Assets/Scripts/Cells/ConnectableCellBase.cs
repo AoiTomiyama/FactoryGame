@@ -42,8 +42,6 @@ public abstract class ConnectableCellBase : CellBase
         _ => Vector3Int.zero,
     };
 
-    public bool HasCellConnected(CellBase cell) => AdjacentCells.Contains(cell);
-    public CellBase[] GetAdjacentCells() => AdjacentCells;
     private void ConnectAdjacentCells(ConnectableCellBase fromCell)
     {
         // 自分自身を除外リストに追加

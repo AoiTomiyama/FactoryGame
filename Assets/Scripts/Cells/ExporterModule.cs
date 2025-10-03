@@ -1,13 +1,9 @@
 using System;
-using System.Threading;
 using UnityEngine;
 
 public class ExporterModule : MonoBehaviour
 {
     [SerializeField] private int exporterCapacity;
-    [SerializeField] private float exportIntervalSecond;
-
-    private CancellationTokenSource _cts;
     public Vector3 ExportBeginPos { get; private set; }
     public ResourceType ExportResourceType { get; set; }
     public int ExportResourceAmount { get; private set; }
@@ -17,14 +13,6 @@ public class ExporterModule : MonoBehaviour
     private void OnEnable()
     {
         ExportBeginPos = transform.position;
-        _cts = new();
-    }
-
-    private void OnDestroy()
-    {
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
     }
 
     public bool TryStackToExporter(int amount)
@@ -45,6 +33,7 @@ public class ExporterModule : MonoBehaviour
         amount = ExportResourceAmount;
         resourceType = ExportResourceType;
         ExportResourceAmount = 0;
+        OnExport?.Invoke();
         return true;
     }
 }

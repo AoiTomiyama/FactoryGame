@@ -40,11 +40,3 @@ public enum CellType
     Crafter,
     Conveyor,
 }
-    
-public enum PipeColorEnum
-{
-    Default,
-    Red,
-    Green,
-    Blue,
-}
