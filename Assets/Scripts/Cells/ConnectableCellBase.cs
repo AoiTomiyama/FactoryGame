@@ -11,7 +11,6 @@ public abstract class ConnectableCellBase : CellBase
     private readonly HashSet<Vector3Int> _connectableDirections = new();
     protected const int AdjacentCount = 4;
     protected event Action OnConnectionChanged;
-    protected event Func<CellBase, bool> OnFilterAdjacentCell;
     protected CellBase[] AdjacentCells { get; private set; }
 
     public override void InitializeSystem()
@@ -69,9 +68,6 @@ public abstract class ConnectableCellBase : CellBase
                 // 同じタイプのセル同士は接続しない
                 continue;
             }
-
-            // 接続をフィルタリングするイベントが設定されている場合、条件に合わないセルはスキップ
-            if (OnFilterAdjacentCell != null && !OnFilterAdjacentCell.Invoke(foundCell)) continue;
 
             // 取得できたセルがConnectableCellBaseのであれば、接続を行う
             if (foundCell is ConnectableCellBase connectableCell)

@@ -8,8 +8,7 @@ public class StorageProvider : ProviderBase<StorageCell>
         LabelEnum.CellName => new TextElementData(GetName(label), "Storage"),
         LabelEnum.Location => new TextElementData(GetName(label), $"({Cell.XIndex}, {Cell.ZIndex})"),
         LabelEnum.Amount => new StorageElementData(GetName(label), Cell.Capacity),
-        LabelEnum.Allocated or LabelEnum.Reserved
-            => new GaugeElementData(GetName(label), Cell.Capacity),
+        LabelEnum.Allocated => new GaugeElementData(GetName(label), Cell.Capacity),
         _ => throw new System.NotImplementedException(),
     };
 
@@ -25,14 +24,12 @@ public class StorageProvider : ProviderBase<StorageCell>
             g.Current = label switch
             {
                 LabelEnum.Allocated => Cell.AllocatedAmount,
-                LabelEnum.Reserved => Cell.ReservedAmount,
                 LabelEnum.Amount => Cell.CurrentLoad,
                 _ => g.Current
             };
             g.GaugeText = label switch
             {
                 LabelEnum.Allocated => $"{Cell.AllocatedAmount}/{Cell.Capacity}",
-                LabelEnum.Reserved => $"{Cell.ReservedAmount}/{Cell.Capacity}",
                 LabelEnum.Amount => $"{Cell.CurrentLoad}/{Cell.Capacity}",
                 _ => g.GaugeText
             };

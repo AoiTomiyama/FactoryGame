@@ -12,7 +12,7 @@ public interface IContainable
     public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType);
 
     /// <summary>
-    /// ストレージにリソースを追加します。入りきらなかった分は戻り値として返される
+    /// ストレージにリソースを追加します。
     /// </summary>
     /// <param name="dir">アクセスされた入力方向</param>
     /// <param name="amount">ストレージに入れる量</param>

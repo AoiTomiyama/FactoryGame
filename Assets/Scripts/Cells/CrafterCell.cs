@@ -12,22 +12,28 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
     [SerializeField] private int ingredientCapacity;
     [SerializeField] private Directions importDirection;
     [SerializeField] private Directions exportDirection;
+    [SerializeField] private int exporterCapacity;
     [SerializeField] [InlineSO]
     private RecipeDatabaseSO recipeDatabase;
 
     [Header("その他の設定")]
-    [SerializeField] private ExporterModule exportableModule;
     [SerializeField] private CrafterProvider crafterProvider;
 
     private readonly Dictionary<Vector3Int, ResourceInputData> _resourceInputs = new();
     private readonly HashSet<Vector3Int> _exportableDirections = new();
     private bool _isActivate;
 
+    public int ExportStorageAmount { get; private set; }
     public float ProcessTime { get; private set; }
     public float ElapsedProcessTime { get; private set; }
     public bool IsUIActive { private get; set; }
-    public ExporterModule ExportableModule => exportableModule;
+
+    public ResourceType ExportResourceType { get; private set; }
+
     public int IngredientCapacity => ingredientCapacity;
+
+    public int ExporterCapacity => exporterCapacity;
+
     public IUIDataProvider GetDataProvider() => crafterProvider;
 
     private CancellationTokenSource _cts;
@@ -41,7 +47,6 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
 
     public override void InitializeSystem()
     {
-        ModuleSetUp();
         base.InitializeSystem();
         InitAccessPoint();
         _isActivate = true;
@@ -55,18 +60,6 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = null;
-    }
-
-    private void ModuleSetUp()
-    {
-        if (ExportableModule == null)
-        {
-#if UNITY_EDITOR
-            Debug.LogError($"{nameof(ExportableModule)}がnullです。");
-#endif
-        }
-
-        ExportableModule.OnExport += UpdateUI;
     }
 
     private void InitAccessPoint()
@@ -93,7 +86,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         while (_isActivate && !token.IsCancellationRequested)
         {
             // 容量に空きが出るまで待機
-            await UniTask.WaitUntil(() => ExportableModule.ExportResourceAmount < ExportableModule.ExporterCapacity, cancellationToken: token);
+            await UniTask.WaitUntil(() => ExportStorageAmount < ExporterCapacity, cancellationToken: token);
 
             // 作成可能なレシピが見つかるまで待機
             RecipeData recipe = null;
@@ -125,10 +118,11 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
             UpdateUI();
 
             var result = Craft(recipe);
-            var available = ExportableModule.ExporterCapacity - ExportableModule.ExportResourceAmount;
+            var available = ExporterCapacity - ExportStorageAmount;
             var gainAmount = Mathf.Min(available, result);
-            ExportableModule.ExportResourceType = recipe.Result;
-            await UniTask.WaitUntil(() => ExportableModule.TryStackToExporter(gainAmount), cancellationToken: token);
+            ExportResourceType = recipe.Result;
+            ExportStorageAmount += gainAmount;
+            
             UpdateUI();
         }
     }
@@ -158,7 +152,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
     private bool CheckRecipe(RecipeData recipe)
     {
         // 生成後が容量オーバーする場合はfalse
-        if (ExportableModule.ExportResourceAmount + recipe.ResultAmount > ExportableModule.ExporterCapacity)
+        if (ExportStorageAmount + recipe.ResultAmount > ExporterCapacity)
             return false;
         var usedKeys = new HashSet<Vector3Int>();
 
@@ -254,6 +248,28 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         inputStorage.Amount += amount;
         inputStorage.Allocated -= amount;
         _resourceInputs[dir] = inputStorage;
+        
+        
         UpdateUI();
+    }
+
+    public Vector3 GetPosition() => transform.position;
+
+    public bool TryExport(Vector3 from, int requestedAmount, out int amount, out ResourceType type)
+    {
+        amount = 0;
+        type = ExportResourceType;
+        
+        if (!_exportableDirections.Contains((from - transform.position).ToCardinalDirection())) return false;
+        
+        // 出力可能な量がない、または要求量がない場合はfalseを返す
+        if (ExportStorageAmount <= 0 || requestedAmount <= 0) return false;
+        
+        // 返却量を計算し、現在量を減らす
+        amount = Mathf.Min(requestedAmount, ExportStorageAmount);
+        ExportStorageAmount = Mathf.Max(0, ExportStorageAmount - requestedAmount);
+        
+        UpdateUI();
+        return true;
     }
 }

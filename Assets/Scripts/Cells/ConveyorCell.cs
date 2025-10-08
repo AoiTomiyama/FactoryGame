@@ -122,12 +122,12 @@ public class ConveyorCell : ConnectableCellBase
 
             // リソースが取れるまで待機
             await UniTask.WaitUntil(() =>
-                _backwardCell.ExportableModule.TryExport(out amount, out type), cancellationToken: token);
+                _backwardCell.TryExport(transform.position, 5, out amount, out type), cancellationToken: token);
             _hasResource = true;
 
             // 移動アニメーション
             var padding = Vector3.up * 1.1f;
-            var startPos = _backwardCell.ExportableModule.ExportBeginPos + padding;
+            var startPos = _backwardCell.GetPosition() + padding;
             var endPos = transform.position + padding;
             var info = new ResourceTransferInfo(null, amount, type);
 

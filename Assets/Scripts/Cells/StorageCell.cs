@@ -1,15 +1,15 @@
 using UnityEngine;
 
-public sealed class StorageCell : ConnectableCellBase, IContainable, IDataProvidable
+public sealed class StorageCell : ConnectableCellBase, IContainable, IExportable, IDataProvidable
 {
     [Header("ストレージセルの設定")]
     [SerializeField] private int capacity;
     [SerializeField] private StorageProvider dataProvider;
 
     public int Capacity => capacity;
+
     public int CurrentLoad { get; private set; }
     public int AllocatedAmount { get; private set; }
-    public int ReservedAmount { get; private set; }
     public bool IsUIActive { get; set; }
     public ResourceType StoredResourceType { get; private set; } = ResourceType.None;
     public IUIDataProvider GetDataProvider() => dataProvider;
@@ -52,41 +52,31 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IDataProvid
         // 現在量に追加し、予約量を減らす。
         CurrentLoad += amount;
         AllocatedAmount -= amount;
+        
         UpdateUI();
     }
+    
+    public Vector3 GetPosition() => transform.position;
 
-    /// <summary>
-    /// 指定した量のリソースをストレージから予約する。
-    /// 予約可能な最大量は現在のストレージ内のリソース量に制限される。
-    /// </summary>
-    /// <param name="amount">予約したいリソース量</param>
-    /// <param name="resourceType">取り出すリソースの種類</param>
-    /// <returns>実際に予約できたリソース量</returns>
-    public int ReserveResource(int amount, out ResourceType resourceType)
+    public bool TryExport(Vector3 from, int requestedAmount, out int amount, out ResourceType type)
     {
-        resourceType = StoredResourceType;
-        if (StoredResourceType == ResourceType.None) return 0;
-
-        // 予約可能な量を計算（現在のリソース量から既予約量を引いた分だけ予約可能）
-        var maxReservable = CurrentLoad - ReservedAmount;
-        var reservable = Mathf.Min(amount, Mathf.Max(0, maxReservable));
-        ReservedAmount += reservable;
-        if (reservable > 0) UpdateUI();
-        return reservable;
-    }
-
-    /// <summary>
-    /// ストレージからリソースを取り出します。取り出せる量は現在の容量に依存する
-    /// </summary>
-    /// <param name="amount">取り出す要求値</param>
-    public void TakeResource(int amount)
-    {
-        if (amount > ReservedAmount) return;
-
-        // 現在の容量から取り出す
-        CurrentLoad -= amount;
-        ReservedAmount -= amount;
+        amount = 0;
+        type = StoredResourceType;
+        
+        // 出力可能な量がない、または要求量がない場合はfalseを返す
+        if (CurrentLoad <= 0 || requestedAmount <= 0) return false;
+        
+        // 返却量を計算し、現在量を減らす
+        amount = Mathf.Min(requestedAmount, CurrentLoad);
+        CurrentLoad = Mathf.Max(0, CurrentLoad - requestedAmount);
+        
+        // 現在量が0になった場合、リソースタイプをリセットする
+        if (CurrentLoad == 0)
+        {
+            StoredResourceType = ResourceType.None;
+        }
+        
         UpdateUI();
-        if (CurrentLoad == 0) StoredResourceType = ResourceType.None;
+        return true;
     }
 }

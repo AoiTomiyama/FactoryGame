@@ -8,7 +8,7 @@ public class CrafterProvider : ProviderBase<CrafterCell>
         LabelEnum.CellName => new TextElementData(GetName(label), "Crafter"),
         LabelEnum.Location => new TextElementData(GetName(label), $"({Cell.XIndex}, {Cell.ZIndex})"),
         LabelEnum.Progress => new GaugeElementData(GetName(label), 1),
-        LabelEnum.OutputStorage => new StorageElementData(GetName(label), Cell.ExportableModule.ExporterCapacity),
+        LabelEnum.OutputStorage => new StorageElementData(GetName(label), Cell.ExporterCapacity),
         LabelEnum.LeftStorage or LabelEnum.RightStorage 
             => new StorageElementData(GetName(label), Cell.IngredientCapacity),
         _ => throw new System.NotImplementedException(),
@@ -31,7 +31,7 @@ public class CrafterProvider : ProviderBase<CrafterCell>
                     gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
                     break;
                 case LabelEnum.OutputStorage:
-                    gaugeData.Current = Cell.ExportableModule.ExportResourceAmount;
+                    gaugeData.Current = Cell.ExportStorageAmount;
                     gaugeData.GaugeText = $"{gaugeData.Current}/{gaugeData.Max}";
                     break;
                 default:
@@ -46,7 +46,7 @@ public class CrafterProvider : ProviderBase<CrafterCell>
             storageData.ResourceType = label switch
             {
                 LabelEnum.LeftStorage or LabelEnum.RightStorage => Cell.GetInput(LabelToDir(label)).Type,
-                LabelEnum.OutputStorage => Cell.ExportableModule.ExportResourceType,
+                LabelEnum.OutputStorage => Cell.ExportResourceType,
                 _ => 0
             };
         }

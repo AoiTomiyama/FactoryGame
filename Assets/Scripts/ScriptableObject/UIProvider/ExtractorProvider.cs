@@ -7,7 +7,7 @@ public class ExtractorProvider : ProviderBase<ExtractorCell>
     {
         LabelEnum.CellName => new TextElementData(GetName(label), "Extractor"),
         LabelEnum.Location => new TextElementData(GetName(label), $"({Cell.XIndex}, {Cell.ZIndex})"),
-        LabelEnum.Amount => new StorageElementData(GetName(label), Cell.ExportableModule.ExporterCapacity),
+        LabelEnum.Amount => new StorageElementData(GetName(label), Cell.StorageCapacity),
         LabelEnum.Progress => new GaugeElementData(GetName(label), 1),
         _ => throw new System.NotImplementedException(),
     };
@@ -18,17 +18,18 @@ public class ExtractorProvider : ProviderBase<ExtractorCell>
         {
             gaugeData.Current = label switch
             {
-                LabelEnum.Amount => Cell.ExportableModule.ExportResourceAmount,
+                LabelEnum.Amount => Cell.CurrentLoad,
                 LabelEnum.Progress => Cell.ElapsedTime / Cell.ExtractionSecond,
                 _ => 0
             };
             gaugeData.GaugeText = label switch
             {
-                LabelEnum.Amount => $"{Cell.ExportableModule.ExportResourceAmount}/{Cell.ExportableModule.ExporterCapacity}",
+                LabelEnum.Amount => $"{Cell.CurrentLoad}/{Cell.StorageCapacity}",
                 LabelEnum.Progress => $"{Cell.ExtractionSecond - Cell.ElapsedTime:F1} sec",
                 _ => ""
             };
         }
+
         if (data is StorageElementData storageData)
         {
             storageData.ResourceType = Cell.ResourceType;

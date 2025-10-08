@@ -10,21 +10,24 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IDataProvi
     [SerializeField] private ResourceType resourceType;
     [SerializeField] private float extractionSecond;
     [SerializeField] private int extractionAmount;
+    [SerializeField] private int storageCapacity;
 
     [Header("その他設定")]
     [SerializeField] private ResourceSO resourceDatabase;
-    [SerializeField] private ExporterModule exportableModule;
     [SerializeField] private ExtractorProvider extractorProvider;
 
     private CellBase _forwardCell;
     private bool _isActivate;
     private CancellationTokenSource _cts;
 
-    public ExporterModule ExportableModule => exportableModule;
+    public int CurrentLoad { get; private set; }
     public float ElapsedTime { get; private set; }
     public float ExtractionSecond => extractionSecond;
     public ResourceType ResourceType => resourceType;
     public bool IsUIActive { private get; set; }
+
+    public int StorageCapacity => storageCapacity;
+
     public IUIDataProvider GetDataProvider() => extractorProvider;
 
     public override void InitializeSystem()
@@ -40,21 +43,11 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IDataProvi
                 cell.ResourceType == ResourceType);
 
         if (_forwardCell == null) return;
-        if (ExportableModule == null)
-        {
-#if UNITY_EDITOR
-            Debug.LogError($"{nameof(ExportableModule)}がnullです。");
-#endif
-            return;
-        }
 
-        ExportableModule.ExportResourceType = ResourceType;
-        ExportableModule.OnExport += UpdateUI;
-        
         _cts = new();
         TakeResourcesFromAdjacentStorageAsync(_cts.Token).Forget();
     }
-    
+
     private void OnDestroy()
     {
         _isActivate = false;
@@ -71,18 +64,10 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IDataProvi
 
     private async UniTask TakeResourcesFromAdjacentStorageAsync(CancellationToken token)
     {
-        if (ExportableModule == null)
-        {
-#if UNITY_EDITOR
-            Debug.LogWarning($"{nameof(ExportableModule)}がnullです。エクスポート処理を中断します。");
-#endif
-            return;
-        }
-
         while (_isActivate && !token.IsCancellationRequested)
         {
             // 容量に空きが出るまで待機
-            await UniTask.WaitUntil(() => ExportableModule.ExportResourceAmount < ExportableModule.ExporterCapacity,
+            await UniTask.WaitUntil(() => CurrentLoad < StorageCapacity,
                 cancellationToken: token);
 
             var tween = DOTween.To(
@@ -98,11 +83,30 @@ public sealed class ExtractorCell : ConnectableCellBase, IExportable, IDataProvi
             ElapsedTime = 0;
 
             // 輸出モジュールにリソースを転送するまで待機
-            var available = ExportableModule.ExporterCapacity - ExportableModule.ExportResourceAmount;
+            var available = StorageCapacity - CurrentLoad;
             var gainAmount = Mathf.Min(available, extractionAmount);
-
-            await UniTask.WaitUntil(() => ExportableModule.TryStackToExporter(gainAmount), cancellationToken: token);
+            CurrentLoad += gainAmount;
+            
             UpdateUI();
         }
+    }
+    
+    
+    public Vector3 GetPosition() => transform.position;
+
+    public bool TryExport(Vector3 from, int requestedAmount, out int amount, out ResourceType type)
+    {
+        amount = 0;
+        type = resourceType;
+        
+        // 出力可能な量がない、または要求量がない場合はfalseを返す
+        if (CurrentLoad <= 0 || requestedAmount <= 0) return false;
+        
+        // 返却量を計算し、現在量を減らす
+        amount = Mathf.Min(requestedAmount, CurrentLoad);
+        CurrentLoad = Mathf.Max(0, CurrentLoad - requestedAmount);
+        
+        UpdateUI();
+        return true;
     }
 }
