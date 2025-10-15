@@ -62,12 +62,12 @@ public abstract class ConnectableCellBase : CellBase
 
             if (AdjacentCells.Contains(foundCell)) continue;
 
-            if (this is IExportable or IContainable &&
-                GetType().Name == foundCell.GetType().Name)
-            {
-                // 同じタイプのセル同士は接続しない
-                continue;
-            }
+            // if (this is IExportable or IContainable &&
+            //     GetType().Name == foundCell.GetType().Name)
+            // {
+            //     // 同じタイプのセル同士は接続しない
+            //     continue;
+            // }
 
             // 取得できたセルがConnectableCellBaseのであれば、接続を行う
             if (foundCell is ConnectableCellBase connectableCell)
