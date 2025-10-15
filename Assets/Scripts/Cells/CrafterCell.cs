@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
@@ -80,7 +79,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         if (!IsUIActive) return;
         CellStatusView.Instance.UpdateUI();
     }
-    
+
     private async UniTask CraftAsync(CancellationToken token)
     {
         while (_isActivate && !token.IsCancellationRequested)
@@ -93,7 +92,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
             await UniTask.WaitUntil(() => HasAvailableRecipe(out recipe), cancellationToken: token);
             ProcessTime = recipe.CraftSecond;
 
-            
+
             Tween tween = null;
             try
             {
@@ -122,7 +121,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
             var gainAmount = Mathf.Min(available, result);
             ExportResourceType = recipe.Result;
             ExportStorageAmount += gainAmount;
-            
+
             UpdateUI();
         }
     }
@@ -213,31 +212,32 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         return recipe.ResultAmount;
     }
 
-    public int AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
+    public bool AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
-        if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return 0;
+        if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return false;
 
-        // 既に容量限界に達している場合は0を返す
-        // 入れようとしている値が空き容量を越えている場合は空き容量を返す
-        // そうでない場合は指定された量を予約する
         var available = IngredientCapacity - inputStorage.Amount - inputStorage.Allocated;
         var allocated = Mathf.Min(available, amount);
-        inputStorage.Allocated += allocated;
-        if (allocated > 0)
+        
+        // 予約可能量が0以下の場合は予約失敗
+        if (allocated <= 0) return false;
+        
+        // 初めてのリソース追加
+        if (inputStorage.Type == ResourceType.None)
         {
-            // 初めてのリソース追加
-            if (inputStorage.Type == ResourceType.None)
-            {
-                inputStorage.Type = resourceType;
-            }
-
-            // 設定済みのリソースタイプと異なる場合、追加しない
-            if (inputStorage.Type != resourceType) return 0;
-            Debug.Log("HOge");
-            UpdateUI();
+            inputStorage.Type = resourceType;
         }
+        
+        // 設定済みのリソースタイプと異なる場合は予約失敗
+        if (inputStorage.Type != resourceType) return false;
+
+        inputStorage.Allocated += allocated;
+
         _resourceInputs[dir] = inputStorage;
-        return allocated;
+        
+        UpdateUI();
+        
+        return true;
     }
 
     public void StoreResource(Vector3Int dir, int amount)
@@ -248,8 +248,8 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         inputStorage.Amount += amount;
         inputStorage.Allocated -= amount;
         _resourceInputs[dir] = inputStorage;
-        
-        
+
+
         UpdateUI();
     }
 
@@ -259,16 +259,16 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
     {
         amount = 0;
         type = ExportResourceType;
-        
+
         if (!_exportableDirections.Contains((from - transform.position).ToCardinalDirection())) return false;
-        
+
         // 出力可能な量がない、または要求量がない場合はfalseを返す
         if (ExportStorageAmount <= 0 || requestedAmount <= 0) return false;
-        
+
         // 返却量を計算し、現在量を減らす
         amount = Mathf.Min(requestedAmount, ExportStorageAmount);
         ExportStorageAmount = Mathf.Max(0, ExportStorageAmount - requestedAmount);
-        
+
         UpdateUI();
         return true;
     }
