@@ -64,7 +64,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IExportable
         type = StoredResourceType;
 
         // 出力可能な量がない、または要求量がない場合はfalseを返す
-        if (CurrentLoad <= 0 || requestedAmount <= 0) return false;
+        if (CurrentLoad <= 0 || requestedAmount <= 0 || StoredResourceType == ResourceType.None) return false;
 
         // 返却量を計算し、現在量を減らす
         amount = Mathf.Min(requestedAmount, CurrentLoad);

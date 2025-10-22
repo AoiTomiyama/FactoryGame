@@ -1,21 +1,21 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
-using TMPro;
 using UnityEngine;
 
 public class ConveyorCell : ConnectableCellBase, IContainable
 {
     [SerializeField] private float transferSecond;
     [SerializeField] private int transferAmount;
-    private bool _hasResource;
     private int _resourceAmount;
-    private GameObject _resourcePrefab;
     private ResourceType _resourceType;
-    private IExportable _backwardCell;
     private IContainable _forwardCell;
     private TransferStatus _status;
-    private CancellationTokenSource _cts;
+    protected CancellationTokenSource _cts;
+
+    protected int TransferAmount => transferAmount;
+    protected bool HasResource { get; set; }
+    protected GameObject ResourcePrefab { get; private set; }
 
     /// <summary>
     /// 現在の搬送ステータス
@@ -24,18 +24,12 @@ public class ConveyorCell : ConnectableCellBase, IContainable
     {
         // 待機中
         Idle,
-        // リソースを搬入中
-        Taking,
         // リソースを搬出中
         Storing,
         // リソース搬入待機中
         WaitingForStorage,
-        // リソース搬出待機中
-        WaitingForTake,
         // リソース搬入可能か確認中
         CheckForStorage,
-        // リソース搬出可能か確認中
-        CheckForTake
     }
 
     public override void InitializeSystem()
@@ -51,9 +45,9 @@ public class ConveyorCell : ConnectableCellBase, IContainable
         _cts?.Dispose();
         _cts = null;
 
-        if (_resourcePrefab != null && _resourceType != ResourceType.None)
+        if (ResourcePrefab != null && _resourceType != ResourceType.None)
         {
-            ResourceItemObjectPool.Instance.Return(_resourceType, _resourcePrefab);
+            ResourceItemObjectPool.Instance.Return(_resourceType, ResourcePrefab);
         }
     }
 
@@ -68,15 +62,9 @@ public class ConveyorCell : ConnectableCellBase, IContainable
 
             var dir = (cell.transform.position - transform.position).ToCardinalDirection();
 
-            var back = DirectionEnumToVector(Directions.Back);
             var forward = DirectionEnumToVector(Directions.Forward);
 
-            if (dir == back && cell is IExportable exportable && _backwardCell == null)
-            {
-                _backwardCell = exportable;
-                TakeResourceAsync(_cts.Token).Forget();
-            }
-            else if (dir == forward && cell is IContainable container && _forwardCell == null)
+            if (dir == forward && cell is IContainable container && _forwardCell == null)
             {
                 _forwardCell = container;
             }
@@ -86,9 +74,9 @@ public class ConveyorCell : ConnectableCellBase, IContainable
     /// <summary>
     /// データの更新
     /// </summary>
-    private void UpdateResourceData(GameObject prefab, int amount, ResourceType type)
+    protected void UpdateResourceData(GameObject prefab, int amount, ResourceType type)
     {
-        _resourcePrefab = prefab;
+        ResourcePrefab = prefab;
         _resourceAmount = amount;
         _resourceType = type;
     }
@@ -100,7 +88,7 @@ public class ConveyorCell : ConnectableCellBase, IContainable
     /// <param name="from">アニメーションの始点</param>
     /// <param name="to">アニメーションの終点</param>
     /// <param name="prefab">アニメーションの対象</param>
-    private async UniTask Transfer(CancellationToken token, Vector3 from, Vector3 to,
+    protected async UniTask Transfer(CancellationToken token, Vector3 from, Vector3 to,
         GameObject prefab)
     {
         prefab.transform.position = from;
@@ -112,61 +100,14 @@ public class ConveyorCell : ConnectableCellBase, IContainable
     }
 
     /// <summary>
-    /// 後方のセルから状態を監視しつつリソースを取得する
-    /// </summary>
-    /// <param name="token">トークン</param>
-    private async UniTask TakeResourceAsync(CancellationToken token)
-    {
-        while (!token.IsCancellationRequested)
-        {
-            _status = TransferStatus.CheckForTake;
-            // 後方のセルが存在しない場合、またはリソースを既に持っている場合は待機
-            await UniTask.WaitUntil(() => _backwardCell != null && _resourcePrefab == null, cancellationToken: token);
-
-            var amount = 0;
-            var type = ResourceType.None;
-            _status = TransferStatus.WaitingForTake;
-
-            // リソースが取れるまで待機
-            await UniTask.WaitUntil(
-                () => _backwardCell.TryExport(transform.position, transferAmount, out amount, out type),
-                cancellationToken: token);
-            _hasResource = true;
-            _status = TransferStatus.Taking;
-
-            // 移動アニメーション
-            var padding = Vector3.up * 1.1f;
-            var startPos = _backwardCell.GetPosition() + padding;
-            var endPos = transform.position + padding;
-
-            // 取得したリソースを保存
-            var prefab = ResourceItemObjectPool.Instance.GetPrefab(type);
-
-            var textMesh = prefab.GetComponentInChildren<TextMeshPro>();
-            if (textMesh != null)
-            {
-                // Textが存在する場合、予約量を表示
-                textMesh.text = amount.ToString();
-            }
-
-            await Transfer(token, startPos, endPos, prefab);
-            UpdateResourceData(prefab, amount, type);
-            _status = TransferStatus.Idle;
-
-            // リソースの保存が完了したら、次のセルにリソースを送る
-            StoreResourceAsync(token).Forget();
-        }
-    }
-
-    /// <summary>
     /// 前方のセルにリソースを送り込む
     /// </summary>
     /// <param name="token">トークン</param>
-    private async UniTask StoreResourceAsync(CancellationToken token)
+    protected async UniTask StoreResourceAsync(CancellationToken token)
     {
         _status = TransferStatus.CheckForStorage;
         // 前方のセルが存在しない場合、またはリソースを持たない場合は待機
-        await UniTask.WaitUntil(() => _forwardCell != null && _resourcePrefab != null, cancellationToken: token);
+        await UniTask.WaitUntil(() => _forwardCell != null && ResourcePrefab != null, cancellationToken: token);
 
         var dir = DirectionEnumToVector(Directions.Forward);
         _status = TransferStatus.WaitingForStorage;
@@ -177,7 +118,7 @@ public class ConveyorCell : ConnectableCellBase, IContainable
         _status = TransferStatus.Storing;
 
         // 輸送開始したため、自身のリソースを受付開始
-        _hasResource = false;
+        HasResource = false;
 
         // 移動アニメーション
         var padding = Vector3.up * 1.1f;
@@ -185,7 +126,7 @@ public class ConveyorCell : ConnectableCellBase, IContainable
         var endPos = transform.position + dir + padding;
 
         // 保存するリソースの情報を退避し、初期化
-        var (prefab, amount, type) = (_resourcePrefab, _resourceAmount, _resourceType);
+        var (prefab, amount, type) = (ResourcePrefab, _resourceAmount, _resourceType);
         UpdateResourceData(null, 0, ResourceType.None);
 
         await Transfer(token, startPos, endPos, prefab);
@@ -206,8 +147,14 @@ public class ConveyorCell : ConnectableCellBase, IContainable
     }
 
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
-        => !_hasResource && (_hasResource = true);
-    // HasResourceがfalseのときのみHasResourceをtrueにし返す
+    {
+        // HasResourceがfalseのときのみHasResourceをtrueにし返す
+        if (HasResource) return false;
+        
+        HasResource = true;
+        _resourceType  = resourceType;
+        return true;
+    }
 
     public void StoreResource(Vector3Int dir, int amount)
     {
@@ -218,23 +165,20 @@ public class ConveyorCell : ConnectableCellBase, IContainable
         _resourceAmount += amount;
     }
 
-    private void OnDrawGizmos()
+    protected virtual void OnDrawGizmos()
     {
         // ステータスに応じて色を変更
         Gizmos.color = _status switch
         {
             TransferStatus.Idle => Color.white,
-            TransferStatus.Taking => Color.blue,
             TransferStatus.Storing => Color.green,
             TransferStatus.WaitingForStorage => Color.cyan,
-            TransferStatus.WaitingForTake => Color.magenta,
             TransferStatus.CheckForStorage => Color.yellow,
-            TransferStatus.CheckForTake => Color.red,
             _ => Color.black
         };
 
         Gizmos.DrawWireCube(transform.position + Vector3.up * 1.5f, Vector3.one * 1f);
-        if (_hasResource)
+        if (HasResource)
         {
             Gizmos.color = Color.yellow;
             Gizmos.DrawSphere(transform.position + Vector3.up * 1.5f, 0.1f);
@@ -245,14 +189,6 @@ public class ConveyorCell : ConnectableCellBase, IContainable
             Gizmos.color = Color.green;
             var start = transform.position + Vector3.up * 1.5f;
             var end = start + transform.forward * 0.5f;
-            Gizmos.DrawLine(start, end);
-        }
-        
-        if (_backwardCell != null)
-        {
-            Gizmos.color = Color.blue;
-            var start = transform.position + Vector3.up * 1.5f;
-            var end = start - transform.forward * 0.5f;
             Gizmos.DrawLine(start, end);
         }
     }
