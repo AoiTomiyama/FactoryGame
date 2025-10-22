@@ -9,9 +9,11 @@ public abstract class ConnectableCellBase : CellBase
         Directions.Forward | Directions.Back | Directions.Right | Directions.Left;
     
     private readonly HashSet<Vector3Int> _connectableDirections = new();
-    protected const int AdjacentCount = 4;
-    protected event Action OnConnectionChanged;
+    private const int AdjacentCount = 4;
     protected CellBase[] AdjacentCells { get; private set; }
+    
+    /// <summary> 派生クラスで接続したセルを取得する際のデリゲート </summary>
+    protected event Action<Vector3Int, CellBase> OnGetConnectedCell;
 
     public override void InitializeSystem()
     {
@@ -62,24 +64,21 @@ public abstract class ConnectableCellBase : CellBase
 
             if (AdjacentCells.Contains(foundCell)) continue;
 
-            // if (this is IExportable or IContainable &&
-            //     GetType().Name == foundCell.GetType().Name)
-            // {
-            //     // 同じタイプのセル同士は接続しない
-            //     continue;
-            // }
-
             // 取得できたセルがConnectableCellBaseのであれば、接続を行う
             if (foundCell is ConnectableCellBase connectableCell)
             {
-                var dir = (transform.position - foundCell.transform.position).ToCardinalDirection();
-                if (!_connectableDirections.Contains(-dir) ||
-                    !connectableCell._connectableDirections.Contains(dir)) continue;
+                var dir = (foundCell.transform.position - transform.position).ToCardinalDirection();
+                
+                if (!_connectableDirections.Contains(dir) ||
+                    !connectableCell._connectableDirections.Contains(-dir)) continue;
 
                 // 接続先セルのAdjacentCellsに接続元のセルがなければ追加
                 if (connectableCell.AdjacentCells.Contains(fromCell)) continue;
 
                 AdjacentCells[i] = foundCell;
+                
+                // 新規接続セルを派生クラスにデリゲートとして伝達する。
+                OnGetConnectedCell?.Invoke(dir, foundCell);
 
                 // 向こうのセルのAdjacentCellsに接続元のセルを追加
                 connectableCell.ConnectAdjacentCells(fromCell);
@@ -90,9 +89,6 @@ public abstract class ConnectableCellBase : CellBase
                 AdjacentCells[i] = foundCell;
             }
         }
-
-        // 接続が完了したらイベントを呼び出す
-        OnConnectionChanged?.Invoke();
     }
 
     private void DisconnectAdjacentCells()
@@ -107,7 +103,6 @@ public abstract class ConnectableCellBase : CellBase
             // 向こうのセルのAdjacentCellsから接続元のセルを削除
             connectableCell.AdjacentCells = connectableCell.AdjacentCells
                 .Select(cell => cell != this ? cell : null).ToArray();
-            connectableCell.OnConnectionChanged?.Invoke();
 
             AdjacentCells[i] = null;
         }

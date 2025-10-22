@@ -22,21 +22,34 @@ public class ConveyorCell : ConnectableCellBase, IContainable
     /// </summary>
     private enum TransferStatus
     {
-        // 待機中
+        // 待機中、または何もしていない
         Idle,
+        
         // リソースを搬出中
         Storing,
-        // リソース搬入待機中
+        
+        // リソース搬出待機中
         WaitingForStorage,
-        // リソース搬入可能か確認中
+        
+        // リソース搬出可能か確認中
         CheckForStorage,
     }
 
     public override void InitializeSystem()
     {
         _cts = new();
-        OnConnectionChanged += UpdateTransferTarget;
+        OnGetConnectedCell += OnConnectionUpdated;
         base.InitializeSystem();
+    }
+    
+    private void OnConnectionUpdated(Vector3Int dir, CellBase cell)
+    {
+        var forward = DirectionEnumToVector(Directions.Forward);
+
+        if (dir == forward && cell is IContainable container && _forwardCell == null)
+        {
+            _forwardCell = container;
+        }
     }
 
     private void OnDestroy()
@@ -48,26 +61,6 @@ public class ConveyorCell : ConnectableCellBase, IContainable
         if (ResourcePrefab != null && _resourceType != ResourceType.None)
         {
             ResourceItemObjectPool.Instance.Return(_resourceType, ResourcePrefab);
-        }
-    }
-
-    
-    private void UpdateTransferTarget()
-    {
-        for (var i = 0; i < AdjacentCount; i++)
-        {
-            var cell = AdjacentCells[i];
-
-            if (cell == null) continue;
-
-            var dir = (cell.transform.position - transform.position).ToCardinalDirection();
-
-            var forward = DirectionEnumToVector(Directions.Forward);
-
-            if (dir == forward && cell is IContainable container && _forwardCell == null)
-            {
-                _forwardCell = container;
-            }
         }
     }
 

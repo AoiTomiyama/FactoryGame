@@ -10,39 +10,32 @@ public class ExportConveyorCell : ConveyorCell
 
     private enum ExportStatus
     {
-        // 待機中
+        // 待機中、または何もしていない
         Idle,
+        
         // リソースを搬入中
         Taking,
-        // リソース搬出待機中
+        
+        // リソース搬入待機中
         WaitingForTake,
-        // リソース搬出可能か確認中
+        
+        // リソース搬入可能か確認中
         CheckForTake
     }
     
     public override void InitializeSystem()
     {
-        OnConnectionChanged += UpdateTransferTarget;
+        OnGetConnectedCell += OnConnectionUpdated;
         base.InitializeSystem();
     }
-    
-    private void UpdateTransferTarget()
+
+    private void OnConnectionUpdated(Vector3Int dir, CellBase cell)
     {
-        for (var i = 0; i < AdjacentCount; i++)
+        var back = DirectionEnumToVector(Directions.Back);
+        if (dir == back && cell is IExportable exportable && _backwardCell == null)
         {
-            var cell = AdjacentCells[i];
-
-            if (cell == null) continue;
-
-            var dir = (cell.transform.position - transform.position).ToCardinalDirection();
-
-            var back = DirectionEnumToVector(Directions.Back);
-
-            if (dir == back && cell is IExportable exportable && _backwardCell == null)
-            {
-                _backwardCell = exportable;
-                TakeResourceAsync(_cts.Token).Forget();
-            }
+            _backwardCell = exportable;
+            TakeResourceAsync(_cts.Token).Forget();
         }
     }
 
