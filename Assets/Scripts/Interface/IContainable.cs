@@ -8,7 +8,7 @@ public interface IContainable
     /// <param name="dir">アクセスされた入力方向</param>
     /// <param name="amount">予約する量</param>
     /// <param name="resourceType">リソースの種類</param>
-    /// <returns>予約に成功した量</returns>
+    /// <returns>予約に成功したかどうか</returns>
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType);
 
     /// <summary>

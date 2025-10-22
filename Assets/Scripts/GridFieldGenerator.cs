@@ -127,11 +127,11 @@ public class GridFieldGenerator : MonoBehaviour
     /// SHA256でハッシュ化した値を取得
     /// </summary>
     /// <param name="input">元になる数値</param>
-    /// <returns>ハッシュ化したベクトル(x, 0, z)</returns>
+    /// <returns>ハッシュ化したベクトル(x, y)</returns>
     private static Vector2Int GetHashedVector(int input)
     {
         using var sha = SHA256.Create();
-
+    
         // int → byte[4] に変換
         var data = BitConverter.GetBytes(input);
 
