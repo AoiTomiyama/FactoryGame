@@ -8,6 +8,10 @@ public class ExportConveyorCell : ConveyorCell
     private IExportable _backwardCell;
     private ExportStatus _exportStatus;
 
+    /// <summary>
+    /// 現在の輸出ステータス
+    /// デバッグ用に視覚的な非同期処理を確認するために設けている。
+    /// </summary>
     private enum ExportStatus
     {
         // 待機中、または何もしていない
@@ -49,7 +53,7 @@ public class ExportConveyorCell : ConveyorCell
         {
             _exportStatus = ExportStatus.CheckForTake;
             // 後方のセルが存在しない場合、またはリソースを既に持っている場合は待機
-            await UniTask.WaitUntil(() => _backwardCell != null && ResourcePrefab == null, cancellationToken: token);
+            await UniTask.WaitUntil(() => _backwardCell != null && ResourceId == 0, cancellationToken: token);
 
             var amount = 0;
             var type = ResourceType.None;
@@ -59,6 +63,8 @@ public class ExportConveyorCell : ConveyorCell
             await UniTask.WaitUntil(
                 () => _backwardCell.TryExport(transform.position, TransferAmount, out amount, out type),
                 cancellationToken: token);
+
+            ResourceId = ResourceItemObjectPool.Instance.CreateId(type, amount);
             HasResource = true;
             _exportStatus = ExportStatus.Taking;
 
@@ -67,18 +73,7 @@ public class ExportConveyorCell : ConveyorCell
             var startPos = _backwardCell.GetPosition() + padding;
             var endPos = transform.position + padding;
 
-            // 取得したリソースを保存
-            var prefab = ResourceItemObjectPool.Instance.GetPrefab(type);
-
-            var textMesh = prefab.GetComponentInChildren<TextMeshPro>();
-            if (textMesh != null)
-            {
-                // Textが存在する場合、予約量を表示
-                textMesh.text = amount.ToString();
-            }
-
-            await Transfer(token, startPos, endPos, prefab);
-            UpdateResourceData(prefab, amount, type);
+            await ResourceItemObjectPool.Instance.Transfer(token, startPos, endPos, ResourceId);
             _exportStatus = ExportStatus.Idle;
 
             // リソースの保存が完了したら、次のセルにリソースを送る

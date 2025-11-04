@@ -13,7 +13,7 @@ public abstract class SingletonMonoBehaviour<T> : MonoBehaviour where T : Single
 
             if (_instance != null) return _instance;
 #if UNITY_EDITOR
-            Debug.LogError($"{nameof(T)}がシーンに存在しません。");
+            Debug.LogError($"{typeof(T)}がシーンに存在しません。");
 #endif
             return null;
         }

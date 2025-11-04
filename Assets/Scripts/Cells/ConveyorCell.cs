@@ -1,36 +1,39 @@
 using System.Threading;
 using Cysharp.Threading.Tasks;
-using DG.Tweening;
 using UnityEngine;
 
-public class ConveyorCell : ConnectableCellBase, IContainable
+public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
 {
-    [SerializeField] private float transferSecond;
+    [SerializeField] protected float transferSecond;
     [SerializeField] private int transferAmount;
-    private int _resourceAmount;
-    private ResourceType _resourceType;
     private IContainable _forwardCell;
     private TransferStatus _status;
     protected CancellationTokenSource _cts;
-
     protected int TransferAmount => transferAmount;
     protected bool HasResource { get; set; }
-    protected GameObject ResourcePrefab { get; private set; }
 
     /// <summary>
-    /// 現在の搬送ステータス
+    /// 保持しているリソースのID値。
+    /// 0 の場合、リソースを保持していないことを示す。（例外処理を設ける必要がある。）
+    /// それ以外の値の場合、そのIDのリソースを保持していることを示す。
+    /// </summary>
+    protected int ResourceId { get; set; }
+
+    /// <summary>
+    /// 現在の輸送ステータス
+    /// デバッグ用に視覚的な非同期処理を確認するために設けている。
     /// </summary>
     private enum TransferStatus
     {
         // 待機中、または何もしていない
         Idle,
-        
+
         // リソースを搬出中
         Storing,
-        
+
         // リソース搬出待機中
         WaitingForStorage,
-        
+
         // リソース搬出可能か確認中
         CheckForStorage,
     }
@@ -41,7 +44,7 @@ public class ConveyorCell : ConnectableCellBase, IContainable
         OnGetConnectedCell += OnConnectionUpdated;
         base.InitializeSystem();
     }
-    
+
     private void OnConnectionUpdated(Vector3Int dir, CellBase cell)
     {
         var forward = DirectionEnumToVector(Directions.Forward);
@@ -54,42 +57,13 @@ public class ConveyorCell : ConnectableCellBase, IContainable
 
     private void OnDestroy()
     {
+        if (ResourceId != 0)
+        {
+            ResourceItemObjectPool.Instance.DisposeId(ResourceId);
+        }
         _cts?.Cancel();
         _cts?.Dispose();
         _cts = null;
-
-        if (ResourcePrefab != null && _resourceType != ResourceType.None)
-        {
-            ResourceItemObjectPool.Instance.Return(_resourceType, ResourcePrefab);
-        }
-    }
-
-    /// <summary>
-    /// データの更新
-    /// </summary>
-    protected void UpdateResourceData(GameObject prefab, int amount, ResourceType type)
-    {
-        ResourcePrefab = prefab;
-        _resourceAmount = amount;
-        _resourceType = type;
-    }
-
-    /// <summary>
-    /// 輸送アニメーション
-    /// </summary>
-    /// <param name="token">トークン</param>
-    /// <param name="from">アニメーションの始点</param>
-    /// <param name="to">アニメーションの終点</param>
-    /// <param name="prefab">アニメーションの対象</param>
-    protected async UniTask Transfer(CancellationToken token, Vector3 from, Vector3 to,
-        GameObject prefab)
-    {
-        prefab.transform.position = from;
-        var tween = prefab.transform
-            .DOMove(to, transferSecond)
-            .SetEase(Ease.Linear);
-
-        await tween.ToUniTask(cancellationToken: token);
     }
 
     /// <summary>
@@ -100,62 +74,52 @@ public class ConveyorCell : ConnectableCellBase, IContainable
     {
         _status = TransferStatus.CheckForStorage;
         // 前方のセルが存在しない場合、またはリソースを持たない場合は待機
-        await UniTask.WaitUntil(() => _forwardCell != null && ResourcePrefab != null, cancellationToken: token);
+        await UniTask.WaitUntil(() => _forwardCell != null && ResourceId != 0, cancellationToken: token);
 
         var dir = DirectionEnumToVector(Directions.Forward);
         _status = TransferStatus.WaitingForStorage;
+        
+        var (type, amount) = ResourceItemObjectPool.Instance.TakeById(ResourceId);
 
         // リソースの予約
-        await UniTask.WaitUntil(() => _forwardCell.AllocateStorage(dir, _resourceAmount, _resourceType),
+        await UniTask.WaitUntil(() => _forwardCell.AllocateStorage(dir, amount, type),
             cancellationToken: token);
         _status = TransferStatus.Storing;
 
         // 輸送開始したため、自身のリソースを受付開始
         HasResource = false;
+        var id = ResourceId;
+        ResourceId = 0;
 
         // 移動アニメーション
         var padding = Vector3.up * 1.1f;
         var startPos = transform.position + padding;
         var endPos = transform.position + dir + padding;
 
-        // 保存するリソースの情報を退避し、初期化
-        var (prefab, amount, type) = (ResourcePrefab, _resourceAmount, _resourceType);
-        UpdateResourceData(null, 0, ResourceType.None);
+        await ResourceItemObjectPool.Instance.Transfer(token, startPos, endPos, id);
 
-        await Transfer(token, startPos, endPos, prefab);
-
-        // 値の更新
-        if (_forwardCell is ConveyorCell conveyor)
+        if (_forwardCell is IResourceReusable resourceReusable)
         {
-            conveyor.UpdateResourceData(prefab, amount, type);
-            conveyor.StoreResourceAsync(token).Forget();
+            resourceReusable.Reuse(id);
         }
         else
         {
-            ResourceItemObjectPool.Instance.Return(type, prefab);
-            _forwardCell.StoreResource(dir, amount);
+            ResourceItemObjectPool.Instance.DisposeId(id);
         }
 
+        _forwardCell.StoreResource(dir, amount);
         _status = TransferStatus.Idle;
     }
 
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
         // HasResourceがfalseのときのみHasResourceをtrueにし返す
-        if (HasResource) return false;
-        
-        HasResource = true;
-        _resourceType  = resourceType;
-        return true;
+        return !HasResource && (HasResource = true);
     }
 
     public void StoreResource(Vector3Int dir, int amount)
     {
-        // リソースが既にある場合は中断
-        if (_resourceAmount > 0) return;
-
-        // 現在量に追加する
-        _resourceAmount += amount;
+        StoreResourceAsync(_cts.Token).Forget();
     }
 
     protected virtual void OnDrawGizmos()
@@ -184,5 +148,10 @@ public class ConveyorCell : ConnectableCellBase, IContainable
             var end = start + transform.forward * 0.5f;
             Gizmos.DrawLine(start, end);
         }
+    }
+
+    public void Reuse(int resourceId)
+    {
+        ResourceId = resourceId;
     }
 }

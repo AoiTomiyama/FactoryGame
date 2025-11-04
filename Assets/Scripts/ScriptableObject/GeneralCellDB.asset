@@ -16,7 +16,7 @@ MonoBehaviour:
   cellPairingInfos:
   - cellName: Empty
     fieldCellPrefab: {fileID: 3770124899431596774, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
-    placeholderCellPrefab: {fileID: 3753479285475593560, guid: b98d1dbe996258f46a7bfc05a60b5025, type: 3}
+    placeholderCellPrefab: {fileID: 5589804250963055731, guid: 5690599eb420d274684c70d59614aef2, type: 3}
     cellType: 1
   - cellName: ResourceWood
     fieldCellPrefab: {fileID: 5769533041299315922, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
@@ -41,9 +41,13 @@ MonoBehaviour:
   - cellName: Crafter
     fieldCellPrefab: {fileID: 2108987448181754806, guid: 389174aece626a7489a52865b7fa4f40, type: 3}
     placeholderCellPrefab: {fileID: 8732916053966372837, guid: 3e0ec0cebefd42849a0af4af342a746c, type: 3}
-    cellType: 11
+    cellType: 8
   - cellName: Conveyor
     fieldCellPrefab: {fileID: 177518240655023122, guid: 8eb7cf53876d07649996986c20e7dd38, type: 3}
     placeholderCellPrefab: {fileID: 2992925618999745592, guid: aa41f68824fdb2146bd2abfc5a2e9702, type: 3}
-    cellType: 12
+    cellType: 9
+  - cellName: ExportConveyor
+    fieldCellPrefab: {fileID: -6418179465880099695, guid: 96acf1e9aebc93d41a2804eeca4df6bd, type: 3}
+    placeholderCellPrefab: {fileID: 3246697584944613225, guid: 8d8d92ba57a1e6c4a94b025999324f8d, type: 3}
+    cellType: 10
   isInitialized: 1
