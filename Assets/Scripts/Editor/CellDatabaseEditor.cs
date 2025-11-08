@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,23 +11,42 @@ public class CellDatabaseEditor : Editor
     private const string PlaceholderPrefabPrefix = "P_";
     private const string FieldPrefabPrefix = "F_";
     private const string Filter = "t:Prefab";
-    
+
     private string _placeholderFilePath;
     private string _fieldFilePath;
+    private const string EditorPrefPlaceholderKey = "CellDatabaseEditor_PlaceholderPath";
+    private const string EditorPrefFieldKey = "CellDatabaseEditor_FieldPath";
 
+    private void OnEnable()
+    {
+        _placeholderFilePath = EditorPrefs.GetString(EditorPrefPlaceholderKey, "Assets/Prefabs/Placeholders");
+        _fieldFilePath = EditorPrefs.GetString(EditorPrefFieldKey, "Assets/Prefabs/Fields");
+    }
 
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
 
         var cellDatabase = (CellDatabaseSO)target;
-        
-        _placeholderFilePath = EditorGUILayout.TextField
-            ("プレースホルダPrefab保存先フォルダ", _placeholderFilePath);
-        
-        _fieldFilePath = EditorGUILayout.TextField
-            ("フィールドPrefab保存先フォルダ", _fieldFilePath);
-        
+
+
+        EditorGUI.BeginChangeCheck();
+        var newPlaceholder = EditorGUILayout.TextField("プレースホルダPrefab保存先フォルダ", _placeholderFilePath);
+        var newField = EditorGUILayout.TextField("フィールドPrefab保存先フォルダ", _fieldFilePath);
+        if (EditorGUI.EndChangeCheck())
+        {
+            if (newPlaceholder != _placeholderFilePath)
+            {
+                _placeholderFilePath = newPlaceholder;
+                EditorPrefs.SetString(EditorPrefPlaceholderKey, _placeholderFilePath);
+            }
+
+            if (newField != _fieldFilePath)
+            {
+                _fieldFilePath = newField;
+                EditorPrefs.SetString(EditorPrefFieldKey, _fieldFilePath);
+            }
+        }
 
         if (GUILayout.Button("Validate Cell Info"))
         {
@@ -77,7 +95,7 @@ public class CellDatabaseEditor : Editor
         foreach (var cellType in values)
         {
             var cellTypeName = $"{cellType}Cell";
-        
+
             if (fieldDict.TryGetValue(cellTypeName, out var fieldPrefab) &&
                 placeholderDict.TryGetValue(cellTypeName, out var placeholderPrefab))
             {
