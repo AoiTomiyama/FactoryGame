@@ -42,28 +42,39 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
     {
         _cts = new();
         OnGetConnectedCell += OnConnectionUpdated;
+        
+        // 切断時、リソースを破棄してキャンセルトークンを解放
+        OnDisconnected += () =>
+        {
+            if (ResourceId != 0)
+            {
+                ResourceItemObjectPool.Instance.DisposeId(ResourceId);
+            }
+
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = null;
+        };
         base.InitializeSystem();
     }
 
+    /// <summary>
+    /// 隣接セル更新時、呼び出されるコールバック
+    /// </summary>
+    /// <param name="dir">接続先の方向</param>
+    /// <param name="cell">接続するセル</param>
     private void OnConnectionUpdated(Vector3Int dir, CellBase cell)
     {
         var forward = DirectionEnumToVector(Directions.Forward);
 
+        // ・セルが前方である
+        // ・セルがIContainableを実装している
+        // ・前方セルが未設定である
+        // 上記三つを満たす場合、前方セルとして設定する
         if (dir == forward && cell is IContainable container && _forwardCell == null)
         {
             _forwardCell = container;
         }
-    }
-
-    private void OnDestroy()
-    {
-        if (ResourceId != 0)
-        {
-            ResourceItemObjectPool.Instance.DisposeId(ResourceId);
-        }
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
     }
 
     /// <summary>

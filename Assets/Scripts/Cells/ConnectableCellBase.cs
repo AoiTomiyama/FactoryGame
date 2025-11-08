@@ -11,6 +11,7 @@ public abstract class ConnectableCellBase : CellBase
     private readonly HashSet<Vector3Int> _connectableDirections = new();
     private const int AdjacentCount = 4;
     protected CellBase[] AdjacentCells { get; private set; }
+    protected Action OnDisconnected;
     
     /// <summary> 派生クラスで接続したセルを取得する際のデリゲート </summary>
     protected event Action<Vector3Int, CellBase> OnGetConnectedCell;
@@ -115,6 +116,7 @@ public abstract class ConnectableCellBase : CellBase
         // 独自の関数を定義し、外部から明示的に実行している。
 
         DisconnectAdjacentCells();
+        OnDisconnected?.Invoke();
     }
 
     private void OnDrawGizmosSelected()
