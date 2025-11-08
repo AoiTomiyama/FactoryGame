@@ -9,20 +9,26 @@ using UnityEngine;
 public class CellDatabaseEditor : Editor
 {
     // ファイルのパスやPrefabのプレフィックス
-    private const string PrefabFolderPath = "Assets/Prefabs/";
     private const string PlaceholderPrefabPrefix = "P_";
-    private const string PlaceholderFilePath = PrefabFolderPath + "Placeholder";
     private const string FieldPrefabPrefix = "F_";
-    private const string FieldFilePath = PrefabFolderPath + "Field";
     private const string Filter = "t:Prefab";
-    [SerializeField] private GameObject basePrefab;
-    [SerializeField] private GameObject modelPrefab;
+    
+    private string _placeholderFilePath;
+    private string _fieldFilePath;
+
 
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
 
         var cellDatabase = (CellDatabaseSO)target;
+        
+        _placeholderFilePath = EditorGUILayout.TextField
+            ("プレースホルダPrefab保存先フォルダ", _placeholderFilePath);
+        
+        _fieldFilePath = EditorGUILayout.TextField
+            ("フィールドPrefab保存先フォルダ", _fieldFilePath);
+        
 
         if (GUILayout.Button("Validate Cell Info"))
         {
@@ -38,8 +44,8 @@ public class CellDatabaseEditor : Editor
     private void AutoAssignData(CellDatabaseSO database)
     {
         // "Assets/Prefabs" 以下の .prefab ファイルを全検索
-        var placeholders = AssetDatabase.FindAssets(Filter, new[] { PlaceholderFilePath + database.ExtraFolderPath });
-        var fields = AssetDatabase.FindAssets(Filter, new[] { FieldFilePath + database.ExtraFolderPath });
+        var placeholders = AssetDatabase.FindAssets(Filter, new[] { _placeholderFilePath });
+        var fields = AssetDatabase.FindAssets(Filter, new[] { _fieldFilePath });
 
         // 辞書へ登録
         var fieldDict = new Dictionary<string, CellBase>();
@@ -73,8 +79,7 @@ public class CellDatabaseEditor : Editor
             var cellTypeName = $"{cellType}Cell";
         
             if (fieldDict.TryGetValue(cellTypeName, out var fieldPrefab) &&
-                placeholderDict.TryGetValue(cellTypeName, out var placeholderPrefab) &&
-                !database.TryGetCellInfo(cellType, out _))
+                placeholderDict.TryGetValue(cellTypeName, out var placeholderPrefab))
             {
                 list.Add(new()
                 {
@@ -86,7 +91,7 @@ public class CellDatabaseEditor : Editor
             }
         }
 
-        database.SetCellInfos(database.GetAllCellInfos().Concat(list));
+        database.SetCellInfos(list);
         Debug.Log(list.Count > 0 ? "自動アサイン完了" : "未登録のセルはありません。");
         database.ValidateAndBuildLookup();
     }

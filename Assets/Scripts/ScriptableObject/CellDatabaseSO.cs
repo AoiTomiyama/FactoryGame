@@ -6,14 +6,12 @@ using UnityEngine;
 [CreateAssetMenu(fileName = "CellDatabaseSO", menuName = "Scriptable Objects/CellDatabaseSO")]
 public class CellDatabaseSO : ScriptableObject
 {
-    [SerializeField] private string extraFolderPath;
-    [SerializeField] private CellInfo[] cellPairingInfos;
+    [SerializeField]
+    private CellInfo[] cellPairingInfos;
     private readonly Dictionary<CellType, CellInfo> _infoLookup = new();
 
     [InspectorReadOnly] [Tooltip("ヴァリデーション済みかどうか")] [SerializeField]
     private bool isInitialized;
-
-    public string ExtraFolderPath => extraFolderPath;
 
     private void OnValidate()
     {
@@ -60,7 +58,7 @@ public class CellDatabaseSO : ScriptableObject
     }
 
     /// <summary>
-    /// 配列内の用要素を取得するためのメソッド。存在しない場合は false を返す。
+    /// 配列内の要素を取得するためのメソッド。存在しない場合は false を返す。
     /// </summary>
     public bool TryGetCellInfo(CellType cellType, out CellInfo info)
     {
