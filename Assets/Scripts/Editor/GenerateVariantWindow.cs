@@ -8,11 +8,11 @@ public class GenerateVariantWindow : EditorWindow
     private GameObject _baseFieldPrefab;
     private GameObject _basePlaceholderPrefab;
     private GameObject _modelPrefab;
-    private const string PrefabFolderPath = "Assets/Prefabs/";
+    private string _placeholderFilePath = "Assets/Prefabs/Cells/Placeholder";
+    private string _fieldFilePath = "Assets/Prefabs/Cells/Field";
+
     private const string PlaceholderPrefabPrefix = "P_";
-    private const string PlaceholderFilePath = PrefabFolderPath + "Placeholder";
     private const string FieldPrefabPrefix = "F_";
-    private const string FieldFilePath = PrefabFolderPath + "Field";
     private const string Filter = "t:Prefab";
 
     [MenuItem("Tools/Prefab Variant Creator")]
@@ -34,12 +34,40 @@ public class GenerateVariantWindow : EditorWindow
 
         _modelPrefab = (GameObject)EditorGUILayout.ObjectField("追加するモデル", _modelPrefab, typeof(GameObject), false);
 
+        _placeholderFilePath = EditorGUILayout.TextField
+            ("プレースホルダPrefab保存先フォルダ", _placeholderFilePath);
+
+        _fieldFilePath = EditorGUILayout.TextField
+            ("フィールドPrefab保存先フォルダ", _fieldFilePath);
+
+        if (GUILayout.Button("元となるPrefabを検索し自動割り当て"))
+        {
+            var allPrefabs = AssetDatabase.FindAssets(Filter)
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Select(path => (path, prefab: AssetDatabase.LoadAssetAtPath<GameObject>(path)))
+                .ToArray();
+
+            foreach (var (path, prefab) in allPrefabs)
+            {
+                if (prefab.name.StartsWith(PlaceholderPrefabPrefix) && prefab.name.Contains("Empty"))
+                {
+                    _basePlaceholderPrefab = prefab;
+                    Debug.Log("元となるプレースホルダPrefabを自動割り当て: " + path);
+                }
+                else if (prefab.name.StartsWith(FieldPrefabPrefix) && prefab.name.Contains("Empty"))
+                {
+                    _baseFieldPrefab = prefab;
+                    Debug.Log("元となるフィールドPrefabを自動割り当て: " + path);
+                }
+            }
+        }
+
         GUI.enabled = _baseFieldPrefab != null && _modelPrefab != null;
 
         if (GUILayout.Button("バリアント作成"))
         {
-            CreateNewVariant(_modelPrefab, _basePlaceholderPrefab, PlaceholderFilePath, PlaceholderPrefabPrefix);
-            CreateNewVariant(_modelPrefab, _baseFieldPrefab, FieldFilePath, FieldPrefabPrefix);
+            CreateNewVariant(_modelPrefab, _basePlaceholderPrefab, _placeholderFilePath, PlaceholderPrefabPrefix);
+            CreateNewVariant(_modelPrefab, _baseFieldPrefab, _fieldFilePath, FieldPrefabPrefix);
         }
 
         GUI.enabled = true;
@@ -77,7 +105,7 @@ public class GenerateVariantWindow : EditorWindow
         {
             prefabName += CellPrefabSuffix;
         }
-        
+
         if (!targetFolder.Contains(prefabName))
         {
             // PrefabVariantとして保存
@@ -93,6 +121,5 @@ public class GenerateVariantWindow : EditorWindow
 
         // シーン上のインスタンスは不要なら削除
         DestroyImmediate(instance);
-
     }
 }
