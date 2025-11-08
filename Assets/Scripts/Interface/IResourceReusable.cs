@@ -1,4 +1,6 @@
-﻿public interface IResourceReusable
+﻿using UnityEngine;
+
+public interface IResourceReusable
 {
-    public void Reuse(int id);
+    public void Reuse(Vector3Int dir, int id);
 }

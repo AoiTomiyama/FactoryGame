@@ -12,7 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c991c243980b7784799c4200cd165029, type: 3}
   m_Name: GeneralCellDB
   m_EditorClassIdentifier: 
-  extraFolderPath: /General
   cellPairingInfos:
   - cellName: Empty
     fieldCellPrefab: {fileID: 3770124899431596774, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
@@ -50,4 +49,8 @@ MonoBehaviour:
     fieldCellPrefab: {fileID: -6418179465880099695, guid: 96acf1e9aebc93d41a2804eeca4df6bd, type: 3}
     placeholderCellPrefab: {fileID: 3246697584944613225, guid: 8d8d92ba57a1e6c4a94b025999324f8d, type: 3}
     cellType: 10
+  - cellName: Crossing
+    fieldCellPrefab: {fileID: 4337940525781485777, guid: 546ff39ef199693459e7dad662d4a983, type: 3}
+    placeholderCellPrefab: {fileID: 2900265581659463365, guid: 79da4f0de7235d6499f3f58bac247a32, type: 3}
+    cellType: 11
   isInitialized: 1

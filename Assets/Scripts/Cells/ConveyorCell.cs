@@ -79,7 +79,7 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
         var dir = DirectionEnumToVector(Directions.Forward);
         _status = TransferStatus.WaitingForStorage;
         
-        var (type, amount) = ResourceItemObjectPool.Instance.TakeById(ResourceId);
+        var (type, amount) = ResourceItemObjectPool.Instance.TakeResourceDataById(ResourceId);
 
         // リソースの予約
         await UniTask.WaitUntil(() => _forwardCell.AllocateStorage(dir, amount, type),
@@ -100,7 +100,7 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
 
         if (_forwardCell is IResourceReusable resourceReusable)
         {
-            resourceReusable.Reuse(id);
+            resourceReusable.Reuse(dir, id);
         }
         else
         {
@@ -150,7 +150,7 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
         }
     }
 
-    public void Reuse(int resourceId)
+    public void Reuse(Vector3Int dir, int resourceId)
     {
         ResourceId = resourceId;
     }

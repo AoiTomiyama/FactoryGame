@@ -64,7 +64,7 @@ public class ExportConveyorCell : ConveyorCell
                 () => _backwardCell.TryExport(transform.position, TransferAmount, out amount, out type),
                 cancellationToken: token);
 
-            ResourceId = ResourceItemObjectPool.Instance.CreateId(type, amount);
+            ResourceId = ResourceItemObjectPool.Instance.CreateIdFromResourceData(type, amount);
             HasResource = true;
             _exportStatus = ExportStatus.Taking;
 

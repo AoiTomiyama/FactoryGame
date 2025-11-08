@@ -40,4 +40,5 @@ public enum CellType
     Crafter,
     Conveyor,
     ExportConveyor,
+    CrossingCell,
 }

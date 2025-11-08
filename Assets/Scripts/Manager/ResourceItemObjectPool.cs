@@ -177,7 +177,7 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
     /// <param name="type">リソースタイプ</param>
     /// <param name="amount">リソースの量</param>
     /// <returns>再度受け取るためのキーとなるID</returns>
-    public int CreateId(ResourceType type, int amount)
+    public int CreateIdFromResourceData(ResourceType type, int amount)
     {
         var prefab = GetPrefab(type);
         var id = prefab.GetInstanceID();
@@ -198,7 +198,7 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
     /// </summary> 
     /// <param name="id"> 取得するリソースのID </param>
     ///  <returns> ResourceType型のリソースタイプと、int型のリソース量のタプル。 </returns>
-    public (ResourceType type, int amount) TakeById(int id)
+    public (ResourceType type, int amount) TakeResourceDataById(int id)
     {
         if (_rentedObjects.TryGetValue(id, out var info))
         {
