@@ -12,14 +12,13 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
     {
         _cts = new();
         OnGetConnectedCell += OnConnectionUpdated;
+        OnDisconnected += () =>
+        {
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = null;
+        };
         base.InitializeSystem();
-    }
-
-    private void OnDestroy()
-    {
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
     }
 
     private void OnConnectionUpdated(Vector3Int dir, CellBase cell)
@@ -50,22 +49,27 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
     private async UniTask StoreResourceAsync(Vector3Int dir, CancellationToken token)
     {
         var targetCell = _adjacentContainers[dir].containable;
-        
+
         await UniTask.WaitUntil(() => _adjacentContainers[dir].id != 0, cancellationToken: token);
-        var resourceId = _adjacentContainers[dir].id;
-        
-        var info = ResourceItemObjectPool.Instance.TakeResourceDataById(resourceId);
+        var id = _adjacentContainers[dir].id;
+
+        var info = ResourceItemObjectPool.Instance.TakeResourceDataById(id);
 
         // 移動アニメーション
         var padding = Vector3.up * 1.1f;
         var startPos = transform.position + padding;
         var endPos = transform.position + dir + padding;
 
-        await ResourceItemObjectPool.Instance.Transfer(token, startPos, endPos, resourceId);
+        await ResourceItemObjectPool.Instance.Transfer(token, startPos, endPos, id);
+
 
         if (targetCell is IResourceReusable reusable)
         {
-            reusable.Reuse(dir, resourceId);
+            reusable.Reuse(dir, id);
+        }
+        else
+        {
+            ResourceItemObjectPool.Instance.DisposeId(id);
         }
 
         targetCell.StoreResource(dir, info.amount);
