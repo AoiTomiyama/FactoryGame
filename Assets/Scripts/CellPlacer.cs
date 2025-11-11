@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -218,22 +217,5 @@ public class CellPlacer : MonoBehaviour
         }
 
         Debug.LogWarning($"CellType {_selectedCellType} の情報が見つかりません。");
-    }
-
-    public void UpdateCellData(Func<CellBase, GameObject, (CellBase, GameObject)> cellFunc)
-    {
-        if (_selectedCell == null || _cachedCell == null) return;
-
-        var (updatedCell, updatedPlaceholder) = cellFunc(_cachedCell, _placeholderCell);
-        if (updatedCell != null)
-        {
-            _cachedCell = updatedCell;
-            _cachedCell.gameObject.SetActive(false);
-        }
-
-        if (updatedPlaceholder != null)
-        {
-            _placeholderCell = updatedPlaceholder;
-        }
     }
 }
