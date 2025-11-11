@@ -71,10 +71,21 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
         // ・セルがIContainableを実装している
         // ・前方セルが未設定である
         // 上記三つを満たす場合、前方セルとして設定する
-        if (dir == forward && cell is IContainable container && _forwardCell == null)
+        if (dir == forward && cell is IContainable container && IsForwardEmpty())
         {
             _forwardCell = container;
+            Debug.Log("connect to forward cell: " + cell.name);
+            if (_cts == null)
+            {
+                _cts = new();
+                StoreResourceAsync(_cts.Token).Forget();
         }
+    }
+    }
+
+    private bool IsForwardEmpty()
+    {
+        return _forwardCell == null || (_forwardCell is UnityEngine.Object unityObj && unityObj == null);
     }
 
     /// <summary>
