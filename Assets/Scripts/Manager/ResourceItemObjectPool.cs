@@ -169,6 +169,12 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
             .SetEase(Ease.Linear);
 
         await tween.ToUniTask(cancellationToken: token);
+
+        // 途中でキャンセルされた場合はプールに戻す
+        if (token.IsCancellationRequested)
+        {
+            Return(info.Type, info.Prefab);
+        }
     }
 
     /// <summary>
