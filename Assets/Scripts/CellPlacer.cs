@@ -9,10 +9,9 @@ public class CellPlacer : MonoBehaviour
     private CellBase _cachedCell;
     private GameObject _placeholderCell;
     private readonly HashSet<(CellBase cell, GameObject placeholder)> _selectedRangeCells = new();
-    private CellType _selectedCellType = CellType.Empty;
     private Vector3Int _dragBeginPos;
 
-    private void Start() => SetSelectedCellType(_selectedCellType);
+    private void Start() => SetSelectedCellType(CellType.Empty);
 
     public void PointerBegin()
     {
@@ -201,7 +200,7 @@ public class CellPlacer : MonoBehaviour
         {
             if (!database.TryGetCellInfo(cellType, out var cellInfo)) continue;
 
-            _selectedCellType = cellInfo.CellType;
+            // _selectedCellType = cellInfo.CellType;
             Destroy(_placeholderCell);
             _placeholderCell = Instantiate(cellInfo.PlaceholderCellPrefab,
                 transform.position, transform.rotation, transform);
@@ -216,6 +215,6 @@ public class CellPlacer : MonoBehaviour
             return;
         }
 
-        Debug.LogWarning($"CellType {_selectedCellType} の情報が見つかりません。");
+        // Debug.LogWarning($"CellType {_selectedCellType} の情報が見つかりません。");
     }
 }
