@@ -31,6 +31,7 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
 
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
+        if (amount <= 0 || resourceType == ResourceType.None) return false;
         // 指定された方向にコンテナが存在しない場合は予約失敗
         if (_adjacentContainers.TryGetValue(dir, out var container) &&
             container.containable.AllocateStorage(dir, amount, resourceType))
@@ -43,10 +44,10 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
 
     public void StoreResource(Vector3Int dir, int amount)
     {
-        StoreResourceAsync(dir, _cts.Token).Forget();
+        StoreResourceAsync(dir, amount, _cts.Token).Forget();
     }
 
-    private async UniTask StoreResourceAsync(Vector3Int dir, CancellationToken token)
+    private async UniTask StoreResourceAsync(Vector3Int dir, int amount, CancellationToken token)
     {
         var targetCell = _adjacentContainers[dir].containable;
 
@@ -54,6 +55,12 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
         var id = _adjacentContainers[dir].id;
 
         var info = ResourceItemObjectPool.Instance.TakeResourceDataById(id);
+        // 予約した量と表示オブジェクトの量が異なる搬送を確定しない。
+        if (amount <= 0 || info.amount != amount)
+        {
+            Debug.LogError($"交差セルの搬送量が一致しません: 予約量 {amount}, 資源量 {info.amount}");
+            return;
+        }
 
         // 移動アニメーション
         var padding = Vector3.up * 1.1f;
@@ -72,7 +79,7 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
             ResourceItemObjectPool.Instance.DisposeId(id);
         }
 
-        targetCell.StoreResource(dir, info.amount);
+        targetCell.StoreResource(dir, amount);
     }
 
     public void Reuse(Vector3Int dir, int id)

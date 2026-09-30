@@ -22,11 +22,12 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IExportable
 
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
-        var available = capacity - CurrentLoad - AllocatedAmount;
-        var allocated = Mathf.Min(available, amount);
+        if (amount <= 0 || resourceType == ResourceType.None) return false;
 
-        // 予約可能量が0以下の場合は予約失敗
-        if (allocated <= 0) return false;
+        var available = capacity - CurrentLoad - AllocatedAmount;
+        // 搬送側は要求量をそのまま確定するため、一部だけの予約は受け付けない。
+        if (amount > available ||
+            (StoredResourceType != ResourceType.None && StoredResourceType != resourceType)) return false;
 
         // 初めてのリソース追加
         if (StoredResourceType == ResourceType.None)
@@ -34,10 +35,7 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IExportable
             StoredResourceType = resourceType;
         }
 
-        // 設定済みのリソースタイプと異なる場合は予約失敗
-        if (StoredResourceType != resourceType) return false;
-
-        AllocatedAmount += allocated;
+        AllocatedAmount += amount;
 
         UpdateUI();
 
@@ -46,8 +44,8 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IExportable
 
     public void StoreResource(Vector3Int dir, int amount)
     {
-        // 予約量を超えて入れようとした場合は中断
-        if (amount > AllocatedAmount) return;
+        // 予約していない量は確定せず、容量と予約量を保つ。
+        if (amount <= 0 || amount > AllocatedAmount || amount > capacity - CurrentLoad) return;
 
         // 現在量に追加し、予約量を減らす。
         CurrentLoad += amount;
@@ -70,8 +68,8 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IExportable
         amount = Mathf.Min(requestedAmount, CurrentLoad);
         CurrentLoad = Mathf.Max(0, CurrentLoad - requestedAmount);
 
-        // 現在量が0になった場合、リソースタイプをリセットする
-        if (CurrentLoad == 0)
+        // 現在量と予約量が両方0になった時だけ資源種別を解放する。
+        if (CurrentLoad == 0 && AllocatedAmount == 0)
         {
             StoredResourceType = ResourceType.None;
         }

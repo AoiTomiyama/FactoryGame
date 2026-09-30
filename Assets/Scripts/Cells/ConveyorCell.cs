@@ -79,8 +79,8 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
             {
                 _cts = new();
                 StoreResourceAsync(_cts.Token).Forget();
+            }
         }
-    }
     }
 
     private bool IsForwardEmpty()
@@ -135,8 +135,10 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
 
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
-        // HasResourceがfalseのときのみHasResourceをtrueにし返す
-        return !HasResource && (HasResource = true);
+        // コンベアは一度に一件だけ全量を受け入れる。
+        if (amount <= 0 || resourceType == ResourceType.None || HasResource) return false;
+        HasResource = true;
+        return true;
     }
 
     public void StoreResource(Vector3Int dir, int amount)

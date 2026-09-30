@@ -214,13 +214,13 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
 
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
+        if (amount <= 0 || resourceType == ResourceType.None) return false;
         if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return false;
 
         var available = IngredientCapacity - inputStorage.Amount - inputStorage.Allocated;
-        var allocated = Mathf.Min(available, amount);
-        
-        // 予約可能量が0以下の場合は予約失敗
-        if (allocated <= 0) return false;
+        // 搬送側は要求量をそのまま確定するため、一部だけの予約は受け付けない。
+        if (amount > available ||
+            (inputStorage.Type != ResourceType.None && inputStorage.Type != resourceType)) return false;
         
         // 初めてのリソース追加
         if (inputStorage.Type == ResourceType.None)
@@ -228,10 +228,7 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
             inputStorage.Type = resourceType;
         }
         
-        // 設定済みのリソースタイプと異なる場合は予約失敗
-        if (inputStorage.Type != resourceType) return false;
-
-        inputStorage.Allocated += allocated;
+        inputStorage.Allocated += amount;
 
         _resourceInputs[dir] = inputStorage;
         
@@ -243,6 +240,9 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
     public void StoreResource(Vector3Int dir, int amount)
     {
         if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return;
+        // 予約していない量は確定せず、入力容量と予約量を保つ。
+        if (amount <= 0 || amount > inputStorage.Allocated ||
+            amount > IngredientCapacity - inputStorage.Amount) return;
 
         // 現在量に追加し、予約量を減らす。
         inputStorage.Amount += amount;
