@@ -149,5 +149,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   allowedDirections: -1
-  capacity: 20
+  capacity: 50
   dataProvider: {fileID: 11400000, guid: 5948687587f871c47b4cc6a544a3b392, type: 2}
