@@ -2,7 +2,7 @@
 
 タグ: `設計レビュー` `資源搬送` `非同期処理` `プレイヤービルド` `セル接続`
 
-状態: タスク1は2026-09-30、タスク2〜4は2026-10-01に修正・検証済み。タスク5は未着手。以下の順に着手する。
+状態: タスク1は2026-09-30、タスク2〜5は2026-10-01に修正・検証済み。既存の設計レビュー改修タスクは完了。追加タスクは `docs/tasks/architecture-extension.md` を参照する。
 
 拡張性に関する追加タスク A〜H は `docs/tasks/architecture-extension.md` を参照する。タスク2の中断処理は同文書の C・G の最初の適用箇所とし、同じ完了条件を重複して計上しない。
 
@@ -48,8 +48,10 @@
 
 ## 5. 資源アイコンの参照を確認する
 
-- [ ] 木材・石材のアイコンを表示する仕様を確認し、必要な参照を復元する。
+- [x] 木材・石材のアイコンを表示する仕様を確認し、必要な参照を復元する。
 - 問題: 未コミット差分の `ResourceDB.asset` では、木材・石材の `icon` が両方とも `{fileID: 0}` になっている。`RecipeElementUI` と `StorageUIStatusRow` はこの値をそのまま画像へ渡すため、従来のアイコンが表示されない。
 - 方針: アイコンを使う場合は参照を設定し、意図的に文字のみへ変更する場合は UI の画像処理も合わせて変更する。
 - 完了条件: レシピ欄と保管セルの状態欄を Unity Editor で確認し、意図した表示になっている。
-- 参照: `Assets/Scripts/ScriptableObject/ResourceDB.asset`、`Assets/Scripts/UI/RecipeElementUI.cs`、`Assets/Scripts/UI/CellStatus/StorageUIStatusRow.cs`。
+- 採用した設計: 既存の画像表示を維持し、木材・石材の `icon` に従来の Unity 組み込み Sprite 参照を戻す。資源データ名変更など進行中の別作業は変更しない。仕様は `docs/spec/resource-icons.md`。
+- 検証証拠: Unity 6000.3.8f1 の Play Mode バッチ実行 `ResourceIconVerifier.Run` で `ResourceDB.asset` の2種の Sprite が解決でき、`Recipe.prefab` の材料・成果物行と `StorageParamLine.prefab` の状態欄に Sprite と資源名が設定されたことを確認。参照先の Sprite 名は石材が `Checkmark`、木材が `Background`。画面の目視確認とプレイヤービルドは実施していない。
+- 参照: `Assets/Scripts/ScriptableObject/ResourceDB.asset`、`Assets/Scripts/UI/RecipeElementUI.cs`、`Assets/Scripts/UI/CellStatus/StorageUIStatusRow.cs`、`Assets/Scripts/Editor/ResourceIconVerifier.cs`。
