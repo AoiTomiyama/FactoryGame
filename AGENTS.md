@@ -8,6 +8,7 @@
 - ゲームの C# コードは `Assets/Scripts/`、メインシーンは `Assets/Scenes/MainScene.unity`。
 - `Packages/manifest.json` は UniTask を Git URL から取得する。
 - 設計レビューで見つかった問題と着手順は `docs/tasks/design-review.md` を参照する。改修したタスクは、完了条件の検証結果とともに同文書の状態を更新する。
+- 今後の追加実装と設計改修は `docs/design/architecture-guidelines.md` の責務分担と依存方向を踏襲する。未移行の既存コードは同文書の現在地と各タスクリストを照合し、段階的に改修する。
 
 ## 対話と記録
 
