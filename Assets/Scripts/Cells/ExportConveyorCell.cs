@@ -6,6 +6,8 @@ using UnityEngine;
 public class ExportConveyorCell : ConveyorCell
 {
     private IExportable _backwardCell;
+    private CellBase _backwardCellBase;
+    private bool _takeLoopStarted;
     private ExportStatus _exportStatus;
 
     /// <summary>
@@ -30,6 +32,7 @@ public class ExportConveyorCell : ConveyorCell
     public override void InitializeSystem()
     {
         OnGetConnectedCell += OnConnectionUpdated;
+        OnLostConnectedCell += OnConnectionLost;
         base.InitializeSystem();
     }
 
@@ -39,8 +42,16 @@ public class ExportConveyorCell : ConveyorCell
         if (dir == back && cell is IExportable exportable && _backwardCell == null)
         {
             _backwardCell = exportable;
-            TakeResourceAsync(_cts.Token).Forget();
+            _backwardCellBase = cell;
+            if (!_takeLoopStarted) TakeResourceAsync(_cts.Token).Forget();
         }
+    }
+
+    private void OnConnectionLost(CellBase cell)
+    {
+        if (cell != _backwardCellBase) return;
+        _backwardCell = null;
+        _backwardCellBase = null;
     }
 
     /// <summary>
@@ -49,35 +60,44 @@ public class ExportConveyorCell : ConveyorCell
     /// <param name="token">トークン</param>
     private async UniTask TakeResourceAsync(CancellationToken token)
     {
-        while (!token.IsCancellationRequested)
+        _takeLoopStarted = true;
+        try
         {
-            _exportStatus = ExportStatus.CheckForTake;
-            // 後方のセルが存在しない場合、またはリソースを既に持っている場合は待機
-            await UniTask.WaitUntil(() => _backwardCell != null && ResourceId == 0, cancellationToken: token);
+            while (!token.IsCancellationRequested)
+            {
+                _exportStatus = ExportStatus.CheckForTake;
+                await UniTask.WaitUntil(() => _backwardCellBase != null && !HasResource && ResourceId == 0,
+                    cancellationToken: token);
 
-            var amount = 0;
-            var type = ResourceType.None;
-            _exportStatus = ExportStatus.WaitingForTake;
+                var amount = 0;
+                var type = ResourceType.None;
+                _exportStatus = ExportStatus.WaitingForTake;
 
-            // リソースが取れるまで待機
-            await UniTask.WaitUntil(
-                () => _backwardCell.TryExport(transform.position, TransferAmount, out amount, out type),
-                cancellationToken: token);
+                await UniTask.WaitUntil(() => _backwardCellBase != null &&
+                    _backwardCell.TryExport(transform.position, TransferAmount, out amount, out type),
+                    cancellationToken: token);
 
-            ResourceId = ResourceItemObjectPool.Instance.CreateIdFromResourceData(type, amount);
-            HasResource = true;
-            _exportStatus = ExportStatus.Taking;
+                ResourceId = ResourceItemObjectPool.Instance.CreateIdFromResourceData(type, amount);
+                HasResource = true;
+                _exportStatus = ExportStatus.Taking;
 
-            // 移動アニメーション
-            var padding = Vector3.up * 1.1f;
-            var startPos = _backwardCell.GetPosition() + padding;
-            var endPos = transform.position + padding;
+                var padding = Vector3.up * 1.1f;
+                var startPos = _backwardCell.GetPosition() + padding;
+                var endPos = transform.position + padding;
 
-            await ResourceItemObjectPool.Instance.Transfer(token, startPos, endPos, ResourceId);
-            _exportStatus = ExportStatus.Idle;
-
-            // リソースの保存が完了したら、次のセルにリソースを送る
-            StoreResourceAsync(token).Forget();
+                await ResourceItemObjectPool.Instance.Transfer(token, startPos, endPos, ResourceId);
+                _exportStatus = ExportStatus.Idle;
+                // 後方からの演出が終わるまで前方の搬送を開始しない。
+                MarkResourceReady();
+            }
+        }
+        catch (System.OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // セル削除による終了。資源IDは基底クラスが返却する。
+        }
+        finally
+        {
+            _takeLoopStarted = false;
         }
     }
 

@@ -15,6 +15,8 @@ public abstract class ConnectableCellBase : CellBase
     
     /// <summary> 派生クラスで接続したセルを取得する際のデリゲート </summary>
     protected event Action<Vector3Int, CellBase> OnGetConnectedCell;
+    /// <summary>隣接セルが削除された時に、そのセルを保持する派生クラスへ通知する。</summary>
+    protected event Action<CellBase> OnLostConnectedCell;
 
     public override void InitializeSystem()
     {
@@ -104,6 +106,8 @@ public abstract class ConnectableCellBase : CellBase
             // 向こうのセルのAdjacentCellsから接続元のセルを削除
             connectableCell.AdjacentCells = connectableCell.AdjacentCells
                 .Select(cell => cell != this ? cell : null).ToArray();
+
+            connectableCell.OnLostConnectedCell?.Invoke(this);
 
             AdjacentCells[i] = null;
         }

@@ -119,7 +119,7 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
         }
 
         // 既にプールに戻されている場合は無視
-        if (!obj.activeInHierarchy)
+        if (!obj.activeSelf)
         {
 #if UNITY_EDITOR
             Debug.LogWarning("このオブジェクトは既にプールに戻されています。");
@@ -168,13 +168,14 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
             .DOMove(to, transferSecond)
             .SetEase(Ease.Linear);
 
+        // 表示の中断は呼び出し側へ伝え、IDの返却先は搬送の所有者に決めさせる。
         await tween.ToUniTask(cancellationToken: token);
+    }
 
-        // 途中でキャンセルされた場合はプールに戻す
-        if (token.IsCancellationRequested)
-        {
-            Return(info.Type, info.Prefab);
-        }
+    public void SetPosition(int id, Vector3 position)
+    {
+        if (_rentedObjects.TryGetValue(id, out var info))
+            info.Prefab.transform.position = position;
     }
 
     /// <summary>
@@ -225,13 +226,11 @@ public sealed class ResourceItemObjectPool : SingletonMonoBehaviour<ResourceItem
     {
         if (!_rentedObjects.TryGetValue(id, out var info))
         {
-#if UNITY_EDITOR
-            Debug.LogError($"ID {id} の保存済みリソースは存在しません。");
-#endif
+            // セル削除と非同期の終了が重なっても表示オブジェクトを二度返さない。
             return;
         }
 
-        Return(info.Type, info.Prefab);
         _rentedObjects.Remove(id);
+        Return(info.Type, info.Prefab);
     }
 }

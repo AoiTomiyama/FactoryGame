@@ -54,6 +54,14 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IExportable
         UpdateUI();
     }
 
+    public void CancelStorage(Vector3Int dir, int amount, ResourceType resourceType)
+    {
+        if (amount <= 0 || amount > AllocatedAmount || StoredResourceType != resourceType) return;
+        AllocatedAmount -= amount;
+        if (CurrentLoad == 0 && AllocatedAmount == 0) StoredResourceType = ResourceType.None;
+        UpdateUI();
+    }
+
     public Vector3 GetPosition() => transform.position;
 
     public bool TryExport(Vector3 from, int requestedAmount, out int amount, out ResourceType type)

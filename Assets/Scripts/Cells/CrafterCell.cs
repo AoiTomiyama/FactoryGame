@@ -253,6 +253,17 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         UpdateUI();
     }
 
+    public void CancelStorage(Vector3Int dir, int amount, ResourceType resourceType)
+    {
+        if (!_resourceInputs.TryGetValue(dir, out var input) || amount <= 0 ||
+            amount > input.Allocated || input.Type != resourceType) return;
+
+        input.Allocated -= amount;
+        if (input.Amount == 0 && input.Allocated == 0) input.Type = ResourceType.None;
+        _resourceInputs[dir] = input;
+        UpdateUI();
+    }
+
     public Vector3 GetPosition() => transform.position;
 
     public bool TryExport(Vector3 from, int requestedAmount, out int amount, out ResourceType type)

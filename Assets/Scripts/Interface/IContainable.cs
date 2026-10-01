@@ -18,4 +18,9 @@ public interface IContainable
     /// <param name="dir">アクセスされた入力方向</param>
     /// <param name="amount">ストレージに入れる量</param>
     public void StoreResource(Vector3Int dir, int amount);
+
+    /// <summary>
+    /// 未確定の予約を取り消します。呼び出し側は成功した予約ごとに一度だけ呼びます。
+    /// </summary>
+    public void CancelStorage(Vector3Int dir, int amount, ResourceType resourceType);
 }

@@ -7,8 +7,15 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
     [SerializeField] protected float transferSecond;
     [SerializeField] private int transferAmount;
     private IContainable _forwardCell;
+    private CellBase _forwardCellBase;
     private TransferStatus _status;
     protected CancellationTokenSource _cts;
+    private CancellationTokenSource _activeTransferCts;
+    private bool _isDisconnected;
+    private bool _transferLoopStarted;
+    private bool _readyToSend;
+    private int _incomingReservationAmount;
+    private ResourceType _incomingReservationType;
     protected int TransferAmount => transferAmount;
     protected bool HasResource { get; set; }
 
@@ -42,20 +49,20 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
     {
         _cts = new();
         OnGetConnectedCell += OnConnectionUpdated;
-        
-        // 切断時、リソースを破棄してキャンセルトークンを解放
-        OnDisconnected += () =>
-        {
-            if (ResourceId != 0)
-            {
-                ResourceItemObjectPool.Instance.DisposeId(ResourceId);
-            }
-
-            _cts?.Cancel();
-            _cts?.Dispose();
-            _cts = null;
-        };
+        OnLostConnectedCell += OnConnectionLost;
+        OnDisconnected += Shutdown;
         base.InitializeSystem();
+        StoreResourceAsync(_cts.Token).Forget();
+    }
+
+    private void OnDestroy() => Shutdown();
+
+    private void Shutdown()
+    {
+        if (_isDisconnected) return;
+        _isDisconnected = true;
+        _activeTransferCts?.Cancel();
+        _cts?.Cancel();
     }
 
     /// <summary>
@@ -74,18 +81,22 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
         if (dir == forward && cell is IContainable container && IsForwardEmpty())
         {
             _forwardCell = container;
+            _forwardCellBase = cell;
             Debug.Log("connect to forward cell: " + cell.name);
-            if (_cts == null)
-            {
-                _cts = new();
-                StoreResourceAsync(_cts.Token).Forget();
-            }
         }
+    }
+
+    private void OnConnectionLost(CellBase cell)
+    {
+        if (cell != _forwardCellBase) return;
+        _forwardCell = null;
+        _forwardCellBase = null;
+        _activeTransferCts?.Cancel();
     }
 
     private bool IsForwardEmpty()
     {
-        return _forwardCell == null || (_forwardCell is UnityEngine.Object unityObj && unityObj == null);
+        return _forwardCellBase == null;
     }
 
     /// <summary>
@@ -94,57 +105,125 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
     /// <param name="token">トークン</param>
     protected async UniTask StoreResourceAsync(CancellationToken token)
     {
-        _status = TransferStatus.CheckForStorage;
-        // 前方のセルが存在しない場合、またはリソースを持たない場合は待機
-        await UniTask.WaitUntil(() => _forwardCell != null && ResourceId != 0, cancellationToken: token);
+        if (_transferLoopStarted) return;
+        _transferLoopStarted = true;
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                _status = TransferStatus.CheckForStorage;
+                await UniTask.WaitUntil(() => _readyToSend && ResourceId != 0 &&
+                    _forwardCellBase != null, cancellationToken: token);
 
+                try
+                {
+                    await TransferOnce(token);
+                }
+                catch (System.OperationCanceledException) when (!token.IsCancellationRequested)
+                {
+                    // 搬送先だけが切断された。資源を保持して次の接続を待つ。
+                }
+            }
+        }
+        catch (System.OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // セル自身の削除による終了。
+        }
+        finally
+        {
+            if (ResourceId != 0) ResourceItemObjectPool.Instance.DisposeId(ResourceId);
+            ResourceId = 0;
+            HasResource = false;
+            _readyToSend = false;
+            _cts?.Dispose();
+            _cts = null;
+            _status = TransferStatus.Idle;
+        }
+    }
+
+    private async UniTask TransferOnce(CancellationToken token)
+    {
+        var target = _forwardCell;
+        var targetCell = _forwardCellBase;
         var dir = DirectionEnumToVector(Directions.Forward);
-        _status = TransferStatus.WaitingForStorage;
-        
-        var (type, amount) = ResourceItemObjectPool.Instance.TakeResourceDataById(ResourceId);
-
-        // リソースの予約
-        await UniTask.WaitUntil(() => _forwardCell.AllocateStorage(dir, amount, type),
-            cancellationToken: token);
-        _status = TransferStatus.Storing;
-
-        // 輸送開始したため、自身のリソースを受付開始
-        HasResource = false;
         var id = ResourceId;
-        ResourceId = 0;
+        var (type, amount) = ResourceItemObjectPool.Instance.TakeResourceDataById(id);
+        if (amount <= 0 || type == ResourceType.None) return;
 
-        // 移動アニメーション
-        var padding = Vector3.up * 1.1f;
-        var startPos = transform.position + padding;
-        var endPos = transform.position + dir + padding;
-
-        await ResourceItemObjectPool.Instance.Transfer(token, startPos, endPos, id);
-
-        if (_forwardCell is IResourceReusable resourceReusable)
+        using var transferCts = CancellationTokenSource.CreateLinkedTokenSource(token);
+        _activeTransferCts = transferCts;
+        var reserved = false;
+        var committed = false;
+        var startPos = transform.position + Vector3.up * 1.1f;
+        try
         {
-            resourceReusable.Reuse(dir, id);
-        }
-        else
-        {
-            ResourceItemObjectPool.Instance.DisposeId(id);
-        }
+            _status = TransferStatus.WaitingForStorage;
+            await UniTask.WaitUntil(() =>
+            {
+                if (targetCell == null || _forwardCellBase != targetCell) return false;
+                if (!target.AllocateStorage(dir, amount, type)) return false;
+                reserved = true;
+                return true;
+            }, cancellationToken: transferCts.Token);
 
-        _forwardCell.StoreResource(dir, amount);
-        _status = TransferStatus.Idle;
+            transferCts.Token.ThrowIfCancellationRequested();
+            _status = TransferStatus.Storing;
+            await ResourceItemObjectPool.Instance.Transfer(transferCts.Token,
+                startPos, transform.position + dir + Vector3.up * 1.1f, id);
+            transferCts.Token.ThrowIfCancellationRequested();
+            if (targetCell == null || _forwardCellBase != targetCell)
+                throw new System.OperationCanceledException();
+
+            // 受け取り先へIDを渡してから予約を確定する。交差セルはIDを演出に再利用する。
+            if (target is IResourceReusable reusable) reusable.Reuse(dir, id);
+            target.StoreResource(dir, amount);
+            committed = true;
+            if (target is not IResourceReusable) ResourceItemObjectPool.Instance.DisposeId(id);
+            ResourceId = 0;
+            HasResource = false;
+            _readyToSend = false;
+        }
+        finally
+        {
+            if (reserved && !committed && targetCell != null)
+                target.CancelStorage(dir, amount, type);
+            if (!committed && !_isDisconnected)
+                ResourceItemObjectPool.Instance.SetPosition(id, startPos);
+            if (_activeTransferCts == transferCts) _activeTransferCts = null;
+            _status = TransferStatus.Idle;
+        }
     }
 
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
         // コンベアは一度に一件だけ全量を受け入れる。
-        if (amount <= 0 || resourceType == ResourceType.None || HasResource) return false;
+        if (amount <= 0 || resourceType == ResourceType.None || HasResource || _isDisconnected) return false;
         HasResource = true;
+        _incomingReservationAmount = amount;
+        _incomingReservationType = resourceType;
         return true;
     }
 
     public void StoreResource(Vector3Int dir, int amount)
     {
-        StoreResourceAsync(_cts.Token).Forget();
+        if (amount != _incomingReservationAmount || ResourceId == 0 || _isDisconnected) return;
+        var info = ResourceItemObjectPool.Instance.TakeResourceDataById(ResourceId);
+        if (info.amount != amount || info.type != _incomingReservationType) return;
+        _incomingReservationAmount = 0;
+        _incomingReservationType = ResourceType.None;
+        _readyToSend = true;
     }
+
+    public void CancelStorage(Vector3Int dir, int amount, ResourceType resourceType)
+    {
+        if (amount <= 0 || amount != _incomingReservationAmount ||
+            resourceType != _incomingReservationType) return;
+        _incomingReservationAmount = 0;
+        _incomingReservationType = ResourceType.None;
+        HasResource = false;
+    }
+
+    protected void MarkResourceReady() => _readyToSend = true;
 
     protected virtual void OnDrawGizmos()
     {

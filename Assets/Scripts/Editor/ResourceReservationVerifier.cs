@@ -43,6 +43,11 @@ public static class ResourceReservationVerifier
             Require(storage.AllocatedAmount == 0 && storage.CurrentLoad == 4, "Storage: commit exact reservation");
 
             Require(storage.AllocateStorage(Vector3Int.right, 1, ResourceType.Stone), "Storage: reserve remaining space");
+            storage.CancelStorage(Vector3Int.right, 1, ResourceType.Stone);
+            Require(storage.AllocatedAmount == 0 && storage.CurrentLoad == 4,
+                "Storage: cancellation preserves committed stock");
+            Require(storage.AllocateStorage(Vector3Int.right, 1, ResourceType.Stone),
+                "Storage: canceled capacity can be reserved again");
             Require(storage.TryExport(Vector3.zero, 4, out var exported, out _) && exported == 4,
                 "Storage: export existing contents");
             Require(storage.StoredResourceType == ResourceType.Stone, "Storage: retain type while delivery is reserved");
@@ -82,6 +87,11 @@ public static class ResourceReservationVerifier
             Require(inputs[Vector3Int.right].Amount == 4 && inputs[Vector3Int.right].Allocated == 0,
                 "Crafter: commit exact reservation");
             Require(crafter.AllocateStorage(Vector3Int.right, 1, ResourceType.Stone), "Crafter: reserve final space");
+            crafter.CancelStorage(Vector3Int.right, 1, ResourceType.Stone);
+            Require(inputs[Vector3Int.right].Allocated == 0 && inputs[Vector3Int.right].Amount == 4,
+                "Crafter: cancellation preserves committed ingredients");
+            Require(crafter.AllocateStorage(Vector3Int.right, 1, ResourceType.Stone),
+                "Crafter: canceled capacity can be reserved again");
             crafter.StoreResource(Vector3Int.right, 1);
             Require(inputs[Vector3Int.right].Amount == 5 && inputs[Vector3Int.right].Allocated == 0,
                 "Crafter: never exceed capacity");
@@ -105,6 +115,9 @@ public static class ResourceReservationVerifier
                 "Conveyor: accept one full batch");
             Require(!conveyor.AllocateStorage(Vector3Int.right, 1, ResourceType.Stone),
                 "Conveyor: reject a second batch");
+            conveyor.CancelStorage(Vector3Int.right, 5, ResourceType.Stone);
+            Require(conveyor.AllocateStorage(Vector3Int.right, 1, ResourceType.Wood),
+                "Conveyor: cancellation frees the input slot");
         }
         finally
         {
@@ -130,6 +143,11 @@ public static class ResourceReservationVerifier
             Require(!crossing.AllocateStorage(Vector3Int.left, 1, ResourceType.Stone),
                 "Crossing: reject absent output");
             Require(storage.AllocatedAmount == 4, "Crossing: target reservation remains exact");
+            crossing.CancelStorage(Vector3Int.right, 4, ResourceType.Stone);
+            Require(storage.AllocatedAmount == 0 && storage.StoredResourceType == ResourceType.None,
+                "Crossing: cancellation reaches target and releases type");
+            Require(crossing.AllocateStorage(Vector3Int.right, 5, ResourceType.Wood),
+                "Crossing: canceled path accepts a different resource");
         }
         finally
         {
