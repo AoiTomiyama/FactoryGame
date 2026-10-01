@@ -69,13 +69,21 @@ public static class ResourceTransferVerifier
     private static async UniTask VerifySuccess(ResourceItemObjectPool pool)
     {
         var setup = CreateTransfer(pool);
-        await UniTask.Delay(120);
+        await UniTask.Delay(300);
+        var operation = (ResourceTransferOperation)GetField(setup.source, "_activeTransfer");
         Require(setup.target.AllocatedAmount == 5 && setup.target.CurrentLoad == 0,
-            "successful path reserves before animation");
+            $"successful path reserves before animation (reserved={setup.target.AllocatedAmount}, load={setup.target.CurrentLoad})");
+        Require(operation != null && operation.Source == setup.source && operation.Target == setup.target &&
+                operation.ResourceId == setup.id && operation.Type == ResourceType.Stone &&
+                operation.Amount == 5 && operation.CurrentStage == ResourceTransferOperation.Stage.Animating,
+            "successful path tracks one active transfer");
         await UniTask.Delay(1000);
         Require(setup.target.AllocatedAmount == 0 && setup.target.CurrentLoad == 5,
             "successful path commits exactly once");
         Require(!ContainsId(pool, setup.id), "successful path returns the display ID");
+        Require(operation.CurrentStage == ResourceTransferOperation.Stage.Completed &&
+                GetField(setup.source, "_activeTransfer") == null,
+            "successful path finishes the transfer once");
         UnityEngine.Object.Destroy(setup.source.gameObject);
         UnityEngine.Object.Destroy(setup.target.gameObject);
         await UniTask.Yield();
@@ -87,12 +95,16 @@ public static class ResourceTransferVerifier
         await UniTask.Delay(120);
         Require(setup.target.AllocatedAmount == 5 && setup.target.CurrentLoad == 0,
             "cancel path reserves before animation");
+        var operation = (ResourceTransferOperation)GetField(setup.source, "_activeTransfer");
 
         setup.target.OnDisconnect();
-        await UniTask.Delay(120);
+        await UniTask.Delay(300);
         Require(setup.target.AllocatedAmount == 0 && setup.target.CurrentLoad == 0,
-            "cancel path releases reservation without committing");
+            $"cancel path releases reservation without committing (reserved={setup.target.AllocatedAmount}, load={setup.target.CurrentLoad}, stage={operation.CurrentStage})");
         Require(ContainsId(pool, setup.id), "source retains the ID after destination disconnect");
+        Require(operation.CurrentStage == ResourceTransferOperation.Stage.Cancelled &&
+                !operation.TryCancel() && !operation.TryComplete(),
+            "destination disconnect ends the attempt once while retaining the ID");
 
         UnityEngine.Object.Destroy(setup.target.gameObject);
         UnityEngine.Object.Destroy(setup.source.gameObject);
@@ -118,10 +130,19 @@ public static class ResourceTransferVerifier
     private static async UniTask VerifyCrossingSuccess(ResourceItemObjectPool pool)
     {
         var setup = CreateCrossingTransfer(pool);
+        await UniTask.Delay(120);
+        var operation = GetCrossingOperation(setup.crossing);
+        Require(operation.Source == setup.crossing && operation.Target == setup.target &&
+                operation.ResourceId == setup.id && operation.Type == ResourceType.Stone &&
+                operation.Amount == 5 && operation.CurrentStage == ResourceTransferOperation.Stage.Animating,
+            "crossing tracks one active transfer");
         await UniTask.Delay(1000);
         Require(setup.target.CurrentLoad == 5 && setup.target.AllocatedAmount == 0,
             "crossing commits its downstream reservation");
         Require(!ContainsId(pool, setup.id), "crossing returns the display ID after delivery");
+        Require(operation.CurrentStage == ResourceTransferOperation.Stage.Completed &&
+                !operation.TryComplete() && !operation.TryCancel(),
+            "crossing completes once");
         UnityEngine.Object.Destroy(setup.crossing.gameObject);
         UnityEngine.Object.Destroy(setup.target.gameObject);
         await UniTask.Yield();
@@ -131,6 +152,7 @@ public static class ResourceTransferVerifier
     {
         var setup = CreateCrossingTransfer(pool);
         await UniTask.Delay(120);
+        var operation = GetCrossingOperation(setup.crossing);
         Require(setup.target.AllocatedAmount == 5 && setup.target.CurrentLoad == 0,
             "crossing deletion starts with a downstream reservation");
         UnityEngine.Object.Destroy(setup.crossing.gameObject);
@@ -138,6 +160,9 @@ public static class ResourceTransferVerifier
         Require(setup.target.AllocatedAmount == 0 && setup.target.CurrentLoad == 0,
             "crossing deletion cancels the downstream reservation");
         Require(!ContainsId(pool, setup.id), "crossing deletion returns the display ID");
+        Require(operation.CurrentStage == ResourceTransferOperation.Stage.Cancelled &&
+                !operation.TryCancel() && !operation.TryComplete(),
+            "crossing deletion cancels once");
         UnityEngine.Object.Destroy(setup.target.gameObject);
         await UniTask.Yield();
     }
@@ -149,9 +174,9 @@ public static class ResourceTransferVerifier
         SetField(target, "capacity", 10);
         var crossing = CreateCell<CrossingCell>("TransferCheck:Crossing", Vector3.zero);
         SetField(crossing, "_cts", new CancellationTokenSource());
-        var adjacent = (Dictionary<Vector3Int, (IContainable containable, int id)>)
+        var adjacent = (Dictionary<Vector3Int, IContainable>)
             GetField(crossing, "_adjacentContainers");
-        adjacent[Vector3Int.right] = (target, 0);
+        adjacent[Vector3Int.right] = target;
 
         Require(crossing.AllocateStorage(Vector3Int.right, 5, ResourceType.Stone),
             "crossing reserves the downstream target");
@@ -175,8 +200,9 @@ public static class ResourceTransferVerifier
         SetField(source, "_cts", new CancellationTokenSource());
         // 実際の切断入口から通知されるよう、孤立した検証セルの隣接関係を設定する。
         var adjacent = typeof(ConnectableCellBase).GetProperty("AdjacentCells", InstanceFields);
-        adjacent?.SetValue(target, new CellBase[] { source, null, null, null });
-        adjacent?.SetValue(source, new CellBase[] { target, null, null, null });
+        // +Z 側の搬送先と -Z 側の送り元を、固定方向スロットに合わせる。
+        adjacent?.SetValue(target, new CellBase[] { null, null, null, source });
+        adjacent?.SetValue(source, new CellBase[] { null, null, target, null });
         var onLostMethod = typeof(ConveyorCell).GetMethod("OnConnectionLost", InstanceFields);
         var onLost = Delegate.CreateDelegate(typeof(Action<CellBase>), source, onLostMethod);
         typeof(ConnectableCellBase).GetField("OnLostConnectedCell", InstanceFields)
@@ -207,6 +233,15 @@ public static class ResourceTransferVerifier
         if (field == null) throw new InvalidOperationException("Missing rented object dictionary");
         var dictionary = (IDictionary)field.GetValue(pool);
         return dictionary.Contains(id);
+    }
+
+    private static ResourceTransferOperation GetCrossingOperation(CrossingCell crossing)
+    {
+        var pending = (IDictionary)GetField(crossing, "_pending");
+        var item = pending[Vector3Int.right];
+        if (item == null) throw new InvalidOperationException("Missing crossing transfer");
+        return (ResourceTransferOperation)item.GetType()
+            .GetField("Operation", BindingFlags.Instance | BindingFlags.Public).GetValue(item);
     }
 
     private static object GetField(object target, string name)

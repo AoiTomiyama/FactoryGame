@@ -6,19 +6,14 @@ using UnityEngine;
 
 public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
 {
-    private readonly Dictionary<Vector3Int, (IContainable containable, int id)> _adjacentContainers = new();
+    private readonly Dictionary<Vector3Int, IContainable> _adjacentContainers = new();
     private readonly Dictionary<Vector3Int, PendingTransfer> _pending = new();
     private CancellationTokenSource _cts;
     private bool _isDisconnected;
 
     private sealed class PendingTransfer
     {
-        public IContainable Target;
-        public CellBase TargetCell;
-        public int Amount;
-        public ResourceType Type;
-        public int Id;
-        public bool Reserved;
+        public ResourceTransferOperation Operation;
         public bool Started;
         public CancellationTokenSource ActiveCts;
     }
@@ -45,13 +40,16 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
         foreach (var pair in pending)
         {
             var transfer = pair.Value;
+            var operation = transfer.Operation;
             transfer.ActiveCts?.Cancel();
-            if (transfer.Reserved && transfer.TargetCell != null)
+            var wasReserved = operation.CurrentStage is ResourceTransferOperation.Stage.Reserved or
+                ResourceTransferOperation.Stage.Animating;
+            if (!operation.TryCancel()) continue;
+            if (wasReserved && operation.Target != null)
             {
-                transfer.Reserved = false;
-                transfer.Target.CancelStorage(pair.Key, transfer.Amount, transfer.Type);
+                ((IContainable)operation.Target).CancelStorage(pair.Key, operation.Amount, operation.Type);
             }
-            if (transfer.Id != 0) ResourceItemObjectPool.Instance.DisposeId(transfer.Id);
+            if (operation.ResourceId != 0) ResourceItemObjectPool.Instance.DisposeId(operation.ResourceId);
         }
         _cts?.Dispose();
         _cts = null;
@@ -60,7 +58,7 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
     private void OnConnectionUpdated(Vector3Int dir, CellBase cell)
     {
         if (cell is IContainable container)
-            _adjacentContainers[dir] = (container, 0);
+            _adjacentContainers[dir] = container;
     }
 
     private void OnConnectionLost(CellBase cell)
@@ -68,17 +66,15 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
         var directions = new List<Vector3Int>();
         foreach (var pair in _adjacentContainers)
         {
-            if (ReferenceEquals(pair.Value.containable, cell)) directions.Add(pair.Key);
+            if (ReferenceEquals(pair.Value, cell)) directions.Add(pair.Key);
         }
 
         foreach (var dir in directions)
         {
             _adjacentContainers.Remove(dir);
-            if (!_pending.TryGetValue(dir, out var transfer) || transfer.TargetCell != cell) continue;
+            if (!_pending.TryGetValue(dir, out var transfer) || transfer.Operation.Target != cell) continue;
             // 削除される受け取り先の予約は使えない。資源は交差セルに保持する。
-            transfer.Reserved = false;
-            transfer.Target = null;
-            transfer.TargetCell = null;
+            transfer.Operation.TryWaitForNewTarget();
             transfer.ActiveCts?.Cancel();
         }
     }
@@ -88,43 +84,41 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
         if (_isDisconnected || amount <= 0 || resourceType == ResourceType.None || _pending.ContainsKey(dir))
             return false;
         if (!_adjacentContainers.TryGetValue(dir, out var adjacent) ||
-            adjacent.containable is not CellBase targetCell || targetCell == null ||
-            !adjacent.containable.AllocateStorage(dir, amount, resourceType)) return false;
+            adjacent is not CellBase targetCell || targetCell == null ||
+            !adjacent.AllocateStorage(dir, amount, resourceType)) return false;
 
-        _pending[dir] = new PendingTransfer
-        {
-            Target = adjacent.containable,
-            TargetCell = targetCell,
-            Amount = amount,
-            Type = resourceType,
-            Reserved = true
-        };
+        var operation = new ResourceTransferOperation(this, targetCell, 0, resourceType, amount);
+        operation.TryMarkReserved();
+        _pending[dir] = new PendingTransfer { Operation = operation };
         return true;
     }
 
     public void CancelStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
-        if (!_pending.TryGetValue(dir, out var transfer) || transfer.Amount != amount ||
-            transfer.Type != resourceType) return;
+        if (!_pending.TryGetValue(dir, out var transfer)) return;
+        var operation = transfer.Operation;
+        if (operation.Amount != amount || operation.Type != resourceType) return;
+        var wasReserved = operation.CurrentStage is ResourceTransferOperation.Stage.Reserved or
+            ResourceTransferOperation.Stage.Animating;
+        if (!operation.TryCancel()) return;
         _pending.Remove(dir);
-        var reserved = transfer.Reserved;
-        transfer.Reserved = false;
         transfer.ActiveCts?.Cancel();
-        if (reserved && transfer.TargetCell != null)
-            transfer.Target.CancelStorage(dir, amount, resourceType);
-        if (transfer.Id != 0) ResourceItemObjectPool.Instance.DisposeId(transfer.Id);
+        if (wasReserved && operation.Target != null)
+            ((IContainable)operation.Target).CancelStorage(dir, amount, resourceType);
+        if (operation.ResourceId != 0) ResourceItemObjectPool.Instance.DisposeId(operation.ResourceId);
     }
 
     public void StoreResource(Vector3Int dir, int amount)
     {
         if (_cts == null || !_pending.TryGetValue(dir, out var transfer) ||
-            transfer.Amount != amount || transfer.Id == 0 || transfer.Started) return;
+            transfer.Operation.Amount != amount || transfer.Operation.ResourceId == 0 || transfer.Started) return;
         transfer.Started = true;
         StoreResourceAsync(dir, transfer, _cts.Token).Forget();
     }
 
     private async UniTask StoreResourceAsync(Vector3Int dir, PendingTransfer transfer, CancellationToken token)
     {
+        var operation = transfer.Operation;
         try
         {
             while (!token.IsCancellationRequested)
@@ -133,45 +127,49 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
                 transfer.ActiveCts = activeCts;
                 try
                 {
-                    if (!transfer.Reserved)
+                    if (operation.CurrentStage == ResourceTransferOperation.Stage.WaitingForReservation)
                     {
                         await UniTask.WaitUntil(() =>
                         {
                             if (!_adjacentContainers.TryGetValue(dir, out var adjacent) ||
-                                adjacent.containable is not CellBase cell || cell == null) return false;
-                            if (!adjacent.containable.AllocateStorage(dir, transfer.Amount, transfer.Type))
+                                adjacent is not CellBase cell || cell == null) return false;
+                            if (!adjacent.AllocateStorage(dir, operation.Amount, operation.Type))
                                 return false;
-                            transfer.Target = adjacent.containable;
-                            transfer.TargetCell = cell;
-                            transfer.Reserved = true;
+                            if (!operation.TrySetTarget(cell) || !operation.TryMarkReserved())
+                            {
+                                adjacent.CancelStorage(dir, operation.Amount, operation.Type);
+                                return false;
+                            }
                             return true;
                         }, cancellationToken: activeCts.Token);
                     }
 
                     activeCts.Token.ThrowIfCancellationRequested();
-                    var info = ResourceItemObjectPool.Instance.TakeResourceDataById(transfer.Id);
-                    if (info.amount != transfer.Amount || info.type != transfer.Type)
+                    var info = ResourceItemObjectPool.Instance.TakeResourceDataById(operation.ResourceId);
+                    if (info.amount != operation.Amount || info.type != operation.Type)
                         throw new InvalidOperationException("交差セルの予約量と資源データが一致しません。");
 
+                    operation.TryMarkAnimating();
                     var startPos = transform.position + Vector3.up * 1.1f;
                     await ResourceItemObjectPool.Instance.Transfer(activeCts.Token, startPos,
-                        transform.position + dir + Vector3.up * 1.1f, transfer.Id);
+                        transform.position + dir + Vector3.up * 1.1f, operation.ResourceId);
                     activeCts.Token.ThrowIfCancellationRequested();
-                    if (transfer.TargetCell == null) continue;
+                    if (operation.Target == null) continue;
 
-                    if (transfer.Target is IResourceReusable reusable)
-                        reusable.Reuse(dir, transfer.Id);
-                    transfer.Target.StoreResource(dir, transfer.Amount);
-                    transfer.Reserved = false;
+                    var target = (IContainable)operation.Target;
+                    if (target is IResourceReusable reusable)
+                        reusable.Reuse(dir, operation.ResourceId);
+                    target.StoreResource(dir, operation.Amount);
+                    if (!operation.TryComplete()) return;
                     _pending.Remove(dir);
-                    if (transfer.Target is not IResourceReusable)
-                        ResourceItemObjectPool.Instance.DisposeId(transfer.Id);
+                    if (target is not IResourceReusable)
+                        ResourceItemObjectPool.Instance.DisposeId(operation.ResourceId);
                     return;
                 }
                 catch (OperationCanceledException) when (!token.IsCancellationRequested)
                 {
                     // 接続先だけが失われた。次の接続までIDを保持する。
-                    ResourceItemObjectPool.Instance.SetPosition(transfer.Id,
+                    ResourceItemObjectPool.Instance.SetPosition(operation.ResourceId,
                         transform.position + Vector3.up * 1.1f);
                 }
                 finally
@@ -188,9 +186,15 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
         {
             if (_pending.TryGetValue(dir, out var current) && current == transfer)
             {
-                if (transfer.Reserved && transfer.TargetCell != null)
-                    transfer.Target.CancelStorage(dir, transfer.Amount, transfer.Type);
-                if (transfer.Id != 0) ResourceItemObjectPool.Instance.DisposeId(transfer.Id);
+                var wasReserved = operation.CurrentStage is ResourceTransferOperation.Stage.Reserved or
+                    ResourceTransferOperation.Stage.Animating;
+                if (operation.TryCancel())
+                {
+                    if (wasReserved && operation.Target != null)
+                        ((IContainable)operation.Target).CancelStorage(dir, operation.Amount, operation.Type);
+                    if (operation.ResourceId != 0)
+                        ResourceItemObjectPool.Instance.DisposeId(operation.ResourceId);
+                }
                 _pending.Remove(dir);
             }
         }
@@ -198,9 +202,7 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
 
     public void Reuse(Vector3Int dir, int id)
     {
-        if (!_pending.TryGetValue(dir, out var transfer) || transfer.Id != 0) return;
-        transfer.Id = id;
-        if (_adjacentContainers.TryGetValue(dir, out var adjacent))
-            _adjacentContainers[dir] = (adjacent.containable, id);
+        if (!_pending.TryGetValue(dir, out var transfer)) return;
+        transfer.Operation.TryAttachId(id);
     }
 }

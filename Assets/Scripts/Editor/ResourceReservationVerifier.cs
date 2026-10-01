@@ -15,11 +15,43 @@ public static class ResourceReservationVerifier
     [MenuItem("Tools/FactoryGame/Verify Resource Reservations")]
     public static void Run()
     {
+        VerifyTransferOperation();
         VerifyStorage();
         VerifyCrafter();
         VerifyCrossing();
         VerifyConveyor();
-        Debug.Log("Resource reservation checks passed: storage, crafter, crossing, conveyor.");
+        Debug.Log("Resource reservation checks passed: transfer operation, storage, crafter, crossing, conveyor.");
+    }
+
+    private static void VerifyTransferOperation()
+    {
+        var source = CreateCell<StorageCell>();
+        var target = CreateCell<StorageCell>();
+        try
+        {
+            var completed = new ResourceTransferOperation(source, target, 12, ResourceType.Stone, 4);
+            Require(completed.Source == source && completed.Target == target &&
+                    completed.ResourceId == 12 && completed.Type == ResourceType.Stone && completed.Amount == 4,
+                "Transfer: one record keeps source, target, ID, type and amount");
+            Require(completed.TryMarkReserved() && !completed.TryMarkReserved() &&
+                    completed.TryMarkAnimating() && completed.TryComplete() &&
+                    !completed.TryComplete() && !completed.TryCancel(),
+                "Transfer: completion happens once");
+
+            var retried = new ResourceTransferOperation(source, target, 0, ResourceType.Wood, 2);
+            Require(retried.TryMarkReserved() && retried.TryAttachId(-13) &&
+                    !retried.TryAttachId(14) && retried.TryMarkAnimating() &&
+                    retried.TryWaitForNewTarget() && retried.ResourceId == -13 && retried.Target == null &&
+                    retried.TrySetTarget(target) && retried.TryMarkReserved() &&
+                    retried.TryMarkAnimating() && retried.TryCancel() &&
+                    !retried.TryCancel() && !retried.TryComplete(),
+                "Transfer: reconnect keeps ID and cancellation happens once");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(source.gameObject);
+            UnityEngine.Object.DestroyImmediate(target.gameObject);
+        }
     }
 
     private static void VerifyStorage()
@@ -132,9 +164,9 @@ public static class ResourceReservationVerifier
         try
         {
             SetPrivateField(storage, "capacity", 5);
-            var adjacent = GetPrivateField<Dictionary<Vector3Int, (IContainable containable, int id)>>(
+            var adjacent = GetPrivateField<Dictionary<Vector3Int, IContainable>>(
                 crossing, "_adjacentContainers");
-            adjacent[Vector3Int.right] = (storage, 0);
+            adjacent[Vector3Int.right] = storage;
 
             Require(crossing.AllocateStorage(Vector3Int.right, 4, ResourceType.Stone),
                 "Crossing: forward full reservation");
