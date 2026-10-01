@@ -1,8 +1,10 @@
 using System;
+#if UNITY_EDITOR
 using System.Security.Cryptography;
 using UnityEditor;
-using UnityEngine;
 using Random = UnityEngine.Random;
+#endif
+using UnityEngine;
 
 public class GridFieldGenerator : MonoBehaviour
 {
@@ -54,6 +56,9 @@ public class GridFieldGenerator : MonoBehaviour
         GridFieldDatabase.Instance.InitializeCells(gridSize);
     }
 
+#if UNITY_EDITOR
+    // 生成処理は既存シーンのシリアライズ参照を保つため同じコンポーネントに置き、
+    // プレイヤーへは初期化処理だけを含める。
     /// <summary>
     /// シード値をランダムに設定
     /// </summary>
@@ -237,4 +242,5 @@ public class GridFieldGenerator : MonoBehaviour
         lr.startColor = lineColor;
         lr.endColor = lineColor;
     }
+#endif
 }

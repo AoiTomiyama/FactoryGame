@@ -2,7 +2,7 @@
 
 タグ: `設計レビュー` `資源搬送` `非同期処理` `プレイヤービルド` `セル接続`
 
-状態: タスク1は2026-09-30、タスク2は2026-10-01に修正・検証済み。タスク3～5は未着手。以下の順に着手する。
+状態: タスク1は2026-09-30、タスク2・3は2026-10-01に修正・検証済み。タスク4・5は未着手。以下の順に着手する。
 
 拡張性に関する追加タスク A〜H は `docs/tasks/architecture-extension.md` を参照する。タスク2の中断処理は同文書の C・G の最初の適用箇所とし、同じ完了条件を重複して計上しない。
 
@@ -28,11 +28,13 @@
 
 ## 3. 実行時コードから UnityEditor 依存を分離する
 
-- [ ] フィールド生成の Editor 専用処理を実行時アセンブリから切り離す。
+- [x] フィールド生成の Editor 専用処理をプレイヤー用コードから切り離す。
 - 問題: `Assets/Scripts/GridFieldGenerator.cs` は `using UnityEditor` と `PrefabUtility.InstantiatePrefab` を使用している。通常のゲームコードに Editor 専用 API があるため、プレイヤービルドでコンパイルできない構成になっている。
 - 方針: 生成処理を `Assets/Scripts/Editor/` の Editor 用クラスへ移すか、Editor 専用部分を条件付きコンパイルに分離する。実行時のグリッド初期化は維持する。
 - 完了条件: Unity Editor でフィールド生成が使え、プレイヤービルドのスクリプトコンパイルが通る。
-- 参照: `Assets/Scripts/GridFieldGenerator.cs`、`Assets/Scripts/Editor/GridGeneratorEditor.cs`。
+- 採用した設計: 既存シーンに保存された `GridFieldGenerator` のコンポーネントと設定値を維持し、生成・消去・グリッドライン・ノイズ計算を `UNITY_EDITOR` 条件付きコードに限定する。プレイヤーには `Start` のグリッド初期化を残す。
+- 検証証拠: Unity 6000.3.8f1 のバッチモードで `GridFieldGeneratorVerifier.RunGeneration` を実行し、2×2 セルのプレハブ参照、グリッドライン、消去を確認。続けて `GridFieldGeneratorVerifier.RunPlayerBuild` を実行し、`MainScene` を含む Windows 64-bit プレイヤービルドが成功した。Play Mode での手操作は行っていない。
+- 参照: `Assets/Scripts/GridFieldGenerator.cs`、`Assets/Scripts/Editor/GridGeneratorEditor.cs`、`Assets/Scripts/Editor/GridFieldGeneratorVerifier.cs`。
 
 ## 4. 隣接セル探索を4方向の直接参照にする
 
