@@ -2,7 +2,7 @@
 
 タグ: `設計レビュー` `資源搬送` `非同期処理` `プレイヤービルド` `セル接続`
 
-状態: タスク1は2026-09-30、タスク2・3は2026-10-01に修正・検証済み。タスク4・5は未着手。以下の順に着手する。
+状態: タスク1は2026-09-30、タスク2〜4は2026-10-01に修正・検証済み。タスク5は未着手。以下の順に着手する。
 
 拡張性に関する追加タスク A〜H は `docs/tasks/architecture-extension.md` を参照する。タスク2の中断処理は同文書の C・G の最初の適用箇所とし、同じ完了条件を重複して計上しない。
 
@@ -38,11 +38,13 @@
 
 ## 4. 隣接セル探索を4方向の直接参照にする
 
-- [ ] セル接続時の近傍探索を見直し、接続・切断の双方を検証する。
+- [x] セル接続時の近傍探索を見直し、接続・切断の双方を検証する。
 - 問題: `ConnectableCellBase` は隣接4方向の確認に `GridFieldDatabase.TryGetCellFromRange` を繰り返し使う。この関数は呼び出しごとにフィールド全体の探索用配列を作る。メインシーンのグリッド設定は100×100。
 - 方針: 上下左右の座標から `GetCell` で直接取得し、双方の接続参照と通知を対称に更新する。
 - 完了条件: 配置、回転、削除、再接続の結果が現行の意図に沿い、隣接確認でグリッド全体の探索用配列を生成しない。
-- 参照: `Assets/Scripts/Cells/ConnectableCellBase.cs`、`Assets/Scripts/Manager/GridFieldDatabase.cs`、`Assets/Scenes/MainScene.unity`。
+- 採用した設計: 4方向を固定スロットとして座標から `GetCell` で直接取得し、グリッド外は先に除外する。接続・切断では両側の参照を更新してから通知する。仕様は `docs/spec/cell-connections.md`。
+- 検証証拠: Unity 6000.3.8f1 のバッチモードで `CellConnectionVerifier.Run` を実行し、コンパイルと Edit Mode の4方向接続・相互通知・削除・再接続・90度回転・グリッド端の確認が成功。接続処理から `TryGetCellFromRange` の呼び出しがなくなった。Play Mode とプレイヤービルドは今回実行していない。
+- 参照: `Assets/Scripts/Cells/ConnectableCellBase.cs`、`Assets/Scripts/Manager/GridFieldDatabase.cs`、`Assets/Scripts/Editor/CellConnectionVerifier.cs`。
 
 ## 5. 資源アイコンの参照を確認する
 

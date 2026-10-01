@@ -9,6 +9,9 @@ public abstract class ConnectableCellBase : CellBase
         Directions.Forward | Directions.Back | Directions.Right | Directions.Left;
     
     private readonly HashSet<Vector3Int> _connectableDirections = new();
+    // スロットは常に +X, -X, +Z, -Z。向かい側は i ^ 1 で求める。
+    private static readonly Vector3Int[] AdjacentDirections =
+        { Vector3Int.right, Vector3Int.left, Vector3Int.forward, Vector3Int.back };
     private const int AdjacentCount = 4;
     protected CellBase[] AdjacentCells { get; private set; }
     protected Action OnDisconnected;
@@ -22,11 +25,12 @@ public abstract class ConnectableCellBase : CellBase
     {
         AdjacentCells = new CellBase[AdjacentCount];
         SetConnectableDirections();
-        ConnectAdjacentCells(this);
+        ConnectAdjacentCells();
     }
 
     private void SetConnectableDirections()
     {
+        _connectableDirections.Clear();
         var values = (Directions[])Enum.GetValues(typeof(Directions));
         foreach (var direction in values)
         {
@@ -46,70 +50,58 @@ public abstract class ConnectableCellBase : CellBase
         _ => Vector3Int.zero,
     };
 
-    private void ConnectAdjacentCells(ConnectableCellBase fromCell)
+    private void ConnectAdjacentCells()
     {
-        // 自分自身を除外リストに追加
-        var excludingList = new List<CellBase>(AdjacentCells) { this };
-
-        // 周囲1マス以内のセルを取得
-        for (int i = 0; i < AdjacentCount; i++)
+        var grid = GridFieldDatabase.Instance;
+        for (var i = 0; i < AdjacentCount; i++)
         {
-            if (AdjacentCells[i] != null) continue;
+            var dir = AdjacentDirections[i];
+            var x = XIndex + dir.x;
+            var z = ZIndex + dir.z;
+            if (!grid.IsWithinBounds(x, z)) continue;
 
-            if (!GridFieldDatabase.Instance.TryGetCellFromRange(XIndex, ZIndex, 1, out var foundCell,
-                    excludingList)) continue;
+            // 座標から直接読む。フィールド全体の探索用配列は作らない。
+            var neighbor = grid.GetCell(x, z);
+            if (neighbor == null || neighbor is EmptyCell) continue;
 
-            // 取得できたセルを除外リストに追加
-            excludingList.Add(foundCell);
-
-            // 取得できたセルがEmptyCellであればスキップ
-            if (foundCell is EmptyCell) continue;
-
-            if (AdjacentCells.Contains(foundCell)) continue;
-
-            // 取得できたセルがConnectableCellBaseのであれば、接続を行う
-            if (foundCell is ConnectableCellBase connectableCell)
+            if (neighbor is not ConnectableCellBase connectable)
             {
-                var dir = (foundCell.transform.position - transform.position).ToCardinalDirection();
-                
-                if (!_connectableDirections.Contains(dir) ||
-                    !connectableCell._connectableDirections.Contains(-dir)) continue;
-
-                // 接続先セルのAdjacentCellsに接続元のセルがなければ追加
-                if (connectableCell.AdjacentCells.Contains(fromCell)) continue;
-
-                AdjacentCells[i] = foundCell;
-                
-                // 新規接続セルを派生クラスにデリゲートとして伝達する。
-                OnGetConnectedCell?.Invoke(dir, foundCell);
-
-                // 向こうのセルのAdjacentCellsに接続元のセルを追加
-                connectableCell.ConnectAdjacentCells(fromCell);
+                AdjacentCells[i] = neighbor;
+                continue;
             }
-            else
-            {
-                // 取得できたセルをAdjacentCellsに追加
-                AdjacentCells[i] = foundCell;
-            }
+
+            if (connectable.AdjacentCells == null ||
+                !_connectableDirections.Contains(dir) ||
+                !connectable._connectableDirections.Contains(-dir)) continue;
+
+            var opposite = i ^ 1;
+            if (connectable.AdjacentCells[opposite] != null &&
+                connectable.AdjacentCells[opposite] != this) continue;
+
+            // 両側の参照を先に確定してから通知し、通知先からも同じ接続を見られるようにする。
+            var addedHere = AdjacentCells[i] != neighbor;
+            var addedThere = connectable.AdjacentCells[opposite] != this;
+            AdjacentCells[i] = neighbor;
+            connectable.AdjacentCells[opposite] = this;
+            if (addedHere) OnGetConnectedCell?.Invoke(dir, neighbor);
+            if (addedThere) connectable.OnGetConnectedCell?.Invoke(-dir, this);
         }
     }
 
     private void DisconnectAdjacentCells()
     {
         if (AdjacentCells == null || AdjacentCells.Length == 0) return;
-        // 接続を解除する
-        for (int i = 0; i < AdjacentCount; i++)
+        for (var i = 0; i < AdjacentCount; i++)
         {
-            if (AdjacentCells[i] == null) continue;
-            if (AdjacentCells[i] is not ConnectableCellBase connectableCell) continue;
-
-            // 向こうのセルのAdjacentCellsから接続元のセルを削除
-            connectableCell.AdjacentCells = connectableCell.AdjacentCells
-                .Select(cell => cell != this ? cell : null).ToArray();
-
-            connectableCell.OnLostConnectedCell?.Invoke(this);
-
+            var neighbor = AdjacentCells[i];
             AdjacentCells[i] = null;
+            if (neighbor is not ConnectableCellBase connectable || connectable.AdjacentCells == null)
+                continue;
+
+            var opposite = i ^ 1;
+            if (connectable.AdjacentCells[opposite] != this) continue;
+            connectable.AdjacentCells[opposite] = null;
+            connectable.OnLostConnectedCell?.Invoke(this);
         }
     }
 

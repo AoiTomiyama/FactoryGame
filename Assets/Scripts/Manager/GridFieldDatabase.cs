@@ -78,6 +78,9 @@ public sealed class GridFieldDatabase : SingletonMonoBehaviour<GridFieldDatabase
         return _gridCells[x, z];
     }
 
+    /// <summary>隣接セルを読む前に、グリッド端と未初期化を判定する。</summary>
+    public bool IsWithinBounds(int x, int z) => _gridCells != null && !IsOutOfRange(x, z);
+
     /// <summary>
     /// 指定した座標を中心に、マンハッタン距離 `range` 以内に存在する型 `T` のセルを検索する。
     /// 条件を満たすセルが見つかった場合は `cellBase` に代入し`true` を返し、それ以外は `false` を返す。
