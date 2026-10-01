@@ -2,7 +2,9 @@
 
 タグ: `設計レビュー` `資源搬送` `非同期処理` `プレイヤービルド` `セル接続`
 
-状態: タスク1は2026-09-30に修正・検証済み。タスク2～5は未着手。以下の順に着手する。
+状態: タスク1は2026-09-30に修正・検証済み。タスク2は改修中、タスク3～5は未着手。以下の順に着手する。
+
+拡張性に関する追加タスク A〜H は `docs/tasks/architecture-extension.md` を参照する。タスク2の中断処理は同文書の C・G の最初の適用箇所とし、同じ完了条件を重複して計上しない。
 
 ## 1. 資源の予約量と搬入量を一致させる
 
@@ -20,6 +22,7 @@
 - 問題: `ConveyorCell.StoreResourceAsync` は `finally` 内で搬入を確定する。`ResourceItemObjectPool.Transfer` は中断時に表示オブジェクトを返却するが、呼び出し側も ID を破棄して返却するため、二重返却の経路がある。現在の `ConveyorCell` と `ResourceItemObjectPool` には未コミット変更が含まれる。
 - 方針: 予約の所有者とキャンセル時の処理順を明示し、ID の解放を冪等にする。セル削除・接続解除・転送中断が重なっても処理結果を一意にする。
 - 完了条件: 搬送途中で送り元または受け取り先を削除しても、予約量と資源量が整合し、二重返却や破棄済みセルへの搬入が起きない。
+- 進捗: 予約取消 API、接続先切断の通知、演出の中断伝達、ID の一度だけの返却を作業ツリーで改修中。保管・加工・コンベア・交差セルの予約取消を Unity 6000.3.8f1 のバッチで確認した。実際の搬送中断とセル削除の再生検証は未完了。
 - 参照: `Assets/Scripts/Cells/ConveyorCell.cs`、`Assets/Scripts/Cells/ExportConveyorCell.cs`、`Assets/Scripts/Cells/CrossingCell.cs`、`Assets/Scripts/Manager/ResourceItemObjectPool.cs`。
 
 ## 3. 実行時コードから UnityEditor 依存を分離する
