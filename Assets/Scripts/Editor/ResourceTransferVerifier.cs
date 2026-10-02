@@ -56,7 +56,8 @@ public static class ResourceTransferVerifier
             await VerifySourceDeletion(pool);
             await VerifyCrossingSuccess(pool);
             await VerifyCrossingDeletion(pool);
-            Debug.Log("Resource transfer checks passed: success, destination deletion, source deletion, crossing success/deletion, reservation cancellation, ID release.");
+            await VerifyCrossingReconnect(pool);
+            Debug.Log("Resource transfer checks passed: success, destination deletion, source deletion, crossing success/deletion/reconnection, reservation cancellation, ID release.");
             EditorApplication.Exit(0);
         }
         catch (Exception exception)
@@ -167,6 +168,45 @@ public static class ResourceTransferVerifier
         await UniTask.Yield();
     }
 
+    private static async UniTask VerifyCrossingReconnect(ResourceItemObjectPool pool)
+    {
+        var setup = CreateCrossingTransfer(pool);
+        await UniTask.Delay(120);
+        var operation = GetCrossingOperation(setup.crossing);
+        var firstReservation = GetCrossingReservation(setup.crossing);
+        Require(setup.target.AllocatedAmount == 5 && firstReservation.CurrentResult ==
+            ResourceReservation.Result.Pending, "crossing reconnect starts with one live reservation");
+
+        setup.target.OnDisconnect();
+        await UniTask.Delay(120);
+        Require(setup.target.AllocatedAmount == 0 && setup.target.CurrentLoad == 0 &&
+                firstReservation.CurrentResult == ResourceReservation.Result.Cancelled &&
+                !firstReservation.TryCancel() && operation.Target == null &&
+                operation.CurrentStage == ResourceTransferOperation.Stage.WaitingForReservation &&
+                ContainsId(pool, setup.id),
+            "crossing disconnect cancels only the old reservation and retains the ID");
+
+        var replacement = CreateCell<StorageCell>("TransferCheck:Replacement", Vector3.right);
+        SetField(replacement, "capacity", 10);
+        var adjacent = (Dictionary<Vector3Int, IContainable>)GetField(setup.crossing, "_adjacentContainers");
+        adjacent[Vector3Int.right] = replacement;
+        await UniTask.Delay(120);
+        var secondReservation = GetCrossingReservation(setup.crossing);
+        Require(secondReservation.Id != firstReservation.Id &&
+                secondReservation.TargetCell == replacement && replacement.AllocatedAmount == 5,
+            "crossing reconnect creates a new reservation for the new target");
+        await UniTask.Delay(1000);
+        Require(replacement.CurrentLoad == 5 && replacement.AllocatedAmount == 0 &&
+                secondReservation.CurrentResult == ResourceReservation.Result.Committed &&
+                operation.CurrentStage == ResourceTransferOperation.Stage.Completed &&
+                !ContainsId(pool, setup.id),
+            "crossing reconnect commits once to the replacement");
+        UnityEngine.Object.Destroy(setup.crossing.gameObject);
+        UnityEngine.Object.Destroy(setup.target.gameObject);
+        UnityEngine.Object.Destroy(replacement.gameObject);
+        await UniTask.Yield();
+    }
+
     private static (CrossingCell crossing, StorageCell target, int id) CreateCrossingTransfer(
         ResourceItemObjectPool pool)
     {
@@ -177,6 +217,14 @@ public static class ResourceTransferVerifier
         var adjacent = (Dictionary<Vector3Int, IContainable>)
             GetField(crossing, "_adjacentContainers");
         adjacent[Vector3Int.right] = target;
+        // +X 側の搬送先を切断したとき、交差セルへ実際の通知が届く関係を作る。
+        var links = typeof(ConnectableCellBase).GetProperty("AdjacentCells", InstanceFields);
+        links?.SetValue(target, new CellBase[] { null, crossing, null, null });
+        links?.SetValue(crossing, new CellBase[] { target, null, null, null });
+        var onLostMethod = typeof(CrossingCell).GetMethod("OnConnectionLost", InstanceFields);
+        var onLost = Delegate.CreateDelegate(typeof(Action<CellBase>), crossing, onLostMethod);
+        typeof(ConnectableCellBase).GetField("OnLostConnectedCell", InstanceFields)
+            ?.SetValue(crossing, onLost);
 
         Require(crossing.AllocateStorage(Vector3Int.right, 5, ResourceType.Stone),
             "crossing reserves the downstream target");
@@ -237,11 +285,24 @@ public static class ResourceTransferVerifier
 
     private static ResourceTransferOperation GetCrossingOperation(CrossingCell crossing)
     {
+        var item = GetCrossingPending(crossing);
+        return (ResourceTransferOperation)item.GetType()
+            .GetField("Operation", BindingFlags.Instance | BindingFlags.Public).GetValue(item);
+    }
+
+    private static ResourceReservation GetCrossingReservation(CrossingCell crossing)
+    {
+        var item = GetCrossingPending(crossing);
+        return (ResourceReservation)item.GetType()
+            .GetField("Reservation", BindingFlags.Instance | BindingFlags.Public).GetValue(item);
+    }
+
+    private static object GetCrossingPending(CrossingCell crossing)
+    {
         var pending = (IDictionary)GetField(crossing, "_pending");
         var item = pending[Vector3Int.right];
         if (item == null) throw new InvalidOperationException("Missing crossing transfer");
-        return (ResourceTransferOperation)item.GetType()
-            .GetField("Operation", BindingFlags.Instance | BindingFlags.Public).GetValue(item);
+        return item;
     }
 
     private static object GetField(object target, string name)

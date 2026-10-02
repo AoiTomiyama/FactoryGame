@@ -16,11 +16,69 @@ public static class ResourceReservationVerifier
     public static void Run()
     {
         VerifyTransferOperation();
+        VerifyReservationTickets();
         VerifyStorage();
         VerifyCrafter();
         VerifyCrossing();
         VerifyConveyor();
-        Debug.Log("Resource reservation checks passed: transfer operation, storage, crafter, crossing, conveyor.");
+        Debug.Log("Resource reservation checks passed: transfer operation, reservation tickets, storage, crafter, crossing, conveyor.");
+    }
+
+    private static void VerifyReservationTickets()
+    {
+        var storage = CreateCell<StorageCell>();
+        var crafter = CreateCell<CrafterCell>();
+        var conveyor = CreateCell<ConveyorCell>();
+        var crossing = CreateCell<CrossingCell>();
+        try
+        {
+            SetPrivateField(storage, "capacity", 5);
+            ResourceReservation second = null;
+            Require(ResourceReservation.TryCreate(storage, Vector3Int.right, 2, ResourceType.Stone,
+                    out var first) &&
+                    ResourceReservation.TryCreate(storage, Vector3Int.right, 2, ResourceType.Stone,
+                    out second) && first.Id != second.Id,
+                "Ticket: equal reservations have different IDs");
+            Require(first.TryCancel() && !first.TryCancel() && !first.TryCommit() &&
+                    storage.AllocatedAmount == 2,
+                "Ticket: cancellation releases only its own amount once");
+            Require(second.TryCommit() && !second.TryCommit() && !second.TryCancel() &&
+                    storage.AllocatedAmount == 0 && storage.CurrentLoad == 2,
+                "Ticket: commit moves the reserved amount once");
+
+            SetPrivateField(crafter, "ingredientCapacity", 5);
+            var inputs = GetPrivateField<Dictionary<Vector3Int, CrafterCell.ResourceInputData>>(
+                crafter, "_resourceInputs");
+            inputs[Vector3Int.right] = new CrafterCell.ResourceInputData();
+            Require(ResourceReservation.TryCreate(crafter, Vector3Int.right, 3, ResourceType.Wood,
+                    out var ingredient) && ingredient.TryCancel() && !ingredient.TryCancel() &&
+                    inputs[Vector3Int.right].Allocated == 0 &&
+                    inputs[Vector3Int.right].Type == ResourceType.None,
+                "Ticket: crafter cancellation restores the input state");
+
+            Require(ResourceReservation.TryCreate(conveyor, Vector3Int.right, 2, ResourceType.Stone,
+                    out var conveyorInput) && conveyorInput.TryCancel() &&
+                    !conveyorInput.TryCancel() &&
+                    ResourceReservation.TryCreate(conveyor, Vector3Int.right, 1, ResourceType.Wood,
+                        out var replacement) && replacement.TryCancel(),
+                "Ticket: conveyor input can be canceled and reserved again");
+
+            var adjacent = GetPrivateField<Dictionary<Vector3Int, IContainable>>(
+                crossing, "_adjacentContainers");
+            adjacent[Vector3Int.right] = storage;
+            Require(ResourceReservation.TryCreate(crossing, Vector3Int.right, 2, ResourceType.Stone,
+                    out var delegated) && storage.AllocatedAmount == 2 &&
+                    delegated.TryCancel() && !delegated.TryCancel() &&
+                    storage.AllocatedAmount == 0 && storage.CurrentLoad == 2,
+                "Ticket: crossing cancels its downstream reservation once");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(crossing.gameObject);
+            UnityEngine.Object.DestroyImmediate(conveyor.gameObject);
+            UnityEngine.Object.DestroyImmediate(crafter.gameObject);
+            UnityEngine.Object.DestroyImmediate(storage.gameObject);
+        }
     }
 
     private static void VerifyTransferOperation()

@@ -157,7 +157,7 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
 
         using var transferCts = CancellationTokenSource.CreateLinkedTokenSource(token);
         _activeTransferCts = transferCts;
-        var reserved = false;
+        ResourceReservation reservation = null;
         var startPos = transform.position + Vector3.up * 1.1f;
         try
         {
@@ -165,15 +165,18 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
             await UniTask.WaitUntil(() =>
             {
                 if (targetCell == null || _forwardCellBase != targetCell) return false;
-                if (!target.AllocateStorage(dir, amount, type)) return false;
-                reserved = true;
-                transfer.TryMarkReserved();
+                if (!ResourceReservation.TryCreate(target, dir, amount, type, out reservation)) return false;
+                if (!transfer.TryMarkReserved())
+                {
+                    reservation.TryCancel();
+                    return false;
+                }
                 return true;
             }, cancellationToken: transferCts.Token);
 
             transferCts.Token.ThrowIfCancellationRequested();
             _status = TransferStatus.Storing;
-            transfer.TryMarkAnimating();
+            if (!transfer.TryMarkAnimating()) throw new System.OperationCanceledException();
             await ResourceItemObjectPool.Instance.Transfer(transferCts.Token,
                 startPos, transform.position + dir + Vector3.up * 1.1f, id);
             transferCts.Token.ThrowIfCancellationRequested();
@@ -182,7 +185,7 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
 
             // 受け取り先へIDを渡してから予約を確定する。交差セルはIDを演出に再利用する。
             if (target is IResourceReusable reusable) reusable.Reuse(dir, id);
-            target.StoreResource(dir, amount);
+            if (!reservation.TryCommit()) throw new System.OperationCanceledException();
             if (!transfer.TryComplete()) return;
             if (target is not IResourceReusable) ResourceItemObjectPool.Instance.DisposeId(id);
             ResourceId = 0;
@@ -191,8 +194,7 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
         }
         finally
         {
-            if (reserved && transfer.CurrentStage != ResourceTransferOperation.Stage.Completed && targetCell != null)
-                target.CancelStorage(dir, amount, type);
+            reservation?.TryCancel();
             if (transfer.CurrentStage != ResourceTransferOperation.Stage.Completed && !_isDisconnected)
                 ResourceItemObjectPool.Instance.SetPosition(id, startPos);
             if (transfer.CurrentStage != ResourceTransferOperation.Stage.Completed) transfer.TryCancel();
