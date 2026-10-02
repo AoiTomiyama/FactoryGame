@@ -6,4 +6,6 @@
 
 進行段階は `WaitingForReservation → Reserved → Animating → Completed`。予約待ち、予約済み、演出中のどこからでも `Cancelled` に進める。`Completed` と `Cancelled` は終端であり、再度の完了・取消は拒否する。交差セルは搬送先を失うと同じ ID と数量を保持したまま予約待ちに戻り、次の接続先を設定できる。コンベアは切断された搬送試行を取り消し、保持した ID で次の試行を作る。
 
-予約・確定・取消の呼び出し順と表示オブジェクトの返却は現時点ではセルが担う。検証は Unity 6000.3.8f1 の `ResourceReservationVerifier.Run` と Play Mode の `ResourceTransferVerifier.Run` で行い、状態と ID の対応、完了・取消の一度だけの遷移、通常搬送・切断・削除を確認した。
+`ResourceTransferCoordinator` は一回の搬送試行について、予約待ち、資源データの照合、表示移動、搬入確定、失敗時の予約取消と状態終了をこの順で実行する。搬送先が表示移動中に失われた場合、交差セルは旧予約を取り消して同じ資源 ID のまま予約待ちへ戻す。コンベアはその試行を取り消し、保持した ID で新しい試行を作る。セルは接続先の提供、切断通知、資源の受け入れ、セル削除時の保持 ID の返却を担う。表示移動の実装と ID の貸出・返却の分離はタスク G で扱う。
+
+検証は Unity 6000.3.8f1 の `ResourceReservationVerifier.Run` と Play Mode の `ResourceTransferVerifier.Run` で行い、状態と ID の対応、完了・取消の一度だけの遷移、通常搬送・切断・削除を確認する。

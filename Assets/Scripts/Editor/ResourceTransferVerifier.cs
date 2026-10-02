@@ -56,8 +56,9 @@ public static class ResourceTransferVerifier
             await VerifySourceDeletion(pool);
             await VerifyCrossingSuccess(pool);
             await VerifyCrossingDeletion(pool);
+            await VerifyCrossingCancellation(pool);
             await VerifyCrossingReconnect(pool);
-            Debug.Log("Resource transfer checks passed: success, destination deletion, source deletion, crossing success/deletion/reconnection, reservation cancellation, ID release.");
+            Debug.Log("Resource transfer checks passed: success, destination deletion, source deletion, crossing success/deletion/cancellation/reconnection, reservation cancellation, ID release.");
             EditorApplication.Exit(0);
         }
         catch (Exception exception)
@@ -164,6 +165,22 @@ public static class ResourceTransferVerifier
         Require(operation.CurrentStage == ResourceTransferOperation.Stage.Cancelled &&
                 !operation.TryCancel() && !operation.TryComplete(),
             "crossing deletion cancels once");
+        UnityEngine.Object.Destroy(setup.target.gameObject);
+        await UniTask.Yield();
+    }
+
+    private static async UniTask VerifyCrossingCancellation(ResourceItemObjectPool pool)
+    {
+        var setup = CreateCrossingTransfer(pool);
+        await UniTask.Delay(120);
+        var operation = GetCrossingOperation(setup.crossing);
+        setup.crossing.CancelStorage(Vector3Int.right, 5, ResourceType.Stone);
+        await UniTask.Delay(120);
+        Require(setup.target.AllocatedAmount == 0 && setup.target.CurrentLoad == 0 &&
+                operation.CurrentStage == ResourceTransferOperation.Stage.Cancelled &&
+                !ContainsId(pool, setup.id),
+            "upstream cancellation releases the crossing reservation and display ID once");
+        UnityEngine.Object.Destroy(setup.crossing.gameObject);
         UnityEngine.Object.Destroy(setup.target.gameObject);
         await UniTask.Yield();
     }
@@ -287,14 +304,14 @@ public static class ResourceTransferVerifier
     {
         var item = GetCrossingPending(crossing);
         return (ResourceTransferOperation)item.GetType()
-            .GetField("Operation", BindingFlags.Instance | BindingFlags.Public).GetValue(item);
+            .GetProperty("Operation", BindingFlags.Instance | BindingFlags.Public).GetValue(item);
     }
 
     private static ResourceReservation GetCrossingReservation(CrossingCell crossing)
     {
         var item = GetCrossingPending(crossing);
         return (ResourceReservation)item.GetType()
-            .GetField("Reservation", BindingFlags.Instance | BindingFlags.Public).GetValue(item);
+            .GetProperty("Reservation", BindingFlags.Instance | BindingFlags.Public).GetValue(item);
     }
 
     private static object GetCrossingPending(CrossingCell crossing)

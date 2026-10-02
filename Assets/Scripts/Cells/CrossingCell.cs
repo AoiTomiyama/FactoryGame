@@ -13,8 +13,9 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
 
     private sealed class PendingTransfer
     {
-        public ResourceTransferOperation Operation;
-        public ResourceReservation Reservation;
+        public ResourceTransferCoordinator Coordinator;
+        public ResourceTransferOperation Operation => Coordinator.Operation;
+        public ResourceReservation Reservation => Coordinator.Reservation;
         public bool Started;
         public CancellationTokenSource ActiveCts;
     }
@@ -43,8 +44,9 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
             var transfer = pair.Value;
             var operation = transfer.Operation;
             transfer.ActiveCts?.Cancel();
-            if (!operation.TryCancel()) continue;
-            transfer.Reservation?.TryCancel();
+            if (operation.CurrentStage == ResourceTransferOperation.Stage.Completed) continue;
+            transfer.Coordinator.Cancel();
+            // 取消通知が先に非同期処理へ届いても、ID の所有者である交差セルが返却する。
             if (operation.ResourceId != 0) ResourceItemObjectPool.Instance.DisposeId(operation.ResourceId);
         }
         _cts?.Dispose();
@@ -70,9 +72,7 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
             _adjacentContainers.Remove(dir);
             if (!_pending.TryGetValue(dir, out var transfer) || transfer.Operation.Target != cell) continue;
             // 受け取り先を失った予約だけを取り消し、資源IDは交差セルに保持する。
-            transfer.Reservation?.TryCancel();
-            transfer.Reservation = null;
-            transfer.Operation.TryWaitForNewTarget();
+            transfer.Coordinator.WaitForNewTarget();
             transfer.ActiveCts?.Cancel();
         }
     }
@@ -87,7 +87,10 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
 
         var operation = new ResourceTransferOperation(this, targetCell, 0, resourceType, amount);
         operation.TryMarkReserved();
-        _pending[dir] = new PendingTransfer { Operation = operation, Reservation = reservation };
+        _pending[dir] = new PendingTransfer
+        {
+            Coordinator = new ResourceTransferCoordinator(operation, reservation)
+        };
         return true;
     }
 
@@ -96,10 +99,10 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
         if (!_pending.TryGetValue(dir, out var transfer)) return;
         var operation = transfer.Operation;
         if (operation.Amount != amount || operation.Type != resourceType) return;
-        if (!operation.TryCancel()) return;
+        if (operation.IsTerminal) return;
         _pending.Remove(dir);
         transfer.ActiveCts?.Cancel();
-        transfer.Reservation?.TryCancel();
+        transfer.Coordinator.Cancel();
         if (operation.ResourceId != 0) ResourceItemObjectPool.Instance.DisposeId(operation.ResourceId);
     }
 
@@ -122,50 +125,20 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
                 transfer.ActiveCts = activeCts;
                 try
                 {
-                    if (operation.CurrentStage == ResourceTransferOperation.Stage.WaitingForReservation)
-                    {
-                        await UniTask.WaitUntil(() =>
-                        {
-                            if (!_adjacentContainers.TryGetValue(dir, out var adjacent) ||
-                                adjacent is not CellBase cell || cell == null) return false;
-                            if (!ResourceReservation.TryCreate(adjacent, dir, operation.Amount,
-                                    operation.Type, out var reservation))
-                                return false;
-                            if (!operation.TrySetTarget(cell) || !operation.TryMarkReserved())
-                            {
-                                reservation.TryCancel();
-                                return false;
-                            }
-                            transfer.Reservation = reservation;
-                            return true;
-                        }, cancellationToken: activeCts.Token);
-                    }
-
-                    activeCts.Token.ThrowIfCancellationRequested();
-                    var info = ResourceItemObjectPool.Instance.TakeResourceDataById(operation.ResourceId);
-                    if (info.amount != operation.Amount || info.type != operation.Type)
-                        throw new InvalidOperationException("交差セルの予約量と資源データが一致しません。");
-
-                    if (!operation.TryMarkAnimating()) throw new OperationCanceledException();
                     var startPos = transform.position + Vector3.up * 1.1f;
-                    await ResourceItemObjectPool.Instance.Transfer(activeCts.Token, startPos,
-                        transform.position + dir + Vector3.up * 1.1f, operation.ResourceId);
-                    activeCts.Token.ThrowIfCancellationRequested();
-                    if (operation.Target == null) continue;
-
-                    var target = (IContainable)operation.Target;
-                    if (target is IResourceReusable reusable)
-                        reusable.Reuse(dir, operation.ResourceId);
-                    if (transfer.Reservation == null || !transfer.Reservation.TryCommit())
-                        throw new OperationCanceledException();
-                    if (!operation.TryComplete()) return;
+                    await transfer.Coordinator.RunAsync(dir, startPos,
+                        transform.position + dir + Vector3.up * 1.1f,
+                        () => _adjacentContainers.TryGetValue(dir, out var adjacent) ? adjacent : null,
+                        cell => _adjacentContainers.TryGetValue(dir, out var adjacent) &&
+                                ReferenceEquals(adjacent, cell), activeCts.Token);
                     _pending.Remove(dir);
-                    if (target is not IResourceReusable)
-                        ResourceItemObjectPool.Instance.DisposeId(operation.ResourceId);
                     return;
                 }
                 catch (OperationCanceledException) when (!token.IsCancellationRequested)
                 {
+                    if (operation.CurrentStage == ResourceTransferOperation.Stage.Cancelled) return;
+                    if (operation.CurrentStage != ResourceTransferOperation.Stage.WaitingForReservation)
+                        throw;
                     // 接続先だけが失われた。次の接続までIDを保持する。
                     ResourceItemObjectPool.Instance.SetPosition(operation.ResourceId,
                         transform.position + Vector3.up * 1.1f);
@@ -184,9 +157,9 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
         {
             if (_pending.TryGetValue(dir, out var current) && current == transfer)
             {
-                if (operation.TryCancel())
+                if (operation.CurrentStage != ResourceTransferOperation.Stage.Completed)
                 {
-                    transfer.Reservation?.TryCancel();
+                    transfer.Coordinator.Cancel();
                     if (operation.ResourceId != 0)
                         ResourceItemObjectPool.Instance.DisposeId(operation.ResourceId);
                 }

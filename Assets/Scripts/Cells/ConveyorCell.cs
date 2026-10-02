@@ -153,51 +153,28 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
 
         // 一件の資源・ID・接続先を固定し、再接続時は新しい搬送記録を作る。
         var transfer = new ResourceTransferOperation(this, targetCell, id, type, amount);
+        var coordinator = new ResourceTransferCoordinator(transfer);
         _activeTransfer = transfer;
 
         using var transferCts = CancellationTokenSource.CreateLinkedTokenSource(token);
         _activeTransferCts = transferCts;
-        ResourceReservation reservation = null;
         var startPos = transform.position + Vector3.up * 1.1f;
         try
         {
             _status = TransferStatus.WaitingForStorage;
-            await UniTask.WaitUntil(() =>
-            {
-                if (targetCell == null || _forwardCellBase != targetCell) return false;
-                if (!ResourceReservation.TryCreate(target, dir, amount, type, out reservation)) return false;
-                if (!transfer.TryMarkReserved())
-                {
-                    reservation.TryCancel();
-                    return false;
-                }
-                return true;
-            }, cancellationToken: transferCts.Token);
-
-            transferCts.Token.ThrowIfCancellationRequested();
-            _status = TransferStatus.Storing;
-            if (!transfer.TryMarkAnimating()) throw new System.OperationCanceledException();
-            await ResourceItemObjectPool.Instance.Transfer(transferCts.Token,
-                startPos, transform.position + dir + Vector3.up * 1.1f, id);
-            transferCts.Token.ThrowIfCancellationRequested();
-            if (targetCell == null || _forwardCellBase != targetCell)
-                throw new System.OperationCanceledException();
-
-            // 受け取り先へIDを渡してから予約を確定する。交差セルはIDを演出に再利用する。
-            if (target is IResourceReusable reusable) reusable.Reuse(dir, id);
-            if (!reservation.TryCommit()) throw new System.OperationCanceledException();
-            if (!transfer.TryComplete()) return;
-            if (target is not IResourceReusable) ResourceItemObjectPool.Instance.DisposeId(id);
+            await coordinator.RunAsync(dir, startPos, transform.position + dir + Vector3.up * 1.1f,
+                () => targetCell != null && _forwardCellBase == targetCell ? target : null,
+                cell => _forwardCellBase == cell, transferCts.Token,
+                () => _status = TransferStatus.Storing);
             ResourceId = 0;
             HasResource = false;
             _readyToSend = false;
         }
         finally
         {
-            reservation?.TryCancel();
+            coordinator.Cancel();
             if (transfer.CurrentStage != ResourceTransferOperation.Stage.Completed && !_isDisconnected)
                 ResourceItemObjectPool.Instance.SetPosition(id, startPos);
-            if (transfer.CurrentStage != ResourceTransferOperation.Stage.Completed) transfer.TryCancel();
             if (_activeTransferCts == transferCts) _activeTransferCts = null;
             if (_activeTransfer == transfer) _activeTransfer = null;
             _status = TransferStatus.Idle;
