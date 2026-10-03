@@ -153,6 +153,7 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
 
         // 一件の資源・ID・接続先を固定し、再接続時は新しい搬送記録を作る。
         var transfer = new ResourceTransferOperation(this, targetCell, id, type, amount);
+        var pool = ResourceItemObjectPool.Instance;
         var coordinator = new ResourceTransferCoordinator(transfer);
         _activeTransfer = transfer;
 
@@ -162,10 +163,15 @@ public class ConveyorCell : ConnectableCellBase, IContainable, IResourceReusable
         try
         {
             _status = TransferStatus.WaitingForStorage;
-            await coordinator.RunAsync(dir, startPos, transform.position + dir + Vector3.up * 1.1f,
+            var result = await coordinator.RunAsync(dir, startPos, transform.position + dir + Vector3.up * 1.1f,
                 () => targetCell != null && _forwardCellBase == targetCell ? target : null,
-                cell => _forwardCellBase == cell, transferCts.Token,
+                cell => _forwardCellBase == cell, pool.Resources, pool, transferCts.Token,
                 () => _status = TransferStatus.Storing);
+            if (result != ResourceAnimationResult.Completed)
+            {
+                await UniTask.Delay(100, cancellationToken: token);
+                return;
+            }
             ResourceId = 0;
             HasResource = false;
             _readyToSend = false;

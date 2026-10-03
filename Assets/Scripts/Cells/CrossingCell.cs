@@ -126,11 +126,17 @@ public class CrossingCell : ConnectableCellBase, IContainable, IResourceReusable
                 try
                 {
                     var startPos = transform.position + Vector3.up * 1.1f;
-                    await transfer.Coordinator.RunAsync(dir, startPos,
+                    var result = await transfer.Coordinator.RunAsync(dir, startPos,
                         transform.position + dir + Vector3.up * 1.1f,
                         () => _adjacentContainers.TryGetValue(dir, out var adjacent) ? adjacent : null,
                         cell => _adjacentContainers.TryGetValue(dir, out var adjacent) &&
-                                ReferenceEquals(adjacent, cell), activeCts.Token);
+                                ReferenceEquals(adjacent, cell), ResourceItemObjectPool.Instance.Resources,
+                        ResourceItemObjectPool.Instance, activeCts.Token);
+                    if (result != ResourceAnimationResult.Completed)
+                    {
+                        await UniTask.Delay(100, cancellationToken: token);
+                        continue;
+                    }
                     _pending.Remove(dir);
                     return;
                 }

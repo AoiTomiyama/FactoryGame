@@ -44,3 +44,7 @@
 ## 追加タスクDの進行状況
 
 `ResourceTransferCoordinator` がコンベアと交差セルの一回の搬送試行を進める。予約取得後に資源データと接続先を確認し、表示移動が終わってから搬入を確定する。失敗時の予約取消、搬送先変更時の旧予約取消も同じ型に集めた。セルは接続先の選択、再接続待ち、削除時に自身が保持する資源 ID の返却を行う。詳細は `docs/spec/resource-transfer-state.md` を参照する。
+
+## 追加タスクGの進行状況
+
+搬送データは Unity 非依存の `ResourceTransitStore` が保持し、表示の貸出と返却は `ResourceItemObjectPool`、移動は `ResourceItemAnimation` が担当する。進行管理は `IResourceTransferPresentation` から演出結果を受け取り、正常完了後だけ予約を確定する。表示の返却や欠落は資源データを変更せず、資源所有者が搬送終了時にデータの終了を決める。復元・再試行を含む現行契約は `docs/spec/resource-presentation.md` を参照する。

@@ -85,7 +85,14 @@ public class ExportConveyorCell : ConveyorCell
                 var startPos = _backwardCell.GetPosition() + padding;
                 var endPos = transform.position + padding;
 
-                await ResourceItemObjectPool.Instance.Transfer(token, startPos, endPos, ResourceId);
+                while (true)
+                {
+                    var result = await ResourceItemObjectPool.Instance.Transfer(token, startPos, endPos, ResourceId);
+                    token.ThrowIfCancellationRequested();
+                    if (result == ResourceAnimationResult.Completed) break;
+                    // 表示を失っても搬出済みの資源は保持し、演出の正常完了まで送り出さない。
+                    await UniTask.Delay(100, cancellationToken: token);
+                }
                 _exportStatus = ExportStatus.Idle;
                 // 後方からの演出が終わるまで前方の搬送を開始しない。
                 MarkResourceReady();

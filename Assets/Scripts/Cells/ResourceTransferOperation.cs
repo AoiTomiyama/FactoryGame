@@ -35,7 +35,7 @@ public sealed class ResourceTransferOperation
     /// <summary>交差セルでは予約後に上流から ID が渡される。</summary>
     public bool TryAttachId(int resourceId)
     {
-        // Unity の GetInstanceID は負数も返す。未設定を示す 0 だけを拒否する。
+        // ID の割当方法に依存せず、未設定を示す 0 だけを拒否する。
         if (IsTerminal || ResourceId != 0 || resourceId == 0) return false;
         ResourceId = resourceId;
         return true;

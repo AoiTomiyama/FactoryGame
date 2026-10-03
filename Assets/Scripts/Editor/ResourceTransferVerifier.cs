@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using DG.Tweening;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -51,6 +52,11 @@ public static class ResourceTransferVerifier
             SetField(pool, "transferSecond", 0.8f);
             await UniTask.Yield(); // プールの Start を完了させる。
 
+            await VerifyPresentationLifetime(pool);
+            await VerifyMissingVisualRecovery(pool);
+            await VerifyCrossingMissingVisualRecovery(pool);
+            await VerifyExportPresentationRecovery(pool);
+            await VerifyReusableHandoff(pool);
             await VerifySuccess(pool);
             await VerifyDestinationDisconnect(pool);
             await VerifySourceDeletion(pool);
@@ -58,7 +64,7 @@ public static class ResourceTransferVerifier
             await VerifyCrossingDeletion(pool);
             await VerifyCrossingCancellation(pool);
             await VerifyCrossingReconnect(pool);
-            Debug.Log("Resource transfer checks passed: success, destination deletion, source deletion, crossing success/deletion/cancellation/reconnection, reservation cancellation, ID release.");
+            Debug.Log("Resource transfer checks passed: animation results, independent data/visual lifetime, visual reuse/recovery, success, destination deletion, source deletion, crossing success/deletion/cancellation/reconnection, reservation cancellation, ID release.");
             EditorApplication.Exit(0);
         }
         catch (Exception exception)
@@ -66,6 +72,147 @@ public static class ResourceTransferVerifier
             Debug.LogException(exception);
             EditorApplication.Exit(1);
         }
+    }
+
+    private static async UniTask VerifyPresentationLifetime(ResourceItemObjectPool pool)
+    {
+        var id = pool.CreateIdFromResourceData(ResourceType.Stone, 5);
+        var visual = GetVisual(pool, id);
+        using var cts = new CancellationTokenSource();
+        var move = pool.Transfer(cts.Token, Vector3.zero, Vector3.right, id);
+        await UniTask.Delay(120);
+        cts.Cancel();
+        Require(await move == ResourceAnimationResult.Cancelled &&
+                pool.Resources.TryGet(id, out var data) && data.Amount == 5,
+            "animation cancellation does not change the transit data");
+
+        move = pool.Transfer(CancellationToken.None, Vector3.zero, Vector3.right, id);
+        await UniTask.Delay(120);
+        DOTween.Kill(visual.transform);
+        Require(await move == ResourceAnimationResult.Cancelled && ContainsId(pool, id),
+            "an externally killed tween is not a successful delivery");
+
+        move = pool.Transfer(CancellationToken.None, Vector3.zero, Vector3.right, id);
+        await UniTask.Delay(120);
+        Require(pool.ReleaseVisual(id) && !pool.ReleaseVisual(id), "visual returns exactly once");
+        var nextId = pool.CreateIdFromResourceData(ResourceType.Stone, 3);
+        var reused = GetVisual(pool, nextId);
+        Require(reused == visual && nextId != id && ContainsId(pool, id),
+            "the same pooled visual receives a new data ID while the old data remains");
+        var parked = new Vector3(5, 0, 0);
+        pool.SetPosition(nextId, parked);
+        Require(await move == ResourceAnimationResult.Cancelled,
+            "returning an animated visual reports cancellation");
+        await UniTask.Delay(900);
+        Require(reused.transform.position == parked,
+            "the old tween cannot move a reused visual");
+        Require(await pool.Transfer(CancellationToken.None, Vector3.zero, Vector3.right, id) ==
+                ResourceAnimationResult.MissingVisual && ContainsId(pool, id),
+            "a missing visual reports failure without removing data");
+        pool.DisposeId(id);
+        pool.DisposeId(nextId);
+        pool.DisposeId(nextId);
+        Require(!ContainsId(pool, id) && !ContainsId(pool, nextId),
+            "the resource owner ends each transit record once");
+    }
+
+    private static async UniTask VerifyMissingVisualRecovery(ResourceItemObjectPool pool)
+    {
+        var setup = CreateTransfer(pool);
+        pool.ReleaseVisual(setup.id);
+        await UniTask.Delay(1100);
+        Require(setup.target.CurrentLoad == 0 && setup.target.AllocatedAmount == 0 &&
+                ContainsId(pool, setup.id),
+            "a conveyor retains data and does not commit without a visual");
+        Require(pool.TryRestoreVisual(setup.id), "a retained transit record can restore its visual");
+        await UniTask.Delay(1100);
+        Require(setup.target.CurrentLoad == 5 && setup.target.AllocatedAmount == 0 &&
+                !ContainsId(pool, setup.id), "restored presentation permits one delivery");
+        UnityEngine.Object.Destroy(setup.source.gameObject);
+        UnityEngine.Object.Destroy(setup.target.gameObject);
+        await UniTask.Yield();
+    }
+
+    private static async UniTask VerifyCrossingMissingVisualRecovery(ResourceItemObjectPool pool)
+    {
+        var setup = CreateCrossingTransfer(pool);
+        pool.ReleaseVisual(setup.id);
+        await UniTask.Delay(1100);
+        Require(setup.target.CurrentLoad == 0 && setup.target.AllocatedAmount == 0 &&
+                ContainsId(pool, setup.id), "a crossing retains data when its visual is missing");
+        Require(pool.TryRestoreVisual(setup.id), "the crossing visual can be restored");
+        await UniTask.Delay(1100);
+        Require(setup.target.CurrentLoad == 5 && !ContainsId(pool, setup.id),
+            "the crossing commits once after visual recovery");
+        UnityEngine.Object.Destroy(setup.crossing.gameObject);
+        UnityEngine.Object.Destroy(setup.target.gameObject);
+        await UniTask.Yield();
+    }
+
+    private static async UniTask VerifyExportPresentationRecovery(ResourceItemObjectPool pool)
+    {
+        var storage = CreateCell<StorageCell>("TransferCheck:ExportStorage", Vector3.back);
+        SetField(storage, "capacity", 10);
+        Require(storage.AllocateStorage(Vector3Int.forward, 5, ResourceType.Stone),
+            "export fixture reserves its source data");
+        storage.StoreResource(Vector3Int.forward, 5);
+        var exporter = CreateCell<ExportConveyorCell>("TransferCheck:Exporter", Vector3.zero);
+        SetField(exporter, "_backwardCell", storage);
+        SetField(exporter, "_backwardCellBase", storage);
+        using var cts = new CancellationTokenSource();
+        SetField(exporter, "_cts", cts);
+        typeof(ConveyorCell).GetField("transferAmount", InstanceFields).SetValue(exporter, 3);
+        var send = (UniTask)typeof(ConveyorCell).GetMethod("StoreResourceAsync", InstanceFields)
+            .Invoke(exporter, new object[] { cts.Token });
+        send.Forget();
+        var take = (UniTask)typeof(ExportConveyorCell).GetMethod("TakeResourceAsync", InstanceFields)
+            .Invoke(exporter, new object[] { cts.Token });
+        take.Forget();
+        await UniTask.Delay(120);
+        var id = (int)typeof(ConveyorCell).GetProperty("ResourceId", InstanceFields).GetValue(exporter);
+        Require(id != 0 && storage.CurrentLoad == 2, "export removes exactly one batch from its source");
+        pool.ReleaseVisual(id);
+        await UniTask.Delay(1100);
+        var readyField = typeof(ConveyorCell).GetField("_readyToSend", InstanceFields);
+        Require(!(bool)readyField.GetValue(exporter) && storage.CurrentLoad == 2 &&
+                pool.Resources.TryGet(id, out var data) && data.Amount == 3,
+            "failed export presentation neither repeats export nor sends forward");
+        Require(pool.TryRestoreVisual(id), "export visual can be restored");
+        await UniTask.Delay(1100);
+        Require((bool)readyField.GetValue(exporter) && storage.CurrentLoad == 2,
+            "export becomes ready only after a completed presentation");
+        UnityEngine.Object.Destroy(exporter.gameObject);
+        await UniTask.Delay(120);
+        Require(!ContainsId(pool, id), "exporter deletion ends the held transit data");
+        UnityEngine.Object.Destroy(storage.gameObject);
+        await UniTask.Yield();
+    }
+
+    private static async UniTask VerifyReusableHandoff(ResourceItemObjectPool pool)
+    {
+        var setup = CreateTransfer(pool, start: false);
+        setup.target.transform.position = Vector3.forward * 2;
+        var crossing = CreateCell<CrossingCell>("TransferCheck:Handoff", Vector3.forward);
+        SetField(crossing, "_cts", new CancellationTokenSource());
+        var adjacent = (Dictionary<Vector3Int, IContainable>)GetField(crossing, "_adjacentContainers");
+        adjacent[Vector3Int.forward] = setup.target;
+        SetField(setup.source, "_forwardCell", crossing);
+        SetField(setup.source, "_forwardCellBase", crossing);
+        var cts = (CancellationTokenSource)GetField(setup.source, "_cts");
+        var run = (UniTask)typeof(ConveyorCell).GetMethod("StoreResourceAsync", InstanceFields)
+            .Invoke(setup.source, new object[] { cts.Token });
+        run.Forget();
+        await UniTask.Delay(1100);
+        Require(ContainsId(pool, setup.id) && setup.target.CurrentLoad == 0,
+            "a reusable receiver keeps the same transit record during its next animation");
+        await UniTask.Delay(1000);
+        Require(setup.target.CurrentLoad == 5 && setup.target.AllocatedAmount == 0 &&
+                !ContainsId(pool, setup.id) && !pool.ReleaseVisual(setup.id),
+            "a conveyor-crossing chain delivers once and returns its shared visual at the end");
+        UnityEngine.Object.Destroy(setup.source.gameObject);
+        UnityEngine.Object.Destroy(crossing.gameObject);
+        UnityEngine.Object.Destroy(setup.target.gameObject);
+        await UniTask.Yield();
     }
 
     private static async UniTask VerifySuccess(ResourceItemObjectPool pool)
@@ -251,7 +398,8 @@ public static class ResourceTransferVerifier
         return (crossing, target, id);
     }
 
-    private static (ConveyorCell source, StorageCell target, int id) CreateTransfer(ResourceItemObjectPool pool)
+    private static (ConveyorCell source, StorageCell target, int id) CreateTransfer(ResourceItemObjectPool pool,
+        bool start = true)
     {
         var target = CreateCell<StorageCell>("TransferCheck:Storage", new Vector3(0, 0, 1));
         SetField(target, "capacity", 10);
@@ -275,10 +423,13 @@ public static class ResourceTransferVerifier
         typeof(ConveyorCell).GetProperty("ResourceId", InstanceFields)?.SetValue(source, id);
         typeof(ConveyorCell).GetProperty("HasResource", InstanceFields)?.SetValue(source, true);
 
-        var cts = (CancellationTokenSource)GetField(source, "_cts");
-        var run = (UniTask)typeof(ConveyorCell).GetMethod("StoreResourceAsync", InstanceFields)
-            .Invoke(source, new object[] { cts.Token });
-        run.Forget();
+        if (start)
+        {
+            var cts = (CancellationTokenSource)GetField(source, "_cts");
+            var run = (UniTask)typeof(ConveyorCell).GetMethod("StoreResourceAsync", InstanceFields)
+                .Invoke(source, new object[] { cts.Token });
+            run.Forget();
+        }
         return (source, target, id);
     }
 
@@ -291,13 +442,17 @@ public static class ResourceTransferVerifier
     }
 
     private static bool ContainsId(ResourceItemObjectPool pool, int id)
+        => pool.Resources.TryGet(id, out _);
+
+    private static GameObject GetVisual(ResourceItemObjectPool pool, int id)
     {
         // 作業ツリーで進行中の ResourceSO 名称変更と、このタスクの検証を独立させる。
         var field = typeof(ResourceItemObjectPool).GetField("_rentedObjects", InstanceFields) ??
                     typeof(ResourceItemObjectPool).GetField("_rentedObjectDict", InstanceFields);
         if (field == null) throw new InvalidOperationException("Missing rented object dictionary");
         var dictionary = (IDictionary)field.GetValue(pool);
-        return dictionary.Contains(id);
+        var lease = dictionary[id];
+        return (GameObject)lease.GetType().GetField("Prefab").GetValue(lease);
     }
 
     private static ResourceTransferOperation GetCrossingOperation(CrossingCell crossing)

@@ -36,8 +36,9 @@ public sealed class ResourceTransferCoordinator
         Reservation?.TryCancel();
     }
 
-    public async UniTask RunAsync(Vector3Int direction, Vector3 from, Vector3 to,
+    public async UniTask<ResourceAnimationResult> RunAsync(Vector3Int direction, Vector3 from, Vector3 to,
         Func<IContainable> getTarget, Func<CellBase, bool> isCurrentTarget,
+        ResourceTransitStore resources, IResourceTransferPresentation presentation,
         CancellationToken token, Action onAnimating = null)
     {
         try
@@ -50,14 +51,20 @@ public sealed class ResourceTransferCoordinator
             if (targetCell == null || !isCurrentTarget(targetCell))
                 throw new OperationCanceledException();
 
-            var pool = ResourceItemObjectPool.Instance;
-            var info = pool.TakeResourceDataById(Operation.ResourceId);
-            if (info.amount != Operation.Amount || info.type != Operation.Type)
+            if (!resources.TryGet(Operation.ResourceId, out var info) ||
+                info.Amount != Operation.Amount || info.Type != Operation.Type)
                 throw new InvalidOperationException("搬送記録と資源データが一致しません。");
             if (!Operation.TryMarkAnimating()) throw new OperationCanceledException();
             onAnimating?.Invoke();
-            await pool.Transfer(token, from, to, Operation.ResourceId);
+            var result = await presentation.Transfer(token, from, to, Operation.ResourceId);
             token.ThrowIfCancellationRequested();
+            if (result != ResourceAnimationResult.Completed)
+            {
+                // 表示の失敗は資源の消滅ではない。予約を戻し、所有者に再試行を任せる。
+                WaitForNewTarget();
+                presentation.SetPosition(Operation.ResourceId, from);
+                return result;
+            }
             if (targetCell == null || !isCurrentTarget(targetCell) ||
                 Operation.Target != targetCell || Reservation?.TargetCell != targetCell)
                 throw new OperationCanceledException();
@@ -67,7 +74,12 @@ public sealed class ResourceTransferCoordinator
             if (target is IResourceReusable reusable) reusable.Reuse(direction, Operation.ResourceId);
             if (!Reservation.TryCommit()) throw new OperationCanceledException();
             if (!Operation.TryComplete()) throw new InvalidOperationException("搬送の完了状態へ進めません。");
-            if (target is not IResourceReusable) pool.DisposeId(Operation.ResourceId);
+            if (target is not IResourceReusable)
+            {
+                resources.Remove(Operation.ResourceId);
+                presentation.ReleaseVisual(Operation.ResourceId);
+            }
+            return ResourceAnimationResult.Completed;
         }
         finally
         {

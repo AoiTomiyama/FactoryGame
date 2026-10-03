@@ -19,4 +19,4 @@
 
 搬送中断時、送り元は生存する搬送先の予約を取り消す。搬送先だけが削除された場合は資源 ID を送り元に保持し、送り元自身が削除された場合は ID をプールへ一度だけ返す。演出の中断は搬入確定を起こさない。交差セルは委譲先の予約を取消し、保持中の ID を解放する。実装と検証結果は `docs/tasks/design-review.md` のタスク2を参照する。
 
-搬送進行の順序は現在もコンベアと交差セルが管理する。進行管理の分離は `docs/tasks/architecture-extension.md` の D で扱う。
+搬送進行の順序は `ResourceTransferCoordinator` が管理する。演出の正常完了後だけ搬入を確定する契約と表示の寿命は `docs/spec/resource-presentation.md` を参照する。

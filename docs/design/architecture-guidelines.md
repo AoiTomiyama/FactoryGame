@@ -23,8 +23,8 @@ Unity のコンポーネント構成を土台とし、ゲームのルール、�
 | 領域 | 担当する内容 | 既存コードとの関係 |
 | --- | --- | --- |
 | ゲームルール | 容量、資源種別、予約可否、数量の確定、レシピの成立と素材消費 | [StorageCell](../../Assets/Scripts/Cells/StorageCell.cs)、[CrafterCell](../../Assets/Scripts/Cells/CrafterCell.cs) の計算はタスク E・F で Unity 非依存の C# に分離する |
-| 進行管理 | 搬送一件の状態と、予約・演出・確定・取消の順序 | [ResourceTransferOperation](../../Assets/Scripts/Cells/ResourceTransferOperation.cs) と [ResourceTransferCoordinator](../../Assets/Scripts/Cells/ResourceTransferCoordinator.cs) が担う。演出との境界はタスク G で整理する |
-| Unity との接続 | セル配置・接続、非同期処理の寿命、演出、オブジェクトプール、UI 表示 | `MonoBehaviour`、[ResourceItemObjectPool](../../Assets/Scripts/Manager/ResourceItemObjectPool.cs)、`Assets/Scripts/UI/` が担当し、タスク G・H で境界を整理する |
+| 進行管理 | 搬送一件の状態と、予約・演出・確定・取消の順序 | [ResourceTransferOperation](../../Assets/Scripts/Cells/ResourceTransferOperation.cs) と [ResourceTransferCoordinator](../../Assets/Scripts/Cells/ResourceTransferCoordinator.cs) が担い、[ResourceTransitStore](../../Assets/Scripts/Cells/ResourceTransitStore.cs) で搬送資源を保持する |
+| Unity との接続 | セル配置・接続、非同期処理の寿命、演出、オブジェクトプール、UI 表示 | `MonoBehaviour`、[ResourceItemObjectPool](../../Assets/Scripts/Manager/ResourceItemObjectPool.cs)、[ResourceItemAnimation](../../Assets/Scripts/Manager/ResourceItemAnimation.cs) が担当する。進行管理は `IResourceTransferPresentation` を通じて演出結果を受け取る。UI の境界はタスク H で整理する |
 | 設定データ | セル、資源、レシピの編集可能な定義 | `Assets/Scripts/ScriptableObject/` の設定を利用し、実行中の資源量や搬送状態の所有者と区別する |
 | Editor 専用機能 | フィールド生成などの編集支援 | タスク3で `GridFieldGenerator` の生成メソッドを `UNITY_EDITOR` に限定し、プレイヤー用コードから分離した |
 
@@ -40,6 +40,6 @@ Unity のコンポーネント構成を土台とし、ゲームのルール、�
 
 ## 現在地と更新方法
 
-2026-10-03 時点で、設計レビューのタスク1〜5と追加タスク A〜D は完了している。追加タスク E〜H は未完了であり、現行の `IContainable` は `UnityEngine.Vector3Int` を使い、加工判定や UI 用データもセルと結び付いている。搬送一件の状態と進行順は [搬送状態の契約](../spec/resource-transfer-state.md)、予約一件の操作は [資源搬入の数量契約](../spec/resource-reservations.md) にまとめた。
+2026-10-03 時点で、設計レビューのタスク1〜5と追加タスク A〜D・G は完了している。追加タスク E・F・H は未完了であり、現行の `IContainable` は `UnityEngine.Vector3Int` を使い、加工判定や UI 用データもセルと結び付いている。搬送一件の状態と進行順は [搬送状態の契約](../spec/resource-transfer-state.md)、予約一件の操作は [資源搬入の数量契約](../spec/resource-reservations.md)、資源データと演出の境界は [搬送資源データと表示の寿命](../spec/resource-presentation.md) にまとめた。
 
 新しい機能は上記の境界を使える範囲から適用する。既存コードの移行時は各タスクの完了条件を満たした結果でこの文書の「現在地」と参照を更新する。アーキテクチャの分類を変える設計判断をした場合は、理由と適用範囲をここに記録する。
