@@ -44,6 +44,18 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         public int Allocated { get; set; }
     }
 
+    private static ResourceStorageRules.Stock ToStock(ResourceInputData input)
+        => new(input.Type, input.Amount, input.Allocated);
+
+    private void ApplyInput(Vector3Int direction, ResourceStorageRules.Stock stock)
+    {
+        _resourceInputs[direction] = new ResourceInputData
+        {
+            Type = stock.Type, Amount = stock.Amount, Allocated = stock.Reserved
+        };
+        UpdateUI();
+    }
+
     public override void InitializeSystem()
     {
         base.InitializeSystem();
@@ -214,54 +226,25 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
 
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
-        if (amount <= 0 || resourceType == ResourceType.None) return false;
         if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return false;
-
-        var available = IngredientCapacity - inputStorage.Amount - inputStorage.Allocated;
-        // 搬送側は要求量をそのまま確定するため、一部だけの予約は受け付けない。
-        if (amount > available ||
-            (inputStorage.Type != ResourceType.None && inputStorage.Type != resourceType)) return false;
-        
-        // 初めてのリソース追加
-        if (inputStorage.Type == ResourceType.None)
-        {
-            inputStorage.Type = resourceType;
-        }
-        
-        inputStorage.Allocated += amount;
-
-        _resourceInputs[dir] = inputStorage;
-        
-        UpdateUI();
-        
+        if (!ResourceStorageRules.TryReserve(IngredientCapacity, ToStock(inputStorage), amount,
+                resourceType, out var next)) return false;
+        ApplyInput(dir, next);
         return true;
     }
 
     public void StoreResource(Vector3Int dir, int amount)
     {
         if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return;
-        // 予約していない量は確定せず、入力容量と予約量を保つ。
-        if (amount <= 0 || amount > inputStorage.Allocated ||
-            amount > IngredientCapacity - inputStorage.Amount) return;
-
-        // 現在量に追加し、予約量を減らす。
-        inputStorage.Amount += amount;
-        inputStorage.Allocated -= amount;
-        _resourceInputs[dir] = inputStorage;
-
-
-        UpdateUI();
+        if (ResourceStorageRules.TryCommit(IngredientCapacity, ToStock(inputStorage), amount, out var next))
+            ApplyInput(dir, next);
     }
 
     public void CancelStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
-        if (!_resourceInputs.TryGetValue(dir, out var input) || amount <= 0 ||
-            amount > input.Allocated || input.Type != resourceType) return;
-
-        input.Allocated -= amount;
-        if (input.Amount == 0 && input.Allocated == 0) input.Type = ResourceType.None;
-        _resourceInputs[dir] = input;
-        UpdateUI();
+        if (!_resourceInputs.TryGetValue(dir, out var input)) return;
+        if (ResourceStorageRules.TryCancel(ToStock(input), amount, resourceType, out var next))
+            ApplyInput(dir, next);
     }
 
     public Vector3 GetPosition() => transform.position;
@@ -274,11 +257,9 @@ public class CrafterCell : ConnectableCellBase, IContainable, IExportable, IData
         if (!_exportableDirections.Contains((from - transform.position).ToCardinalDirection())) return false;
 
         // 出力可能な量がない、または要求量がない場合はfalseを返す
-        if (ExportStorageAmount <= 0 || requestedAmount <= 0) return false;
-
-        // 返却量を計算し、現在量を減らす
-        amount = Mathf.Min(requestedAmount, ExportStorageAmount);
-        ExportStorageAmount = Mathf.Max(0, ExportStorageAmount - requestedAmount);
+        amount = ResourceStorageRules.GetExportableAmount(ExportStorageAmount, requestedAmount);
+        if (amount == 0) return false;
+        ExportStorageAmount -= amount;
 
         UpdateUI();
         return true;

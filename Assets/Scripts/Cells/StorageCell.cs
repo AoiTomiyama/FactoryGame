@@ -14,6 +14,16 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IExportable
     public ResourceType StoredResourceType { get; private set; } = ResourceType.None;
     public IUIDataProvider GetDataProvider() => dataProvider;
 
+    private ResourceStorageRules.Stock Stock => new(StoredResourceType, CurrentLoad, AllocatedAmount);
+
+    private void ApplyStock(ResourceStorageRules.Stock stock)
+    {
+        StoredResourceType = stock.Type;
+        CurrentLoad = stock.Amount;
+        AllocatedAmount = stock.Reserved;
+        UpdateUI();
+    }
+
     private void UpdateUI()
     {
         if (!IsUIActive) return;
@@ -22,67 +32,27 @@ public sealed class StorageCell : ConnectableCellBase, IContainable, IExportable
 
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
-        if (amount <= 0 || resourceType == ResourceType.None) return false;
-
-        var available = capacity - CurrentLoad - AllocatedAmount;
-        // 搬送側は要求量をそのまま確定するため、一部だけの予約は受け付けない。
-        if (amount > available ||
-            (StoredResourceType != ResourceType.None && StoredResourceType != resourceType)) return false;
-
-        // 初めてのリソース追加
-        if (StoredResourceType == ResourceType.None)
-        {
-            StoredResourceType = resourceType;
-        }
-
-        AllocatedAmount += amount;
-
-        UpdateUI();
-
+        if (!ResourceStorageRules.TryReserve(capacity, Stock, amount, resourceType, out var next)) return false;
+        ApplyStock(next);
         return true;
     }
 
     public void StoreResource(Vector3Int dir, int amount)
     {
-        // 予約していない量は確定せず、容量と予約量を保つ。
-        if (amount <= 0 || amount > AllocatedAmount || amount > capacity - CurrentLoad) return;
-
-        // 現在量に追加し、予約量を減らす。
-        CurrentLoad += amount;
-        AllocatedAmount -= amount;
-
-        UpdateUI();
+        if (ResourceStorageRules.TryCommit(capacity, Stock, amount, out var next)) ApplyStock(next);
     }
 
     public void CancelStorage(Vector3Int dir, int amount, ResourceType resourceType)
     {
-        if (amount <= 0 || amount > AllocatedAmount || StoredResourceType != resourceType) return;
-        AllocatedAmount -= amount;
-        if (CurrentLoad == 0 && AllocatedAmount == 0) StoredResourceType = ResourceType.None;
-        UpdateUI();
+        if (ResourceStorageRules.TryCancel(Stock, amount, resourceType, out var next)) ApplyStock(next);
     }
 
     public Vector3 GetPosition() => transform.position;
 
     public bool TryExport(Vector3 from, int requestedAmount, out int amount, out ResourceType type)
     {
-        amount = 0;
-        type = StoredResourceType;
-
-        // 出力可能な量がない、または要求量がない場合はfalseを返す
-        if (CurrentLoad <= 0 || requestedAmount <= 0 || StoredResourceType == ResourceType.None) return false;
-
-        // 返却量を計算し、現在量を減らす
-        amount = Mathf.Min(requestedAmount, CurrentLoad);
-        CurrentLoad = Mathf.Max(0, CurrentLoad - requestedAmount);
-
-        // 現在量と予約量が両方0になった時だけ資源種別を解放する。
-        if (CurrentLoad == 0 && AllocatedAmount == 0)
-        {
-            StoredResourceType = ResourceType.None;
-        }
-
-        UpdateUI();
+        if (!ResourceStorageRules.TryExport(Stock, requestedAmount, out var next, out amount, out type)) return false;
+        ApplyStock(next);
         return true;
     }
 }

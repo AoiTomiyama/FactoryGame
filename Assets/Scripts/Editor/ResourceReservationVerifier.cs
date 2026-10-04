@@ -15,14 +15,85 @@ public static class ResourceReservationVerifier
     [MenuItem("Tools/FactoryGame/Verify Resource Reservations")]
     public static void Run()
     {
+        VerifyQuantityRules();
         VerifyTransferOperation();
         VerifyReservationTickets();
         VerifyStorage();
         VerifyCrafter();
         VerifyCrossing();
         VerifyConveyor();
-        Debug.Log("Resource reservation checks passed: transfer operation, reservation tickets, storage, crafter, crossing, conveyor.");
+        Debug.Log("Resource reservation checks passed: pure quantity rules, transfer operation, reservation tickets, storage, crafter, crossing, conveyor.");
     }
+
+    // この検証は数値と資源種別だけを使い、Unity のセルやシーンを生成しない。
+    private static void VerifyQuantityRules()
+    {
+        var empty = new ResourceStorageRules.Stock(ResourceType.None, 0, 0);
+        foreach (var capacity in new[] { int.MinValue, -1, 0 })
+            Require(!ResourceStorageRules.TryReserve(capacity, empty, 1, ResourceType.Stone, out var rejected) &&
+                    SameStock(rejected, empty), "Rules: nonpositive capacity does not reserve or change type");
+        var stock = new ResourceStorageRules.Stock(ResourceType.Stone, 1, 2);
+        foreach (var amount in new[] { int.MinValue, -1, 0 })
+        {
+            Require(!ResourceStorageRules.TryReserve(5, stock, amount, ResourceType.Stone, out var next) &&
+                    SameStock(next, stock), "Rules: invalid reservation keeps all values");
+            Require(!ResourceStorageRules.TryCommit(5, stock, amount, out next) && SameStock(next, stock),
+                "Rules: invalid commit keeps all values");
+            Require(!ResourceStorageRules.TryCancel(stock, amount, ResourceType.Stone, out next) &&
+                    SameStock(next, stock), "Rules: invalid cancellation keeps all values");
+            Require(!ResourceStorageRules.TryExport(stock, amount, out next, out var exported, out _) &&
+                    exported == 0 && SameStock(next, stock), "Rules: invalid export keeps all values");
+        }
+        Require(ResourceStorageRules.GetAvailableCapacity(5, stock) == 2 &&
+                ResourceStorageRules.GetReservableAmount(5, stock, ResourceType.Wood) == 0 &&
+                ResourceStorageRules.GetReservableAmount(5, stock, ResourceType.None) == 0,
+            "Rules: capacity includes current and reserved stock, and type must match");
+        Require(!ResourceStorageRules.TryReserve(5, stock, 3, ResourceType.Stone, out var failed) &&
+                SameStock(failed, stock), "Rules: a partial reservation is never accepted");
+        Require(!ResourceStorageRules.TryCommit(5, stock, 3, out failed) && SameStock(failed, stock) &&
+                !ResourceStorageRules.TryCommit(1, stock, 1, out failed) && SameStock(failed, stock),
+            "Rules: unreserved quantities and capacity overflow cannot be committed");
+        Require(!ResourceStorageRules.TryCancel(stock, 2, ResourceType.Wood, out failed) &&
+                SameStock(failed, stock), "Rules: another type cannot cancel a reservation");
+
+        Require(ResourceStorageRules.TryReserve(5, empty, 3, ResourceType.Stone, out stock),
+            "Rules: first reservation takes three slots");
+        Require(ResourceStorageRules.TryReserve(5, stock, 2, ResourceType.Stone, out stock) &&
+                !ResourceStorageRules.TryReserve(5, stock, 1, ResourceType.Stone, out failed) &&
+                SameStock(failed, stock), "Rules: simultaneous reservations fill capacity exactly");
+        Require(ResourceStorageRules.TryCommit(5, stock, 3, out stock) && stock.Amount == 3 && stock.Reserved == 2 &&
+                ResourceStorageRules.GetAvailableCapacity(5, stock) == 0,
+            "Rules: committing one reservation preserves the other reservation");
+        Require(ResourceStorageRules.TryExport(stock, int.MaxValue, out stock, out var quantity, out var type) &&
+                quantity == 3 && type == ResourceType.Stone && stock.Type == ResourceType.Stone && stock.Reserved == 2,
+            "Rules: exporting all current stock retains the reserved type");
+        Require(ResourceStorageRules.GetReservableAmount(5, stock, ResourceType.Wood) == 0 &&
+                ResourceStorageRules.TryCancel(stock, 2, ResourceType.Stone, out stock) &&
+                SameStock(stock, empty), "Rules: the final cancellation releases the empty stock type");
+
+        Require(ResourceStorageRules.TryReserve(int.MaxValue, empty, int.MaxValue, ResourceType.Wood, out stock) &&
+                ResourceStorageRules.GetAvailableCapacity(int.MaxValue, stock) == 0 &&
+                !ResourceStorageRules.TryReserve(int.MaxValue, stock, 1, ResourceType.Wood, out failed) &&
+                ResourceStorageRules.TryCommit(int.MaxValue, stock, int.MaxValue, out stock) &&
+                stock.Amount == int.MaxValue && stock.Reserved == 0,
+            "Rules: the largest valid capacity cannot overflow");
+        Require(ResourceStorageRules.TryExport(stock, int.MaxValue, out stock, out quantity, out type) &&
+                quantity == int.MaxValue && SameStock(stock, empty),
+            "Rules: exporting the largest amount clears stock exactly");
+        foreach (var invalid in new[]
+                 {
+                     new ResourceStorageRules.Stock(ResourceType.None, 1, 0),
+                     new ResourceStorageRules.Stock(ResourceType.Stone, -1, 0),
+                     new ResourceStorageRules.Stock(ResourceType.Stone, 0, -1),
+                     new ResourceStorageRules.Stock(ResourceType.Stone, int.MaxValue, int.MaxValue)
+                 })
+            Require(ResourceStorageRules.GetAvailableCapacity(int.MaxValue, invalid) == 0 &&
+                    !ResourceStorageRules.TryReserve(int.MaxValue, invalid, 1, ResourceType.Stone, out failed) &&
+                    SameStock(failed, invalid), "Rules: invalid or overfull stock cannot reserve capacity");
+    }
+
+    private static bool SameStock(ResourceStorageRules.Stock first, ResourceStorageRules.Stock second)
+        => first.Type == second.Type && first.Amount == second.Amount && first.Reserved == second.Reserved;
 
     private static void VerifyReservationTickets()
     {
