@@ -6,11 +6,11 @@
 
 | 担当 | 責務 |
 | --- | --- |
-| `ResourceTransitStore` | Unity 非依存の C# で搬送 ID、資源種別、数量を保持する。ID は表示の再利用に関係なく新規発行する |
-| `ResourceItemObjectPool` | シーンに既存の設定を持つ窓口。資源ストアを所有し、ID に対応する表示の貸出・復元・返却を行う |
-| `ResourceItemAnimation` | 貸出中の表示一つを DOTween で移動し、正常完了・中断・表示対象なしを返す。資源数量や貸出登録を変更しない |
-| `IResourceTransferPresentation` | 進行管理から利用する表示の契約。移動結果、位置の復帰、表示の返却を提供する |
-| `ResourceTransferCoordinator` | 演出が正常完了し、接続先も有効なときだけ予約を確定する。終点セルへ届けた資源データを終了し、表示を返却する |
+| `ResourceTransitStoreApplication` | Unity 非依存の C# で搬送 ID、資源種別、数量を保持する。ID は表示の再利用に関係なく新規発行する |
+| `ResourceItemObjectPoolAdapter` | シーンに既存の設定を持つ窓口。資源ストアを所有し、ID に対応する表示の貸出・復元・返却を行う |
+| `ResourceItemAnimationAdapter` | 貸出中の表示一つを DOTween で移動し、正常完了・中断・表示対象なしを返す。資源数量や貸出登録を変更しない |
+| `IResourceTransferPresentationApplication` | 進行管理から利用する表示の契約。移動結果、位置の復帰、表示の返却を提供する |
+| `ResourceTransferCoordinatorApplication` | 演出が正常完了し、接続先も有効なときだけ予約を確定する。終点セルへ届けた資源データを終了し、表示を返却する |
 | コンベア・交差セル | 搬送資源の所有者。切断時は資源を保持し、削除時は所有するデータと表示を終了する |
 
 搬出コンベアは `TryExport` に成功した時点で送り元から取り出した数量を搬送データに保持する。表示の作成・移動に失敗しても、同じ数量を送り元から再取得しない。演出の正常完了まで前方へ送り出さない。
@@ -29,6 +29,6 @@
 
 ## 実装と検証
 
-実装: `Assets/Scripts/Cells/ResourceTransitStore.cs`、`Assets/Scripts/Cells/ResourceTransferCoordinator.cs`、`Assets/Scripts/Interface/IResourceTransferPresentation.cs`、`Assets/Scripts/Manager/ResourceItemAnimation.cs`、`Assets/Scripts/Manager/ResourceItemObjectPool.cs`。
+実装: `Assets/Scripts/Transfers/Application/ResourceTransitStoreApplication.cs`、`Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs`、`Assets/Scripts/Transfers/Application/IResourceTransferPresentationApplication.cs`、`Assets/Scripts/Transfers/Adapter/ResourceItemAnimationAdapter.cs`、`Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs`。
 
-検証入口: Unity 6000.3.8f1 の `ResourceReservationVerifier.Run` と Play Mode の `ResourceTransferVerifier.Run`。演出取消、外部からの Tween 停止、返却中の表示再利用、表示欠落と復元、通常搬送・切断・削除時の数量と ID を確認する。
+検証入口: Unity 6000.3.8f1 の `ResourceReservationVerifierEditor.Run` と Play Mode の `ResourceTransferVerifierEditor.Run`。演出取消、外部からの Tween 停止、返却中の表示再利用、表示欠落と復元、通常搬送・切断・削除時の数量と ID を確認する。

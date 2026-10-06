@@ -1,0 +1,116 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using UnityEditor;
+using UnityEngine;
+
+[CustomEditor(typeof(CellDatabaseDefinition))]
+public class CellDatabaseEditor : Editor
+{
+    // ファイルのパスやPrefabのプレフィックス
+    private const string PlaceholderPrefabPrefix = "P_";
+    private const string FieldPrefabPrefix = "F_";
+    private const string Filter = "t:Prefab";
+
+    private string _placeholderFilePath;
+    private string _fieldFilePath;
+    private const string EditorPrefPlaceholderKey = "CellDatabaseEditor_PlaceholderPath";
+    private const string EditorPrefFieldKey = "CellDatabaseEditor_FieldPath";
+
+    private void OnEnable()
+    {
+        _placeholderFilePath = EditorPrefs.GetString(EditorPrefPlaceholderKey, "Assets/Prefabs/Placeholders");
+        _fieldFilePath = EditorPrefs.GetString(EditorPrefFieldKey, "Assets/Prefabs/Fields");
+    }
+
+    public override void OnInspectorGUI()
+    {
+        DrawDefaultInspector();
+
+        var cellDatabase = (CellDatabaseDefinition)target;
+
+
+        EditorGUI.BeginChangeCheck();
+        var newPlaceholder = EditorGUILayout.TextField("プレースホルダPrefab保存先フォルダ", _placeholderFilePath);
+        var newField = EditorGUILayout.TextField("フィールドPrefab保存先フォルダ", _fieldFilePath);
+        if (EditorGUI.EndChangeCheck())
+        {
+            if (newPlaceholder != _placeholderFilePath)
+            {
+                _placeholderFilePath = newPlaceholder;
+                EditorPrefs.SetString(EditorPrefPlaceholderKey, _placeholderFilePath);
+            }
+
+            if (newField != _fieldFilePath)
+            {
+                _fieldFilePath = newField;
+                EditorPrefs.SetString(EditorPrefFieldKey, _fieldFilePath);
+            }
+        }
+
+        if (GUILayout.Button("Validate Cell Info"))
+        {
+            cellDatabase.ValidateAndBuildLookup();
+        }
+
+        if (GUILayout.Button("Auto Assign"))
+        {
+            AutoAssignData(cellDatabase);
+        }
+    }
+
+    private void AutoAssignData(CellDatabaseDefinition database)
+    {
+        // "Assets/Prefabs" 以下の .prefab ファイルを全検索
+        var placeholders = AssetDatabase.FindAssets(Filter, new[] { _placeholderFilePath });
+        var fields = AssetDatabase.FindAssets(Filter, new[] { _fieldFilePath });
+
+        // 辞書へ登録
+        var fieldDict = new Dictionary<string, CellBaseAdapter>();
+        foreach (var guid in fields)
+        {
+            var path = AssetDatabase.GUIDToAssetPath(guid);
+            var fileName = Path.GetFileNameWithoutExtension(path);
+
+            if (!fileName.StartsWith(FieldPrefabPrefix)) continue;
+            var key = fileName[FieldPrefabPrefix.Length..];
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path).GetComponent<CellBaseAdapter>();
+            fieldDict[key] = prefab;
+        }
+
+        var placeholderDict = new Dictionary<string, GameObject>();
+        foreach (var guid in placeholders)
+        {
+            var path = AssetDatabase.GUIDToAssetPath(guid);
+            var fileName = Path.GetFileNameWithoutExtension(path);
+
+            if (!fileName.StartsWith(PlaceholderPrefabPrefix)) continue;
+            var key = fileName[PlaceholderPrefabPrefix.Length..];
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            placeholderDict[key] = prefab;
+        }
+
+        var list = new List<CellInfoDefinition>();
+        var values = (CellTypeDomain[])Enum.GetValues(typeof(CellTypeDomain));
+        foreach (var cellType in values)
+        {
+            var cellTypeName = $"{cellType}Cell";
+
+            if (fieldDict.TryGetValue(cellTypeName, out var fieldPrefab) &&
+                placeholderDict.TryGetValue(cellTypeName, out var placeholderPrefab))
+            {
+                list.Add(new()
+                {
+                    CellName = Enum.GetName(typeof(CellTypeDomain), cellType),
+                    FieldCellPrefab = fieldPrefab,
+                    PlaceholderCellPrefab = placeholderPrefab,
+                    CellTypeDomain = cellType
+                });
+            }
+        }
+
+        database.SetCellInfos(list);
+        Debug.Log(list.Count > 0 ? "自動アサイン完了" : "未登録のセルはありません。");
+        database.ValidateAndBuildLookup();
+    }
+}

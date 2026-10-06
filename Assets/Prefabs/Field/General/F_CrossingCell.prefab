@@ -85,7 +85,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 73acfe90a874e8141a924b034626c0f1, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::CrossingCell
+  m_EditorClassIdentifier: Assembly-CSharp::CrossingCellAdapter
   allowedDirections: -1
 --- !u!1001 &3757974501245275860
 PrefabInstance:
