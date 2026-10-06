@@ -28,7 +28,7 @@
 
 ゼロ・負数の要求、資源種別 `None` の予約、異なる種別への予約は拒否する。無効な負の状態量や容量不足に対して予約可能量は 0 とし、容量計算は合計値の加算による整数の桁あふれを避ける。加工のレシピ判定・素材消費・完成品生成はタスク F で扱う。
 
-実装参照: `Assets/Scripts/Transfers/Application/IContainableApplication.cs`、`Assets/Scripts/Resources/Domain/ResourceStorageRulesDomain.cs`、`Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs`、`Assets/Scripts/Cells/Adapter/StorageCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/CrafterCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs`。
+実装参照: `Assets/Scripts/Transfers/Application/IContainableApplication.cs`、`Assets/Scripts/Resources/Domain/ResourceStorageRulesDomain.cs`、`Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs`、`Assets/Scripts/Cells/Adapter/StorageCellAdapter.cs`、`Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs`。
 
 検証コード: `Assets/Scripts/Transfers/Editor/ResourceReservationVerifierEditor.cs`。共通ルールの検証はセルやシーンを生成せず、数値と種別だけで行う。続いて保管・加工セルへの反映、コンベア・交差セルとの予約連携を確認する。Unity Editor ではメニュー `Tools/FactoryGame/Verify Resource Reservations`、バッチでは `-executeMethod ResourceReservationVerifierEditor.Run` を使用する。
 

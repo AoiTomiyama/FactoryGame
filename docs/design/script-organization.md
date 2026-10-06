@@ -24,7 +24,7 @@
 - 同じファイルにある関連列挙型・データ型にも同じ分類の接尾辞を使う。入れ子型は所有型の補助として扱い、Stock、Data などに重ねて接尾辞を付けない。
 - 役割別の追加階層や空のレイヤーフォルダを作らない。名前空間・Assembly Definition の導入は今回の整理に含まない。
 - 既存の設定アセットは `Assets/Scripts/ScriptableObject/` のパスを保持する。スクリプトと .meta は移動し、GUID とシリアライズするフィールド名を維持する。
-- 整理は責務の分類を表す。加工判定と UI の実装分離はタスク F・H で行い、配置変更だけで移行完了にしない。
+- 整理は責務の分類を表す。加工判定と素材消費はタスク F で分離済み。UI の実装分離は残タスク H で行い、配置変更だけで移行完了にしない。
 
 ## 移動・改名対応表
 
@@ -38,7 +38,7 @@
 | `Assets/Scripts/Cells/CellEnums.cs` | `Assets/Scripts/Cells/Domain/CellEnumsDomain.cs` |
 | `Assets/Scripts/Cells/ConnectableCellBase.cs` | `Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs` |
 | `Assets/Scripts/Cells/ConveyorCell.cs` | `Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs` |
-| `Assets/Scripts/Cells/CrafterCell.cs` | `Assets/Scripts/Cells/Adapter/CrafterCellAdapter.cs` |
+| `Assets/Scripts/Cells/CrafterCell.cs` | `Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs` |
 | `Assets/Scripts/Cells/CrossingCell.cs` | `Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs` |
 | `Assets/Scripts/Cells/EmptyCell.cs` | `Assets/Scripts/Cells/Adapter/EmptyCellAdapter.cs` |
 | `Assets/Scripts/Cells/ExportConveyorCell.cs` | `Assets/Scripts/Cells/Adapter/ExportConveyorCellAdapter.cs` |
@@ -127,5 +127,9 @@
 
 ## 再開情報
 
-- 次の実装はタスク F。次タスクの許可を得てから開始する。
+- 次の実装はタスク H。次タスクの許可を得てから開始する。
 - 整理のコミット対象には、既存の資源定義 API 変更、シーンの有効状態変更、資源設定アセット、SampleSceneProfile、IDE ファイル、未追跡の ServiceLocator を含めない。これらは作業ツリーに保持する。
+
+## 加工機能の追加分離（2026-10-06）
+
+タスク F で `CrafterCellAdapter` を `Crafting/Adapter` へ移動し、同じ機能の Domain と Application にレシピ計算・消費計画・加工状態を追加した。クラス名と既存の .meta GUID は保持した。現在の仕様は [加工の契約](../spec/crafting.md) を参照する。

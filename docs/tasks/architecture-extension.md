@@ -2,7 +2,7 @@
 
 タグ: `改修タスク` `アーキテクチャ` `資源搬送` `レシピ` `UI`
 
-状態: 2026-10-01 に A〜H を採用。A〜E・G と既存タスク1〜5は完了済み。I（Assembly Definition）は今回の対象外。次は F から着手する。
+状態: 2026-10-01 に A〜H を採用。A〜G と既存タスク1〜5は完了済み。I（Assembly Definition）は今回の対象外。次は H から着手する。
 
 到達像と今後の追加実装の判断基準は `docs/design/architecture-guidelines.md` を参照する。この文書は未完了の改修タスクと完了条件を管理する。
 
@@ -12,7 +12,7 @@
 - C と G のうち、搬送中断時の予約解除、確定抑止、表示オブジェクトの一度だけの返却は既存タスク2の完了条件として扱う。C は予約操作の契約を他のセルにも適用できる形へ整える作業、G は演出と資源データの責務分離を追加範囲とする。
 - B と D はタスク2で必要な範囲から適用する。搬送一件の状態と進行管理を独立させる拡張は、既存タスク2が完了してから判断する。
 - E は予約・確定の計算、F はレシピの判定・消費、H は表示用データの整理を対象とし、既存タスク3〜5とは別の変更として扱う。
-- 残作業の推奨順: F、H。タスクごとに完了を報告し、次の改修はユーザーの許可を得てから着手する。
+- 残作業: H。タスクごとに完了を報告し、次の改修はユーザーの許可を得てから着手する。
 
 ## A. 搬送の責務と依存関係を記録する
 
@@ -55,11 +55,13 @@
 
 ## F. レシピ判定と素材消費を分離する
 
-- 実装計画（許可待ち）: [加工処理の責務分離計画](../design/crafting-separation-plan.md)。判定と素材消費に同じ消費計画を使い、Domain の計算、Application の一回性、Adapter の数量反映を分ける。
+- 採用した実装計画: [加工処理の責務分離計画](../design/crafting-separation-plan.md)。判定と素材消費に同じ消費計画を使い、Domain の計算、Application の一回性、Adapter の数量反映を分ける。
 
-- [ ] 加工セルのレシピ選択と素材消費に同じ入力の対応付けを使う。
+- [x] 加工セルのレシピ選択と素材消費に同じ入力の対応付けを使う。
 - 完了条件: 同種素材の複数入力、容量不足、レシピ不成立、加工中断の結果を単独で検証できる。
-- 参照: `Assets/Scripts/Cells/Adapter/CrafterCellAdapter.cs`。
+- 採用した設計: `RecipeRulesDomain` が数量順の対応付けと全条件の再検証を行い、`RecipePlanDomain` が入力 ID と消費量・成果物を固定する。`CraftingOperationApplication` が確定・取消の一回性を管理する。加工セルは `Crafting/Adapter` へ移動し、正常に終了した演出の後だけ検証済み数量を一括反映する。搬入予約を保持し、無効化・削除・外部 Tween 停止・条件喪失で一部消費しない。現行仕様は [加工の契約](../spec/crafting.md)。
+- 検証証拠: 2026-10-06、Unity 6000.3.8f1 の `CraftingVerifierEditor.RunRules`（729 通りの独立した全探索との照合、同種入力、固定 ID、予約維持、不成立、容量不足、ゼロ・負数、整数上限、二重確定・取消）と `CraftingVerifierEditor.RunPlay`（正常完了、加工中搬入・予約、無効化・再有効化、削除、容量・素材の条件喪失、Tween 停止、ゼロ秒）が終了コード 0。既存の `ResourceReservationVerifierEditor.Run` / `ResourceTransferVerifierEditor.Run` と `GridFieldGeneratorVerifierEditor.RunPlayerBuild` も終了コード 0。MainScene を含む Windows 64-bit ビルド成功。既存の未コミット変更を保持して検証し、手操作による画面確認と生成プレイヤーの実行は行っていない。
+- 参照: `Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs`。
 
 ## G. 搬送演出と資源データの管理を分離する
 

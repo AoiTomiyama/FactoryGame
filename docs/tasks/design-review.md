@@ -14,7 +14,7 @@
 - 完了条件: 空き容量が要求量より少ない場合は予約を拒否し、数量・資源種別を変えない。保管セルと加工セルの確定量、交差セル経由の予約量を確認し、容量・予約量を超過しない。
 - 採用した設計: 現行の `bool` 戻り値を維持し、全量予約のみ成功させる。交差セルは接続先の結果を委譲する。仕様は `docs/spec/resource-reservations.md`。
 - 検証証拠: Unity 6000.3.8f1 のバッチモードで `-executeMethod ResourceReservationVerifier.Run` を実行。スクリプトコンパイル成功、保管・加工・交差・コンベアの予約境界チェック成功。交差セルについては予約委譲を確認し、アニメーションを伴う搬送中断の検証はタスク2で行う。
-- 参照: `Assets/Scripts/Transfers/Application/IContainableApplication.cs`、`Assets/Scripts/Cells/Adapter/StorageCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/CrafterCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs`。
+- 参照: `Assets/Scripts/Transfers/Application/IContainableApplication.cs`、`Assets/Scripts/Cells/Adapter/StorageCellAdapter.cs`、`Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs`。
 
 ## 2. 搬送中断時の予約解除とプール返却を整理する
 
