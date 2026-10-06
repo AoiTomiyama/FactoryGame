@@ -26,8 +26,8 @@ public class StorageUIStatusRowAdapter : GaugeUIStatusRowAdapter
             resourceText.text = "";
         }
 
-        var info = resourceDatabase.GetInfo(storageData.ResourceTypeDomain);
+        var info = resourceDatabase.GetResourceByType(storageData.ResourceTypeDomain);
         resourceIcon.sprite = info.Icon;
-        resourceText.text = info.Name;
+        resourceText.text = info.ResourceName;
     }
 }

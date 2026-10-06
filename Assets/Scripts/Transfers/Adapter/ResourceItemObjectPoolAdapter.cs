@@ -39,19 +39,19 @@ public sealed class ResourceItemObjectPoolAdapter : SingletonMonoBehaviourAdapte
             return;
         }
 
-        var infos = resourceDatabase.GetAllInfos();
-        if (infos == null)
+        var resources = resourceDatabase.GetAllResources();
+        if (resources == null)
         {
 #if UNITY_EDITOR
-            Debug.LogError("resourceDatabase.GetAllInfos()がnullを返しました。");
+            Debug.LogError("resourceDatabaseにはリソース情報が登録されていません。");
 #endif
             return;
         }
 
-        foreach (var info in infos)
+        foreach (var resource in resources)
         {
-            var prefab = info.Prefab;
-            var type = info.ResourceTypeDomain;
+            var prefab = resource.Prefab;
+            var type = resource.ResourceTypeDomain;
             if (type == ResourceTypeDomain.None) continue;
             if (prefab == null)
             {

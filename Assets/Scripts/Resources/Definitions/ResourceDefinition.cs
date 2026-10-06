@@ -6,14 +6,14 @@ using UnityEngine;
 public class ResourceDefinition : ScriptableObject
 {
     [Serializable]
-    public struct ResourceInfo
+    public struct Resource
     {
-        [SerializeField] string name;
+        [SerializeField] private string resourceName;
         [SerializeField] private ResourceTypeDomain resourceType;
         [SerializeField] private GameObject prefab;
         [SerializeField] private Sprite icon;
 
-        public string Name => name;
+        public string ResourceName => resourceName;
 
         public ResourceTypeDomain ResourceTypeDomain => resourceType;
 
@@ -22,17 +22,19 @@ public class ResourceDefinition : ScriptableObject
         public Sprite Icon => icon;
     }
 
-    [SerializeField] private ResourceInfo[] resourceInfos;
+    [SerializeField]
+    [Tooltip("リソースの情報を登録する配列")]
+    private Resource[] initializedResourceArr;
 
     /// <summary>
     /// データベース内から指定されたリソースタイプの情報を取得します。
     /// </summary>
     /// <param name="resourceType">指定されたリソースタイプ</param>
-    public ResourceInfo GetInfo(ResourceTypeDomain resourceType) =>
-        resourceInfos.FirstOrDefault(info => info.ResourceTypeDomain == resourceType);
+    public Resource GetResourceByType(ResourceTypeDomain resourceType) =>
+        initializedResourceArr.FirstOrDefault(info => info.ResourceTypeDomain == resourceType);
 
     /// <summary>
     /// データベースの全てのリソース情報を取得します。
     /// </summary>
-    public ResourceInfo[] GetAllInfos() => (ResourceInfo[])resourceInfos.Clone();
+    public Resource[] GetAllResources() => (Resource[])initializedResourceArr.Clone();
 }

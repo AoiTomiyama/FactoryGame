@@ -9,7 +9,7 @@ public class ResourceProviderDefinition : ProviderBaseDefinition<ResourceCellAda
     {
         LabelEnumApplication.CellName => new TextElementDataApplication(GetName(label), "Resource"),
         LabelEnumApplication.Location => new TextElementDataApplication(GetName(label), $"({Cell.XIndex}, {Cell.ZIndex})"),
-        LabelEnumApplication.ResourceName => new TextElementDataApplication(GetName(label), resourceDatabase.GetInfo(Cell.ResourceTypeDomain).Name),
+        LabelEnumApplication.ResourceName => new TextElementDataApplication(GetName(label), resourceDatabase.GetResourceByType(Cell.ResourceTypeDomain).ResourceName),
         _ => throw new System.NotImplementedException(),
     };
 

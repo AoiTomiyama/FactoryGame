@@ -31,15 +31,15 @@ public class RecipeElementUIAdapter : MonoBehaviour
         foreach (var ingredient in recipe.Ingredients)
         {
             var ingredientParam = Instantiate(ingredientRowUI, parent);
-            var resourceInfo = resourceDatabase.GetInfo(ingredient.resourceType);
+            var resourceInfo = resourceDatabase.GetResourceByType(ingredient.resourceType);
             
-            ingredientParam.Set(resourceInfo.Icon, resourceInfo.Name, ingredient.requiredAmount);
+            ingredientParam.Set(resourceInfo.Icon, resourceInfo.ResourceName, ingredient.requiredAmount);
         }
         
         // 元のIngredientUIを削除
         Destroy(ingredientRowUI.gameObject);
         
-        var resultInfo = resourceDatabase.GetInfo(recipe.Result);
-        resultRowUI.Set(resultInfo.Icon, resultInfo.Name, recipe.ResultAmount);
+        var resultInfo = resourceDatabase.GetResourceByType(recipe.Result);
+        resultRowUI.Set(resultInfo.Icon, resultInfo.ResourceName, recipe.ResultAmount);
     }
 }
