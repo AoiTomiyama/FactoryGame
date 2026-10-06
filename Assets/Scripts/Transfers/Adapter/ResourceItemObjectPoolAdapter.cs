@@ -85,7 +85,7 @@ public sealed class ResourceItemObjectPoolAdapter : SingletonMonoBehaviourAdapte
 
     private void ClearPool()
     {
-        foreach (var id in new List<int>(_rentedObjects.Keys)) ReleaseVisual(id);
+        foreach (var id in new List<int>(_rentedObjectDict.Keys)) ReleaseVisual(id);
         Resources.Clear();
         if (_pool == null) return;
         foreach (var pool in _pool.Values)
@@ -132,15 +132,15 @@ public sealed class ResourceItemObjectPoolAdapter : SingletonMonoBehaviourAdapte
         _pool[type].Release(obj);
     }
 
-    private readonly Dictionary<int, RentedObjectInfo> _rentedObjects = new();
+    private readonly Dictionary<int, RentedObject> _rentedObjectDict = new();
 
-    private struct RentedObjectInfo
+    private struct RentedObject
     {
         public readonly GameObject Prefab;
         public readonly ResourceTypeDomain Type;
         public readonly ResourceItemAnimationAdapter Animation;
 
-        public RentedObjectInfo(GameObject prefab, ResourceTypeDomain type)
+        public RentedObject(GameObject prefab, ResourceTypeDomain type)
         {
             Prefab = prefab;
             Type = type;
@@ -158,14 +158,14 @@ public sealed class ResourceItemObjectPoolAdapter : SingletonMonoBehaviourAdapte
     public UniTask<ResourceAnimationResultApplication> Transfer(CancellationToken token, Vector3 from, Vector3 to, int id)
     {
         if (token.IsCancellationRequested) return UniTask.FromResult(ResourceAnimationResultApplication.Cancelled);
-        if (!_rentedObjects.TryGetValue(id, out var rentedObject))
+        if (!_rentedObjectDict.TryGetValue(id, out var rentedObject))
             return UniTask.FromResult(ResourceAnimationResultApplication.MissingVisual);
         return rentedObject.Animation.MoveAsync(rentedObject.Prefab, token, from, to, transferSecond);
     }
 
     public void SetPosition(int id, Vector3 position)
     {
-        if (_rentedObjects.TryGetValue(id, out var rentedObject) && rentedObject.Prefab != null)
+        if (_rentedObjectDict.TryGetValue(id, out var rentedObject) && rentedObject.Prefab != null)
             rentedObject.Prefab.transform.position = position;
     }
 
@@ -187,7 +187,7 @@ public sealed class ResourceItemObjectPoolAdapter : SingletonMonoBehaviourAdapte
     public bool TryRestoreVisual(int id)
     {
         if (!Resources.TryGet(id, out var data)) return false;
-        if (_rentedObjects.TryGetValue(id, out var existing) && existing.Prefab != null) return true;
+        if (_rentedObjectDict.TryGetValue(id, out var existing) && existing.Prefab != null) return true;
         ReleaseVisual(id);
         var prefab = GetPrefab(data.Type);
         if (prefab == null) return false;
@@ -199,7 +199,7 @@ public sealed class ResourceItemObjectPoolAdapter : SingletonMonoBehaviourAdapte
             textMesh.text = data.Amount.ToString();
         }
 
-        _rentedObjects[id] = new(prefab, data.Type);
+        _rentedObjectDict[id] = new(prefab, data.Type);
         return true;
     }
 
@@ -235,11 +235,11 @@ public sealed class ResourceItemObjectPoolAdapter : SingletonMonoBehaviourAdapte
     /// <summary>表示だけを一度返却する。搬送資源のデータと数量は変更しない。</summary>
     public bool ReleaseVisual(int id)
     {
-        if (!_rentedObjects.TryGetValue(id, out var info))
+        if (!_rentedObjectDict.TryGetValue(id, out var info))
             return false;
 
         // 取消の継続が即時に実行されても、この表示を二度返さないよう先に登録を外す。
-        _rentedObjects.Remove(id);
+        _rentedObjectDict.Remove(id);
         info.Animation.Cancel();
         if (info.Prefab != null) Return(info.Type, info.Prefab);
         return true;
