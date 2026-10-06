@@ -6,6 +6,8 @@
 
 拡張性に関する追加タスク A〜H は `docs/tasks/architecture-extension.md` を参照する。タスク2の中断処理は同文書の C・G の最初の適用箇所とし、同じ完了条件を重複して計上しない。
 
+追加実装前の最新レビューと再開手順は [拡張性レビュー](extension-readiness-review.md) を参照する。修正は未着手で、最優先候補は R1（セル定義の実行時初期化）。既存タスクの完了状態とは区別し、個別の許可後に進める。
+
 ## 1. 資源の予約量と搬入量を一致させる
 
 - [x] `IContainableApplication.AllocateStorage` の契約を決め、送り元・受け取り先・交差セルへ反映する。
