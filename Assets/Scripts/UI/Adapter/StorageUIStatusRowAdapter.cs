@@ -17,7 +17,7 @@ public class StorageUIStatusRowAdapter : GaugeUIStatusRowAdapter
             return;
         }
 
-        Gauge.fillAmount = storageData.Current / storageData.Max;
+        Gauge.fillAmount = storageData.Max > 0 ? storageData.Current / storageData.Max : 0;
         GaugeText.text = $"{storageData.Current}/{storageData.Max}";
 
         resourceIcon.enabled = storageData.ResourceTypeDomain != ResourceTypeDomain.None;

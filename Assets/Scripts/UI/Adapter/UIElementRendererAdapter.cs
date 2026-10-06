@@ -1,41 +1,30 @@
+using System;
 using System.Collections.Generic;
 
+/// <summary>取得済みの表示値を行へ描画する。セルの数量や共有設定を書き換えない。</summary>
 public class UIElementRendererAdapter
 {
-    private Dictionary<LabelEnumApplication, UIElementDataBaseApplication> _elementDataBases;
     private readonly Dictionary<LabelEnumApplication, UIStatusRowBaseAdapter> _renderedUI = new();
     private IUIDataProviderApplication _dataProvider;
 
-    public void InitUI(IUIDataProviderApplication dataProvider)
+    public void InitUI(IUIDataProviderApplication dataProvider,
+        Func<UIElementDataBaseApplication, UIStatusRowBaseAdapter> createRow)
     {
-        // プロバイダーの割り当て
-        _dataProvider = dataProvider;
-        
-        // UI要素のデータをプロバイダーから取得
-        _elementDataBases = _dataProvider.CreateUIElementData();
-        
-        // 各UI要素を初期化
         ResetUI();
-        foreach (var (label, data) in _elementDataBases)
-        {
-            _renderedUI[label] = CellStatusViewAdapter.Instance.CreateStatusRow(data);
-        }
-        
-        // UIを更新
-        UpdateUI();
+        _dataProvider = dataProvider;
+        foreach (var pair in dataProvider.ReadData()) _renderedUI.Add(pair.Key, createRow(pair.Value));
     }
 
     public void UpdateUI()
     {
-        foreach (var (label, data) in _elementDataBases)
-        {
-            // プロバイダーから最新のデータを取得
-            _dataProvider.UpdateData(label, data);
-            
-            // UI要素を更新
-            _renderedUI[label].RenderUIByData(data);
-        }
+        if (_dataProvider == null) return;
+        // 全表示値を取得してから描画し、読み取りと Unity の表示更新を区別する。
+        foreach (var pair in _dataProvider.ReadData()) _renderedUI[pair.Key].RenderUIByData(pair.Value);
     }
-    
-    public void ResetUI() => _renderedUI.Clear();
+
+    public void ResetUI()
+    {
+        _renderedUI.Clear();
+        _dataProvider = null;
+    }
 }

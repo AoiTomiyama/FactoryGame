@@ -5,6 +5,7 @@ using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using UnityEngine;
 
+
 public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplication, IExportableApplication, IDataProvidableApplication
 {
     [Header("クラフト設定")]
@@ -27,7 +28,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
     public int ExportStorageAmount { get; private set; }
     public float ProcessTime { get; private set; }
     public float ElapsedProcessTime { get; private set; }
-    public bool IsUIActive { private get; set; }
+    public event Action StatusChanged;
 
     public ResourceTypeDomain ExportResourceType { get; private set; }
 
@@ -35,7 +36,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
 
     public int ExporterCapacity => exporterCapacity;
 
-    public IUIDataProviderApplication GetDataProvider() => crafterProvider;
+    public IUIDataProviderApplication GetDataProvider() => CellStatusProviderAdapter.Create(this, crafterProvider);
 
     private CancellationTokenSource _cts;
 
@@ -104,8 +105,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
 
     private void UpdateUI()
     {
-        if (!IsUIActive) return;
-        CellStatusViewAdapter.Instance.UpdateUI();
+        StatusChanged?.Invoke();
     }
 
     private RecipeRulesDomain.Input[] CaptureInputs()

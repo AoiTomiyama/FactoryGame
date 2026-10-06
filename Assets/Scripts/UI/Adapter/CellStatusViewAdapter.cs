@@ -13,6 +13,7 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
     [SerializeField] private int maxPoolCapacity = 500;
     
     private IDataProvidableApplication _renderingCell;
+    private CellBaseAdapter _selectedCell;
 
     private readonly Dictionary<UIStatusRowTypeApplication, ObjectPool<UIStatusRowBaseAdapter>> _statusRowUIPool = new();
     private readonly Stack<(UIStatusRowTypeApplication, UIStatusRowBaseAdapter)> _activeStatusRows = new();
@@ -61,6 +62,7 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
 
     public void SetStatusWindowActive(bool isActive)
     {
+        if (!isActive) DeactivateCurrentStatus();
         if (elementWindowTransform != null)
         {
             elementWindowTransform.gameObject.SetActive(isActive);
@@ -92,44 +94,36 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
     
     public void UpdateUIStatusWindow(CellBaseAdapter selectedCell)
     {
-        // 選択中のセルがインターフェイスを持たない場合
-        if (selectedCell is not IDataProvidableApplication renderingCell)
+        if (selectedCell == null || selectedCell is not IDataProvidableApplication renderingCell)
         {
-            DeactivateCurrentStatus();
             SetStatusWindowActive(false);
             return;
         }
-
-        // ステータスUIを表示
-        SetStatusWindowActive(true);
-
-        // 現在のセルが選択されているセルと同じ場合は何もしない
-        if (_renderingCell == renderingCell) return;
-
+        if (_selectedCell == selectedCell) { SetStatusWindowActive(true); UpdateUI(); return; }
         DeactivateCurrentStatus();
-
-        // 新しいセルを設定
+        var provider = renderingCell.GetDataProvider();
+        if (provider == null) { SetStatusWindowActive(false); return; }
+        _selectedCell = selectedCell;
         _renderingCell = renderingCell;
-        _renderingCell.IsUIActive = true;
-
-        // データプロバイダーを取得・設定
-        var provider = _renderingCell.GetDataProvider();
-        provider.SwitchSystem(renderingCell);
-        _uiRenderer.InitUI(provider);
-
-        // マーカーの位置を更新
-        selectionMarker.transform.position = selectedCell.transform.position;
+        // 選択中の表示だけが通知を受ける。切替・非表示・削除で購読を解除する。
+        _renderingCell.StatusChanged += UpdateUI;
+        _uiRenderer.InitUI(provider, CreateStatusRow);
+        SetStatusWindowActive(true);
+        if (selectionMarker != null) selectionMarker.position = selectedCell.transform.position;
     }
 
-    /// <summary>
-    /// 現在のステータスを非アクティブにする
-    /// </summary>
+    private void LateUpdate()
+    {
+        if (_renderingCell != null && _selectedCell == null) SetStatusWindowActive(false);
+    }
+
+    private void OnDisable() => SetStatusWindowActive(false);
+
     private void DeactivateCurrentStatus()
     {
-        if (_renderingCell == null) return;
-
-        _renderingCell.IsUIActive = false;
+        if (_renderingCell != null) _renderingCell.StatusChanged -= UpdateUI;
         _renderingCell = null;
+        _selectedCell = null;
         ResetStatusUI();
     }
 
@@ -145,6 +139,7 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
 
     private void OnDestroy()
     {
+        DeactivateCurrentStatus();
         foreach (var pool in _statusRowUIPool.Values)
         {
             pool.Clear();

@@ -3,6 +3,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using UnityEngine;
+using System;
 
 public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportableApplication, IDataProvidableApplication
 {
@@ -24,11 +25,11 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     public float ElapsedTime { get; private set; }
     public float ExtractionSecond => extractionSecond;
     public ResourceTypeDomain ResourceTypeDomain => resourceType;
-    public bool IsUIActive { private get; set; }
+    public event Action StatusChanged;
 
     public int StorageCapacity => storageCapacity;
 
-    public IUIDataProviderApplication GetDataProvider() => extractorProvider;
+    public IUIDataProviderApplication GetDataProvider() => CellStatusProviderAdapter.Create(this, extractorProvider);
 
     public override void InitializeSystem()
     {
@@ -58,8 +59,7 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
 
     private void UpdateUI()
     {
-        if (!IsUIActive) return;
-        CellStatusViewAdapter.Instance.UpdateUI();
+        StatusChanged?.Invoke();
     }
 
     private async UniTask TakeResourcesFromAdjacentStorageAsync(CancellationToken token)

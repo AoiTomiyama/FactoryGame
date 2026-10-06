@@ -20,7 +20,7 @@ public class GaugeUIStatusRowAdapter : UIStatusRowBaseAdapter
             return;
         }
 
-        Gauge.fillAmount = gaugeData.Current / gaugeData.Max;
+        Gauge.fillAmount = gaugeData.Max > 0 ? gaugeData.Current / gaugeData.Max : 0;
         GaugeText.text = gaugeData.GaugeText;
     }
 }

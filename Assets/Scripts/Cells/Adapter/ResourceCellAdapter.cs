@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 public sealed class ResourceCellAdapter : CellBaseAdapter, IDataProvidableApplication
 {
@@ -6,6 +7,6 @@ public sealed class ResourceCellAdapter : CellBaseAdapter, IDataProvidableApplic
     [SerializeField] private ResourceProviderDefinition resourceProvider;
 
     public ResourceTypeDomain ResourceTypeDomain => resourceType;
-    public bool IsUIActive { set { } }
-    public IUIDataProviderApplication GetDataProvider() => resourceProvider;
+    public event Action StatusChanged { add { } remove { } }
+    public IUIDataProviderApplication GetDataProvider() => CellStatusProviderAdapter.Create(this, resourceProvider);
 }

@@ -1,4 +1,5 @@
 using UnityEngine;
+using System;
 
 public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainableApplication, IExportableApplication, IDataProvidableApplication
 {
@@ -10,9 +11,9 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
 
     public int CurrentLoad { get; private set; }
     public int AllocatedAmount { get; private set; }
-    public bool IsUIActive { get; set; }
+    public event Action StatusChanged;
     public ResourceTypeDomain StoredResourceType { get; private set; } = ResourceTypeDomain.None;
-    public IUIDataProviderApplication GetDataProvider() => dataProvider;
+    public IUIDataProviderApplication GetDataProvider() => CellStatusProviderAdapter.Create(this, dataProvider);
 
     private ResourceStorageRulesDomain.Stock Stock => new(StoredResourceType, CurrentLoad, AllocatedAmount);
 
@@ -26,8 +27,7 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
 
     private void UpdateUI()
     {
-        if (!IsUIActive) return;
-        CellStatusViewAdapter.Instance.UpdateUI();
+        StatusChanged?.Invoke();
     }
 
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceTypeDomain resourceType)
