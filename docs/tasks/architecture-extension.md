@@ -55,6 +55,8 @@
 
 ## F. レシピ判定と素材消費を分離する
 
+- 実装計画（許可待ち）: [加工処理の責務分離計画](../design/crafting-separation-plan.md)。判定と素材消費に同じ消費計画を使い、Domain の計算、Application の一回性、Adapter の数量反映を分ける。
+
 - [ ] 加工セルのレシピ選択と素材消費に同じ入力の対応付けを使う。
 - 完了条件: 同種素材の複数入力、容量不足、レシピ不成立、加工中断の結果を単独で検証できる。
 - 参照: `Assets/Scripts/Cells/Adapter/CrafterCellAdapter.cs`。
