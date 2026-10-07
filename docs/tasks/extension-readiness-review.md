@@ -4,6 +4,8 @@
 
 確認日: 2026-10-06。対象版: `8326a8d`。状態: レビューの記録完了、修正未着手。今回の許可は記録までであり、以下の修正は個別の許可後に進める。
 
+準備照合日: 2026-10-07。照合時 HEAD: `5fffd44`、ブランチ: `master`。現在の依頼も文書更新までであり、新機能や R1〜R4 の修正は許可されていない。準備結果は末尾の「追加実装の準備照合」を参照する。
+
 ## 判断と確認範囲
 
 資源・レシピ・セルを追加する土台はできている。全面的な設計改修を続ける必要はなく、セル定義の初期化問題を優先して解決し、その後は追加機能に必要な境界から整えることを推奨する。
@@ -66,3 +68,68 @@
 4. 実装、関連文書、必要な検証を揃えて目的単位でコミットする。結果と次の候補を報告し、次タスクの許可を待つ。
 
 記録時の既存差分は `SampleSceneProfile.asset`、未追跡の `ServiceLocatorAdapter` と `.meta`、IDE の4ファイル。保留理由と次の確認は [UI の契約の差分レビュー](../spec/cell-status-ui.md#着手前の差分レビュー) を参照する。今回のレビューと記録ではこれらを変更しない。実装差分はなく、レビュー記録と既存タスクリストへの参照だけを追加した。
+
+## 追加実装の準備照合（2026-10-07）
+
+### 準備済み範囲と阻害要因
+
+- `git diff 8326a8d HEAD -- Assets/Scripts Assets/Scenes ProjectSettings Packages` は差分なし。R1〜R4 の該当コードと保存済みフラグを再確認し、いずれも未対応である。新しい実行再現は行っていない。
+- R1 は配置・選択を使う新機能の動作確認を妨げる可能性があり、先に解決することを推奨する。`SetCellInfos` も配列の置換だけで辞書を無効化しないため、初期ロードだけでなく設定更新後の取得も修正・検証対象に含める。現在の Editor 自動登録は直後に `ValidateAndBuildLookup` を呼ぶので、この API 単独の問題を隠し得る。
+- R2 は抽出・有限資源・稼働切替の追加時に優先する。R3 は新しい設備の状態表示を専用 Adapter で追加する判断材料。R4 はセル基底型から独立した搬送先が必要になったときに適用する。R2〜R4 の全面修正を、新機能すべての開始条件にはしない。
+- 見送り済みの Assembly Definition、複数フィールド、保存復元は新たに採用していない。機能仕様が未指定のため、個別の設計・実装順を確定できない。
+
+### 追加時に変更する場所
+
+| 追加対象 | 主な変更先と維持する境界 |
+| --- | --- |
+| 資源 | [CellEnumsDomain](../../Assets/Scripts/Cells/Domain/CellEnumsDomain.cs) の資源種別、[ResourceDefinition](../../Assets/Scripts/Resources/Definitions/ResourceDefinition.cs)、`ResourceDB.asset`、Prefab・アイコン。既存 enum の数値を変える挿入・並べ替えを避け、資源登録と表示参照を確認する |
+| レシピ | [RecipeDatabaseDefinition](../../Assets/Scripts/Crafting/Definitions/RecipeDatabaseDefinition.cs) と `Recipes/RecipeDB.asset`。既存仕様のレシピは定義を追加する。新しい判定条件は `Crafting/Domain`、一件の状態遷移は `Crafting/Application` に置く |
+| セル・設備 | `Cells/Adapter` または新しい機能の `Adapter`、セル種別、Field/Placeholder Prefab、`GeneralCellDB.asset`。数量計算は `Resources/Domain` を再利用。接続・回転・初期化・削除の契約を確認する |
+| 配置・選択 | [CellPlacerAdapter](../../Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs) と [SelectButtonBuilderAdapter](../../Assets/Scripts/UI/Adapter/SelectButtonBuilderAdapter.cs)。登録済み定義から選択・生成する既存経路を使う。費用・配置制約が必要なら、そのゲームルールの所有者を仕様で決める |
+| 状態表示 | `IDataProvidableApplication`、`IUIDataProviderApplication`、セル専用の取得 Adapter と表示設定。既存の `CellStatusDataProviderApplication`・描画・行プールを利用し、設定アセットへ実行中の状態を保存しない |
+| 搬送・入出力 | `IContainableApplication` / `IExportableApplication`、予約・進行管理、セル Adapter。全量予約と確定・取消の一回性を維持。独立した搬送先が必要なら R4 の契約変更を先に設計する |
+
+配置は [スクリプト配置規則](../design/script-organization.md)、責務と依存方向は [設計方針](../design/architecture-guidelines.md) を踏襲する。必要な機能だけにフォルダ・型を追加し、既存アセットの GUID とシリアライズ参照を維持する。
+
+### 検証証拠の有効範囲
+
+2026-10-06 の既存記録に加え、準備時に次のローカルログの成功マーカーを再確認した。コードの差分はないが、過去の検証対象外の機能へ結果を拡張しない。
+
+| 既存ログ（`%TEMP%` 内） | 再確認した証拠・制限 |
+| --- | --- |
+| `FactoryGame-H-ui-final.log` | UI、予約、加工ルールの成功。最終 H 差分の表示セッション・切替・無効化・再有効化・削除・数量・進捗を検証。抽出の生産ループはテストから直接呼び出しており、R2 の接続変更・通常初期化の検証ではない |
+| `FactoryGame-H-ResourceTransferVerifierEditor.Run.log` | 搬送成功、中断・削除・再接続、表示復元、予約取消、ID 解放の成功。H 最終の表示無効化修正前の差分を対象とする |
+| `FactoryGame-H-UIStatusVerifierEditor.RunAssetsAndBuild.log` | 保存済み UI 設定と Prefab の成功、プレイヤービルド成功、正常なバッチ終了。生成プレイヤーの起動・セル定義のランタイム辞書を検証した証拠ではない |
+
+詳細な終了コード・時間・既存警告は [H の検証記録](../spec/cell-status-ui.md#検証証拠2026-10-06) に集約する。今回の文書準備では Unity を再起動せず、実測検証時間・再実行回数を新しい動作保証として加算しない。
+
+### 再利用する検証入口と不足分
+
+Unity は `ProjectSettings/ProjectVersion.txt` の 6000.3.8f1 を使う。下表の入口は現行 Editor コードに存在することを確認済み。実装時に変更に関係する項目を選び、成功済み検証は追加変更・失敗・未解決の懸念がある範囲だけ再実行する。
+
+| 対象 | 既存入口 |
+| --- | --- |
+| 資源・表示アセット | `ResourceIconVerifierEditor.Run`（Play Mode） |
+| 数量・予約 | `ResourceReservationVerifierEditor.Run`（同期 Editor 検証） |
+| レシピ計算・加工寿命 | `CraftingVerifierEditor.RunRules` / `RunPlay` |
+| 接続・回転・グリッド端 | `CellConnectionVerifierEditor.Run` |
+| 搬送・取消・削除・表示寿命 | `ResourceTransferVerifierEditor.Run`（Play Mode） |
+| 状態 UI | `UIStatusVerifierEditor.Run`（Play Mode、予約・加工ルールも同じ起動で実行） |
+| 生成・ビルド | `GridFieldGeneratorVerifierEditor.RunGeneration` / `RunPlayerBuild`。`UIStatusVerifierEditor.RunAssetsAndBuild` は表示アセット確認と既存ビルド入口をまとめて実行 |
+
+バッチ実行の基本引数は `-batchmode -nographics -projectPath <project> -executeMethod <entry> -logFile <log>`。同期入口では `-quit` を付ける。Play Mode 入口は再生開始後に検証して自身で終了するため `-quit` を付けない。同じプロジェクトで Unity を同時起動しない。
+
+R1 の保存済みフラグからの起動・設定更新と、R2 の対象削除・交換・無効化に専用の既存検証はない。修正許可後に既存検証基盤へ追加する。R1 の完了にはプレイヤー起動時の取得と選択・配置の確認も必要で、ビルド成功だけで代用しない。見た目や操作感を変える機能では小さな代表場面の描画確認も別に行う。
+
+### ユーザーから必要な仕様と次の操作
+
+新機能の依頼時には、少なくとも次を確定する。
+
+- 対象と目的：何を追加し、プレイヤーがどの操作で使い、何を達成するか。
+- 入出力と状態：扱う資源・数量・容量・時間・方向、状態の所有者、既存施設との接続方法。
+- 中断と制約：削除・無効化・接続変更時の扱い、配置条件や費用、有限資源・保存復元が必要か。
+- 完了条件：正常操作、境界条件、表示内容、代表的な利用場面。必要な画像・Prefabなどの素材の有無。
+
+次の推奨操作は R1 一件の修正許可。新機能の仕様が先に届いた場合は、関連する R2〜R4 と上記変更先を照合して実装案を作る。各タスクの完了報告・コミット後、次タスクの修正許可まで待機する。
+
+準備時に既存差分も再確認した。`SampleSceneProfile.asset` は MotionBlur の有効化と override 無効の filter 追加で描画の採用判断が未確認。`ServiceLocatorAdapter` は登録・解除・取得・クリアの実装のみで利用箇所なし。IDE の4ファイルは Copilot 移行状態 `COMPLETED` のみ。いずれも破棄・変更せず、今回の文書コミットへ含めない。
