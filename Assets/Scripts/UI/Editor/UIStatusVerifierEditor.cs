@@ -26,6 +26,12 @@ public static class UIStatusVerifierEditor
 
     public static void RunAssetsAndBuild()
     {
+        VerifyAssets();
+        GridFieldGeneratorVerifierEditor.RunPlayerBuild();
+    }
+
+    public static void VerifyAssets()
+    {
         // 既存アセットの継承構造を変えてもラベルと参照が読めることを確認する。
         foreach (var guid in AssetDatabase.FindAssets("t:ProviderBaseDefinition"))
         {
@@ -42,7 +48,6 @@ public static class UIStatusVerifierEditor
                     Require(source.GetDataProvider()?.ReadData().Count > 0, "prefab status binding survives: " + path);
         }
         Debug.Log("UI status asset checks passed: saved definitions, labels and prefab references.");
-        GridFieldGeneratorVerifierEditor.RunPlayerBuild();
     }
 
     private static void OnPlayModeChanged(PlayModeStateChange state)

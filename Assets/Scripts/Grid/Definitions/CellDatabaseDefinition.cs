@@ -10,17 +10,18 @@ public class CellDatabaseDefinition : ScriptableObject
     private CellInfoDefinition[] cellPairingInfos;
     private readonly Dictionary<CellTypeDomain, CellInfoDefinition> _infoLookup = new();
 
-    [InspectorReadOnlyAttributeAdapter] [Tooltip("ヴァリデーション済みかどうか")] [SerializeField]
+    // 辞書は保存されないため、準備済み状態も保存データから復元しない。
+    [NonSerialized]
     private bool isInitialized;
 
     private void OnValidate()
     {
-        isInitialized = false;
+        InvalidateLookup();
     }
 
     private void OnEnable()
     {
-        if (isInitialized) return;
+        // 再有効化を含め、設定配列を正本として実行時キャッシュを構築する。
         ValidateAndBuildLookup();
     }
 
@@ -29,11 +30,11 @@ public class CellDatabaseDefinition : ScriptableObject
     /// </summary>
     public void ValidateAndBuildLookup()
     {
-        _infoLookup.Clear();
+        InvalidateLookup();
 
         var hashSet = new HashSet<CellTypeDomain>();
 
-        foreach (var info in cellPairingInfos)
+        foreach (var info in cellPairingInfos ?? Array.Empty<CellInfoDefinition>())
         {
             if (hashSet.Contains(info.CellTypeDomain))
             {
@@ -62,13 +63,7 @@ public class CellDatabaseDefinition : ScriptableObject
     /// </summary>
     public bool TryGetCellInfo(CellTypeDomain cellType, out CellInfoDefinition info)
     {
-        if (!isInitialized)
-        {
-#if UNITY_EDITOR
-            Debug.LogError($"{nameof(CellDatabaseDefinition)}が初期化されていません。ヴァリデーションを実行");
-#endif
-            ValidateAndBuildLookup();
-        }
+        EnsureLookup();
 
         if (_infoLookup == null || !_infoLookup.TryGetValue(cellType, out info))
         {
@@ -81,13 +76,7 @@ public class CellDatabaseDefinition : ScriptableObject
 
     public List<CellInfoDefinition> GetAllCellInfos()
     {
-        if (!isInitialized)
-        {
-#if UNITY_EDITOR
-            Debug.LogError($"{nameof(CellDatabaseDefinition)}が初期化されていません。ヴァリデーションを実行");
-#endif
-            ValidateAndBuildLookup();
-        }
+        EnsureLookup();
 
         return new(_infoLookup.Values);
     }
@@ -95,6 +84,19 @@ public class CellDatabaseDefinition : ScriptableObject
     public void SetCellInfos(IEnumerable<CellInfoDefinition> cellInfos)
     {
         cellPairingInfos = cellInfos.ToArray();
+        // 呼出し側が手動Validateを省いても、次回取得で新しい定義だけを返す。
+        InvalidateLookup();
+    }
+
+    private void InvalidateLookup()
+    {
+        isInitialized = false;
+        _infoLookup.Clear();
+    }
+
+    private void EnsureLookup()
+    {
+        if (!isInitialized) ValidateAndBuildLookup();
     }
 }
 

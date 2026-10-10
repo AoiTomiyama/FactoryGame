@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
@@ -9,6 +11,69 @@ using UnityEngine;
 public static class GridFieldGeneratorVerifierEditor
 {
     private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
+
+    /// <summary>保存フラグを信じたコールド起動と、定義更新で古いキャッシュが残る経路を再現する。</summary>
+    public static void RunCellDefinitions()
+    {
+        var saved = AssetDatabase.LoadAssetAtPath<CellDatabaseDefinition>("Assets/Scripts/ScriptableObject/GeneralCellDB.asset");
+        var expected = (CellInfoDefinition[])typeof(CellDatabaseDefinition).GetField("cellPairingInfos", PrivateInstance).GetValue(saved);
+        Require(expected.Length > 2, "saved cell definitions exist");
+        var database = UnityEngine.Object.Instantiate(saved);
+        try
+        {
+            // OnValidateを呼ばず、旧保存値true＋空の実行時辞書を直接作る。
+            var lookup = (Dictionary<CellTypeDomain, CellInfoDefinition>)typeof(CellDatabaseDefinition)
+                .GetField("_infoLookup", PrivateInstance).GetValue(database);
+            lookup.Clear();
+            SetField(database, "isInitialized", true);
+            Invoke(database, "OnEnable");
+            Require(database.GetAllCellInfos().Count == expected.Length, "cold enable rebuilds despite legacy true flag");
+            foreach (var info in expected)
+                Require(database.TryGetCellInfo(info.CellTypeDomain, out var actual) && actual.Equals(info), "saved names/types/prefab references survive");
+
+            var updated = expected[0];
+            updated.CellName = "Updated definition";
+            database.SetCellInfos(new[] { updated });
+            Require(database.GetAllCellInfos().Count == 1 && database.TryGetCellInfo(updated.CellTypeDomain, out var changed)
+                && changed.CellName == updated.CellName, "replacement updates entries");
+            Require(!database.TryGetCellInfo(expected[1].CellTypeDomain, out _), "replacement removes stale entries");
+            database.SetCellInfos(new[] { updated, expected[1] });
+            Require(database.TryGetCellInfo(expected[1].CellTypeDomain, out _), "replacement adds entries without manual validation");
+            var snapshot = database.GetAllCellInfos();
+            snapshot.Clear();
+            Require(database.GetAllCellInfos().Count == 2, "returned list cannot mutate lookup");
+
+            SetField(database, "cellPairingInfos", new[] { expected[2] });
+            Invoke(database, "OnValidate");
+            Require(database.GetAllCellInfos().Single().Equals(expected[2]), "inspector changes invalidate lookup");
+            lookup.Clear();
+            SetField(database, "isInitialized", true);
+            Invoke(database, "OnEnable");
+            Require(database.GetAllCellInfos().Single().Equals(expected[2]), "reenable rebuilds lookup");
+
+            var duplicate = expected[0];
+            duplicate.CellName = "Last duplicate wins";
+            database.SetCellInfos(new[] { expected[0], duplicate });
+            Require(database.GetAllCellInfos().Single().CellName == duplicate.CellName, "duplicate keeps last entry");
+            database.SetCellInfos(Array.Empty<CellInfoDefinition>());
+            Require(database.GetAllCellInfos().Count == 0 && !database.TryGetCellInfo(expected[0].CellTypeDomain, out _), "empty definition removes entries");
+            SetField(database, "cellPairingInfos", null);
+            Invoke(database, "OnEnable");
+            Require(database.GetAllCellInfos().Count == 0, "null definition is empty");
+            var fresh = ScriptableObject.CreateInstance<CellDatabaseDefinition>();
+            try { Require(fresh.GetAllCellInfos().Count == 0, "new unconfigured definition is empty"); }
+            finally { UnityEngine.Object.DestroyImmediate(fresh); }
+            Require(!EditorJsonUtility.ToJson(database).Contains("isInitialized"), "runtime flag is not serialized");
+            Debug.Log("Cell definition checks passed: legacy cold enable, references, update/add/remove, snapshot, inspector, reenable, duplicate, empty/null.");
+        }
+        finally { UnityEngine.Object.DestroyImmediate(database); }
+    }
+
+    private static void Invoke(object target, string method) => target.GetType().GetMethod(method, PrivateInstance).Invoke(target, null);
+    private static void Require(bool condition, string message)
+    {
+        if (!condition) throw new InvalidOperationException("Cell definition check failed: " + message);
+    }
 
     [MenuItem("Tools/FactoryGame/Verify Grid Generation")]
     public static void RunGeneration()
@@ -59,6 +124,18 @@ public static class GridFieldGeneratorVerifierEditor
     }
 
     public static void RunPlayerBuild()
+        => BuildPlayer(BuildOptions.None);
+
+    // CLIの実プレイヤー検証だけをDevelopmentビルドへ含め、通常ビルドの動作は変えない。
+    public static void RunCellDefinitionBuild()
+    {
+        RunCellDefinitions();
+        RunGeneration();
+        UIStatusVerifierEditor.VerifyAssets();
+        BuildPlayer(BuildOptions.Development);
+    }
+
+    private static void BuildPlayer(BuildOptions options)
     {
         var output = Path.Combine(Path.GetTempPath(), "FactoryGameTask3Build", "FactoryGame.exe");
         Directory.CreateDirectory(Path.GetDirectoryName(output));
@@ -67,7 +144,7 @@ public static class GridFieldGeneratorVerifierEditor
             scenes = new[] { "Assets/Scenes/MainScene.unity" },
             locationPathName = output,
             target = BuildTarget.StandaloneWindows64,
-            options = BuildOptions.None
+            options = options
         });
         if (report.summary.result != BuildResult.Succeeded)
             throw new InvalidOperationException($"Player build failed: {report.summary.result}");
