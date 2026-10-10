@@ -137,3 +137,7 @@
 ## UI 機能の追加分離（2026-10-06）
 
 タスク H で共有設定から実行時のセル参照を除き、`UI/Application/CellStatusDataProviderApplication.cs` に表示セッション、`UI/Adapter/CellStatusProviderAdapter.cs` にセルからの読み取りを追加した。設定の GUID とシリアライズするフィールド名を維持した。仕様と検証は [UI の契約](../spec/cell-status-ui.md) を参照する。
+
+## 現行設計の参照
+
+2026-10-11にコードとシーン配線を照合した [現行設計図式](current-architecture.md) と [クラス・スクリプト対応表](script-catalog.md) を参照する。目標方針や移動履歴とは区別し、今後の変更時は該当機能図も更新する。

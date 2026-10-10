@@ -1,0 +1,79 @@
+{
+  "blocks": 14,
+  "results": [
+    {
+      "id": "architecture-cells-grid-1",
+      "source": "architecture-cells-grid.md",
+      "ok": true
+    },
+    {
+      "id": "architecture-cells-grid-2",
+      "source": "architecture-cells-grid.md",
+      "ok": true
+    },
+    {
+      "id": "architecture-sequences-1",
+      "source": "architecture-sequences.md",
+      "ok": true
+    },
+    {
+      "id": "architecture-sequences-2",
+      "source": "architecture-sequences.md",
+      "ok": true
+    },
+    {
+      "id": "architecture-sequences-3",
+      "source": "architecture-sequences.md",
+      "ok": true
+    },
+    {
+      "id": "architecture-sequences-4",
+      "source": "architecture-sequences.md",
+      "ok": true
+    },
+    {
+      "id": "architecture-sequences-5",
+      "source": "architecture-sequences.md",
+      "ok": true
+    },
+    {
+      "id": "architecture-transfers-crafting-1",
+      "source": "architecture-transfers-crafting.md",
+      "ok": true
+    },
+    {
+      "id": "architecture-transfers-crafting-2",
+      "source": "architecture-transfers-crafting.md",
+      "ok": true
+    },
+    {
+      "id": "architecture-transfers-crafting-3",
+      "source": "architecture-transfers-crafting.md",
+      "ok": true
+    },
+    {
+      "id": "architecture-ui-events-1",
+      "source": "architecture-ui-events.md",
+      "ok": true
+    },
+    {
+      "id": "architecture-ui-events-2",
+      "source": "architecture-ui-events.md",
+      "ok": true
+    },
+    {
+      "id": "current-architecture-1",
+      "source": "current-architecture.md",
+      "ok": true
+    },
+    {
+      "id": "current-architecture-2",
+      "source": "current-architecture.md",
+      "ok": true
+    }
+  ],
+  "seconds": 3.32,
+  "engine": "Orca bundled mermaid.core-INM3DhGR.js",
+  "browser": "headless Chrome",
+  "source": "Markdown mermaid blocks"
+}

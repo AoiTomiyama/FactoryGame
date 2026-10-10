@@ -47,3 +47,7 @@ Unity のコンポーネント構成を土台とし、ゲームのルール、�
 2026-10-06 時点で、設計レビューのタスク1〜5と追加タスク A〜H は完了している。ただし、現行の `IContainableApplication` は `UnityEngine.Vector3Int` を使い、搬送 Application はセル Adapter の具体型を参照する。UI の設定・表示セッション・読み取り・描画は分離し、セルからの変更通知で更新する。UI/Application は Unity とセルの具体型を参照しない（[UI の契約](../spec/cell-status-ui.md)）。加工判定と素材消費、加工計画の確定・取消は Unity 非依存の Domain / Application へ分離した（[加工の契約](../spec/crafting.md)）。保管・加工入力の容量と予約量の計算は Unity 非依存の共通ルールへ分離した。搬送一件の状態と進行順は [搬送状態の契約](../spec/resource-transfer-state.md)、予約と数量計算の操作は [資源搬入の数量契約](../spec/resource-reservations.md)、資源データと演出の境界は [搬送資源データと表示の寿命](../spec/resource-presentation.md) にまとめた。
 
 新しい機能は上記の境界を使える範囲から適用する。既存コードの移行時は各タスクの完了条件を満たした結果でこの文書の「現在地」と参照を更新する。アーキテクチャの分類を変える設計判断をした場合は、理由と適用範囲をここに記録する。
+
+## 現行設計の参照
+
+2026-10-11にコードとシーン配線を照合した [現行設計図式](current-architecture.md) と [クラス・スクリプト対応表](script-catalog.md) を参照する。目標方針や移動履歴とは区別し、今後の変更時は該当機能図も更新する。
