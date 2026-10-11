@@ -14,6 +14,8 @@
 
 フロー図の実線 `A --> B` はAがBを呼ぶ／参照する依存、点線は設定供給や結果通知などラベルに示したデータの流れ。クラス図の `子 --|> 親` は継承、`実装 ..|> 契約` は実装、`所有者 *-- 内部状態` は生成と管理を担う所有、`A --> B` は借用参照、`A ..> B` は一時的な利用。Unity GameObjectの破棄権限とC#参照の所有は別で、隣接セルやSOは借用する。シーケンス図の実線は呼出、破線は返り値／通知。すべてのイベント矢印には発行元と購読先を明記する。
 
+2026-10-12の配色・分類更新では、foundationは根底の規則・共通基底、middleは具体実装・実行状態・制御、surfaceは接続・能力契約、externalは自プロジェクト外の依存または検証支援を表す。自repoの型は、図の外から参照する型でもexternalには分類しない。クラス図のnamespaceは説明上の囲みで、C#の名前空間ではない。状態図の開始・終了記号には役割を付けず、状態遷移とシーケンスの既存の分岐・処理順は保持する。
+
 ## 全体構成
 
 <!-- diagram-id: current-architecture-1 -->
@@ -79,23 +81,49 @@ flowchart LR
 <!-- diagram-id: current-architecture-2 -->
 ```mermaid
 flowchart LR
- Main["MainScene.unity"] --> Generator["GridFieldGenerator + GridFieldDatabase"]
- Main --> Placer["CellPlacer"]
- Main --> Pool["ResourceItemObjectPool"]
- Main --> View["CellStatusView"]
- Main --> Cursor["PlayerCursor / CameraController"]
- Main --> RecipeUI["RecipeUIBuilder"]
- Tab["UITab Prefab: SelectButtonBuilder"] --> DB["GeneralCellDB.asset"]
+ subgraph SceneAssembly["シーン構成とセル配置"]
+  Main["MainScene.unity"]
+  Generator["GridFieldGenerator + GridFieldDatabase"]
+  Placer["CellPlacer"]
+  Fields["F_*Cell Prefab: CellBase派生コンポーネント"]
+  Crafter["F_CrafterCell"]
+ end
+ subgraph InputDisplay["入力と表示"]
+  View["CellStatusView"]
+  Cursor["PlayerCursor / CameraController"]
+  RecipeUI["RecipeUIBuilder"]
+  Tab["UITab Prefab: SelectButtonBuilder"]
+  Preview["P_*Cell: 配置プレビュー"]
+  Visual["StoneItem / WoodItem Prefab・Sprite"]
+  Rows["Text / Gauge / Storage ParamLine Prefab"]
+ end
+ subgraph TransferDisplay["搬送表示の管理"]
+  Pool["ResourceItemObjectPool"]
+ end
+ subgraph SharedSettings["共有設定アセット"]
+  DB["GeneralCellDB.asset"]
+  RecipeDB["RecipeDB.asset"]
+  CrafterProvider["CrafterCellProvider.asset"]
+  Providers["Storage / Resource / Extractor Provider.asset"]
+  ResourceDB["ResourceDB.asset"]
+ end
+ Main --> Generator
+ Main --> Placer
+ Main --> Pool
+ Main --> View
+ Main --> Cursor
+ Main --> RecipeUI
+ Tab --> DB
  Placer --> DB
- DB --> Fields["F_*Cell Prefab: CellBase派生コンポーネント"]
- DB --> Preview["P_*Cell: 配置プレビュー"]
- Crafter["F_CrafterCell"] --> RecipeDB["RecipeDB.asset"]
- Crafter --> CrafterProvider["CrafterCellProvider.asset"]
- Fields --> Providers["Storage / Resource / Extractor Provider.asset"]
- Pool --> ResourceDB["ResourceDB.asset"]
+ DB --> Fields
+ DB --> Preview
+ Crafter --> RecipeDB
+ Crafter --> CrafterProvider
+ Fields --> Providers
+ Pool --> ResourceDB
  RecipeUI --> RecipeDB
- ResourceDB --> Visual["StoneItem / WoodItem Prefab・Sprite"]
- View --> Rows["Text / Gauge / Storage ParamLine Prefab"]
+ ResourceDB --> Visual
+ View --> Rows
  Rows --> ResourceDB
 ```
 

@@ -573,6 +573,60 @@
               "symbol": "CellStatusViewAdapter"
             }
           ]
+        },
+        "SceneAssembly": {
+          "description": "メインシーンの構成とセルの生成・登録・配置に関わる要素をまとめた囲みです。既存セルの座標登録、配置用Prefabの複製、加工セルから共有設定への参照を示し、設定アセットに実行中の在庫を保存する関係とは区別します。",
+          "references": [
+            {
+              "path": "docs/design/current-architecture.md"
+            }
+          ]
+        },
+        "InputDisplay": {
+          "description": "セル選択と状態表示、レシピ一覧、配置プレビュー、資源の表示に関わる要素をまとめた囲みです。UIタブや表示行から設定を読む参照と、シーンから入力・表示コンポーネントを利用する関係を示します。",
+          "references": [
+            {
+              "path": "docs/design/current-architecture.md"
+            }
+          ]
+        },
+        "TransferDisplay": {
+          "description": "資源種別別のプールとID別の貸出表示を管理する要素の囲みです。資源定義から表示Prefabを読み、搬送表示を再利用する関係を示します。表示の貸出・返却と資源数量データの存続は別に管理されます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs"
+            }
+          ]
+        },
+        "SharedSettings": {
+          "description": "セル配置、加工レシピ、表示ラベル、資源表示に使う共有設定アセットをまとめた囲みです。各コンポーネントがPrefabや加工条件、表示項目を参照する関係を示し、セルごとの在庫や選択中の表示状態とは区別します。",
+          "references": [
+            {
+              "path": "docs/design/current-architecture.md"
+            }
+          ]
+        }
+      },
+      "presentation": {
+        "roles": {
+          "DB": "middle",
+          "RecipeDB": "middle",
+          "CrafterProvider": "middle",
+          "Providers": "middle",
+          "ResourceDB": "middle",
+          "Main": "middle",
+          "Generator": "middle",
+          "Placer": "middle",
+          "Fields": "middle",
+          "Crafter": "middle",
+          "Pool": "middle",
+          "View": "surface",
+          "Cursor": "surface",
+          "RecipeUI": "surface",
+          "Tab": "surface",
+          "Preview": "surface",
+          "Visual": "surface",
+          "Rows": "surface"
         }
       }
     },
@@ -766,8 +820,8 @@
           "IResourceReusableApplication": "surface",
           "IDataProvidableApplication": "surface",
           "MonoBehaviour": "external",
-          "GridFieldDatabaseAdapter": "external",
-          "ResourceStorageRulesDomain": "external"
+          "GridFieldDatabaseAdapter": "surface",
+          "ResourceStorageRulesDomain": "foundation"
         }
       }
     },
@@ -875,6 +929,21 @@
               "symbol": "CellStatusViewAdapter"
             }
           ]
+        }
+      },
+      "presentation": {
+        "roles": {
+          "SingletonMonoBehaviourAdapter": "foundation",
+          "CellBaseAdapter": "foundation",
+          "CellPlacerAdapter": "middle",
+          "GridFieldGeneratorAdapter": "middle",
+          "GridFieldDatabaseAdapter": "surface",
+          "CellDatabaseDefinition": "middle",
+          "CellInfoDefinition": "middle",
+          "CellStatusViewAdapter": "surface",
+          "MonoBehaviour": "external",
+          "ScriptableObject": "external",
+          "GameObject": "external"
         }
       }
     },
@@ -1044,6 +1113,27 @@
             }
           ]
         }
+      },
+      "presentation": {
+        "roles": {
+          "CellBaseAdapter": "foundation",
+          "SingletonMonoBehaviourAdapter": "foundation",
+          "ConveyorCellAdapter": "middle",
+          "CrossingCellAdapter": "middle",
+          "PendingTransfer": "middle",
+          "ResourceTransferOperationApplication": "middle",
+          "ResourceTransferCoordinatorApplication": "middle",
+          "ResourceReservationApplication": "middle",
+          "ResourceTransitStoreApplication": "middle",
+          "IContainableApplication": "surface",
+          "IResourceTransferPresentationApplication": "surface",
+          "IResourceReusableApplication": "surface",
+          "ResourceItemObjectPoolAdapter": "surface",
+          "ResourceItemAnimationAdapter": "surface",
+          "ObjectPool": "external",
+          "GameObject": "external",
+          "DOTween": "external"
+        }
       }
     },
     "architecture-transfers-crafting-2": {
@@ -1143,6 +1233,15 @@
               "path": "docs/design/architecture-transfers-crafting.md"
             }
           ]
+        }
+      },
+      "presentation": {
+        "roles": {
+          "WaitingForReservation": "middle",
+          "Reserved": "middle",
+          "Animating": "middle",
+          "Completed": "middle",
+          "Cancelled": "middle"
         }
       }
     },
@@ -1247,6 +1346,21 @@
               "symbol": "ResourceStorageRulesDomain"
             }
           ]
+        }
+      },
+      "presentation": {
+        "roles": {
+          "ConnectableCellBaseAdapter": "foundation",
+          "RecipeRulesDomain": "foundation",
+          "RecipePlanDomain": "foundation",
+          "Consumption": "foundation",
+          "ResourceStorageRulesDomain": "foundation",
+          "CrafterCellAdapter": "middle",
+          "RecipeDatabaseDefinition": "middle",
+          "RecipeDataDefinition": "middle",
+          "IngredientDefinition": "middle",
+          "CraftingOperationApplication": "middle",
+          "ScriptableObject": "external"
         }
       }
     },
@@ -1478,6 +1592,34 @@
               "symbol": "StorageUIStatusRowAdapter"
             }
           ]
+        }
+      },
+      "presentation": {
+        "roles": {
+          "SingletonMonoBehaviourAdapter": "foundation",
+          "UIStatusRowBaseAdapter": "foundation",
+          "ProviderBaseDefinition": "foundation",
+          "CellBaseAdapter": "foundation",
+          "UIElementDataBaseApplication": "foundation",
+          "CellStatusDataProviderApplication": "middle",
+          "UIElementRendererAdapter": "middle",
+          "ResourceProviderDefinition": "middle",
+          "StorageProviderDefinition": "middle",
+          "ExtractorProviderDefinition": "middle",
+          "CrafterProviderDefinition": "middle",
+          "TextElementDataApplication": "middle",
+          "GaugeElementDataApplication": "middle",
+          "StorageElementDataApplication": "middle",
+          "IDataProvidableApplication": "surface",
+          "IUIDataProviderApplication": "surface",
+          "CellStatusViewAdapter": "surface",
+          "CellStatusProviderAdapter": "surface",
+          "TextUIStatusRowAdapter": "surface",
+          "GaugeUIStatusRowAdapter": "surface",
+          "StorageUIStatusRowAdapter": "surface",
+          "ObjectPool": "external",
+          "ScriptableObject": "external",
+          "MonoBehaviour": "external"
         }
       }
     },
@@ -1739,6 +1881,64 @@
               "symbol": "CameraControllerAdapter"
             }
           ]
+        },
+        "InputInteraction": {
+          "description": "カーソルとカメラの入力、UI上のポインター判定、選択ボタン生成・クリック処理をまとめた囲みです。入力通知から配置操作へ渡す経路と、カメラの購読・ポーリングによる制御は別の経路として示します。",
+          "references": [
+            {
+              "path": "docs/design/architecture-ui-events.md"
+            }
+          ]
+        },
+        "PlacementConnection": {
+          "description": "セル定義の検索、座標管理、セル配置と接続通知に関わる要素をまとめた囲みです。配置側が座標登録後にセルを初期化し、接続変更を搬送処理へ通知する関係を示します。状態UIへの通知は別のイベント系統です。",
+          "references": [
+            {
+              "path": "docs/design/architecture-ui-events.md"
+            }
+          ]
+        },
+        "TransferProgress": {
+          "description": "セルが保持する搬送試行と、予約・演出・確定を進める要素をまとめた囲みです。搬送先の能力契約、ID別の資源データと表示プールの関係を示し、表示返却と資源データの削除を同一操作とは扱いません。",
+          "references": [
+            {
+              "path": "docs/design/architecture-ui-events.md"
+            }
+          ]
+        },
+        "SelectedDisplay": {
+          "description": "選択セルの通知購読、表示値の読み取り・変換と行の描画をまとめた囲みです。共有ラベル設定から表示項目を選び、通知時に値を読み直す関係を示します。読み取りProviderと表示行は実在庫を変更しません。",
+          "references": [
+            {
+              "path": "docs/design/architecture-ui-events.md"
+            }
+          ]
+        }
+      },
+      "presentation": {
+        "roles": {
+          "Definition": "foundation",
+          "DB": "middle",
+          "Grid": "surface",
+          "Loops": "middle",
+          "Coord": "middle",
+          "Provider": "middle",
+          "Renderer": "middle",
+          "Cursor": "surface",
+          "Placer": "surface",
+          "Button": "surface",
+          "Builder": "surface",
+          "Cells": "surface",
+          "Target": "surface",
+          "Pool": "surface",
+          "View": "surface",
+          "Bridge": "surface",
+          "Rows": "surface",
+          "Camera": "surface",
+          "Actions": "external",
+          "Ray": "surface",
+          "UnityUI": "external",
+          "CameraInput": "external"
         }
       }
     },
@@ -1801,6 +2001,16 @@
               "symbol": "SelectButtonBuilderAdapter"
             }
           ]
+        }
+      },
+      "presentation": {
+        "roles": {
+          "D": "middle",
+          "G": "middle",
+          "F": "surface",
+          "P": "middle",
+          "B": "surface",
+          "U": "external"
         }
       }
     },
@@ -1888,6 +2098,18 @@
             }
           ]
         }
+      },
+      "presentation": {
+        "roles": {
+          "P": "middle",
+          "D": "middle",
+          "F": "surface",
+          "O": "middle",
+          "N": "middle",
+          "B": "surface",
+          "I": "surface",
+          "V": "surface"
+        }
       }
     },
     "architecture-sequences-3": {
@@ -1964,6 +2186,16 @@
             }
           ]
         }
+      },
+      "presentation": {
+        "roles": {
+          "S": "middle",
+          "C": "middle",
+          "R": "middle",
+          "D": "middle",
+          "T": "surface",
+          "P": "surface"
+        }
       }
     },
     "architecture-sequences-4": {
@@ -2008,6 +2240,14 @@
               "path": "Packages/manifest.json"
             }
           ]
+        }
+      },
+      "presentation": {
+        "roles": {
+          "R": "foundation",
+          "C": "middle",
+          "O": "middle",
+          "T": "external"
         }
       }
     },
@@ -2081,6 +2321,17 @@
               "symbol": "UIStatusRowBaseAdapter"
             }
           ]
+        }
+      },
+      "presentation": {
+        "roles": {
+          "W": "foundation",
+          "P": "middle",
+          "D": "middle",
+          "R": "middle",
+          "V": "surface",
+          "C": "surface",
+          "A": "surface"
         }
       }
     }

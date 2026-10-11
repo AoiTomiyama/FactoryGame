@@ -9,6 +9,53 @@
 <!-- diagram-id: architecture-transfers-crafting-1 -->
 ```mermaid
 classDiagram
+ namespace 共通基底 {
+ class CellBaseAdapter
+ class SingletonMonoBehaviourAdapter
+ }
+ namespace 所有セルと方向別処理 {
+ class ConveyorCellAdapter
+ class CrossingCellAdapter
+ class PendingTransfer
+ }
+ namespace 搬送進行と数量データ {
+ class ResourceTransferOperationApplication {
+  int ResourceId
+  Stage CurrentStage
+  TryWaitForNewTarget()
+  TryComplete()
+ }
+ class ResourceTransferCoordinatorApplication {
+  RunAsync()
+  WaitForNewTarget()
+  Cancel()
+ }
+ class ResourceReservationApplication {
+  long Id
+  TryCreate()
+  TryCommit()
+  TryCancel()
+ }
+ class ResourceTransitStoreApplication {
+  Create()
+  TryGet()
+  Remove()
+ }
+ }
+ namespace 搬入と演出の契約 {
+ class IContainableApplication
+ class IResourceTransferPresentationApplication
+ class IResourceReusableApplication
+ }
+ namespace Unity表示接続 {
+ class ResourceItemObjectPoolAdapter
+ class ResourceItemAnimationAdapter
+ }
+ namespace 外部基盤 {
+ class ObjectPool
+ class GameObject
+ class DOTween
+ }
  ConveyorCellAdapter *-- ResourceTransferOperationApplication : 一件の状態
  ConveyorCellAdapter *-- ResourceTransferCoordinatorApplication : 実行ごと
  CrossingCellAdapter *-- PendingTransfer : 方向別
@@ -28,28 +75,6 @@ classDiagram
  ResourceItemObjectPoolAdapter *-- ObjectPool : 資源種別別GameObject
  ResourceItemAnimationAdapter --> GameObject : 貸出表示の参照
  ResourceItemAnimationAdapter ..> DOTween : Tweenと取消Token
- class ResourceTransferOperationApplication {
-  int ResourceId
-  Stage CurrentStage
-  TryWaitForNewTarget()
-  TryComplete()
- }
- class ResourceReservationApplication {
-  long Id
-  TryCreate()
-  TryCommit()
-  TryCancel()
- }
- class ResourceTransferCoordinatorApplication {
-  RunAsync()
-  WaitForNewTarget()
-  Cancel()
- }
- class ResourceTransitStoreApplication {
-  Create()
-  TryGet()
-  Remove()
- }
 ```
 
 [Coordinator](../../Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs)、[Operation](../../Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs)、[Reservation](../../Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs)、[Pool](../../Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs) が根拠。Conveyorは一件、CrossingのPendingTransferは方向別にCoordinatorを保持し、予約を受けた後に資源IDを受け取る。上図のOperation/Storeメソッドは詳細な引数を省略している。貸出表示が戻っても資源データは自動消滅せず、通常終端ではデータ削除と表示返却を明示する。Reusable搬送先は同じIDを継承する。
@@ -77,6 +102,33 @@ stateDiagram-v2
 <!-- diagram-id: architecture-transfers-crafting-3 -->
 ```mermaid
 classDiagram
+ namespace 基底と数量規則 {
+ class ConnectableCellBaseAdapter
+ class RecipeRulesDomain {
+  TryCreatePlan()
+  TryApply()
+ }
+ class RecipePlanDomain
+ class Consumption
+ class ResourceStorageRulesDomain
+ }
+ namespace 加工進行 {
+ class CrafterCellAdapter
+ class CraftingOperationApplication {
+  RecipePlanDomain Plan
+  Stage CurrentStage
+  TryComplete()
+  TryCancel()
+ }
+ }
+ namespace 共有レシピ設定 {
+ class RecipeDatabaseDefinition
+ class RecipeDataDefinition
+ class IngredientDefinition
+ }
+ namespace Unity基盤 {
+ class ScriptableObject
+ }
  ConnectableCellBaseAdapter <|-- CrafterCellAdapter
  CrafterCellAdapter --> RecipeDatabaseDefinition : 設定を借用
  ScriptableObject <|-- RecipeDatabaseDefinition
@@ -88,16 +140,6 @@ classDiagram
  RecipePlanDomain *-- Consumption : 素材IDと量の読み取り専用配列
  CraftingOperationApplication ..> RecipeRulesDomain : 終了時に再検証
  CrafterCellAdapter ..> ResourceStorageRulesDomain : 方向別入力在庫と予約
- class CraftingOperationApplication {
-  RecipePlanDomain Plan
-  Stage CurrentStage
-  TryComplete()
-  TryCancel()
- }
- class RecipeRulesDomain {
-  TryCreatePlan()
-  TryApply()
- }
 ```
 
 [Crafter](../../Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs)、[RecipeRules](../../Assets/Scripts/Crafting/Domain/RecipeRulesDomain.cs)、[Operation](../../Assets/Scripts/Crafting/Application/CraftingOperationApplication.cs)、[RecipeDB](../../Assets/Scripts/Crafting/Definitions/RecipeDatabaseDefinition.cs) が根拠。RecipeDataDefinitionはSO内のシリアライズ可能な普通のクラスで、レシピ個別SOではない。入力・出力在庫はCrafter、加工計画はRecipePlan、加工StageはOperationが保持する。開始時に最初に成立したレシピから固定計画を作り、完了時の在庫と容量を再検証する。ApplyCommitは途中にawaitや通知を挟まず素材消費と出力増加を適用する。finallyは取消・Tween掃除・表示通知を担い、素材を無条件に消費しない。無効化・破棄は未完了計画を取消し、再有効化は初期化済みなら処理を再開する。

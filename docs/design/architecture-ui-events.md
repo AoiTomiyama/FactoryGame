@@ -9,6 +9,12 @@
 <!-- diagram-id: architecture-ui-events-1 -->
 ```mermaid
 classDiagram
+ namespace 共通基底 {
+ class SingletonMonoBehaviourAdapter
+ class UIStatusRowBaseAdapter
+ class CellBaseAdapter
+ }
+ namespace 読み取り契約 {
  class IDataProvidableApplication {
   <<interface>>
   GetDataProvider()
@@ -17,6 +23,36 @@ classDiagram
  class IUIDataProviderApplication {
   <<interface>>
   ReadData()
+ }
+ }
+ namespace 選択表示と描画制御 {
+ class CellStatusDataProviderApplication
+ class CellStatusViewAdapter
+ class UIElementRendererAdapter
+ class CellStatusProviderAdapter
+ }
+ namespace 共有ラベル設定 {
+ class ProviderBaseDefinition
+ class ResourceProviderDefinition
+ class StorageProviderDefinition
+ class ExtractorProviderDefinition
+ class CrafterProviderDefinition
+ }
+ namespace 読み取り表示値 {
+ class UIElementDataBaseApplication
+ class TextElementDataApplication
+ class GaugeElementDataApplication
+ class StorageElementDataApplication
+ }
+ namespace 具体表示行 {
+ class TextUIStatusRowAdapter
+ class GaugeUIStatusRowAdapter
+ class StorageUIStatusRowAdapter
+ }
+ namespace Unity基盤 {
+ class ObjectPool
+ class ScriptableObject
+ class MonoBehaviour
  }
  CellStatusDataProviderApplication ..|> IUIDataProviderApplication
  SingletonMonoBehaviourAdapter <|-- CellStatusViewAdapter
@@ -51,29 +87,59 @@ classDiagram
 <!-- diagram-id: architecture-ui-events-2 -->
 ```mermaid
 flowchart LR
- Actions["InputAction"] -. "performed / started / canceled" .-> Cursor["PlayerCursorBehaviourAdapter"]
- Cursor --> Ray["UIRaycaster + Physics.Raycast"]
- Cursor --> Placer["CellPlacerAdapter"]
- Button["CellSelectButtonUIAdapter / Button.onClick"] -. "登録Action実行" .-> Placer
- Builder["SelectButtonBuilderAdapter"] --> DB["CellDatabaseDefinition"]
+ subgraph InputInteraction["入力とボタン操作"]
+  Actions["InputAction"]
+  Cursor["PlayerCursorBehaviourAdapter"]
+  Ray["UIRaycaster + Physics.Raycast"]
+  Button["CellSelectButtonUIAdapter / Button.onClick"]
+  Builder["SelectButtonBuilderAdapter"]
+  CameraInput["カメラInputAction"]
+  Camera["CameraControllerAdapter / Cinemachine"]
+ end
+ subgraph PlacementConnection["配置とセル接続"]
+  Placer["CellPlacerAdapter"]
+  Grid["GridFieldDatabaseAdapter"]
+  DB["CellDatabaseDefinition"]
+  Cells["CellBase派生 / InitializeSystem / OnDisconnect"]
+ end
+ subgraph TransferProgress["搬送進行と演出"]
+  Loops["Conveyor・ExportConveyor・Crossingの処理"]
+  Coord["ResourceTransferCoordinator"]
+  Target["IContainable / IResourceReusable 搬送先"]
+  Pool["TransitStoreと演出Pool"]
+ end
+ subgraph SelectedDisplay["選択状態の読み取りと表示"]
+  View["CellStatusViewAdapter 選択中のみ購読"]
+  Renderer["UIElementRendererAdapter"]
+  Provider["CellStatusDataProviderApplication.ReadData"]
+  Bridge["CellStatusProviderAdapter.Read"]
+  Definition["ProviderBaseDefinition ラベル"]
+  Rows["Text / Gauge / Storage行"]
+  UnityUI["TMP / Image"]
+ end
+ Actions -. "performed / started / canceled" .-> Cursor
+ Cursor --> Ray
+ Cursor --> Placer
+ Button -. "登録Action実行" .-> Placer
+ Builder --> DB
  Builder --> Button
- Placer --> Grid["GridFieldDatabaseAdapter"]
- Placer --> Cells["CellBase派生 / InitializeSystem / OnDisconnect"]
- Cells -. "接続/喪失/切断通知" .-> Loops["Conveyor・ExportConveyor・Crossingの処理"]
- Loops --> Coord["ResourceTransferCoordinator"]
- Coord --> Target["IContainable / IResourceReusable 搬送先"]
- Coord --> Pool["TransitStoreと演出Pool"]
- Cells -. "StatusChanged" .-> View["CellStatusViewAdapter 選択中のみ購読"]
+ Placer --> Grid
+ Placer --> Cells
+ Cells -. "接続/喪失/切断通知" .-> Loops
+ Loops --> Coord
+ Coord --> Target
+ Coord --> Pool
+ Cells -. "StatusChanged" .-> View
  Placer --> View
- View --> Renderer["UIElementRendererAdapter"]
- Renderer --> Provider["CellStatusDataProviderApplication.ReadData"]
- Provider --> Bridge["CellStatusProviderAdapter.Read"]
+ View --> Renderer
+ Renderer --> Provider
+ Provider --> Bridge
  Bridge --> Cells
- Bridge --> Definition["ProviderBaseDefinition ラベル"]
+ Bridge --> Definition
  Provider -. "ラベル→表示値スナップショット" .-> Renderer
- Renderer --> Rows["Text / Gauge / Storage行"]
- Rows --> UnityUI["TMP / Image"]
- CameraInput["カメラInputAction"] -. "購読とポーリング" .-> Camera["CameraControllerAdapter / Cinemachine"]
+ Renderer --> Rows
+ Rows --> UnityUI
+ CameraInput -. "購読とポーリング" .-> Camera
 ```
 
 点線は左から右へのイベント／値の授受、実線は利用側→依存先。InputActionはOnEnableで有効化・購読、OnDisableで解除。左ボタン開始→PointerBegin、保持中Update→PointerDrag、終了→PointerEnd、右操作→TransferDataToUI。回転操作はPlacerの向きを変える。選択ボタンはBuilderがDBから生成し通常ボタンにSetSelectedCellTypeを渡す。SubMenuUIBuilderは未完成の分岐を含み、完全なサブメニュー機構として図に展開しない。接続イベントは隣接参照を更新してから通知し、UIのStatusChangedとは別系統である。

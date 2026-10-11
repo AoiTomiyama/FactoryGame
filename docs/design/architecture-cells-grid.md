@@ -6,7 +6,7 @@
 
 ## セル型と能力契約
 
-囲みは設計図を読むための分類で、C#の名前空間を表すものではない。配色のfoundationは共通基底、middleは具体セル、surfaceは能力契約、externalはUnity基盤とこの図の外から参照する型を示す。
+囲みは設計図を読むための分類で、C#の名前空間を表すものではない。配色のfoundationは共通基底、middleは具体セル、surfaceは能力契約、externalは自プロジェクト外の依存を示す。数量規則はfoundation、座標検索を提供するグリッドDBはsurfaceである。「外部と参照先」の囲みはexternalの色分類と同じ区分ではない。
 
 <!-- diagram-id: architecture-cells-grid-1 -->
 ```mermaid
@@ -103,6 +103,39 @@ MonoBehaviour <|-- CellBaseAdapter
 <!-- diagram-id: architecture-cells-grid-2 -->
 ```mermaid
 classDiagram
+ namespace 共通基底 {
+ class SingletonMonoBehaviourAdapter
+ class CellBaseAdapter
+ }
+ namespace 配置と座標管理 {
+ class CellPlacerAdapter {
+  SetSelectedCellType()
+  SelectGrid()
+  PointerBegin()
+  PointerDrag()
+  PointerEnd()
+ }
+ class GridFieldGeneratorAdapter
+ class GridFieldDatabaseAdapter
+ }
+ namespace セル定義 {
+ class CellDatabaseDefinition {
+  OnEnable()
+  OnValidate()
+  SetCellInfos()
+  GetAllCellInfos()
+  TryGetCellInfo()
+ }
+ class CellInfoDefinition
+ }
+ namespace 状態表示 {
+ class CellStatusViewAdapter
+ }
+ namespace Unity基盤 {
+ class MonoBehaviour
+ class ScriptableObject
+ class GameObject
+ }
  MonoBehaviour <|-- CellPlacerAdapter
  MonoBehaviour <|-- GridFieldGeneratorAdapter
  SingletonMonoBehaviourAdapter <|-- GridFieldDatabaseAdapter
@@ -117,20 +150,6 @@ classDiagram
  CellPlacerAdapter --> GameObject : 生成したキャッシュとプレビューの寿命管理
  GridFieldDatabaseAdapter --> CellBaseAdapter : 座標配列の借用参照
  GridFieldGeneratorAdapter --> GridFieldDatabaseAdapter : Startで既存階層登録
- class CellDatabaseDefinition {
-  OnEnable()
-  OnValidate()
-  SetCellInfos()
-  GetAllCellInfos()
-  TryGetCellInfo()
- }
- class CellPlacerAdapter {
-  SetSelectedCellType()
-  SelectGrid()
-  PointerBegin()
-  PointerDrag()
-  PointerEnd()
- }
 ```
 
 [CellDatabaseDefinition](../../Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs) は設定配列を正本としOnEnableで辞書を必ず作る。SetCellInfos/OnValidateで無効化し、取得時に必要なら再構築する。旧保存フラグは実行時状態に使わない。[GridFieldGenerator](../../Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs) の生成関数はUNITY_EDITOR限定、Startは [GridDB](../../Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs) に既存子階層を登録する。GridDBは座標を持つがセルを自動生成・破棄しない。[Placer](../../Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs) は選択した定義の非アクティブなセル複製をキャッシュし、配置時に再複製、旧セル切断、座標登録、有効化、InitializeSystemを行う。
