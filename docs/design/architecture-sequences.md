@@ -6,6 +6,7 @@
 
 ## 起動と定義の読み取り
 
+<!-- diagram-id: architecture-sequences-1 -->
 ```mermaid
 sequenceDiagram
  participant U as Unity
@@ -38,6 +39,7 @@ sequenceDiagram
 
 ## ボタン選択からドラッグ配置
 
+<!-- diagram-id: architecture-sequences-2 -->
 ```mermaid
 sequenceDiagram
  participant B as Button / CellSelectButtonUIAdapter
@@ -75,6 +77,7 @@ sequenceDiagram
 
 ## 搬送の予約・演出・確定
 
+<!-- diagram-id: architecture-sequences-3 -->
 ```mermaid
 sequenceDiagram
  participant S as Conveyor / Crossing
@@ -114,6 +117,7 @@ sequenceDiagram
 
 ## 加工の開始と一度きり確定
 
+<!-- diagram-id: architecture-sequences-4 -->
 ```mermaid
 sequenceDiagram
  participant C as CrafterCellAdapter
@@ -141,6 +145,7 @@ sequenceDiagram
 
 ## 選択UIの読み取りと購読寿命
 
+<!-- diagram-id: architecture-sequences-5 -->
 ```mermaid
 sequenceDiagram
  participant P as CellPlacerAdapter

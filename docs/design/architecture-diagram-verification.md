@@ -14,111 +14,31 @@
 
 初回はheadlessのDOM出力が非同期描画の完了前に終了し、60秒で受付待機がtimeoutした。virtual-time-budgetを追加した再実行は2.45秒で成功。その後シーケンスの定義取得ラベルをコードに合わせて直したため、必要な再生成を1回実施し3.32秒で成功した。計3試行、成功後の再実行は原本変更に伴う1回。コードやゲーム仕様の手戻りはない。
 
-## 再生成
+## 現行の図・説明更新手順
 
-下記のPython例は文書の再生成手順。原本Markdownからブロックを抽出し、インストール済みOrcaのASAR内のES moduleをlocalhostだけで提供して、既存Chromeの隔離された一時profileによるheadless描画を行う。新規依存は導入せず、製品コードをimport・実行しない。ASARとChromeの位置を引数で指定する。
+2026-10-11の全図説明追加から、更新は独立ハブが所有する共通CLIへ統一する。[共通CLI契約](../../../../.codex/session-routing/architecture-docs-tool.md) と [説明方針](../../../../.codex/session-routing/requests/architecture-description-policy-proposal.md) を参照する。上記SVGのparse/render記録は作成時の証拠として保持し、旧ASARサーバーとPythonによるSVG生成を通常更新手順には使わない。
+
+説明の正本は [architecture-descriptions.json](architecture-descriptions.json)。図は既存MarkdownのMermaid、対応キーは直前のdiagram-idコメントである。ノードIDは図ごとの名前空間で対応する。SVGとHTML一覧は既存の閲覧用出力で、説明JSONの正本ではない。
 
 ```powershell
-python <下記Python例の保存先> --docs docs/design --asar <既存Orcaのresources/app.asar> --browser <既存Chrome実行ファイル>
+python C:/Users/Taomo/.codex/session-routing/architecture_docs.py doctor --project factory
+python C:/Users/Taomo/.codex/session-routing/architecture_docs.py sync --project factory --write
+python C:/Users/Taomo/.codex/session-routing/architecture_docs.py inventory --project factory --output <担当のinventory保存先>
+python C:/Users/Taomo/.codex/session-routing/architecture_docs.py apply --project factory --patch <担当のpatch保存先> --write
+python C:/Users/Taomo/.codex/session-routing/architecture_docs.py validate --project factory
+python C:/Users/Taomo/.codex/session-routing/architecture_docs.py sync --project factory
 ```
 
-出力は `docs/design/diagrams/*.svg` と `verification.json`。`index.html` は説明付きの静的閲覧索引で、新しい図を追加した場合はその参照も更新する。SVGは生成物であり、修正はMarkdownのMermaidへ行う。Orca更新で同梱asset名が変わる場合はツールがprefixから見つけるが、ASAR構造変更時には既存CLIの利用可能性を再確認する。レンダラーの成功と設計説明の正確性は別で、変更時にはコード関係も照合する。
+inventoryのbase_revisionで競合を防ぎ、applyには変更する図の概要・ノード説明・根拠だけを指定する。図の変更は同じpatchにmermaidを含める。CLIを担当側で複製・修正せず、不具合はハブへ報告する。書込は--write指定時のみで、CLIは既存の描画資源による内部parse/renderと更新ジャーナルを管理する。今回の処理はSVGを書き出すものではない。
+
+完成時はallow-incompleteを付けないvalidateがok=true、errors=[]、missing=[]であること、およびsyncのプレビューがchanged=[]であることを確認する。根拠は存在だけでなく、説明の状態・寿命・相手との関係を実装本文と照合する。合格は構文・対応・説明網羅の保証であり、Unityの実操作や描画品質の追加検証ではない。原本と関連文書を同じ目的で独立コミットし、ハブへ結果を返す。
+
+## 全図説明の追加記録
+
+2026-10-11、文書開始版0a7daaf、コード説明対象f8e4daeを照合して14図・179ノードへ概要・短い説明・リポジトリ基準の相対根拠を追加した。architecture-cells-grid-1のpilot17件はそのまま保持し、残り13図・162件を共通CLIで追加した。概要は対象・流れ・境界、ノードは役割・状態・相手との関わりを説明し、外部型・開始終了記号も図内の役割を自リポジトリの使用箇所に結び付けた。
+
+doctor、sync、inventory、applyを順に使用し、applyの全件検証はok=true、errors=[]、missing=[]だった。別のvalidateでも全14図・179ノードがok=true、errors=[]、missing=[]（2.35秒）、続くsyncプレビューはchanged=[]（2.35秒）を確認した。276件の根拠参照が存在し、Mermaid原文14図・pilot説明17件・既存7ファイル・SVGの保全も照合した。再検証はこの最終一括確認の1回で、成功後の反復はない。文書コミットと詳細結果は担当の提出JSONに記録する。説明追加では製品コード・Prefab・SO・SVGを変更しない。既存7ファイルの無関係差分を保全し、説明で既存の未完了設計課題を完了扱いにしない。
 
 ## 未確認と再開情報
 
 今回の成果は静的設計説明。Unityのロード順・実入力・見た目を新たに実行検証したとは扱わない。Start経路間の総順序を保証しない。未コミットの描画差分の体験品質と未使用ServiceLocatorの採否も判定対象外。[拡張レビュー](../tasks/extension-readiness-review.md)の未完了課題は継続している。本図式を閲覧・更新する次担当は対象コードHEADと当日のGit差分を先に照合する。
-
-## 再生成用Python例
-
-これは図の生成手順であり、製品スクリプトではない。Python標準ライブラリと既存のChrome・Orcaのみを使う。
-
-```python
-"""Render canonical Markdown Mermaid blocks with an existing Orca ASAR and headless Chrome.
-No package installation or GUI operation. Outputs are document artifacts only.
-"""
-import argparse
-import http.server
-import json
-import pathlib
-import re
-import struct
-import subprocess
-import tempfile
-import threading
-import time
-
-parser = argparse.ArgumentParser()
-parser.add_argument("--docs", required=True, type=pathlib.Path)
-parser.add_argument("--asar", required=True, type=pathlib.Path)
-parser.add_argument("--browser", required=True, type=pathlib.Path)
-args = parser.parse_args()
-root = args.docs.resolve()
-out = root / "diagrams"
-out.mkdir(exist_ok=True)
-with args.asar.open("rb") as f:
-    header = struct.unpack("<4I", f.read(16))
-    tree = json.loads(f.read(header[3]))
-asset_tree = tree["files"]["out"]["files"]["renderer"]["files"]["assets"]["files"]
-base = 8 + header[1]
-mermaid = next(k for k in asset_tree if k.startswith("mermaid.core-") and k.endswith(".js"))
-blocks = []
-for source in sorted(root.glob("*.md")):
-    for i, code in enumerate(re.findall(r"```mermaid\n(.*?)```", source.read_text(encoding="utf-8"), re.S), 1):
-        blocks.append({"id": source.stem + "-" + str(i), "source": source.name, "code": code})
-page = """<!doctype html><meta charset="utf-8"><style>body{font-family:Meiryo,sans-serif}</style>
-<script type="module">
-import mermaid from '/assets/MODULE';
-mermaid.initialize({startOnLoad:false,theme:'default',securityLevel:'strict',fontFamily:'Meiryo, sans-serif',flowchart:{htmlLabels:false},sequence:{useMaxWidth:false}});
-const blocks=BLOCKS;const results=[];
-for(const b of blocks){try{await mermaid.parse(b.code);const {svg}=await mermaid.render('diagram'+results.length,b.code);results.push({...b,ok:true,svg});}catch(e){results.push({...b,ok:false,error:String(e)});}}
-await fetch('/result',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(results)});
-document.body.innerText=JSON.stringify(results.map(({id,ok,error})=>({id,ok,error})));
-</script>""".replace("MODULE", mermaid).replace("BLOCKS", json.dumps(blocks, ensure_ascii=False))
-finished = threading.Event()
-results = []
-class Handler(http.server.BaseHTTPRequestHandler):
-    def log_message(self, *args):
-        pass
-    def do_GET(self):
-        if self.path == "/":
-            data = page.encode("utf-8"); mime = "text/html; charset=utf-8"
-        elif self.path.startswith("/assets/") and self.path[8:] in asset_tree:
-            entry = asset_tree[self.path[8:]]
-            with args.asar.open("rb") as f:
-                f.seek(base + int(entry["offset"])); data = f.read(entry["size"])
-            mime = "application/javascript"
-        else:
-            self.send_error(404); return
-        self.send_response(200); self.send_header("Content-Type", mime)
-        self.end_headers(); self.wfile.write(data)
-    def do_POST(self):
-        if self.path != "/result":
-            self.send_error(404); return
-        results.extend(json.loads(self.rfile.read(int(self.headers["Content-Length"]))))
-        self.send_response(200); self.end_headers(); self.wfile.write(b"ok")
-        finished.set()
-server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-thread = threading.Thread(target=server.serve_forever, daemon=True)
-thread.start()
-started = time.monotonic()
-try:
-    with tempfile.TemporaryDirectory(prefix="factory-diagrams-") as profile:
-        command = [str(args.browser), "--headless=new", "--no-first-run", "--no-default-browser-check", "--disable-background-networking", "--user-data-dir="+profile, "--dump-dom", "--virtual-time-budget=30000", "--timeout=60000", "http://127.0.0.1:"+str(server.server_port)+"/"]
-        with tempfile.TemporaryFile() as log:
-            process = subprocess.Popen(command, stdout=log, stderr=log, creationflags=getattr(subprocess,"CREATE_NO_WINDOW",0))
-            if not finished.wait(60):
-                process.kill(); process.wait(); log.seek(0)
-                raise RuntimeError("Renderer timeout: " + log.read().decode(errors="replace")[-2000:])
-            process.wait(timeout=15)
-        for result in results:
-            if result["ok"]:
-                (out / (result["id"]+".svg")).write_text(result.pop("svg"), encoding="utf-8")
-            result.pop("code",None)
-        record={"blocks":len(blocks),"results":results,"seconds":round(time.monotonic()-started,2),"engine":"Orca bundled "+mermaid,"browser":"headless Chrome", "source":"Markdown mermaid blocks"}
-        (out / "verification.json").write_text(json.dumps(record,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-        print(json.dumps(record,ensure_ascii=False,indent=2))
-        if len(results)!=len(blocks) or not all(x["ok"] for x in results):
-            raise SystemExit(1)
-finally:
-    server.shutdown(); server.server_close()
-```

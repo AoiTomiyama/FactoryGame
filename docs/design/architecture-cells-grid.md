@@ -6,6 +6,7 @@
 
 ## セル型と能力契約
 
+<!-- diagram-id: architecture-cells-grid-1 -->
 ```mermaid
 classDiagram
  MonoBehaviour <|-- CellBaseAdapter
@@ -71,6 +72,7 @@ classDiagram
 
 ## グリッド管理と定義
 
+<!-- diagram-id: architecture-cells-grid-2 -->
 ```mermaid
 classDiagram
  MonoBehaviour <|-- CellPlacerAdapter

@@ -6,6 +6,7 @@
 
 ## 表示セッションと値のクラス関係
 
+<!-- diagram-id: architecture-ui-events-1 -->
 ```mermaid
 classDiagram
  class IDataProvidableApplication {
@@ -47,6 +48,7 @@ classDiagram
 
 ## 入力・イベント・データの相関
 
+<!-- diagram-id: architecture-ui-events-2 -->
 ```mermaid
 flowchart LR
  Actions["InputAction"] -. "performed / started / canceled" .-> Cursor["PlayerCursorBehaviourAdapter"]

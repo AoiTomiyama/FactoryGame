@@ -8,7 +8,7 @@
 
 ## 読み方と対象範囲
 
-原本は各Markdownの `mermaid` ブロック。概要から機能別へ読む。[セル・配置](architecture-cells-grid.md)、[搬送・加工](architecture-transfers-crafting.md)、[UI・イベント](architecture-ui-events.md)、[起動と操作シーケンス](architecture-sequences.md)、[全スクリプト対応表](script-catalog.md)で実ファイルに遡れる。閲覧用SVGと生成・検証方法は [図の検証記録](architecture-diagram-verification.md)を参照する。
+原本は各Markdownの `mermaid` ブロック。概要から機能別へ読む。[セル・配置](architecture-cells-grid.md)、[搬送・加工](architecture-transfers-crafting.md)、[UI・イベント](architecture-ui-events.md)、[起動と操作シーケンス](architecture-sequences.md)、[全スクリプト対応表](script-catalog.md)で実ファイルに遡れる。既存閲覧用SVGと説明更新・検証手順は [図の検証記録](architecture-diagram-verification.md)を参照する。
 
 自作C#の `Assets/Scripts/` を対象とする。Domainは数量・レシピ規則、Applicationは処理進行・読み取り契約、AdapterはUnity接続、Definitionsは設定、Editorは編集支援と検証入口。フォルダーは責務の整理であり、asmdefによる境界強制はない。C++/Pythonの製品モジュールはこの範囲にない。外部パッケージの内部型・生成コード・素材シェーダーは展開しない。
 
@@ -16,6 +16,7 @@
 
 ## 全体構成
 
+<!-- diagram-id: current-architecture-1 -->
 ```mermaid
 flowchart TB
  subgraph Scene["Unityシーン・Prefab・設定アセット"]
@@ -70,6 +71,7 @@ flowchart TB
 
 ## 実際のUnity配線
 
+<!-- diagram-id: current-architecture-2 -->
 ```mermaid
 flowchart LR
  Main["MainScene.unity"] --> Generator["GridFieldGenerator + GridFieldDatabase"]
@@ -109,6 +111,10 @@ flowchart LR
 | 不変加工計画＋純粋規則 | [RecipePlan](../../Assets/Scripts/Crafting/Domain/RecipePlanDomain.cs)、[RecipeRules](../../Assets/Scripts/Crafting/Domain/RecipeRulesDomain.cs) のTryCreatePlan/TryApply | 開始時に素材計画を固定し、終了時に現在在庫へ再適用。SOと実行状態を切り離す |
 | ScriptableObject設定 / データ駆動（Unity方式） | CellDatabaseDefinition、ResourceDefinition、RecipeDatabaseDefinition、ProviderBaseDefinition | Prefab・アイコン・レシピ・表示ラベルを編集可能な定義へ集約。SO自体をゲーム状態やRepositoryパターンとは扱わない |
 | 継承＋仮想フック（Template Method的な部分） | CellBase / ConnectableCellBase / Conveyor / ExportConveyor のInitializeSystem | 共通接続処理をbase呼出で再利用。派生型が呼出順も制御し、固定されたテンプレートではない |
+
+## 図と説明の正本
+
+2026-10-11に全14図・179ノードの概要・説明を [architecture-descriptions.json](architecture-descriptions.json) へ追加した。各Mermaidの固定diagram-idと図内ノードIDで対応する。説明は短い要約、詳細な契約や制約は本図式・コード・仕様文書を根拠とする。pilotの17件も保持している。説明を含む更新は [共通CLI契約](../../../../.codex/session-routing/architecture-docs-tool.md) に従い、[更新手順と検証記録](architecture-diagram-verification.md)のdoctor→sync→inventory→apply→validateを使う。SVGは既存の閲覧用生成物で、説明の正本ではない。
 
 ## 更新・再開時
 

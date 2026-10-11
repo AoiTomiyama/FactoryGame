@@ -1,0 +1,2038 @@
+{
+  "schema_version": 1,
+  "diagrams": {
+    "current-architecture-1": {
+      "source": "current-architecture.md",
+      "summary": "シーンと設定、Unity接続、処理進行、純粋な規則の全体関係を示します。入力から配置・資源処理・表示へつながる機能を俯瞰し、外部ライブラリと開発用検証の境界を確認できます。搬送Applicationに残る具体セルへの依存も現状どおりに表しています。",
+      "nodes": {
+        "Main": {
+          "description": "ゲームの管理コンポーネント、グリッドの子階層、入力とUIを配置したメインシーンです。起動時に既存セルを座標へ登録し、実行中は配置側がPrefabを複製します。シーンはUnity上の配線を供給し、資源の数量計算は各セルと規則に分かれます。",
+          "references": [
+            {
+              "path": "Assets/Scenes/MainScene.unity"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs",
+              "symbol": "GridFieldGeneratorAdapter"
+            }
+          ]
+        },
+        "SO": {
+          "description": "セル、資源、レシピ、表示項目のScriptableObject定義群です。配置用Prefab、アイコン、加工条件、表示ラベルを各機能へ供給します。共有設定を正本とし、セル在庫・搬送状態・選択中の表示値は別の実行時オブジェクトへ置きます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs",
+              "symbol": "CellDatabaseDefinition"
+            },
+            {
+              "path": "Assets/Scripts/Crafting/Definitions/RecipeDatabaseDefinition.cs",
+              "symbol": "RecipeDatabaseDefinition"
+            },
+            {
+              "path": "Assets/Scripts/Resources/Definitions/ResourceDefinition.cs",
+              "symbol": "ResourceDefinition"
+            },
+            {
+              "path": "Assets/Scripts/UI/Definitions/ProviderBaseDefinition.cs",
+              "symbol": "ProviderBaseDefinition"
+            }
+          ]
+        },
+        "Input": {
+          "description": "カーソル操作とカメラ操作をUnity入力へ接続する機能群です。セル選択やドラッグ配置はカーソル側から配置側へ渡し、カメラのパンやズームは専用Controllerが処理します。入力購読の有効期間は各コンポーネントで管理します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs",
+              "symbol": "PlayerCursorBehaviourAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Input/Adapter/CameraControllerAdapter.cs",
+              "symbol": "CameraControllerAdapter"
+            }
+          ]
+        },
+        "Grid": {
+          "description": "既存グリッドの登録と座標検索、セル選択、プレビュー、配置をまとめた機能群です。GeneratorのStartで子階層をDBへ登録し、Placerが実行中のセル置換を行います。Editorの地形生成と実行時のPrefab配置を区別します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs",
+              "symbol": "GridFieldGeneratorAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs",
+              "symbol": "GridFieldDatabaseAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            }
+          ]
+        },
+        "Cells": {
+          "description": "保管、採取、コンベア搬送、交差、加工の具体的なUnityセル群です。各セルは役割に応じた在庫や資源ID、非同期処理の寿命を持ち、能力契約を公開します。数量規則や処理進行へ委ねる部分と、Unityとの接続責任を分けています。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/StorageCellAdapter.cs",
+              "symbol": "StorageCellAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs",
+              "symbol": "ConveyorCellAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs",
+              "symbol": "CrafterCellAdapter"
+            }
+          ]
+        },
+        "Presentation": {
+          "description": "搬送資源のGameObject貸出と移動演出を担うAdapter群です。プールは資源種別とIDから表示を管理し、AnimationはTweenと取消を扱います。資源数量のデータ寿命、演出成功、表示返却を同じ操作として扱いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs",
+              "symbol": "ResourceItemObjectPoolAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemAnimationAdapter.cs",
+              "symbol": "ResourceItemAnimationAdapter"
+            }
+          ]
+        },
+        "UI": {
+          "description": "セル状態を表示値へ変換し、選択中の通知購読、行の取得と描画を担うUI群です。Viewが表示セッションを管理し、ProviderとRendererが読み取り・描画を分担します。セル具体型の変換はAdapterに残り、共通読み取り契約とは区別します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "CellStatusViewAdapter"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs",
+              "symbol": "CellStatusProviderAdapter"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/UIElementRendererAdapter.cs",
+              "symbol": "UIElementRendererAdapter"
+            }
+          ]
+        },
+        "Transfer": {
+          "description": "搬送一件の進行、予約Tokenと資源ID別データを扱うApplication群です。演出結果と搬送先の生存・接続を確認して数量を確定します。演出は契約越しですが、現行コードはセルAdapter具体型やUnity座標・UniTaskへも依存しています。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "ResourceTransferCoordinatorApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs",
+              "symbol": "ResourceReservationApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransitStoreApplication.cs",
+              "symbol": "ResourceTransitStoreApplication"
+            }
+          ]
+        },
+        "Craft": {
+          "description": "一件の固定された加工計画とProcessing・Completed・Cancelledの段階を持ちます。終了時には現在の在庫と容量へ計画を適用できるか再検証し、成功時だけ確定します。取消や失敗後の同じ計画は再確定できません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Application/CraftingOperationApplication.cs",
+              "symbol": "CraftingOperationApplication"
+            }
+          ]
+        },
+        "Read": {
+          "description": "表示ラベルから値を読む契約と、選択セッション用Provider、共通表示値をまとめた領域です。セルやUnityを直接参照せず、渡された読み取り関数から値を作ります。具体セルとの対応付けとGameObjectの描画はUIのAdapter側に置きます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/IUIDataProviderApplication.cs",
+              "symbol": "IUIDataProviderApplication"
+            },
+            {
+              "path": "Assets/Scripts/UI/Application/CellStatusDataProviderApplication.cs",
+              "symbol": "CellStatusDataProviderApplication"
+            },
+            {
+              "path": "Assets/Scripts/UI/Application/UIElementDataBaseApplication.cs",
+              "symbol": "UIElementDataBaseApplication"
+            }
+          ]
+        },
+        "Storage": {
+          "description": "Unityのセルや表示を参照せず、資源種別・現在量・予約量と容量から数量操作を計算する規則です。全量予約、確定、取消、出庫の可否と次の在庫を返します。保管・加工セルが結果を自身の状態へ適用するため、この型は実際のセル在庫を所有しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Resources/Domain/ResourceStorageRulesDomain.cs",
+              "symbol": "ResourceStorageRulesDomain"
+            }
+          ]
+        },
+        "Recipe": {
+          "description": "加工レシピの成立判定、固定計画の作成と終了時の再検証を行うDomain群です。入力・出力の値から素材消費と成果物を計算し、Unityの時間待機やセル参照は持ちません。実際の在庫更新は加工セルが計算結果を適用して行います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Domain/RecipeRulesDomain.cs",
+              "symbol": "RecipeRulesDomain"
+            },
+            {
+              "path": "Assets/Scripts/Crafting/Domain/RecipePlanDomain.cs",
+              "symbol": "RecipePlanDomain"
+            }
+          ]
+        },
+        "Enum": {
+          "description": "セル種別、資源種別、接続方向を表す列挙型群です。定義の検索、在庫の種別、セル向きと搬送の識別に使われます。各機能が共有する識別情報であり、数量状態やオブジェクトの寿命を管理する型ではありません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Domain/CellEnumsDomain.cs",
+              "symbol": "CellEnumsDomain"
+            }
+          ]
+        },
+        "External": {
+          "description": "既存のUnity ObjectPool、DOTween、UniTaskをまとめた外部実行基盤です。表示の再利用、時間補間、取消可能な非同期待機に使います。これらの内部設計は図の対象外で、資源の確定と処分は自作コード側の責任です。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs",
+              "symbol": "ResourceItemObjectPoolAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemAnimationAdapter.cs",
+              "symbol": "ResourceItemAnimationAdapter"
+            },
+            {
+              "path": "Packages/manifest.json"
+            }
+          ]
+        },
+        "InputLib": {
+          "description": "Input System、Unityの物理判定、Cinemachineをまとめた入力・カメラ用外部依存です。カーソルのイベントとRaycast、カメラの制御に使われます。ライブラリの内部型は展開せず、操作をゲーム機能へ渡すAdapterとの境界を示します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs",
+              "symbol": "PlayerCursorBehaviourAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Input/Adapter/CameraControllerAdapter.cs",
+              "symbol": "CameraControllerAdapter"
+            },
+            {
+              "path": "Packages/manifest.json"
+            }
+          ]
+        },
+        "UILib": {
+          "description": "表示行が使うTextMeshProとuGUIのImageをまとめた外部UI要素です。ラベル・文字列・ゲージ充填量・資源アイコンを行コンポーネントから受け取ります。表示先であり、セル状態の通知購読や数量確定は行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/TextUIStatusRowAdapter.cs",
+              "symbol": "TextUIStatusRowAdapter"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/GaugeUIStatusRowAdapter.cs",
+              "symbol": "GaugeUIStatusRowAdapter"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/StorageUIStatusRowAdapter.cs",
+              "symbol": "StorageUIStatusRowAdapter"
+            },
+            {
+              "path": "Packages/manifest.json"
+            }
+          ]
+        },
+        "Editor": {
+          "description": "グリッド編集支援と既存の検証入口をまとめた開発用領域です。Editor専用クラスや条件付きVerifierがセル接続、在庫、搬送、配置などを確認します。通常の製品動作から区別し、図の静的説明だけで実行検証済みとは扱いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Editor/CellConnectionVerifierEditor.cs"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellDefinitionVerifierAdapter.cs",
+              "symbol": "CellDefinitionVerifierAdapter"
+            },
+            {
+              "path": "docs/design/script-catalog.md"
+            }
+          ]
+        },
+        "Adapter": {
+          "description": "Unityのコンポーネント、入力、セル、表示、配線を扱う領域です。純粋な計算や処理進行へ接続しながら、GameObject参照と非同期処理の寿命を管理します。フォルダーによる責務の区分で、asmdefによる依存方向の強制はありません。",
+          "references": [
+            {
+              "path": "docs/design/architecture-guidelines.md"
+            },
+            {
+              "path": "docs/design/script-organization.md"
+            }
+          ]
+        },
+        "Scene": {
+          "description": "シーン、Prefabと設定アセットをまとめたUnityの配線領域です。コンポーネントの配置とシリアライズ参照からゲームの構成を供給します。実行中の在庫や予約とは別に、コードが読む編集可能な定義とオブジェクト構成を扱います。",
+          "references": [
+            {
+              "path": "Assets/Scenes/MainScene.unity"
+            },
+            {
+              "path": "docs/design/current-architecture.md"
+            }
+          ]
+        },
+        "Application": {
+          "description": "搬送・加工の進行管理と表示読み取り契約をまとめた領域です。数量規則や演出・セルとの間で処理順と値の授受を扱います。加工とUIはUnity非依存ですが、搬送には具体セル・座標型の依存が残るため完全な一方向層とは扱いません。",
+          "references": [
+            {
+              "path": "docs/design/architecture-guidelines.md"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "ResourceTransferCoordinatorApplication"
+            },
+            {
+              "path": "Assets/Scripts/Crafting/Application/CraftingOperationApplication.cs",
+              "symbol": "CraftingOperationApplication"
+            }
+          ]
+        },
+        "Domain": {
+          "description": "資源量、容量、予約、レシピ成立と素材消費をUnity非依存で計算する領域です。共有列挙型と固定加工計画も含みます。GameObjectやTween、シーン寿命を知らずに値から結果を返し、実状態への適用は呼び出し側が行います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Resources/Domain/ResourceStorageRulesDomain.cs",
+              "symbol": "ResourceStorageRulesDomain"
+            },
+            {
+              "path": "Assets/Scripts/Crafting/Domain/RecipeRulesDomain.cs",
+              "symbol": "RecipeRulesDomain"
+            },
+            {
+              "path": "Assets/Scripts/Crafting/Domain/RecipePlanDomain.cs",
+              "symbol": "RecipePlanDomain"
+            }
+          ]
+        }
+      }
+    },
+    "current-architecture-2": {
+      "source": "current-architecture.md",
+      "summary": "メインシーン、セルPrefab、ScriptableObjectとUI行の実際の配線を示します。配置用とプレビュー用Prefab、加工条件、資源の表示定義が各コンポーネントへ供給される関係を追えます。共有設定アセットと実行中の在庫・処理状態は区別します。",
+      "nodes": {
+        "Main": {
+          "description": "ゲームの管理コンポーネント、グリッドの子階層、入力とUIを配置したメインシーンです。起動時に既存セルを座標へ登録し、実行中は配置側がPrefabを複製します。シーンはUnity上の配線を供給し、資源の数量計算は各セルと規則に分かれます。",
+          "references": [
+            {
+              "path": "Assets/Scenes/MainScene.unity"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs",
+              "symbol": "GridFieldGeneratorAdapter"
+            }
+          ]
+        },
+        "Generator": {
+          "description": "メインシーンのグリッド生成・登録コンポーネント群です。GeneratorのStartからDBへサイズを渡し、既存の子階層にあるセルを座標配列へ登録します。生成処理はEditor限定で、実行時に地形を作り直す配線ではありません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs",
+              "symbol": "GridFieldGeneratorAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs",
+              "symbol": "GridFieldDatabaseAdapter"
+            },
+            {
+              "path": "Assets/Scenes/MainScene.unity"
+            }
+          ]
+        },
+        "Placer": {
+          "description": "配置するセル種別、選択セル、配置プレビューと非アクティブな複製キャッシュを管理します。入力からドラッグ範囲を決め、配置時は旧セルを切断・破棄して新セルを登録し初期化します。配置結果と右操作による選択情報は状態UIへ渡します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            }
+          ]
+        },
+        "Pool": {
+          "description": "資源種別ごとのGameObjectプールとID別の貸出表示を管理します。独立した資源データストアを所有し、演出契約を実装して移動をAnimationへ委ねます。表示だけの返却と、資源データも削除するID処分を別操作にしています。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs",
+              "symbol": "ResourceItemObjectPoolAdapter"
+            }
+          ]
+        },
+        "View": {
+          "description": "選択中のセル参照、変更通知の購読、表示窓と行プールを管理するUIコンポーネントです。選択時にProviderを取得してRendererへ渡します。非表示、選択変更、無効化、破棄で購読と貸出行を解除し、破棄された選択セルも監視します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "CellStatusViewAdapter"
+            }
+          ]
+        },
+        "Cursor": {
+          "description": "カーソル操作とカメラ操作をUnity入力へ接続する機能群です。セル選択やドラッグ配置はカーソル側から配置側へ渡し、カメラのパンやズームは専用Controllerが処理します。入力購読の有効期間は各コンポーネントで管理します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs",
+              "symbol": "PlayerCursorBehaviourAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Input/Adapter/CameraControllerAdapter.cs",
+              "symbol": "CameraControllerAdapter"
+            }
+          ]
+        },
+        "RecipeUI": {
+          "description": "レシピDBの設定配列からレシピ表示Prefabを複製して一覧を作ります。各行へ素材、結果、加工時間の定義を渡し、詳細表示はRecipeElementへ任せます。表示用の一覧であり、加工セルの実行計画や在庫を管理しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/RecipeUIBuilderAdapter.cs",
+              "symbol": "RecipeUIBuilderAdapter"
+            }
+          ]
+        },
+        "Tab": {
+          "description": "選択ボタン生成用コンポーネントを持つUIタブPrefabです。シーンのoverrideでGeneralCellDBを指定し、Startで定義に対応するボタンを生成します。通常ボタンは配置側の種別選択へつながり、タブ自身がセル在庫を管理するわけではありません。",
+          "references": [
+            {
+              "path": "Assets/Prefabs/UI/UITab.prefab"
+            },
+            {
+              "path": "Assets/Scenes/MainScene.unity"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/SelectButtonBuilderAdapter.cs",
+              "symbol": "SelectButtonBuilderAdapter"
+            }
+          ]
+        },
+        "DB": {
+          "description": "一般セル10定義を持つセルDBアセットです。各セル種別に配置用とプレビュー用Prefabを対応付け、配置側と選択ボタン生成側へ供給します。保存された定義配列から実行時辞書を構築し、配置後のセル状態とは分離します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/ScriptableObject/GeneralCellDB.asset"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs",
+              "symbol": "CellDatabaseDefinition"
+            }
+          ]
+        },
+        "Fields": {
+          "description": "一般セルの配置用Prefab群です。保管・採取・搬送・交差・加工などの具体セルコンポーネントとモデル、設定参照を持ちます。セルDBから選ばれて配置時に複製され、登録後のInitializeSystemで役割ごとの処理を開始します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/ScriptableObject/GeneralCellDB.asset"
+            },
+            {
+              "path": "Assets/Prefabs/Field/General/F_StorageCell.prefab"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            }
+          ]
+        },
+        "Preview": {
+          "description": "一般セル種別に対応する配置プレビューPrefab群です。セルDBから参照され、選択種別とドラッグ範囲に合わせて配置側が複製・表示します。配置候補を示す表示物で、セル在庫や搬送処理の所有者ではありません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/ScriptableObject/GeneralCellDB.asset"
+            },
+            {
+              "path": "Assets/Prefabs/Placeholder/General/P_StorageCell.prefab"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            }
+          ]
+        },
+        "Crafter": {
+          "description": "加工セルコンポーネントを持つ配置用Prefabです。レシピDBと加工表示Providerアセットを参照し、生成されたセルが加工在庫と進行を管理します。図の線は共有設定の配線で、アセット自体に進行中の加工計画を保存しません。",
+          "references": [
+            {
+              "path": "Assets/Prefabs/Field/General/F_CrafterCell.prefab"
+            },
+            {
+              "path": "Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs",
+              "symbol": "CrafterCellAdapter"
+            }
+          ]
+        },
+        "RecipeDB": {
+          "description": "加工レシピの設定配列を保存するアセットです。加工セルが成立判定に使い、レシピ一覧UIも同じ定義を読む配線です。素材種別・必要量・時間・成果物を供給し、各セルの在庫や一件の加工Stageを保持するものではありません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/ScriptableObject/Recipes/RecipeDB.asset"
+            },
+            {
+              "path": "Assets/Scripts/Crafting/Definitions/RecipeDatabaseDefinition.cs",
+              "symbol": "RecipeDatabaseDefinition"
+            }
+          ]
+        },
+        "CrafterProvider": {
+          "description": "加工セルの表示ラベル名を設定するアセットです。加工Prefabから参照され、選択時の読み取りProvider生成に使います。共有ラベル設定と選択セッションは別であり、このアセットは加工中の進捗値や選択セル参照を保存しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/ScriptableObject/UIProvider/CrafterCellProvider.asset"
+            },
+            {
+              "path": "Assets/Scripts/UI/Definitions/CrafterProviderDefinition.cs",
+              "symbol": "CrafterProviderDefinition"
+            }
+          ]
+        },
+        "Providers": {
+          "description": "保管・資源・採取セルから参照される表示設定アセット群です。ラベルと名称を供給し、資源表示設定は資源DBも参照します。表示値の生成はセルと変換Adapterが行い、共有アセットに選択状態や実行中の在庫を書き込みません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/ScriptableObject/UIProvider/StorageProvider.asset"
+            },
+            {
+              "path": "Assets/Scripts/ScriptableObject/UIProvider/ResourceProvider.asset"
+            },
+            {
+              "path": "Assets/Scripts/ScriptableObject/UIProvider/ExtractorProvider.asset"
+            }
+          ]
+        },
+        "ResourceDB": {
+          "description": "資源種別に名称、表示PrefabとSpriteを対応付ける資源定義アセットです。搬送表示プールはPrefabを使い、保管行やレシピ行は名称・アイコンを読みます。実在庫の資源量と搬送中IDデータはこの定義に保存しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/ScriptableObject/ResourceDB.asset"
+            },
+            {
+              "path": "Assets/Scripts/Resources/Definitions/ResourceDefinition.cs",
+              "symbol": "ResourceDefinition"
+            }
+          ]
+        },
+        "Visual": {
+          "description": "資源DBに対応付けられた石・木の表示Prefabとアイコンです。プールはPrefabのGameObjectを貸し出して搬送を描画し、UI行はSpriteを表示します。資源数量は別のデータであり、表示の消失だけを数量消滅とは扱いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/ScriptableObject/ResourceDB.asset"
+            },
+            {
+              "path": "Assets/Prefabs/ResourceItems/StoneItem.prefab"
+            },
+            {
+              "path": "Assets/Prefabs/ResourceItems/WoodItem.prefab"
+            }
+          ]
+        },
+        "Rows": {
+          "description": "状態UIに使う文字列、ゲージ、保管の表示行Prefab群です。Viewが行種別別にプールを作り、読み取った値を行へ渡します。保管行は資源DBを参照してアイコンを追加し、他の行も在庫を所有せず値の描画に専念します。",
+          "references": [
+            {
+              "path": "Assets/Prefabs/UI/TextParamLine.prefab"
+            },
+            {
+              "path": "Assets/Prefabs/UI/GaugeParamLine.prefab"
+            },
+            {
+              "path": "Assets/Prefabs/UI/StorageParamLine.prefab"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "CellStatusViewAdapter"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-cells-grid-1": {
+      "source": "architecture-cells-grid.md",
+      "summary": "セルの共通基底と具体型、搬入・出庫・資源ID引継ぎ・状態表示の能力契約を示します。継承による機能共有と契約を通じた連携を区別し、隣接参照を管理する接続基底とUnity非依存の数量規則への依存を確認できます。",
+      "nodes": {
+        "MonoBehaviour": {
+          "description": "UnityのGameObjectへ取り付けるコンポーネントの基底型です。この図ではセル基底に継承され、Awakeや破棄などUnityの実行時通知を受ける接点を表します。グリッドの数量規則や在庫の所有者ではありません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
+              "symbol": "CellBaseAdapter : MonoBehaviour"
+            },
+            {
+              "path": "ProjectSettings/ProjectVersion.txt"
+            }
+          ]
+        },
+        "CellBaseAdapter": {
+          "description": "セルに共通するグリッド座標と表示モデルを保持する基底クラスです。Awakeで最初の子オブジェクトをモデルとして取得し、配置側が座標登録後に呼ぶInitializeSystemを仮想メソッドとして公開します。接続や在庫処理は派生型が追加します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
+              "symbol": "CellBaseAdapter"
+            }
+          ]
+        },
+        "EmptyCellAdapter": {
+          "description": "何も配置されていないマスを表すセル型です。独自の在庫や接続処理は追加せず、基底の座標と表示モデルを使います。配置側はこの型を判定して新しいセルの配置を許可し、Emptyの選択は既存セルの削除にも使います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/EmptyCellAdapter.cs",
+              "symbol": "EmptyCellAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "ReplaceCell"
+            }
+          ]
+        },
+        "ResourceCellAdapter": {
+          "description": "採取元となる資源の種別と表示設定を持つセルです。状態UIへは専用の読み取りProviderを返します。資源量や枯渇は管理せず、StatusChangedの購読・解除は何も行いません。接続型ではなく隣接から資源種別を参照されます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ResourceCellAdapter.cs",
+              "symbol": "ResourceCellAdapter"
+            }
+          ]
+        },
+        "ConnectableCellBaseAdapter": {
+          "description": "接続可能なセルの共通基底として、4方向の隣接セル参照と許可方向を管理します。初期化時にグリッド座標で相手を読み、接続型同士は両側の参照を更新してから通知します。OnDisconnectで参照を解除し、相手の喪失通知と自身の切断通知を行います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs",
+              "symbol": "ConnectableCellBaseAdapter"
+            }
+          ]
+        },
+        "StorageCellAdapter": {
+          "description": "保管する資源種別、現在量、搬入予約量を持ち、搬入と出庫の契約を公開するセルです。容量・予約・確定・取消の計算は共通数量規則に渡し、返された在庫を適用します。状態の変更を通知し、選択中のUIには読み取りProviderを渡します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/StorageCellAdapter.cs",
+              "symbol": "StorageCellAdapter"
+            }
+          ]
+        },
+        "ExtractorCellAdapter": {
+          "description": "前方の資源セルを初期化時に選び、所定時間ごとに容量の範囲内で採取量を増やすセルです。保有量と進捗を表示し、出庫契約で資源を渡します。処理Tokenは破棄時に取消しますが、無効化時の停止や接続変更時の採取元再選択は実装されていません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ExtractorCellAdapter.cs",
+              "symbol": "ExtractorCellAdapter"
+            }
+          ]
+        },
+        "ConveyorCellAdapter": {
+          "description": "搬入を一件ずつ受け付け、資源IDを引き継いで前方の搬送先へ送るセルです。予約・演出・確定はCoordinatorへ委ねます。接続先を失った試行は取消し、同じIDで次の試行を始めます。自身の切断・破棄では処理を止め、保持IDを処分します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs",
+              "symbol": "ConveyorCellAdapter"
+            }
+          ]
+        },
+        "ExportConveyorCellAdapter": {
+          "description": "後方の出庫可能セルから資源を取り出し、搬送用データと表示IDを作るコンベアです。後方から自セルへの演出が成功すると、基底の前方搬送へ渡します。IExportableを自身が実装するのではなく、接続先の契約を利用して取り込みます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ExportConveyorCellAdapter.cs",
+              "symbol": "ExportConveyorCellAdapter"
+            }
+          ]
+        },
+        "CrossingCellAdapter": {
+          "description": "接続方向ごとに下流の搬入先と保留搬送を管理する交差セルです。上流の搬入予約に応じて下流も予約し、引き継いだ資源IDで搬送を進めます。接続喪失時は旧予約を閉じて再接続を待ち、自身の終了時は未完了の予約と保持IDを整理します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs",
+              "symbol": "CrossingCellAdapter"
+            }
+          ]
+        },
+        "CrafterCellAdapter": {
+          "description": "方向別の素材入力在庫と加工結果の出力在庫を持ち、搬入・出庫・表示の契約を公開するセルです。成立したレシピから固定計画を作り、加工終了時に現在の在庫と容量を再検証して確定します。無効化・破棄で未完了計画を取消し、素材を無条件には消費しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs",
+              "symbol": "CrafterCellAdapter"
+            }
+          ]
+        },
+        "IContainableApplication": {
+          "description": "資源の搬入を受ける相手との契約です。資源種別・数量・入力方向から全量を予約し、予約後は確定または取消を受け付けます。搬送側はこの契約を通じて保管・加工・コンベア等へ接続します。方向の型にはUnityのVector3Intを使います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/IContainableApplication.cs",
+              "symbol": "IContainableApplication"
+            }
+          ]
+        },
+        "IExportableApplication": {
+          "description": "資源の出庫と搬送元の位置取得を公開する契約です。呼び出し側が位置と要求量を渡し、相手から取得できた量と資源種別を受け取ります。保管・採取・加工セルが実装し、取り込みコンベアが後方セルから資源を得るために利用します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/IExportableApplication.cs",
+              "symbol": "IExportableApplication"
+            }
+          ]
+        },
+        "IResourceReusableApplication": {
+          "description": "搬送中の資源IDを次のセルへ引き継ぐ契約です。入力方向とIDを受け取り、コンベアや交差セルが同じ資源データと表示を継続利用します。Coordinatorは搬入確定の前にこの契約を呼び、終端でのデータ削除・表示返却と区別します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/IResourceReusableApplication.cs",
+              "symbol": "IResourceReusableApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "RunAsync"
+            }
+          ]
+        },
+        "IDataProvidableApplication": {
+          "description": "セル状態の読み取りProvider取得と変更通知だけを公開する契約です。状態UIは選択中のセルを購読し、通知を受けて表示値を読み直します。選択解除時に購読を外します。この契約から数量変更操作は渡さず、ResourceCellの通知は固定値用のno-opです。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/IDataProvidableApplication.cs",
+              "symbol": "IDataProvidableApplication"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "UpdateUIStatusWindow"
+            }
+          ]
+        },
+        "GridFieldDatabaseAdapter": {
+          "description": "シーン内のセルを二次元の座標配列に登録し、座標検索を提供する管理コンポーネントです。SaveCellでセルの座標も更新します。接続基底は境界を確認して4方向のセルを借用参照します。配列登録自体はセルの生成・破棄や全セル初期化を行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs",
+              "symbol": "GridFieldDatabaseAdapter"
+            }
+          ]
+        },
+        "ResourceStorageRulesDomain": {
+          "description": "Unityのセルや表示を参照せず、資源種別・現在量・予約量と容量から数量操作を計算する規則です。全量予約、確定、取消、出庫の可否と次の在庫を返します。保管・加工セルが結果を自身の状態へ適用するため、この型は実際のセル在庫を所有しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Resources/Domain/ResourceStorageRulesDomain.cs",
+              "symbol": "ResourceStorageRulesDomain"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-cells-grid-2": {
+      "source": "architecture-cells-grid.md",
+      "summary": "座標管理、配置操作とセル定義の責務を示します。定義からPrefabを選び、配置側が生成したセルをグリッドへ登録して状態UIにつなぐ関係を確認できます。DBはセル参照を管理し、配置側は複製の寿命を管理するという違いが読みどころです。",
+      "nodes": {
+        "MonoBehaviour": {
+          "description": "Unityのコンポーネント基底です。この図では配置側とグリッド生成側が継承し、StartやGameObject操作を使う接点を表します。セルDBの共有設定、座標配列の管理、セルの生成・破棄を同じ所有責任として扱いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs",
+              "symbol": "GridFieldGeneratorAdapter"
+            }
+          ]
+        },
+        "CellPlacerAdapter": {
+          "description": "配置するセル種別、選択セル、配置プレビューと非アクティブな複製キャッシュを管理します。入力からドラッグ範囲を決め、配置時は旧セルを切断・破棄して新セルを登録し初期化します。配置結果と右操作による選択情報は状態UIへ渡します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            }
+          ]
+        },
+        "GridFieldGeneratorAdapter": {
+          "description": "Editorでは空セルやプロップを含むグリッド生成を支援するコンポーネントです。ゲーム実行時のStartは既存子階層をグリッドDBへ登録するだけで、マップを新規生成しません。生成メソッドはUNITY_EDITORに限定されています。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs",
+              "symbol": "GridFieldGeneratorAdapter"
+            }
+          ]
+        },
+        "SingletonMonoBehaviourAdapter": {
+          "description": "管理コンポーネントのInstance参照を提供する汎用基底です。参照がなければシーン内を検索し、Awakeで型を確認して重複オブジェクトを破棄します。グリッドDB、資源表示プール、状態UIが利用し、シーンを越える永続化やDI登録は行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Shared/Adapter/SingletonMonoBehaviourAdapter.cs",
+              "symbol": "SingletonMonoBehaviourAdapter"
+            }
+          ]
+        },
+        "GridFieldDatabaseAdapter": {
+          "description": "シーン内のセルを二次元の座標配列に登録し、座標検索を提供する管理コンポーネントです。SaveCellでセルの座標も更新します。接続基底は境界を確認して4方向のセルを借用参照します。配列登録自体はセルの生成・破棄や全セル初期化を行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs",
+              "symbol": "GridFieldDatabaseAdapter"
+            }
+          ]
+        },
+        "ScriptableObject": {
+          "description": "Unityの設定アセットを表す基底です。この図ではセル、レシピ、表示ラベルの定義を共有アセットとして扱う境界を示します。実行中のセル在庫や搬送Stageは定義へ保存せず、対応するセルや処理オブジェクトが保持します。",
+          "references": [
+            {
+              "path": "docs/design/current-architecture.md"
+            }
+          ]
+        },
+        "CellDatabaseDefinition": {
+          "description": "セル種別と名称、配置用Prefab、プレビュー用Prefabを設定配列で保持するScriptableObjectです。OnEnableで検索辞書を構築し、設定変更で無効化した後は取得時に再構築します。保存フラグに依存せず、重複種別は警告して後の定義を使います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs",
+              "symbol": "CellDatabaseDefinition"
+            }
+          ]
+        },
+        "CellInfoDefinition": {
+          "description": "セルDBの設定配列に保存される一件分の値です。名称とセル種別、配置用のCellBase参照、プレビュー用GameObject参照をまとめます。配置側はこの定義からPrefabを複製し、ここには配置後の在庫や隣接状態を保存しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs",
+              "symbol": "CellDatabaseDefinition"
+            }
+          ]
+        },
+        "CellBaseAdapter": {
+          "description": "セルに共通するグリッド座標と表示モデルを保持する基底クラスです。Awakeで最初の子オブジェクトをモデルとして取得し、配置側が座標登録後に呼ぶInitializeSystemを仮想メソッドとして公開します。接続や在庫処理は派生型が追加します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
+              "symbol": "CellBaseAdapter"
+            }
+          ]
+        },
+        "GameObject": {
+          "description": "UnityのシーンやPrefab上のオブジェクトを表します。この図ではセル、プレビュー、資源の貸出表示などの参照先です。C#の状態や設定と区別され、生成・有効化・破棄や表示返却は配置側または表示プールが制御します。",
+          "references": [
+            {
+              "path": "docs/design/current-architecture.md"
+            }
+          ]
+        },
+        "CellStatusViewAdapter": {
+          "description": "選択中のセル参照、変更通知の購読、表示窓と行プールを管理するUIコンポーネントです。選択時にProviderを取得してRendererへ渡します。非表示、選択変更、無効化、破棄で購読と貸出行を解除し、破棄された選択セルも監視します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "CellStatusViewAdapter"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-transfers-crafting-1": {
+      "source": "architecture-transfers-crafting.md",
+      "summary": "搬送一件の状態、予約、進行調整と資源データ・演出の関係を示します。コンベアと交差セルが保持するIDを、全量予約と表示移動を経て確定する責務を追えます。資源データの所有とGameObjectの貸出寿命を分けて読む図です。",
+      "nodes": {
+        "ConveyorCellAdapter": {
+          "description": "搬入を一件ずつ受け付け、資源IDを引き継いで前方の搬送先へ送るセルです。予約・演出・確定はCoordinatorへ委ねます。接続先を失った試行は取消し、同じIDで次の試行を始めます。自身の切断・破棄では処理を止め、保持IDを処分します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs",
+              "symbol": "ConveyorCellAdapter"
+            }
+          ]
+        },
+        "ResourceTransferOperationApplication": {
+          "description": "一件の搬送元・搬送先、資源ID、種別、数量と進行段階を保持します。予約、演出、完了、取消への遷移をガードします。待機復帰では搬送先を外してIDを保持し、交差セルでは予約後に上流からIDを受け取ることもできます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs",
+              "symbol": "ResourceTransferOperationApplication"
+            }
+          ]
+        },
+        "ResourceTransferCoordinatorApplication": {
+          "description": "搬送の予約、演出、確定を順に進める調整役です。資源データと接続先の整合を確認し、表示の移動結果を受けて予約を確定します。再利用先へは確定前にIDを渡し、終端ではデータと表示を明示的に処分します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "ResourceTransferCoordinatorApplication"
+            }
+          ]
+        },
+        "CrossingCellAdapter": {
+          "description": "接続方向ごとに下流の搬入先と保留搬送を管理する交差セルです。上流の搬入予約に応じて下流も予約し、引き継いだ資源IDで搬送を進めます。接続喪失時は旧予約を閉じて再接続を待ち、自身の終了時は未完了の予約と保持IDを整理します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs",
+              "symbol": "CrossingCellAdapter"
+            }
+          ]
+        },
+        "PendingTransfer": {
+          "description": "交差セル内部の方向別搬送をまとめる補助クラスです。Coordinatorへの参照、開始済み状態と試行の取消Tokenを保持し、OperationとReservationはCoordinatorから参照します。セル終了時には各方向の未完了搬送を整理します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs",
+              "symbol": "CrossingCellAdapter"
+            }
+          ]
+        },
+        "ResourceReservationApplication": {
+          "description": "搬入先と方向、資源種別、数量を固定した全量予約のTokenです。生成時に搬入先へ予約を要求し、確定または取消を一度だけ受け付けます。具体セル参照で生存を確認し、取消時は残っている相手の予約量を戻します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs",
+              "symbol": "ResourceReservationApplication"
+            }
+          ]
+        },
+        "CellBaseAdapter": {
+          "description": "セルに共通するグリッド座標と表示モデルを保持する基底クラスです。Awakeで最初の子オブジェクトをモデルとして取得し、配置側が座標登録後に呼ぶInitializeSystemを仮想メソッドとして公開します。接続や在庫処理は派生型が追加します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
+              "symbol": "CellBaseAdapter"
+            }
+          ]
+        },
+        "IContainableApplication": {
+          "description": "資源の搬入を受ける相手との契約です。資源種別・数量・入力方向から全量を予約し、予約後は確定または取消を受け付けます。搬送側はこの契約を通じて保管・加工・コンベア等へ接続します。方向の型にはUnityのVector3Intを使います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/IContainableApplication.cs",
+              "symbol": "IContainableApplication"
+            }
+          ]
+        },
+        "ResourceTransitStoreApplication": {
+          "description": "搬送中の資源種別と数量をID別に保持するC#のデータストアです。表示GameObjectを参照せず、ID作成、取得、削除を提供します。資源表示プールが所有しますが、表示の貸出・返却と資源データの存続は別に管理されます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransitStoreApplication.cs",
+              "symbol": "ResourceTransitStoreApplication"
+            }
+          ]
+        },
+        "IResourceTransferPresentationApplication": {
+          "description": "搬送表示の移動、位置の復元、表示返却を公開する契約です。移動は取消Tokenを受け取り、正常完了・取消・表示不在の結果を返します。数量の確定や資源データ削除は行わず、Coordinatorが演出結果から処理を決定します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/IResourceTransferPresentationApplication.cs",
+              "symbol": "IResourceTransferPresentationApplication"
+            }
+          ]
+        },
+        "IResourceReusableApplication": {
+          "description": "搬送中の資源IDを次のセルへ引き継ぐ契約です。入力方向とIDを受け取り、コンベアや交差セルが同じ資源データと表示を継続利用します。Coordinatorは搬入確定の前にこの契約を呼び、終端でのデータ削除・表示返却と区別します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/IResourceReusableApplication.cs",
+              "symbol": "IResourceReusableApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "RunAsync"
+            }
+          ]
+        },
+        "ResourceItemObjectPoolAdapter": {
+          "description": "資源種別ごとのGameObjectプールとID別の貸出表示を管理します。独立した資源データストアを所有し、演出契約を実装して移動をAnimationへ委ねます。表示だけの返却と、資源データも削除するID処分を別操作にしています。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs",
+              "symbol": "ResourceItemObjectPoolAdapter"
+            }
+          ]
+        },
+        "SingletonMonoBehaviourAdapter": {
+          "description": "管理コンポーネントのInstance参照を提供する汎用基底です。参照がなければシーン内を検索し、Awakeで型を確認して重複オブジェクトを破棄します。グリッドDB、資源表示プール、状態UIが利用し、シーンを越える永続化やDI登録は行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Shared/Adapter/SingletonMonoBehaviourAdapter.cs",
+              "symbol": "SingletonMonoBehaviourAdapter"
+            }
+          ]
+        },
+        "ResourceItemAnimationAdapter": {
+          "description": "一つの貸出表示を指定位置間で移動させる演出処理です。DOTweenと連結した取消Tokenを管理し、正常完了・取消・表示不在を返します。終了時に残ったTweenを停止し、数量確定やプール返却は呼び出し側へ任せます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemAnimationAdapter.cs",
+              "symbol": "ResourceItemAnimationAdapter"
+            }
+          ]
+        },
+        "ObjectPool": {
+          "description": "Unityのオブジェクト再利用機構です。資源表示は種別別、状態UIは行種別別にインスタンスを借りて戻します。プールは表示物の寿命を扱い、資源IDのデータ削除や選択セルの変更通知はそれぞれ別の所有者が制御します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs"
+            }
+          ]
+        },
+        "GameObject": {
+          "description": "UnityのシーンやPrefab上のオブジェクトを表します。この図ではセル、プレビュー、資源の貸出表示などの参照先です。C#の状態や設定と区別され、生成・有効化・破棄や表示返却は配置側または表示プールが制御します。",
+          "references": [
+            {
+              "path": "docs/design/current-architecture.md"
+            }
+          ]
+        },
+        "DOTween": {
+          "description": "資源表示の位置移動や加工・採取の進捗を時間で補間する外部ライブラリです。取消TokenとUniTaskの待機を組み合わせ、正常完了と中断を区別します。演出終了だけで在庫を更新せず、対応する処理が確定可否を判定します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemAnimationAdapter.cs",
+              "symbol": "ResourceItemAnimationAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs",
+              "symbol": "CrafterCellAdapter"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-transfers-crafting-2": {
+      "source": "architecture-transfers-crafting.md",
+      "summary": "搬送一件が予約待ちから予約・演出を経て完了または取消へ進む代表経路を示します。待機へ戻して同じIDを保持する経路と、一件の試行を終える経路を区別します。コンベアの接続喪失では新しいOperationで再試行する点にも注意します。",
+      "nodes": {
+        "root_start": {
+          "description": "搬送一件の状態図の開始記号です。Operationの生成時に資源種別・数量・搬送元と搬送先を固定し、予約待ちの初期状態へ入ることを示します。実在するコンポーネントではなく、処理状態の説明に使う補助記号です。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs",
+              "symbol": "ResourceTransferOperationApplication"
+            }
+          ]
+        },
+        "WaitingForReservation": {
+          "description": "搬入先の全量予約を待つ状態です。初期状態として開始し、演出失敗や交差セルの接続喪失時には旧予約を閉じてこの状態へ戻ります。資源IDは保持しますが、コンベアの接続喪失は試行を取消して新しいOperationで再試行する別経路です。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs",
+              "symbol": "ResourceTransferOperationApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "ResourceTransferCoordinatorApplication"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs",
+              "symbol": "ConveyorCellAdapter"
+            }
+          ]
+        },
+        "Reserved": {
+          "description": "搬入先へ全量を予約し、演出へ進む準備ができた段階です。Coordinatorは予約Tokenを保持し、接続先と資源データを確認します。数量の搬入確定はまだ行わず、中断時には未確定予約を取消して二重利用を防ぎます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs",
+              "symbol": "ResourceTransferOperationApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "ResourceTransferCoordinatorApplication"
+            }
+          ]
+        },
+        "Animating": {
+          "description": "予約された搬送で表示を移動させている段階です。資源IDと接続先を保持し、演出契約の結果を待ちます。正常終了と接続・データの整合がそろったときだけ予約を確定し、取消や表示不在の結果を数量確定とは扱いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs",
+              "symbol": "ResourceTransferOperationApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "ResourceTransferCoordinatorApplication"
+            }
+          ]
+        },
+        "Completed": {
+          "description": "演出が正常完了し、搬入予約も確定した搬送の終端状態です。同じOperationは再確定できません。搬送先がIDを再利用しない場合にはデータ削除と表示返却を行い、再利用先なら同じIDを次のセルへ引き継ぎます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs",
+              "symbol": "ResourceTransferOperationApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "ResourceTransferCoordinatorApplication"
+            }
+          ]
+        },
+        "Cancelled": {
+          "description": "明示取消や試行の失敗で、そのOperationを終了した状態です。再確定を禁止し、未確定の予約を閉じます。Operationの取消だけで必ず資源IDを削除するわけではなく、セルの再試行・終了処理がIDの保持または処分を決めます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs",
+              "symbol": "ResourceTransferOperationApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "ResourceTransferCoordinatorApplication"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs",
+              "symbol": "ConveyorCellAdapter"
+            }
+          ]
+        },
+        "root_end": {
+          "description": "搬送一件の終端を表す補助記号です。OperationがCompletedまたはCancelledへ進んだ後、この一件の状態遷移を終えることを示します。表示や資源IDの寿命は所有セルとプールが別に扱うため、記号自体が資源の破棄操作を表すわけではありません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs",
+              "symbol": "ResourceTransferOperationApplication"
+            },
+            {
+              "path": "docs/design/architecture-transfers-crafting.md"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-transfers-crafting-3": {
+      "source": "architecture-transfers-crafting.md",
+      "summary": "加工セルの在庫、共有レシピ定義、固定加工計画と確定処理の関係を示します。開始時の計画を時間進行後に現在在庫へ再検証し、成功した結果だけ適用する境界を確認できます。定義・計画・セルの実状態を別の所有として読めます。",
+      "nodes": {
+        "ConnectableCellBaseAdapter": {
+          "description": "接続可能なセルの共通基底として、4方向の隣接セル参照と許可方向を管理します。初期化時にグリッド座標で相手を読み、接続型同士は両側の参照を更新してから通知します。OnDisconnectで参照を解除し、相手の喪失通知と自身の切断通知を行います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs",
+              "symbol": "ConnectableCellBaseAdapter"
+            }
+          ]
+        },
+        "CrafterCellAdapter": {
+          "description": "方向別の素材入力在庫と加工結果の出力在庫を持ち、搬入・出庫・表示の契約を公開するセルです。成立したレシピから固定計画を作り、加工終了時に現在の在庫と容量を再検証して確定します。無効化・破棄で未完了計画を取消し、素材を無条件には消費しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs",
+              "symbol": "CrafterCellAdapter"
+            }
+          ]
+        },
+        "RecipeDatabaseDefinition": {
+          "description": "加工レシピの配列を保存するScriptableObjectです。加工セルはこの配列から成立するレシピを選び、レシピ一覧UIも同じ定義を表示します。設定の供給元であり、進行中の計画やセルの素材・出力在庫は保持しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Definitions/RecipeDatabaseDefinition.cs",
+              "symbol": "RecipeDatabaseDefinition"
+            }
+          ]
+        },
+        "ScriptableObject": {
+          "description": "Unityの設定アセットを表す基底です。この図ではセル、レシピ、表示ラベルの定義を共有アセットとして扱う境界を示します。実行中のセル在庫や搬送Stageは定義へ保存せず、対応するセルや処理オブジェクトが保持します。",
+          "references": [
+            {
+              "path": "docs/design/current-architecture.md"
+            }
+          ]
+        },
+        "RecipeDataDefinition": {
+          "description": "一件のレシピ名、素材の種別と必要量、加工時間、成果物の種別と数量を持つ設定クラスです。レシピDBの配列内に保存され、個別のScriptableObjectではありません。加工開始時はこの設定から固定計画を作ります。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Definitions/RecipeDatabaseDefinition.cs",
+              "symbol": "RecipeDatabaseDefinition"
+            }
+          ]
+        },
+        "IngredientDefinition": {
+          "description": "レシピに必要な資源種別と数量の組を表すシリアライズ可能な構造体です。レシピ内の素材配列へ保存され、成立判定で入力在庫と照合します。実際の在庫参照や予約量を持たず、設定上の要求量を示します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Definitions/RecipeDatabaseDefinition.cs",
+              "symbol": "RecipeDatabaseDefinition"
+            }
+          ]
+        },
+        "CraftingOperationApplication": {
+          "description": "一件の固定された加工計画とProcessing・Completed・Cancelledの段階を持ちます。終了時には現在の在庫と容量へ計画を適用できるか再検証し、成功時だけ確定します。取消や失敗後の同じ計画は再確定できません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Application/CraftingOperationApplication.cs",
+              "symbol": "CraftingOperationApplication"
+            }
+          ]
+        },
+        "RecipeRulesDomain": {
+          "description": "素材と出力のスナップショットからレシピが成立するかを計算し、固定計画を作るUnity非依存の規則です。加工終了時には現在在庫への適用結果を返します。セル在庫を直接書き換えず、計算結果の適用は加工セルが行います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Domain/RecipeRulesDomain.cs",
+              "symbol": "RecipeRulesDomain"
+            }
+          ]
+        },
+        "RecipePlanDomain": {
+          "description": "加工開始時に決まった入力ID、素材種別、消費量と成果物を固定する計画です。素材配列は複製して読み取り専用で公開します。加工中にレシピ設定が変わっても計画を変えず、終了時の在庫再検証に使います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Domain/RecipePlanDomain.cs",
+              "symbol": "RecipePlanDomain"
+            }
+          ]
+        },
+        "Consumption": {
+          "description": "加工計画内の一件の素材消費を表す読み取り専用の値です。入力ID、資源種別、消費量を保持し、計画確定時に同じ入力へ適用できるか照合します。セル参照や予約の寿命を持たず、RecipePlanの配列として所有されます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Domain/RecipePlanDomain.cs",
+              "symbol": "RecipePlanDomain"
+            }
+          ]
+        },
+        "ResourceStorageRulesDomain": {
+          "description": "Unityのセルや表示を参照せず、資源種別・現在量・予約量と容量から数量操作を計算する規則です。全量予約、確定、取消、出庫の可否と次の在庫を返します。保管・加工セルが結果を自身の状態へ適用するため、この型は実際のセル在庫を所有しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Resources/Domain/ResourceStorageRulesDomain.cs",
+              "symbol": "ResourceStorageRulesDomain"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-ui-events-1": {
+      "source": "architecture-ui-events.md",
+      "summary": "選択中のセル状態を読み取り値へ変換してUI行に表示する責務を示します。共有ラベル設定、選択用Provider、通知購読、行プールと描画を分けて確認できます。具体セルに依存する変換部分とUnity非依存の読み取り契約を区別する図です。",
+      "nodes": {
+        "IDataProvidableApplication": {
+          "description": "セル状態の読み取りProvider取得と変更通知だけを公開する契約です。状態UIは選択中のセルを購読し、通知を受けて表示値を読み直します。選択解除時に購読を外します。この契約から数量変更操作は渡さず、ResourceCellの通知は固定値用のno-opです。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/IDataProvidableApplication.cs",
+              "symbol": "IDataProvidableApplication"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "UpdateUIStatusWindow"
+            }
+          ]
+        },
+        "IUIDataProviderApplication": {
+          "description": "ラベルから表示値への読み取りを公開するUIの契約です。Rendererはこの契約を通じて値を取得し、セルの具体型を知らずに対応行へ渡します。数量操作やUnityのGameObject参照はこの読み取り契約に含まれません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/IUIDataProviderApplication.cs",
+              "symbol": "IUIDataProviderApplication"
+            }
+          ]
+        },
+        "CellStatusDataProviderApplication": {
+          "description": "一つの選択表示セッションのラベル名と読み取り関数を保持します。ReadDataのたびに新しいラベル別表示値を作り、読み取り専用辞書で返します。共有設定アセットやゲーム在庫を書き換えず、選択されたセルの状態を読み取ります。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/CellStatusDataProviderApplication.cs",
+              "symbol": "CellStatusDataProviderApplication"
+            }
+          ]
+        },
+        "SingletonMonoBehaviourAdapter": {
+          "description": "管理コンポーネントのInstance参照を提供する汎用基底です。参照がなければシーン内を検索し、Awakeで型を確認して重複オブジェクトを破棄します。グリッドDB、資源表示プール、状態UIが利用し、シーンを越える永続化やDI登録は行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Shared/Adapter/SingletonMonoBehaviourAdapter.cs",
+              "symbol": "SingletonMonoBehaviourAdapter"
+            }
+          ]
+        },
+        "CellStatusViewAdapter": {
+          "description": "選択中のセル参照、変更通知の購読、表示窓と行プールを管理するUIコンポーネントです。選択時にProviderを取得してRendererへ渡します。非表示、選択変更、無効化、破棄で購読と貸出行を解除し、破棄された選択セルも監視します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "CellStatusViewAdapter"
+            }
+          ]
+        },
+        "UIElementRendererAdapter": {
+          "description": "読み取りProviderとラベル別の表示行参照を保持する描画の調整役です。初期化では行生成関数を呼び、更新では全表示値を取得して対応行へ渡します。行プールの所有、選択セルの購読や数量変更は行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/UIElementRendererAdapter.cs",
+              "symbol": "UIElementRendererAdapter"
+            }
+          ]
+        },
+        "ObjectPool": {
+          "description": "Unityのオブジェクト再利用機構です。資源表示は種別別、状態UIは行種別別にインスタンスを借りて戻します。プールは表示物の寿命を扱い、資源IDのデータ削除や選択セルの変更通知はそれぞれ別の所有者が制御します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs"
+            }
+          ]
+        },
+        "UIStatusRowBaseAdapter": {
+          "description": "状態UIの表示行に共通する描画メソッドを定める抽象コンポーネントです。具体行は受け取った表示データをTMPやImageへ反映します。行の取得・返却はViewが行い、この型がゲーム状態を保持するわけではありません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/UIStatusRowBaseAdapter.cs",
+              "symbol": "UIStatusRowBaseAdapter"
+            }
+          ]
+        },
+        "CellStatusProviderAdapter": {
+          "description": "具体的なセルと表示定義から、選択セッション用Providerを作る静的変換入口です。ラベルに応じて保管・資源・採取・加工セルを読み、共通表示値へ変換します。具体型の分岐をここに集約しますが、新型の追加には変換の追加が必要です。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs",
+              "symbol": "CellStatusProviderAdapter"
+            }
+          ]
+        },
+        "ProviderBaseDefinition": {
+          "description": "表示ラベルとラベル名の配列を持つScriptableObjectの基底です。GetLabelsは配列の複製を返し、Provider生成時の設定として使われます。選択セル参照や現在表示値は保存せず、実行時セッションの状態と分離しています。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Definitions/ProviderBaseDefinition.cs",
+              "symbol": "ProviderBaseDefinition"
+            }
+          ]
+        },
+        "CellBaseAdapter": {
+          "description": "セルに共通するグリッド座標と表示モデルを保持する基底クラスです。Awakeで最初の子オブジェクトをモデルとして取得し、配置側が座標登録後に呼ぶInitializeSystemを仮想メソッドとして公開します。接続や在庫処理は派生型が追加します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
+              "symbol": "CellBaseAdapter"
+            }
+          ]
+        },
+        "UIElementDataBaseApplication": {
+          "description": "ラベル名と行種別を共通に持つ表示値の基底です。文字列、ゲージ、資源保管の具体データへ分かれ、Rendererから対応行へ渡されます。Unity非依存の読み取り結果で、フィールドは可変なので不変オブジェクトとは扱いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/UIElementDataBaseApplication.cs",
+              "symbol": "UIElementDataBaseApplication"
+            }
+          ]
+        },
+        "ScriptableObject": {
+          "description": "Unityの設定アセットを表す基底です。この図ではセル、レシピ、表示ラベルの定義を共有アセットとして扱う境界を示します。実行中のセル在庫や搬送Stageは定義へ保存せず、対応するセルや処理オブジェクトが保持します。",
+          "references": [
+            {
+              "path": "docs/design/current-architecture.md"
+            }
+          ]
+        },
+        "ResourceProviderDefinition": {
+          "description": "資源セルの表示ラベル設定を継承し、資源定義への参照を追加するアセット型です。表示変換はこの参照から資源名などを取得します。採取元セルの資源種別はセルにあり、表示セッションの選択状態はこの設定に保存しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Definitions/ResourceProviderDefinition.cs",
+              "symbol": "ResourceProviderDefinition"
+            }
+          ]
+        },
+        "StorageProviderDefinition": {
+          "description": "保管セルに表示するラベルと名称を設定するアセット型です。表示変換が設定を使って保管量や容量などの読み取り値を作ります。基底のラベル定義を継承し、実行中の在庫や選択セルを保持する機能は追加しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Definitions/StorageProviderDefinition.cs",
+              "symbol": "StorageProviderDefinition"
+            }
+          ]
+        },
+        "ExtractorProviderDefinition": {
+          "description": "採取セルの表示ラベルと名称を設定するアセット型です。表示変換は採取セルの保有量や進捗などを読み、設定されたラベルに対応する値を返します。採取ループや取消Tokenを管理するものではありません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Definitions/ExtractorProviderDefinition.cs",
+              "symbol": "ExtractorProviderDefinition"
+            }
+          ]
+        },
+        "CrafterProviderDefinition": {
+          "description": "加工セルの表示ラベルと名称を設定するアセット型です。表示変換がセルの加工進捗や入出力の状態を読み取る際に使います。固定加工計画や素材在庫は加工セル側が持ち、この共有設定は表示項目だけを供給します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Definitions/CrafterProviderDefinition.cs",
+              "symbol": "CrafterProviderDefinition"
+            }
+          ]
+        },
+        "TextElementDataApplication": {
+          "description": "表示ラベル名と文字列を持つ状態UI用のデータです。行種別としてTextを返し、Rendererがテキスト行へ渡します。セルの読み取りから生成された値で、TMPオブジェクトやゲーム状態の変更操作は保持しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/UIElementDataBaseApplication.cs",
+              "symbol": "UIElementDataBaseApplication"
+            }
+          ]
+        },
+        "GaugeElementDataApplication": {
+          "description": "表示ラベル名、最大値、現在値とゲージ文字列を持つデータです。行種別としてGaugeを返し、進捗や容量の表示へ利用されます。Storageの表示値もこの基底を継承し、ゲーム状態と表示オブジェクトから分離した値として渡されます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/UIElementDataBaseApplication.cs",
+              "symbol": "UIElementDataBaseApplication"
+            }
+          ]
+        },
+        "StorageElementDataApplication": {
+          "description": "ゲージ用の最大値・現在値・文字列に資源種別を加えた保管表示データです。行種別としてStorageを返し、保管行がアイコンも表示します。実在庫や予約Tokenの所有者ではなく、選択セルから読み取った表示値です。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/UIElementDataBaseApplication.cs",
+              "symbol": "UIElementDataBaseApplication"
+            }
+          ]
+        },
+        "MonoBehaviour": {
+          "description": "Unityのコンポーネント基底です。この図では状態表示行が継承し、TMPやImageなどのシーン参照を持てる接点を示します。行の貸出・返却はViewが管理し、読み取りProviderと表示値はUnity非依存のC#側に分かれています。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/UIStatusRowBaseAdapter.cs",
+              "symbol": "UIStatusRowBaseAdapter"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "CellStatusViewAdapter"
+            }
+          ]
+        },
+        "TextUIStatusRowAdapter": {
+          "description": "共通行基底を継承し、受け取った文字列データをラベルと値のTMPへ反映する行です。状態UIがText用プールから借りてRendererへ渡します。セル通知を直接購読せず、在庫の計算や選択管理も行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/TextUIStatusRowAdapter.cs",
+              "symbol": "TextUIStatusRowAdapter"
+            }
+          ]
+        },
+        "GaugeUIStatusRowAdapter": {
+          "description": "ゲージ表示データを読み、ラベル、数値文字列とImageの充填量へ反映する行です。共通行基底を継承し、Storage行にも表示機能を提供します。最新値はRendererから渡され、行自身がセル状態を更新することはありません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/GaugeUIStatusRowAdapter.cs",
+              "symbol": "GaugeUIStatusRowAdapter"
+            }
+          ]
+        },
+        "StorageUIStatusRowAdapter": {
+          "description": "ゲージ行を継承し、保管表示データの資源種別に対応するアイコンを追加する行です。資源定義アセットを参照してSpriteを取得します。表示の数量と容量は渡された値を使い、実在庫の所有や予約操作は行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/StorageUIStatusRowAdapter.cs",
+              "symbol": "StorageUIStatusRowAdapter"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-ui-events-2": {
+      "source": "architecture-ui-events.md",
+      "summary": "入力、セル接続、搬送、状態UIの呼出とイベント・データの流れを示します。配置操作と接続通知から処理を進め、選択中の変更通知で表示値を読み直す経路を追えます。入力購読、隣接通知、表示購読は別の寿命と系統です。",
+      "nodes": {
+        "Actions": {
+          "description": "Input Systemの入力受付を表すノードです。カーソル側がマウス・ボタン・回転のイベントを購読し、配置操作へ変換します。有効化と購読開始、無効化と解除はコンポーネントの寿命に合わせ、資源処理の状態は持ちません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs",
+              "symbol": "PlayerCursorBehaviourAdapter"
+            },
+            {
+              "path": "Packages/manifest.json"
+            }
+          ]
+        },
+        "Cursor": {
+          "description": "マウス位置やボタン、回転のInputActionを受け取り、UI上の入力を除外してセルをRaycastで選びます。開始・保持・終了を配置側の操作へ渡し、右操作は状態表示を要求します。OnEnableで購読し、OnDisableで解除します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs",
+              "symbol": "PlayerCursorBehaviourAdapter"
+            }
+          ]
+        },
+        "Ray": {
+          "description": "UI上のポインター判定とワールド上の物理Raycastをまとめた入力経路です。カーソル側は先にUIRaycasterでUI操作を除外し、CameraからのRaycast結果を配置側のセル選択へ渡します。数量変更や配置確定はこの判定で直接行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs",
+              "symbol": "PlayerCursorBehaviourAdapter"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/UIRaycasterAdapter.cs",
+              "symbol": "UIRaycasterAdapter"
+            }
+          ]
+        },
+        "Placer": {
+          "description": "配置するセル種別、選択セル、配置プレビューと非アクティブな複製キャッシュを管理します。入力からドラッグ範囲を決め、配置時は旧セルを切断・破棄して新セルを登録し初期化します。配置結果と右操作による選択情報は状態UIへ渡します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            }
+          ]
+        },
+        "Button": {
+          "description": "選択ボタンの文字、画像、色とクリックActionを設定するUIコンポーネントです。Builderから受け取ったActionをButton.onClickへ登録します。セルDBの検索や配置を自身で行わず、クリックを配置側などの処理へつなぎます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellSelectButtonUIAdapter.cs",
+              "symbol": "CellSelectButtonUIAdapter"
+            }
+          ]
+        },
+        "Builder": {
+          "description": "セルDBからNone以外の定義を読み、選択ボタンを生成するコンポーネントです。通常ボタンへ配置側の種別選択Actionを登録します。設定されたサブメニュー分岐もありますが、そのBuilderには未完成の処理が残っています。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/SelectButtonBuilderAdapter.cs",
+              "symbol": "SelectButtonBuilderAdapter"
+            }
+          ]
+        },
+        "DB": {
+          "description": "セル種別と名称、配置用Prefab、プレビュー用Prefabを設定配列で保持するScriptableObjectです。OnEnableで検索辞書を構築し、設定変更で無効化した後は取得時に再構築します。保存フラグに依存せず、重複種別は警告して後の定義を使います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs",
+              "symbol": "CellDatabaseDefinition"
+            }
+          ]
+        },
+        "Grid": {
+          "description": "シーン内のセルを二次元の座標配列に登録し、座標検索を提供する管理コンポーネントです。SaveCellでセルの座標も更新します。接続基底は境界を確認して4方向のセルを借用参照します。配列登録自体はセルの生成・破棄や全セル初期化を行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs",
+              "symbol": "GridFieldDatabaseAdapter"
+            }
+          ]
+        },
+        "Cells": {
+          "description": "共通セル基底と役割別の具体セルをまとめたノードです。配置側は座標登録後にInitializeSystemを呼び、接続型の削除前にはOnDisconnectを呼びます。隣接通知と、選択UI向けのStatusChangedは別のイベント系統です。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
+              "symbol": "CellBaseAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs",
+              "symbol": "ConnectableCellBaseAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            }
+          ]
+        },
+        "Loops": {
+          "description": "コンベアの前方搬送、取り込みコンベアの後方出庫、交差セルの方向別搬送をまとめた非同期処理群です。接続通知で搬送先参照を更新し、Coordinatorを使って予約と確定を進めます。各セルが取消Tokenと保持IDの終了責任を担います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs",
+              "symbol": "ConveyorCellAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ExportConveyorCellAdapter.cs",
+              "symbol": "ExportConveyorCellAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs",
+              "symbol": "CrossingCellAdapter"
+            }
+          ]
+        },
+        "Coord": {
+          "description": "搬送の予約、演出、確定を順に進める調整役です。資源データと接続先の整合を確認し、表示の移動結果を受けて予約を確定します。再利用先へは確定前にIDを渡し、終端ではデータと表示を明示的に処分します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "ResourceTransferCoordinatorApplication"
+            }
+          ]
+        },
+        "Target": {
+          "description": "搬送先が公開する搬入契約と、対応するセルの資源ID引継ぎ契約です。Coordinatorは全量予約・演出の後に搬入を確定し、再利用できる相手には先にIDを渡します。保管や加工などの終端と、コンベア等の継続搬送を区別する境界です。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/IContainableApplication.cs",
+              "symbol": "IContainableApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/IResourceReusableApplication.cs",
+              "symbol": "IResourceReusableApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "ResourceTransferCoordinatorApplication"
+            }
+          ]
+        },
+        "Pool": {
+          "description": "搬送資源のID別データとGameObject表示プールをまとめたノードです。Coordinatorは資源情報を検証し、演出結果を待って終端でデータ削除・表示返却を行います。表示だけの返却は資源の消滅ではなく、IDデータの寿命と区別します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransitStoreApplication.cs",
+              "symbol": "ResourceTransitStoreApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs",
+              "symbol": "ResourceItemObjectPoolAdapter"
+            }
+          ]
+        },
+        "View": {
+          "description": "選択中のセル参照、変更通知の購読、表示窓と行プールを管理するUIコンポーネントです。選択時にProviderを取得してRendererへ渡します。非表示、選択変更、無効化、破棄で購読と貸出行を解除し、破棄された選択セルも監視します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "CellStatusViewAdapter"
+            }
+          ]
+        },
+        "Renderer": {
+          "description": "読み取りProviderとラベル別の表示行参照を保持する描画の調整役です。初期化では行生成関数を呼び、更新では全表示値を取得して対応行へ渡します。行プールの所有、選択セルの購読や数量変更は行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/UIElementRendererAdapter.cs",
+              "symbol": "UIElementRendererAdapter"
+            }
+          ]
+        },
+        "Provider": {
+          "description": "一つの選択表示セッションのラベル名と読み取り関数を保持します。ReadDataのたびに新しいラベル別表示値を作り、読み取り専用辞書で返します。共有設定アセットやゲーム在庫を書き換えず、選択されたセルの状態を読み取ります。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/CellStatusDataProviderApplication.cs",
+              "symbol": "CellStatusDataProviderApplication"
+            }
+          ]
+        },
+        "Bridge": {
+          "description": "具体的なセルと表示定義から、選択セッション用Providerを作る静的変換入口です。ラベルに応じて保管・資源・採取・加工セルを読み、共通表示値へ変換します。具体型の分岐をここに集約しますが、新型の追加には変換の追加が必要です。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs",
+              "symbol": "CellStatusProviderAdapter"
+            }
+          ]
+        },
+        "Definition": {
+          "description": "表示ラベルとラベル名の配列を持つScriptableObjectの基底です。GetLabelsは配列の複製を返し、Provider生成時の設定として使われます。選択セル参照や現在表示値は保存せず、実行時セッションの状態と分離しています。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Definitions/ProviderBaseDefinition.cs",
+              "symbol": "ProviderBaseDefinition"
+            }
+          ]
+        },
+        "Rows": {
+          "description": "文字列、ゲージ、保管の表示行をまとめたノードです。Viewから借りた行へRendererが表示値を渡し、各行がTMPやImageを更新します。保管行は資源アイコンも表示し、行はゲーム在庫の計算やセル通知の購読を直接行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/TextUIStatusRowAdapter.cs",
+              "symbol": "TextUIStatusRowAdapter"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/GaugeUIStatusRowAdapter.cs",
+              "symbol": "GaugeUIStatusRowAdapter"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/StorageUIStatusRowAdapter.cs",
+              "symbol": "StorageUIStatusRowAdapter"
+            }
+          ]
+        },
+        "UnityUI": {
+          "description": "表示行が使うTextMeshProとuGUIのImageをまとめた外部UI要素です。ラベル・文字列・ゲージ充填量・資源アイコンを行コンポーネントから受け取ります。表示先であり、セル状態の通知購読や数量確定は行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/TextUIStatusRowAdapter.cs",
+              "symbol": "TextUIStatusRowAdapter"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/GaugeUIStatusRowAdapter.cs",
+              "symbol": "GaugeUIStatusRowAdapter"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/StorageUIStatusRowAdapter.cs",
+              "symbol": "StorageUIStatusRowAdapter"
+            },
+            {
+              "path": "Packages/manifest.json"
+            }
+          ]
+        },
+        "CameraInput": {
+          "description": "カメラ移動・ズーム・向き変更用のInputAction群です。カメラControllerは通知と値のポーリングから操作を決め、OnEnableとOnDisableで購読を管理します。カーソルのセル操作入力とは別の経路を表します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Input/Adapter/CameraControllerAdapter.cs",
+              "symbol": "CameraControllerAdapter"
+            },
+            {
+              "path": "Packages/manifest.json"
+            }
+          ]
+        },
+        "Camera": {
+          "description": "カメラ用のInputActionとCinemachineCamera、追従先を使ってパン・ズーム・向き変更を行います。イベント購読と入力値の読み取りを組み合わせ、OnDisableで購読を外します。セル配置や資源処理の状態は管理しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Input/Adapter/CameraControllerAdapter.cs",
+              "symbol": "CameraControllerAdapter"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-sequences-1": {
+      "source": "architecture-sequences.md",
+      "summary": "Unityの通知からセル定義の辞書、既存グリッド登録、配置キャッシュと選択ボタンを用意する起動経路を示します。並列ブロックは独立したStart経路の表現で、コンポーネント間の総順序を保証しません。Editorでの地形生成はこの経路の外です。",
+      "nodes": {
+        "U": {
+          "description": "Unityのコンポーネント実行通知を表す参加者です。ScriptableObjectのOnEnableと各コンポーネントのStartを通して設定辞書、グリッド登録、配置キャッシュ、ボタン生成を開始します。別コンポーネント間のStart総順序を保証する参加者ではありません。",
+          "references": [
+            {
+              "path": "docs/design/architecture-sequences.md"
+            },
+            {
+              "path": "ProjectSettings/ProjectVersion.txt"
+            }
+          ]
+        },
+        "D": {
+          "description": "セル種別と名称、配置用Prefab、プレビュー用Prefabを設定配列で保持するScriptableObjectです。OnEnableで検索辞書を構築し、設定変更で無効化した後は取得時に再構築します。保存フラグに依存せず、重複種別は警告して後の定義を使います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs",
+              "symbol": "CellDatabaseDefinition"
+            }
+          ]
+        },
+        "G": {
+          "description": "Editorでは空セルやプロップを含むグリッド生成を支援するコンポーネントです。ゲーム実行時のStartは既存子階層をグリッドDBへ登録するだけで、マップを新規生成しません。生成メソッドはUNITY_EDITORに限定されています。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs",
+              "symbol": "GridFieldGeneratorAdapter"
+            }
+          ]
+        },
+        "F": {
+          "description": "シーン内のセルを二次元の座標配列に登録し、座標検索を提供する管理コンポーネントです。SaveCellでセルの座標も更新します。接続基底は境界を確認して4方向のセルを借用参照します。配列登録自体はセルの生成・破棄や全セル初期化を行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs",
+              "symbol": "GridFieldDatabaseAdapter"
+            }
+          ]
+        },
+        "P": {
+          "description": "配置するセル種別、選択セル、配置プレビューと非アクティブな複製キャッシュを管理します。入力からドラッグ範囲を決め、配置時は旧セルを切断・破棄して新セルを登録し初期化します。配置結果と右操作による選択情報は状態UIへ渡します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            }
+          ]
+        },
+        "B": {
+          "description": "セルDBからNone以外の定義を読み、選択ボタンを生成するコンポーネントです。通常ボタンへ配置側の種別選択Actionを登録します。設定されたサブメニュー分岐もありますが、そのBuilderには未完成の処理が残っています。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/SelectButtonBuilderAdapter.cs",
+              "symbol": "SelectButtonBuilderAdapter"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-sequences-2": {
+      "source": "architecture-sequences.md",
+      "summary": "ボタンでセル種別を選び、カーソルのドラッグから配置を確定する代表経路を示します。旧セルの切断後に複製を登録し、有効化・初期化して状態表示へ渡します。入力判定と配置可否、Unityの破棄予約を区別して追う図です。",
+      "nodes": {
+        "B": {
+          "description": "選択ボタンの文字、画像、色とクリックActionを設定するUIコンポーネントです。Builderから受け取ったActionをButton.onClickへ登録します。セルDBの検索や配置を自身で行わず、クリックを配置側などの処理へつなぎます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellSelectButtonUIAdapter.cs",
+              "symbol": "CellSelectButtonUIAdapter"
+            }
+          ]
+        },
+        "P": {
+          "description": "配置するセル種別、選択セル、配置プレビューと非アクティブな複製キャッシュを管理します。入力からドラッグ範囲を決め、配置時は旧セルを切断・破棄して新セルを登録し初期化します。配置結果と右操作による選択情報は状態UIへ渡します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            }
+          ]
+        },
+        "D": {
+          "description": "セル種別と名称、配置用Prefab、プレビュー用Prefabを設定配列で保持するScriptableObjectです。OnEnableで検索辞書を構築し、設定変更で無効化した後は取得時に再構築します。保存フラグに依存せず、重複種別は警告して後の定義を使います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs",
+              "symbol": "CellDatabaseDefinition"
+            }
+          ]
+        },
+        "I": {
+          "description": "マウス位置やボタン、回転のInputActionを受け取り、UI上の入力を除外してセルをRaycastで選びます。開始・保持・終了を配置側の操作へ渡し、右操作は状態表示を要求します。OnEnableで購読し、OnDisableで解除します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs",
+              "symbol": "PlayerCursorBehaviourAdapter"
+            }
+          ]
+        },
+        "F": {
+          "description": "シーン内のセルを二次元の座標配列に登録し、座標検索を提供する管理コンポーネントです。SaveCellでセルの座標も更新します。接続基底は境界を確認して4方向のセルを借用参照します。配列登録自体はセルの生成・破棄や全セル初期化を行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs",
+              "symbol": "GridFieldDatabaseAdapter"
+            }
+          ]
+        },
+        "O": {
+          "description": "配置範囲にある置換前のセルを表す参加者です。空セルへの配置またはEmptyによる削除が許可されると、接続型は破棄前に切断処理を受けます。座標と親階層などは新セルへ引き継がれ、旧参照はグリッドDBで差し替えられます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs",
+              "symbol": "ConnectableCellBaseAdapter"
+            }
+          ]
+        },
+        "N": {
+          "description": "配置キャッシュから複製された置換後のセルです。旧セルの座標と親階層へ登録された後、有効化とInitializeSystemを受けます。接続型なら隣接参照と通知を構築し、配置側は状態表示と現在選択セルの参照も更新します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs",
+              "symbol": "ConnectableCellBaseAdapter"
+            }
+          ]
+        },
+        "V": {
+          "description": "選択中のセル参照、変更通知の購読、表示窓と行プールを管理するUIコンポーネントです。選択時にProviderを取得してRendererへ渡します。非表示、選択変更、無効化、破棄で購読と貸出行を解除し、破棄された選択セルも監視します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "CellStatusViewAdapter"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-sequences-3": {
+      "source": "architecture-sequences.md",
+      "summary": "搬送先へ全量予約し、表示移動の成功と接続整合を確認して数量を確定する流れを示します。再利用先へのID引継ぎと終端での処分を区別します。中断時の予約取消・ID保持と所有セル終了時の処分は同じ経路ではありません。",
+      "nodes": {
+        "S": {
+          "description": "搬送試行を開始するコンベアまたは交差セルです。資源IDと取消Tokenを管理してCoordinatorへ予約・演出・確定を委ねます。接続喪失時の交差セルは既存処理を待機へ戻し、コンベアは同じIDで新しいOperationを作って再試行します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs",
+              "symbol": "ConveyorCellAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs",
+              "symbol": "CrossingCellAdapter"
+            }
+          ]
+        },
+        "C": {
+          "description": "搬送の予約、演出、確定を順に進める調整役です。資源データと接続先の整合を確認し、表示の移動結果を受けて予約を確定します。再利用先へは確定前にIDを渡し、終端ではデータと表示を明示的に処分します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
+              "symbol": "ResourceTransferCoordinatorApplication"
+            }
+          ]
+        },
+        "T": {
+          "description": "搬入契約を実装した搬送先セルです。方向・種別・数量から全量予約し、確定時に数量を受け入れます。ID再利用契約も持つ場合は確定前に資源IDを引き継ぎます。実在庫と予約量の更新は各搬送先の実装が担います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/IContainableApplication.cs",
+              "symbol": "IContainableApplication"
+            },
+            {
+              "path": "Assets/Scripts/Transfers/Application/IResourceReusableApplication.cs",
+              "symbol": "IResourceReusableApplication"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/StorageCellAdapter.cs",
+              "symbol": "StorageCellAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs",
+              "symbol": "ConveyorCellAdapter"
+            }
+          ]
+        },
+        "R": {
+          "description": "搬入先と方向、資源種別、数量を固定した全量予約のTokenです。生成時に搬入先へ予約を要求し、確定または取消を一度だけ受け付けます。具体セル参照で生存を確認し、取消時は残っている相手の予約量を戻します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs",
+              "symbol": "ResourceReservationApplication"
+            }
+          ]
+        },
+        "P": {
+          "description": "搬送表示の移動、位置の復元、表示返却を公開する契約です。移動は取消Tokenを受け取り、正常完了・取消・表示不在の結果を返します。数量の確定や資源データ削除は行わず、Coordinatorが演出結果から処理を決定します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/IResourceTransferPresentationApplication.cs",
+              "symbol": "IResourceTransferPresentationApplication"
+            }
+          ]
+        },
+        "D": {
+          "description": "搬送中の資源種別と数量をID別に保持するC#のデータストアです。表示GameObjectを参照せず、ID作成、取得、削除を提供します。資源表示プールが所有しますが、表示の貸出・返却と資源データの存続は別に管理されます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/ResourceTransitStoreApplication.cs",
+              "symbol": "ResourceTransitStoreApplication"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-sequences-4": {
+      "source": "architecture-sequences.md",
+      "summary": "素材在庫から固定加工計画を作り、時間進行後に現在在庫へ再検証して確定する流れを示します。無効化・破棄・中断では未完了計画を取消し、正常終了でも条件不一致なら素材を消費しません。演出終了と在庫更新の境界が読みどころです。",
+      "nodes": {
+        "C": {
+          "description": "方向別の素材入力在庫と加工結果の出力在庫を持ち、搬入・出庫・表示の契約を公開するセルです。成立したレシピから固定計画を作り、加工終了時に現在の在庫と容量を再検証して確定します。無効化・破棄で未完了計画を取消し、素材を無条件には消費しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs",
+              "symbol": "CrafterCellAdapter"
+            }
+          ]
+        },
+        "R": {
+          "description": "素材と出力のスナップショットからレシピが成立するかを計算し、固定計画を作るUnity非依存の規則です。加工終了時には現在在庫への適用結果を返します。セル在庫を直接書き換えず、計算結果の適用は加工セルが行います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Domain/RecipeRulesDomain.cs",
+              "symbol": "RecipeRulesDomain"
+            }
+          ]
+        },
+        "O": {
+          "description": "一件の固定された加工計画とProcessing・Completed・Cancelledの段階を持ちます。終了時には現在の在庫と容量へ計画を適用できるか再検証し、成功時だけ確定します。取消や失敗後の同じ計画は再確定できません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Application/CraftingOperationApplication.cs",
+              "symbol": "CraftingOperationApplication"
+            }
+          ]
+        },
+        "T": {
+          "description": "加工時間の待機と進捗補間に使うUniTaskとDOTweenを表します。加工セルの取消Tokenに合わせて演出を終え、正常完了を在庫確定の判定へ渡します。ライブラリ自体は素材消費や成果物の追加をせず、失敗時の確定を保証するものでもありません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs",
+              "symbol": "CrafterCellAdapter"
+            },
+            {
+              "path": "Packages/manifest.json"
+            }
+          ]
+        }
+      }
+    },
+    "architecture-sequences-5": {
+      "source": "architecture-sequences.md",
+      "summary": "選択したセルからProviderを取得し、行を借りて表示する流れと変更通知の購読寿命を示します。通知時は新しい値を読んで再描画し、選択解除などで購読と行を戻します。共有設定は選択状態を持たず、表示セッションと分かれています。",
+      "nodes": {
+        "P": {
+          "description": "配置するセル種別、選択セル、配置プレビューと非アクティブな複製キャッシュを管理します。入力からドラッグ範囲を決め、配置時は旧セルを切断・破棄して新セルを登録し初期化します。配置結果と右操作による選択情報は状態UIへ渡します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
+              "symbol": "CellPlacerAdapter"
+            }
+          ]
+        },
+        "V": {
+          "description": "選択中のセル参照、変更通知の購読、表示窓と行プールを管理するUIコンポーネントです。選択時にProviderを取得してRendererへ渡します。非表示、選択変更、無効化、破棄で購読と貸出行を解除し、破棄された選択セルも監視します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "CellStatusViewAdapter"
+            }
+          ]
+        },
+        "C": {
+          "description": "セル状態の読み取りProvider取得と変更通知だけを公開する契約です。状態UIは選択中のセルを購読し、通知を受けて表示値を読み直します。選択解除時に購読を外します。この契約から数量変更操作は渡さず、ResourceCellの通知は固定値用のno-opです。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/IDataProvidableApplication.cs",
+              "symbol": "IDataProvidableApplication"
+            },
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
+              "symbol": "UpdateUIStatusWindow"
+            }
+          ]
+        },
+        "A": {
+          "description": "具体的なセルと表示定義から、選択セッション用Providerを作る静的変換入口です。ラベルに応じて保管・資源・採取・加工セルを読み、共通表示値へ変換します。具体型の分岐をここに集約しますが、新型の追加には変換の追加が必要です。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs",
+              "symbol": "CellStatusProviderAdapter"
+            }
+          ]
+        },
+        "D": {
+          "description": "一つの選択表示セッションのラベル名と読み取り関数を保持します。ReadDataのたびに新しいラベル別表示値を作り、読み取り専用辞書で返します。共有設定アセットやゲーム在庫を書き換えず、選択されたセルの状態を読み取ります。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Application/CellStatusDataProviderApplication.cs",
+              "symbol": "CellStatusDataProviderApplication"
+            }
+          ]
+        },
+        "R": {
+          "description": "読み取りProviderとラベル別の表示行参照を保持する描画の調整役です。初期化では行生成関数を呼び、更新では全表示値を取得して対応行へ渡します。行プールの所有、選択セルの購読や数量変更は行いません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/UIElementRendererAdapter.cs",
+              "symbol": "UIElementRendererAdapter"
+            }
+          ]
+        },
+        "W": {
+          "description": "状態UIの表示行に共通する描画メソッドを定める抽象コンポーネントです。具体行は受け取った表示データをTMPやImageへ反映します。行の取得・返却はViewが行い、この型がゲーム状態を保持するわけではありません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/UIStatusRowBaseAdapter.cs",
+              "symbol": "UIStatusRowBaseAdapter"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

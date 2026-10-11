@@ -6,6 +6,7 @@
 
 ## 搬送一件と演出の分離
 
+<!-- diagram-id: architecture-transfers-crafting-1 -->
 ```mermaid
 classDiagram
  ConveyorCellAdapter *-- ResourceTransferOperationApplication : 一件の状態
@@ -53,6 +54,7 @@ classDiagram
 
 [Coordinator](../../Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs)、[Operation](../../Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs)、[Reservation](../../Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs)、[Pool](../../Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs) が根拠。Conveyorは一件、CrossingのPendingTransferは方向別にCoordinatorを保持し、予約を受けた後に資源IDを受け取る。上図のOperation/Storeメソッドは詳細な引数を省略している。貸出表示が戻っても資源データは自動消滅せず、通常終端ではデータ削除と表示返却を明示する。Reusable搬送先は同じIDを継承する。
 
+<!-- diagram-id: architecture-transfers-crafting-2 -->
 ```mermaid
 stateDiagram-v2
  [*] --> WaitingForReservation
@@ -72,6 +74,7 @@ stateDiagram-v2
 
 ## 加工計画と在庫確定
 
+<!-- diagram-id: architecture-transfers-crafting-3 -->
 ```mermaid
 classDiagram
  ConnectableCellBaseAdapter <|-- CrafterCellAdapter
