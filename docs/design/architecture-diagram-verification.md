@@ -42,3 +42,13 @@ doctor、sync、inventory、applyを順に使用し、applyの全件検証はok=
 ## 未確認と再開情報
 
 今回の成果は静的設計説明。Unityのロード順・実入力・見た目を新たに実行検証したとは扱わない。Start経路間の総順序を保証しない。未コミットの描画差分の体験品質と未使用ServiceLocatorの採否も判定対象外。[拡張レビュー](../tasks/extension-readiness-review.md)の未完了課題は継続している。本図式を閲覧・更新する次担当は対象コードHEADと当日のGit差分を先に照合する。
+
+## 配色・囲みの段階移行記録
+
+タグ: `役割別配色` `囲み` `検証証拠` `再開情報`
+
+2026-10-12、文書開始版 `12a84b1b5a318c03dbe1801cad26478fdbe6762d` から、current-architecture-1とarchitecture-cells-grid-1の2図だけを共通CLI 1.1.0で移行した。最新inventoryのbase_revisionで下書きを照合し、applyのプレビュー成功後に書き込んだ。全体構成図はLRと外部ライブラリの囲み、セル図はLRと説明上の4分類を採用した。各17ノード、計34ノードへfoundation/middle/surface/externalを指定し、色コードは共通ビューアが管理する。
+
+既存のleaf ID、型付き関係、ラベル、属性・メソッド、概要・説明・根拠を保持した。追加したLibrariesの囲みには説明と相対根拠を付けた。クラス図のnamespaceは説明上の分類で、C#の名前空間ではない。全14図・180ノードのvalidateはok=true、errors=[]、missing=[]、syncプレビューはchanged=[]だった。構文・役割網羅・説明対応を確認した。詳細な実行結果とコミットは [担当の提出JSON](../../../../.codex/session-routing/requests/architecture-presentation-factory-pilot-result.json) に記録する。
+
+残り12図の配色・囲み移行は次工程であり、今回は原本を保持する。検証はCLI内部の解析・描画で、共通ビューアの配色や画面幅ごとの見え方を追加確認したものではない。製品コード、既存SVG、進行中の無関係差分は変更しない。

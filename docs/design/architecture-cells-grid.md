@@ -6,19 +6,13 @@
 
 ## セル型と能力契約
 
+囲みは設計図を読むための分類で、C#の名前空間を表すものではない。配色のfoundationは共通基底、middleは具体セル、surfaceは能力契約、externalはUnity基盤とこの図の外から参照する型を示す。
+
 <!-- diagram-id: architecture-cells-grid-1 -->
 ```mermaid
 classDiagram
- MonoBehaviour <|-- CellBaseAdapter
- CellBaseAdapter <|-- EmptyCellAdapter
- CellBaseAdapter <|-- ResourceCellAdapter
- CellBaseAdapter <|-- ConnectableCellBaseAdapter
- ConnectableCellBaseAdapter <|-- StorageCellAdapter
- ConnectableCellBaseAdapter <|-- ExtractorCellAdapter
- ConnectableCellBaseAdapter <|-- ConveyorCellAdapter
- ConveyorCellAdapter <|-- ExportConveyorCellAdapter
- ConnectableCellBaseAdapter <|-- CrossingCellAdapter
- ConnectableCellBaseAdapter <|-- CrafterCellAdapter
+ direction LR
+ namespace 基底クラス {
  class CellBaseAdapter {
   int XIndex
   int ZIndex
@@ -30,6 +24,18 @@ classDiagram
   InitializeSystem()
   OnDisconnect()
  }
+ }
+ namespace セル実装 {
+ class EmptyCellAdapter
+ class ResourceCellAdapter
+ class StorageCellAdapter
+ class ExtractorCellAdapter
+ class ConveyorCellAdapter
+ class ExportConveyorCellAdapter
+ class CrossingCellAdapter
+ class CrafterCellAdapter
+ }
+ namespace 能力契約 {
  class IContainableApplication {
   <<interface>>
   AllocateStorage()
@@ -49,6 +55,28 @@ classDiagram
   GetDataProvider()
   StatusChanged
  }
+ }
+ namespace 外部と参照先 {
+ class MonoBehaviour
+ class GridFieldDatabaseAdapter
+ class ResourceStorageRulesDomain
+ }
+MonoBehaviour <|-- CellBaseAdapter
+ CellBaseAdapter <|-- EmptyCellAdapter
+ CellBaseAdapter <|-- ResourceCellAdapter
+ CellBaseAdapter <|-- ConnectableCellBaseAdapter
+ ConnectableCellBaseAdapter <|-- StorageCellAdapter
+ ConnectableCellBaseAdapter <|-- ExtractorCellAdapter
+ ConnectableCellBaseAdapter <|-- ConveyorCellAdapter
+ ConveyorCellAdapter <|-- ExportConveyorCellAdapter
+ ConnectableCellBaseAdapter <|-- CrossingCellAdapter
+ ConnectableCellBaseAdapter <|-- CrafterCellAdapter
+
+
+
+
+
+
  StorageCellAdapter ..|> IContainableApplication
  StorageCellAdapter ..|> IExportableApplication
  StorageCellAdapter ..|> IDataProvidableApplication

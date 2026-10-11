@@ -18,7 +18,7 @@
 
 <!-- diagram-id: current-architecture-1 -->
 ```mermaid
-flowchart TB
+flowchart LR
  subgraph Scene["Unityシーン・Prefab・設定アセット"]
   Main["MainScene / グリッド子階層 / UI"]
   SO["CellDatabase・ResourceDefinition・RecipeDatabase・Provider定義"]
@@ -61,10 +61,15 @@ flowchart TB
  Craft --> Recipe
  Recipe --> Enum
  Storage --> Enum
- Presentation --> External["Unity ObjectPool / DOTween / UniTask"]
- Input --> InputLib["Input System / Physics / Cinemachine"]
- UI --> UILib["uGUI / TextMeshPro"]
+ Presentation --> External
+ Input --> InputLib
+ UI --> UILib
  Editor["Editor検証・編集支援 / 条件付き開発Verifier"] -. "検証・編集" .-> Adapter
+ subgraph Libraries["外部ライブラリ"]
+ External["Unity ObjectPool / DOTween / UniTask"]
+ InputLib["Input System / Physics / Cinemachine"]
+ UILib["uGUI / TextMeshPro"]
+ end
 ```
 
 この図の `Transfer --> Cells` は現行の具体型依存であり、理想の一方向レイヤー図から意図的に残している。搬送契約はUnity座標型、演出契約はUniTaskも使う。UI/ApplicationとCrafting Domain/ApplicationはUnity非依存。Unity 6000.3.8f1、Input System 1.18.0、Cinemachine 3.1.4、uGUI 2.0.0、URP 17.3.0は [ProjectVersion](../../ProjectSettings/ProjectVersion.txt) と [manifest](../../Packages/manifest.json)で確認。UniTaskはGit依存、DOTweenはAssets内の既存プラグイン。Test Frameworkは検証境界で、ゲーム実行の入口ではない。

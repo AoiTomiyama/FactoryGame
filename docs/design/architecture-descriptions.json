@@ -310,6 +310,35 @@
               "symbol": "RecipePlanDomain"
             }
           ]
+        },
+        "Libraries": {
+          "description": "入力、表示、搬送のAdapterが利用する外部ライブラリをまとめた囲みです。Input System、Physics、Cinemachine、uGUI、TextMeshPro、Unity ObjectPool、DOTween、UniTaskとの接続を示します。",
+          "references": [
+            {
+              "path": "docs/design/current-architecture.md"
+            }
+          ]
+        }
+      },
+      "presentation": {
+        "roles": {
+          "Storage": "foundation",
+          "Recipe": "foundation",
+          "Enum": "foundation",
+          "Main": "middle",
+          "SO": "middle",
+          "Transfer": "middle",
+          "Craft": "middle",
+          "Read": "middle",
+          "Input": "surface",
+          "Grid": "surface",
+          "Cells": "surface",
+          "Presentation": "surface",
+          "UI": "surface",
+          "External": "external",
+          "InputLib": "external",
+          "UILib": "external",
+          "Editor": "external"
         }
       }
     },
@@ -718,6 +747,27 @@
               "symbol": "ResourceStorageRulesDomain"
             }
           ]
+        }
+      },
+      "presentation": {
+        "roles": {
+          "CellBaseAdapter": "foundation",
+          "ConnectableCellBaseAdapter": "foundation",
+          "EmptyCellAdapter": "middle",
+          "ResourceCellAdapter": "middle",
+          "StorageCellAdapter": "middle",
+          "ExtractorCellAdapter": "middle",
+          "ConveyorCellAdapter": "middle",
+          "ExportConveyorCellAdapter": "middle",
+          "CrossingCellAdapter": "middle",
+          "CrafterCellAdapter": "middle",
+          "IContainableApplication": "surface",
+          "IExportableApplication": "surface",
+          "IResourceReusableApplication": "surface",
+          "IDataProvidableApplication": "surface",
+          "MonoBehaviour": "external",
+          "GridFieldDatabaseAdapter": "external",
+          "ResourceStorageRulesDomain": "external"
         }
       }
     },
