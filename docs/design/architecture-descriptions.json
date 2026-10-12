@@ -340,7 +340,8 @@
           "UILib": "external",
           "Editor": "external"
         }
-      }
+      },
+      "number": "1"
     },
     "current-architecture-2": {
       "source": "current-architecture.md",
@@ -628,7 +629,8 @@
           "Visual": "surface",
           "Rows": "surface"
         }
-      }
+      },
+      "number": "2.3"
     },
     "architecture-cells-grid-1": {
       "source": "architecture-cells-grid.md",
@@ -823,7 +825,8 @@
           "GridFieldDatabaseAdapter": "surface",
           "ResourceStorageRulesDomain": "foundation"
         }
-      }
+      },
+      "number": "2.1"
     },
     "architecture-cells-grid-2": {
       "source": "architecture-cells-grid.md",
@@ -945,7 +948,8 @@
           "ScriptableObject": "external",
           "GameObject": "external"
         }
-      }
+      },
+      "number": "2.2"
     },
     "architecture-transfers-crafting-1": {
       "source": "architecture-transfers-crafting.md",
@@ -1134,7 +1138,8 @@
           "GameObject": "external",
           "DOTween": "external"
         }
-      }
+      },
+      "number": "3.1"
     },
     "architecture-transfers-crafting-2": {
       "source": "architecture-transfers-crafting.md",
@@ -1243,7 +1248,8 @@
           "Completed": "middle",
           "Cancelled": "middle"
         }
-      }
+      },
+      "number": "3.2"
     },
     "architecture-transfers-crafting-3": {
       "source": "architecture-transfers-crafting.md",
@@ -1362,7 +1368,8 @@
           "CraftingOperationApplication": "middle",
           "ScriptableObject": "external"
         }
-      }
+      },
+      "number": "4.1"
     },
     "architecture-ui-events-1": {
       "source": "architecture-ui-events.md",
@@ -1621,7 +1628,8 @@
           "ScriptableObject": "external",
           "MonoBehaviour": "external"
         }
-      }
+      },
+      "number": "5.1"
     },
     "architecture-ui-events-2": {
       "source": "architecture-ui-events.md",
@@ -1940,7 +1948,8 @@
           "UnityUI": "external",
           "CameraInput": "external"
         }
-      }
+      },
+      "number": "6"
     },
     "architecture-sequences-1": {
       "source": "architecture-sequences.md",
@@ -2012,7 +2021,8 @@
           "B": "surface",
           "U": "external"
         }
-      }
+      },
+      "number": "2.4"
     },
     "architecture-sequences-2": {
       "source": "architecture-sequences.md",
@@ -2110,7 +2120,8 @@
           "I": "surface",
           "V": "surface"
         }
-      }
+      },
+      "number": "2.5"
     },
     "architecture-sequences-3": {
       "source": "architecture-sequences.md",
@@ -2196,7 +2207,8 @@
           "T": "surface",
           "P": "surface"
         }
-      }
+      },
+      "number": "3.3"
     },
     "architecture-sequences-4": {
       "source": "architecture-sequences.md",
@@ -2249,7 +2261,8 @@
           "O": "middle",
           "T": "external"
         }
-      }
+      },
+      "number": "4.2"
     },
     "architecture-sequences-5": {
       "source": "architecture-sequences.md",
@@ -2333,7 +2346,8 @@
           "C": "surface",
           "A": "surface"
         }
-      }
+      },
+      "number": "5.2"
     }
   }
 }
