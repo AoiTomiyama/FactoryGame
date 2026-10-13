@@ -142,6 +142,7 @@ public static class UIStatusVerifierEditor
                 "resource name survives the configuration/provider split");
             view.SetStatusWindowActive(false);
 
+            await VerifyCustomStatus(view);
             await VerifyExtractorLifecycle(view);
             await VerifyCrafting(view);
             view.SetStatusWindowActive(false);
@@ -151,6 +152,60 @@ public static class UIStatusVerifierEditor
             EditorApplication.Exit(0);
         }
         catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
+    }
+
+    private static async UniTask VerifyCustomStatus(CellStatusViewAdapter view)
+    {
+        var definition = Define<StorageProviderDefinition>(LabelEnumApplication.CellName, LabelEnumApplication.Amount);
+        var a = Cell<UIStatusFixtureCellAdapter>();
+        var b = Cell<UIStatusFixtureCellAdapter>();
+        a.Definition = b.Definition = definition;
+        var providerA = a.GetDataProvider();
+        var providerB = b.GetDataProvider();
+        var snapshot = providerA.ReadData();
+        Require(CellStatusProviderAdapter.CreateCustom(null, null) == null, "missing custom definition keeps null-provider behavior");
+        try
+        {
+            CellStatusProviderAdapter.CreateCustom(definition, null);
+            throw new InvalidOperationException("missing custom reader was accepted");
+        }
+        catch (ArgumentNullException) { }
+        view.UpdateUIStatusWindow(a);
+        var nameRow = (TextUIStatusRowAdapter)Rows(view)[LabelEnumApplication.CellName];
+        Require(((TextMeshProUGUI)Get(nameRow, "statusText")).text == "Custom status fixture" &&
+                GaugeText(view, LabelEnumApplication.Amount) == "2/10" && a.SubscriptionCount == 1,
+            "a cell outside the central switch renders its dedicated text and gauge");
+        a.ChangeDisplayValue(6);
+        Require(GaugeText(view, LabelEnumApplication.Amount) == "6/10" &&
+                ((GaugeElementDataApplication)snapshot[LabelEnumApplication.Amount]).Current == 2 &&
+                ((GaugeElementDataApplication)providerB.ReadData()[LabelEnumApplication.Amount]).Current == 2,
+            "custom notification updates UI without sharing sessions or old snapshots");
+        ((GaugeElementDataApplication)snapshot[LabelEnumApplication.Amount]).Current = 999;
+        for (var i = 0; i < 10; i++) view.UpdateUI();
+        Require(a.StoredAmount == 7 && b.StoredAmount == 7 && a.DisplayValue == 6,
+            "custom reads and snapshot edits do not change inventory or source state");
+        var entries = definition.GetLabels();
+        object changed = entries[0]; Set(changed, "name", "Changed after selection");
+        entries[0] = (LabelNameDefinition)changed;
+        typeof(ProviderBaseDefinition).GetField("labelEntries", Fields).SetValue(definition, entries);
+        Require(providerA.ReadData()[LabelEnumApplication.CellName].StatusName == "CellName" &&
+                a.GetDataProvider().ReadData()[LabelEnumApplication.CellName].StatusName == "Changed after selection",
+            "custom session copies labels and new sessions see changed settings");
+        view.UpdateUIStatusWindow(b);
+        Require(a.SubscriptionCount == 0 && b.SubscriptionCount == 1, "custom selection switch releases subscription");
+        a.ChangeDisplayValue(9);
+        Require(GaugeText(view, LabelEnumApplication.Amount) == "2/10", "unselected custom source cannot update UI");
+        view.enabled = false;
+        Require(b.SubscriptionCount == 0 && Rows(view).Count == 0, "custom disable releases subscription and rows");
+        view.enabled = true; view.UpdateUIStatusWindow(b);
+        view.SetStatusWindowActive(false);
+        Require(b.SubscriptionCount == 0 && Rows(view).Count == 0, "custom hide releases subscription and rows");
+        view.UpdateUIStatusWindow(b);
+        UnityEngine.Object.Destroy(b.gameObject);
+        await UniTask.Yield(); await UniTask.Yield();
+        Require(b.SubscriptionCount == 0 && Rows(view).Count == 0, "custom deletion releases subscription and rows");
+        UnityEngine.Object.Destroy(a.gameObject); UnityEngine.Object.Destroy(definition);
+        Debug.Log("Custom cell status checks passed: dedicated adapter, text/gauge, notification, independent snapshots/labels, unchanged inventory, selection/hide/disable/re-enable/deletion, missing definition/reader.");
     }
 
     private static async UniTask VerifyExtractorLifecycle(CellStatusViewAdapter view)

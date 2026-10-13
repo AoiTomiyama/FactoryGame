@@ -2,7 +2,7 @@
 
 タグ: `現行設計` `クラス図` `スクリプト相関` `設計パターン` `Unity` `再開情報`
 
-確認日: 2026-10-11。対象コードHEAD: `f8e4daebe53a3b8239dcb2c1de1b9f315386e31b`（R1 セル定義の実行時初期化完了版）。2026-10-13のR2ではExtractorの寿命管理を更新した。原図式からの変更範囲と検証は [抽出セルの契約](../spec/extractor-lifecycle.md) を参照する。
+確認日: 2026-10-11。対象コードHEAD: `f8e4daebe53a3b8239dcb2c1de1b9f315386e31b`（R1 セル定義の実行時初期化完了版）。2026-10-13のR2ではExtractorの寿命管理を更新した。R3ではセル専用の読み取り関数を既存UIへ接続する入口を追加した（[UI契約](../spec/cell-status-ui.md)）。原図式からの変更範囲と検証は [抽出セルの契約](../spec/extractor-lifecycle.md) を参照する。
 
 この文書は現在動く仕組みの静的説明である。[設計方針](architecture-guidelines.md)の到達像と区別する。未コミットの `ServiceLocatorAdapter.cs` は一覧に未採用候補として記載したが、現行ゲームの依存図には加えていない（呼出箇所なし）。`SampleSceneProfile.asset` の描画設定差分は存在を確認し、描画品質の評価を行わず境界の注記だけに反映した。IDEの4 XMLとServiceLocatorのmetaを含む着手前7ファイルは変更・コミット対象外。
 
@@ -137,7 +137,7 @@ flowchart LR
 | Singleton（Unityシーン検索方式） | [SingletonMonoBehaviourAdapter](../../Assets/Scripts/Shared/Adapter/SingletonMonoBehaviourAdapter.cs) のInstance/Awake、GridDB・Pool・StatusView | 共通管理オブジェクト参照。シーン検索と重複破棄で、永続化やDIコンテナではない |
 | Observer（C#イベント） | [IDataProvidable](../../Assets/Scripts/UI/Application/IDataProvidableApplication.cs) のStatusChanged、[CellStatusView](../../Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs) の選択時購読・解除、[ConnectableCellBase](../../Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs) の接続通知 | 選択中のUIと隣接接続の反応。ResourceCellの変更イベントはno-op。汎用イベントバスではない |
 | Object Pool | [ResourceItemObjectPool](../../Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs) の種別別ObjectPool、[CellStatusView](../../Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs) の行別ObjectPool | GameObject再利用。資源IDのデータ寿命はTransitStoreが別管理し、表示返却と数量削除を区別する |
-| Simple Factory相当（部分適用） | [CellStatusProviderAdapter](../../Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs) のCreate、[CellDatabase](../../Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs) と [Placer](../../Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs) の型選択・Instantiate | 選択セルのProvider生成／定義からPrefab選択。Creator継承を使うGoF Factory Methodではない。表示変換は具体セルswitchに依存 |
+| Simple Factory相当（部分適用） | [CellStatusProviderAdapter](../../Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs) のCreate、[CellDatabase](../../Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs) と [Placer](../../Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs) の型選択・Instantiate | 選択セルのProvider生成／定義からPrefab選択。Creator継承を使うGoF Factory Methodではない。既存4種類の表示変換は具体セルswitchに依存。追加セルはCreateCustomへ専用の読み取り関数を渡せる |
 | Adapter / 表示分離（独自） | CellStatusProviderAdapter、[UIElementRenderer](../../Assets/Scripts/UI/Adapter/UIElementRendererAdapter.cs)、[行基底](../../Assets/Scripts/UI/Adapter/UIStatusRowBaseAdapter.cs) | セルを共通読み取り契約・表示データへ変換。View/Provider/Renderer分業はあるが完全なMVC/MVPと断定しない |
 | 明示状態機械（独自） | [TransferOperation](../../Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs)、[CraftingOperation](../../Assets/Scripts/Crafting/Application/CraftingOperationApplication.cs) | Stageとガード付き遷移で二重確定・取消を防ぐ。状態ごとの多態クラスを持つGoF Stateではない |
 | 予約トークン＋確定/取消（独自） | [ResourceReservation](../../Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs) のTryCreate/TryCommit/TryCancel | 全量予約と一度きり確定。プロセス内ゲーム操作であり永続化トランザクションではない |
@@ -147,8 +147,8 @@ flowchart LR
 
 ## 図と説明の正本
 
-2026-10-11に全14図・179ノードの概要・説明を [architecture-descriptions.json](architecture-descriptions.json) へ追加した。各Mermaidの固定diagram-idと図内ノードIDで対応する。説明は短い要約、詳細な契約や制約は本図式・コード・仕様文書を根拠とする。pilotの17件も保持している。説明を含む更新は [共通CLI契約](../../../../.codex/session-routing/architecture-docs-tool.md) に従い、[更新手順と検証記録](architecture-diagram-verification.md)のdoctor→sync→inventory→apply→validateを使う。SVGは既存の閲覧用生成物で、説明の正本ではない。
+2026-10-11に全14図・179ノードの概要・説明を [architecture-descriptions.json](architecture-descriptions.json) へ追加した。各Mermaidの固定diagram-idと図内ノードIDで対応する。説明は短い要約、詳細な契約や制約は本図式・コード・仕様文書を根拠とする。pilotの17件も保持している。説明を含む更新は [共通CLI契約](../../../../.codex/session-routing/docs/metis/metis-update-tool.md) に従い、[更新手順と検証記録](architecture-diagram-verification.md)のdoctor→sync→inventory→apply→validateを使う。SVGは既存の閲覧用生成物で、説明の正本ではない。
 
 ## 更新・再開時
 
-コードや配線変更時は本索引から該当機能図と対応表を更新する。将来の改修案は [拡張レビュー](../tasks/extension-readiness-review.md) 等のタスクへ記録し、現行図に混ぜない。R1は完了版を説明し再実装していない。R2の採取寿命は2026-10-13の実装差分を反映し、検証結果は抽出セルの契約へ記録する。R3表示変換、R4数量上限、asmdef導入は図式作成で完了扱いにしない。検証は構文・参照・静的整合性に限定し、ゲーム体験や配置動作の新たな実行証拠を意味しない。
+コードや配線変更時は本索引から該当機能図と対応表を更新する。将来の改修案は [拡張レビュー](../tasks/extension-readiness-review.md) 等のタスクへ記録し、現行図に混ぜない。R1は完了版を説明し再実装していない。R2の採取寿命は2026-10-13の実装差分を反映し、検証結果は抽出セルの契約へ記録する。R3の専用取得入口と検証はUI契約へ記録する。R4数量上限、asmdef導入は図式作成で完了扱いにしない。検証は構文・参照・静的整合性に限定し、ゲーム体験や配置動作の新たな実行証拠を意味しない。

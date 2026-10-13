@@ -1454,7 +1454,7 @@
           ]
         },
         "CellStatusProviderAdapter": {
-          "description": "具体的なセルと表示定義から、選択セッション用Providerを作る静的な変換処理です。ラベルに応じて保管・資源・採取・加工セルを読み、共通表示値へ変換します。具体型の分岐をここに集約しますが、新型の追加には変換の追加が必要です。",
+          "description": "表示定義のラベルをコピーし、選択セッション用Providerを作る静的な接続処理です。既存4種類はCreateの具体型分岐で共通表示値へ変換します。追加セルはCreateCustomへ専用Adapterの読み取り関数を渡し、中央のReadを変更せず同じ表示契約へ接続できます。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs",
@@ -1815,7 +1815,7 @@
           ]
         },
         "Bridge": {
-          "description": "具体的なセルと表示定義から、選択セッション用Providerを作る静的な変換処理です。ラベルに応じて保管・資源・採取・加工セルを読み、共通表示値へ変換します。具体型の分岐をここに集約しますが、新型の追加には変換の追加が必要です。",
+          "description": "表示定義のラベルをコピーし、選択セッション用Providerを作る静的な接続処理です。既存4種類はCreateの具体型分岐で共通表示値へ変換します。追加セルはCreateCustomへ専用Adapterの読み取り関数を渡し、中央のReadを変更せず同じ表示契約へ接続できます。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs",
@@ -2300,7 +2300,7 @@
           ]
         },
         "A": {
-          "description": "具体的なセルと表示定義から、選択セッション用Providerを作る静的な変換処理です。ラベルに応じて保管・資源・採取・加工セルを読み、共通表示値へ変換します。具体型の分岐をここに集約しますが、新型の追加には変換の追加が必要です。",
+          "description": "表示定義のラベルをコピーし、選択セッション用Providerを作る静的な接続処理です。既存4種類はCreateの具体型分岐で共通表示値へ変換します。追加セルはCreateCustomへ専用Adapterの読み取り関数を渡し、中央のReadを変更せず同じ表示契約へ接続できます。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs",

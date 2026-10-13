@@ -1,8 +1,8 @@
 # セル状態 UI の取得・通知・描画契約
 
-タグ: `現行仕様` `UI` `状態表示` `読み取り境界` `タスクH`
+タグ: `現行仕様` `UI` `状態表示` `読み取り境界` `タスクH` `R3`
 
-更新日: 2026-10-06。保管・資源・抽出・加工セルの状態表示を対象とする。
+更新日: 2026-10-13。既存4種類の状態表示と、セル専用Adapterによる表示拡張を対象とする。
 
 ## 責務と依存
 
@@ -13,6 +13,16 @@
 | Adapter | `CellStatusProviderAdapter` がセルの読み取り専用プロパティから表示値を作り、`UIElementRendererAdapter` が描画する。`CellStatusViewAdapter` が選択と購読、行の貸出・返却を管理する |
 
 同じ設定アセットを使うセルでも、取得処理は表示セッションごとに作る。ラベルは作成時にコピーし、各 `ReadData` は新しい表示データと読み取り専用の辞書を返す。表示データの編集や再取得で資源量・予約量は変わらない。設定の編集を表示へ反映する場合は選択し直す。
+
+## セル専用の読み取り処理（R3）
+
+追加セルは `IDataProvidableApplication.GetDataProvider` から `CellStatusProviderAdapter.CreateCustom(definition, read)` を呼び、セル専用Adapterの読み取り関数を渡す。既存4種類は従来の `Create(cell, definition)` と具体型分岐を使い続ける。新設備のゲーム仕様、既存セルの全面移行、型の自動登録は追加していない。
+
+`CreateCustom` は設定のラベルをコピーし、既存の `CellStatusDataProviderApplication` を返す。セル名を含む設定済みラベルの変換は専用関数が担当し、中央の `Read` の分岐を変更する必要はない。定義がnullなら従来どおりProviderを返さず、定義があるのに関数がnullなら `ArgumentNullException` とする。新しいメソッド名を使い、既存 `Create(cell, null)` の呼出しを曖昧にしない。
+
+読み取り関数は、呼出しごとに新しい表示データを返し、予約・搬入・搬出などの数量変更を行わない。通知はセル側の `StatusChanged` から既存Viewへ接続する。表示値の取得自体が副作用を持たないことは専用Adapterの責務であり、任意の関数の副作用をAPIが抑止するわけではない。使用できるラベルと表示行は既存の列挙値・Text/Gauge/Storageの範囲とする。
+
+実装は [Provider接続](../../Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs)、接続例は [検証専用セルとReader](../../Assets/Scripts/UI/Adapter/UIStatusFixtureCellAdapter.cs)。この例は `UNITY_EDITOR` 限定で、設備Prefabや製品ビルドへ追加しない。検証入口は [UIStatusVerifierEditor.VerifyCustomStatus](../../Assets/Scripts/UI/Editor/UIStatusVerifierEditor.cs)。
 
 ## 更新と寿命
 
@@ -49,3 +59,15 @@
 - `.idea` の4ファイルは Copilot 移行完了のローカル状態で、ゲームの成果物ではないため未追跡のまま保持する。
 
 次の実装は別途ユーザーの許可を得てから開始する。
+
+## R3の検証証拠（2026-10-13）
+
+対象は `686ae6b22911e80d6592897af251e66f17712e5f` からのR3差分。Unity 6000.3.8f1の `UIStatusVerifierEditor.Run` を `-batchmode -nographics` で実行した。
+
+- 初回: 終了コード1、50.57秒。Editorフォルダー内の検証用MonoBehaviourをGameObjectへ追加できず失敗した。検証用セルを `UNITY_EDITOR` 限定のAdapterへ配置し直した。
+- 修正後: 終了コード0、80.16秒。中央の型分岐にない検証用セルの専用Readerから文字・ゲージを描画し、通知による再取得、共有設定でもセッション・旧スナップショットの独立、設定ラベルのコピー、表示取得とスナップショット変更による在庫非変更を確認した。切替・非表示・無効化・再有効化・削除で購読と行を解放し、null定義・null関数の契約も確認した。
+- 同じ起動で既存4種類のUI、R2の抽出寿命、予約・加工ルールの回帰が成功した。新規コンパイルエラー・警告は検出されなかった。既存TMPフォントの日本語文字不足による置換警告は残る。
+
+実行ログはローカル一時領域の `FactoryGame-R3-ui.log` と `FactoryGame-R3-ui-final.log`。実測合計130.73秒、失敗修正後の再検証1回、成功後の反復0回。仕様の取り違えによる手戻り0件。検証用セルの配置修正1件。UIの表示データ・実行時行・購読を確認したが、描画なしのため画面の見え方と手操作は評価していない。Prefab・SO・シーンを変更しておらず、製品ビルドは今回実行していない。
+
+R3は完了。新設備の実装と既存4種類の全面移行は別の依頼で扱う。R4には着手していない。

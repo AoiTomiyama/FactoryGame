@@ -4,7 +4,7 @@
 
 対象版・未コミット反映条件は [現行設計索引](current-architecture.md)。全 `Assets/Scripts/**/*.cs` を収録する。主な自作依存はコメントを除いた型参照を照合し、同ファイル内の補助型は型欄に示す。メソッドの全呼出一覧ではなく、設計図から実装を辿るための索引である。外部はusingに現れる名前空間であり、実使用の代表は図式の説明を参照する。入れ子型の名前は所属ファイルで識別する。
 
-確認ファイル数: 78（未コミットServiceLocatorを1件含む）。
+確認ファイル数: 79（未コミットServiceLocatorを1件含む）。
 
 ## ランタイム・定義
 
@@ -98,6 +98,12 @@
 | ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
 | --- | --- | --- | --- |
 | [ServiceLocatorAdapter](../../Assets/Scripts/Shared/Adapter/ServiceLocatorAdapter.cs)<br>ServiceLocatorAdapter | 未コミット・未使用の型別サービス登録候補 |  | UnityEngine |
+
+## Editor限定の接続検証用セル
+
+| ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
+| --- | --- | --- | --- |
+| [UIStatusFixtureCellAdapter](../../Assets/Scripts/UI/Adapter/UIStatusFixtureCellAdapter.cs)<br>UIStatusFixtureCellAdapter, UIStatusFixtureReaderAdapter | 中央の型分岐にないセルの専用読み取り・通知・在庫不変を確認する例 | CellBaseAdapter, IDataProvidableApplication, CellStatusProviderAdapter, ProviderBaseDefinition, UIElementDataBaseApplication | UNITY_EDITOR限定。Editorフォルダーの型はGameObjectへ追加できないためAdapter側へ配置 |
 
 ## 境界と補足
 
