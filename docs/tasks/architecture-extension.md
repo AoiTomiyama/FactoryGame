@@ -2,11 +2,11 @@
 
 タグ: `改修タスク` `アーキテクチャ` `資源搬送` `レシピ` `UI`
 
-状態: 2026-10-01 に A〜H を採用。A〜H と既存タスク1〜5は完了済み。I（Assembly Definition）は今回の対象外。既存改修は完了。2026-10-12の方針変更により、後続のR2〜R4も実装許可済み。現行の実施項目と進捗は [設計レビュー](design-review.md) を参照する。
+現行の実施項目と進捗は [タスクリスト原本](task-list.md) を参照する。2026-10-13時点で17項目は完了し、搬送先の具体セル基底への制約を除く `TRN-01`（uid: `R4`）が未着手。
 
-到達像と今後の追加実装の判断基準は `docs/design/architecture-guidelines.md` を参照する。この文書は未完了の改修タスクと完了条件を管理する。
+到達像と追加実装の判断基準は [設計方針](../design/architecture-guidelines.md) を参照する。この文書は採用時の設計・完了条件と検証を記録し、旧IDは原本のuidへ対応する。追加実装前のレビューは [拡張性レビュー](extension-readiness-review.md) にある。
 
-2026-10-06 の追加実装前のセルフレビューは [拡張性レビューと再開情報](extension-readiness-review.md) に記録した。R1は2026-10-10に修正・検証完了、R2〜R4は未着手。着手順はR2 → R3 → R4。R2の中断進捗は仕様確認待ちで、実装許可の再確認は不要。R1の現行仕様は [セル定義の契約](../spec/cell-definitions.md)を参照。
+セル定義 `GRD-01`、抽出寿命 `RES-01`、専用状態取得 `UIS-01` の現行仕様は、それぞれ [セル定義の契約](../spec/cell-definitions.md)、[抽出寿命の契約](../spec/extractor-lifecycle.md)、[UI契約](../spec/cell-status-ui.md) を参照する。
 
 ## 重複と着手順
 
