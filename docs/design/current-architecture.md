@@ -2,7 +2,7 @@
 
 タグ: `現行設計` `クラス図` `スクリプト相関` `設計パターン` `Unity` `再開情報`
 
-確認日: 2026-10-11。対象コードHEAD: `f8e4daebe53a3b8239dcb2c1de1b9f315386e31b`（R1 セル定義の実行時初期化完了版）。2026-10-13のR2ではExtractorの寿命管理を更新した。R3ではセル専用の読み取り関数を既存UIへ接続する入口を追加した（[UI契約](../spec/cell-status-ui.md)）。原図式からの変更範囲と検証は [抽出セルの契約](../spec/extractor-lifecycle.md) を参照する。
+確認日: 2026-10-14。対象コード: `901e72b4011dee5f912ec27cb255b2970d421c08` からのTRN-01差分。搬送先の識別・生存・操作を契約へ移し、現行仕様と検証は [搬送接点の契約](../spec/resource-transfer-state.md) を参照する。
 
 この文書は現在動く仕組みの静的説明である。[設計方針](architecture-guidelines.md)の到達像と区別する。未コミットの `ServiceLocatorAdapter.cs` は一覧に未採用候補として記載したが、現行ゲームの依存図には加えていない（呼出箇所なし）。`SampleSceneProfile.asset` の描画設定差分は存在を確認し、描画品質の評価を行わず境界の注記だけに反映した。IDEの4 XMLとServiceLocatorのmetaを含む着手前7ファイルは変更・コミット対象外。
 
@@ -58,7 +58,6 @@ flowchart LR
  Cells --> UI
  UI --> Read
  Transfer --> Presentation
- Transfer --> Cells
  Transfer --> Enum
  Craft --> Recipe
  Recipe --> Enum
@@ -74,7 +73,7 @@ flowchart LR
  end
 ```
 
-この図の `Transfer --> Cells` は現行の具体型依存であり、理想の一方向レイヤー図から意図的に残している。搬送契約はUnity座標型、演出契約はUniTaskも使う。UI/ApplicationとCrafting Domain/ApplicationはUnity非依存。Unity 6000.3.8f1、Input System 1.18.0、Cinemachine 3.1.4、uGUI 2.0.0、URP 17.3.0は [ProjectVersion](../../ProjectSettings/ProjectVersion.txt) と [manifest](../../Packages/manifest.json)で確認。UniTaskはGit依存、DOTweenはAssets内の既存プラグイン。Test Frameworkは検証境界で、ゲーム実行の入口ではない。
+搬送Applicationは接点の契約を使い、セルの識別・Unity破棄判定はAdapter側が提供する。搬送契約はUnity座標型、演出契約はUniTaskも使う。UI/ApplicationとCrafting Domain/ApplicationはUnity非依存。Unity 6000.3.8f1、Input System 1.18.0、Cinemachine 3.1.4、uGUI 2.0.0、URP 17.3.0は [ProjectVersion](../../ProjectSettings/ProjectVersion.txt) と [manifest](../../Packages/manifest.json)で確認。UniTaskはGit依存、DOTweenはAssets内の既存プラグイン。Test Frameworkは検証境界で、ゲーム実行の入口ではない。
 
 ## 実際のUnity配線
 
@@ -133,7 +132,7 @@ flowchart LR
 
 | 方式 / 成立範囲 | 実クラスと根拠 | 適用目的 / 留意点 |
 | --- | --- | --- |
-| 軽量レイヤード（部分的Ports and Adapters） | [Coordinator](../../Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs) のRunAsync、[演出契約](../../Assets/Scripts/Transfers/Application/IResourceTransferPresentationApplication.cs)、[数量規則](../../Assets/Scripts/Resources/Domain/ResourceStorageRulesDomain.cs) | 演出と数量確定を分離。搬送ApplicationはCellBase具体型・Unity・UniTaskに依存し、完全なHexagonal/Clean Architectureではない |
+| 軽量レイヤード（部分的Ports and Adapters） | [Coordinator](../../Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs) のRunAsync、[演出契約](../../Assets/Scripts/Transfers/Application/IResourceTransferPresentationApplication.cs)、[数量規則](../../Assets/Scripts/Resources/Domain/ResourceStorageRulesDomain.cs) | 演出と数量確定を分離。搬送先は操作・識別・生存の契約で接続する。Unity座標型・UniTaskへの依存は残る |
 | Singleton（Unityシーン検索方式） | [SingletonMonoBehaviourAdapter](../../Assets/Scripts/Shared/Adapter/SingletonMonoBehaviourAdapter.cs) のInstance/Awake、GridDB・Pool・StatusView | 共通管理オブジェクト参照。シーン検索と重複破棄で、永続化やDIコンテナではない |
 | Observer（C#イベント） | [IDataProvidable](../../Assets/Scripts/UI/Application/IDataProvidableApplication.cs) のStatusChanged、[CellStatusView](../../Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs) の選択時購読・解除、[ConnectableCellBase](../../Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs) の接続通知 | 選択中のUIと隣接接続の反応。ResourceCellの変更イベントはno-op。汎用イベントバスではない |
 | Object Pool | [ResourceItemObjectPool](../../Assets/Scripts/Transfers/Adapter/ResourceItemObjectPoolAdapter.cs) の種別別ObjectPool、[CellStatusView](../../Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs) の行別ObjectPool | GameObject再利用。資源IDのデータ寿命はTransitStoreが別管理し、表示返却と数量削除を区別する |
@@ -147,8 +146,8 @@ flowchart LR
 
 ## 図と説明の正本
 
-2026-10-11に全14図・179ノードの概要・説明を [architecture-descriptions.json](architecture-descriptions.json) へ追加した。各Mermaidの固定diagram-idと図内ノードIDで対応する。説明は短い要約、詳細な契約や制約は本図式・コード・仕様文書を根拠とする。pilotの17件も保持している。説明を含む更新は [共通CLI契約](../../../../.codex/session-routing/docs/metis/metis-update-tool.md) に従い、[更新手順と検証記録](architecture-diagram-verification.md)のdoctor→sync→inventory→apply→validateを使う。SVGは既存の閲覧用生成物で、説明の正本ではない。
+2026-10-11に全14図・179ノードの概要・説明を [architecture-descriptions.json](architecture-descriptions.json) へ追加した。各Mermaidの固定diagram-idと図内ノードIDで対応する。説明は短い要約、詳細な契約や制約は本図式・コード・仕様文書を根拠とする。pilotの17件も保持している。説明を含む更新は [共通CLI契約](../../../../.codex/atlas/docs/metis/metis-update-tool.md) に従い、[更新手順と検証記録](architecture-diagram-verification.md)のdoctor→sync→inventory→apply→validateを使う。SVGは既存の閲覧用生成物で、説明の正本ではない。
 
 ## 更新・再開時
 
-コードや配線変更時は本索引から該当機能図と対応表を更新する。将来の改修案は [拡張レビュー](../tasks/extension-readiness-review.md) 等のタスクへ記録し、現行図に混ぜない。R1は完了版を説明し再実装していない。R2の採取寿命は2026-10-13の実装差分を反映し、検証結果は抽出セルの契約へ記録する。R3の専用取得入口と検証はUI契約へ記録する。R4数量上限、asmdef導入は図式作成で完了扱いにしない。検証は構文・参照・静的整合性に限定し、ゲーム体験や配置動作の新たな実行証拠を意味しない。
+コードや配線変更時は本索引から該当機能図と対応表を更新する。将来の改修案は [拡張レビュー](../tasks/extension-readiness-review.md) 等のタスクへ記録し、現行図に混ぜない。R1は完了版を説明し再実装していない。R2の採取寿命は2026-10-13の実装差分を反映し、検証結果は抽出セルの契約へ記録する。R3の専用取得入口と検証はUI契約へ記録する。TRN-01の接点契約と検証は搬送状態の契約へ記録する。asmdef導入は別の判断事項として扱う。検証は構文・参照・静的整合性に限定し、ゲーム体験や配置動作の新たな実行証拠を意味しない。

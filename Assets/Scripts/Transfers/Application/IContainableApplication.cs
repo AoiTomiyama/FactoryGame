@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public interface IContainableApplication
+public interface IContainableApplication : IResourceTransferEndpointApplication
 {
     /// <summary>
     /// 指定量のリソースの搬入を全量予約します。

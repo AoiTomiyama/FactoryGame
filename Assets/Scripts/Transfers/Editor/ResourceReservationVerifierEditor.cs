@@ -159,7 +159,7 @@ public static class ResourceReservationVerifierEditor
         try
         {
             var completed = new ResourceTransferOperationApplication(source, target, 12, ResourceTypeDomain.Stone, 4);
-            Require(completed.Source == source && completed.Target == target &&
+            Require(ReferenceEquals(completed.Source.Identity, source) && ReferenceEquals(completed.Target.Identity, target) &&
                     completed.ResourceId == 12 && completed.Type == ResourceTypeDomain.Stone && completed.Amount == 4,
                 "Transfer: one record keeps source, target, ID, type and amount");
             Require(completed.TryMarkReserved() && !completed.TryMarkReserved() &&

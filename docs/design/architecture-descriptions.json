@@ -116,7 +116,7 @@
           ]
         },
         "Transfer": {
-          "description": "搬送一件の進行、予約Tokenと資源ID別データを扱うApplication群です。演出結果、搬送先の存在、接続の継続を確認して数量を確定します。演出は契約を介して呼び出しますが、現行コードはセルAdapter具体型やUnity座標・UniTaskへも依存しています。",
+          "description": "搬送一件の進行、予約TokenとID別資源データを扱うApplication群です。受け取り先の識別・生存・操作と演出結果を契約で照合し、数量を確定します。Unity座標型とUniTaskを使います。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
@@ -279,7 +279,7 @@
           ]
         },
         "Application": {
-          "description": "搬送・加工の進行管理と表示読み取り契約をまとめた領域です。数量規則や演出・セルとの間で処理順と値の授受を扱います。加工とUIはUnity非依存で、搬送には具体セル・Unity座標型への依存が残っています。",
+          "description": "搬送・加工の進行管理と表示読み取り契約をまとめた領域です。数量規則や演出との処理順と値の授受を扱います。搬送は接点の契約で受け取り先を参照し、Unity座標型とUniTaskへの依存が残ります。",
           "references": [
             {
               "path": "docs/design/architecture-guidelines.md"
@@ -649,7 +649,7 @@
           ]
         },
         "CellBaseAdapter": {
-          "description": "セルに共通するグリッド座標と表示モデルを保持する基底クラスです。Awakeで最初の子オブジェクトをモデルとして取得し、配置側が座標登録後に呼ぶInitializeSystemを仮想メソッドとして公開します。接続や在庫処理は派生型が追加します。",
+          "description": "セルのグリッド座標と表示モデルを持つ基底です。Awakeで最初の子をモデルとして取得し、InitializeSystemを公開します。搬送接点のIdentityを自身、IsAliveをUnityの破棄判定で提供します。",
           "references": [
             {
               "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
@@ -743,7 +743,7 @@
           ]
         },
         "IContainableApplication": {
-          "description": "資源の搬入を受ける相手との契約です。資源種別・数量・入力方向から全量を予約し、予約後は確定または取消を受け付けます。搬送側はこの契約を通じて保管・加工・コンベア等へ接続します。方向の型にはUnityのVector3Intを使います。",
+          "description": "識別・生存の契約を継承し、全量予約・搬入確定・取消を提供する搬送先の契約です。セルと非セルの受け取り先が共通の予約・搬送処理へ接続できます。方向の引数にはUnityのVector3Intを使います。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/IContainableApplication.cs",
@@ -908,7 +908,7 @@
           ]
         },
         "CellBaseAdapter": {
-          "description": "セルに共通するグリッド座標と表示モデルを保持する基底クラスです。Awakeで最初の子オブジェクトをモデルとして取得し、配置側が座標登録後に呼ぶInitializeSystemを仮想メソッドとして公開します。接続や在庫処理は派生型が追加します。",
+          "description": "セルのグリッド座標と表示モデルを持つ基底です。Awakeで最初の子をモデルとして取得し、InitializeSystemを公開します。搬送接点のIdentityを自身、IsAliveをUnityの破棄判定で提供します。",
           "references": [
             {
               "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
@@ -965,7 +965,7 @@
           ]
         },
         "ResourceTransferOperationApplication": {
-          "description": "一件の搬送元・搬送先、資源ID、種別、数量と進行段階を保持します。予約、演出、完了、取消への遷移をガードします。待機復帰では搬送先を外してIDを保持し、交差セルでは予約後に上流からIDを受け取ることもできます。",
+          "description": "一件の資源ID・種別・数量と搬送段階を保持します。Sourceは識別・生存の契約、Targetは搬入契約を借用し、全量予約・演出・確定と取消の一回性を管理します。接続喪失ではIDを保持したまま待機へ戻り、新しい接点を設定できます。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs",
@@ -974,7 +974,7 @@
           ]
         },
         "ResourceTransferCoordinatorApplication": {
-          "description": "搬送の予約、演出、確定を順に進める調整役です。資源データと接続先の整合を確認し、表示の移動結果を受けて予約を確定します。再利用先へは確定前にIDを渡し、終端ではデータと表示を明示的に処分します。",
+          "description": "搬送一回の予約、資源データ照合、演出、確定と取消を進めます。演出前後に接点の生存・接続・同じ予約Tokenの継続を照合します。再利用先へは確定前にIDを渡し、通常終端では資源データと表示を返却します。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
@@ -1001,7 +1001,7 @@
           ]
         },
         "ResourceReservationApplication": {
-          "description": "搬入先と方向、資源種別、数量を固定した全量予約のTokenです。生成時に搬入先へ予約を要求し、確定または取消を一度だけ受け付けます。具体セル参照で生存を確認し、取消時は残っている相手の予約量を戻します。",
+          "description": "受け取り先とIdentity、方向、種別、数量を固定する全量予約Tokenです。IsAliveを確認して予約・確定・取消の操作を呼び、確定または取消を一度だけ受け付けます。寿命終了後の取消はTokenだけを閉じます。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs",
@@ -1010,7 +1010,7 @@
           ]
         },
         "CellBaseAdapter": {
-          "description": "セルに共通するグリッド座標と表示モデルを保持する基底クラスです。Awakeで最初の子オブジェクトをモデルとして取得し、配置側が座標登録後に呼ぶInitializeSystemを仮想メソッドとして公開します。接続や在庫処理は派生型が追加します。",
+          "description": "セルのグリッド座標と表示モデルを持つ基底です。Awakeで最初の子をモデルとして取得し、InitializeSystemを公開します。搬送接点のIdentityを自身、IsAliveをUnityの破棄判定で提供します。",
           "references": [
             {
               "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
@@ -1019,7 +1019,7 @@
           ]
         },
         "IContainableApplication": {
-          "description": "資源の搬入を受ける相手との契約です。資源種別・数量・入力方向から全量を予約し、予約後は確定または取消を受け付けます。搬送側はこの契約を通じて保管・加工・コンベア等へ接続します。方向の型にはUnityのVector3Intを使います。",
+          "description": "識別・生存の契約を継承し、全量予約・搬入確定・取消を提供する搬送先の契約です。セルと非セルの受け取り先が共通の予約・搬送処理へ接続できます。方向の引数にはUnityのVector3Intを使います。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/IContainableApplication.cs",
@@ -1116,6 +1116,15 @@
               "symbol": "CrafterCellAdapter"
             }
           ]
+        },
+        "IResourceTransferEndpointApplication": {
+          "description": "搬送接点のIdentityとIsAliveを提供する契約です。識別子は寿命中に固定し、参照一致で照合します。セルはUnityの破棄判定、非セルは自身の終了状態を提供し、搬送処理が数量操作の可否を確認します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Transfers/Application/IResourceTransferEndpointApplication.cs",
+              "symbol": "IResourceTransferEndpointApplication"
+            }
+          ]
         }
       },
       "presentation": {
@@ -1136,7 +1145,8 @@
           "ResourceItemAnimationAdapter": "surface",
           "ObjectPool": "external",
           "GameObject": "external",
-          "DOTween": "external"
+          "DOTween": "external",
+          "IResourceTransferEndpointApplication": "surface"
         }
       },
       "number": "3.1"
@@ -1472,7 +1482,7 @@
           ]
         },
         "CellBaseAdapter": {
-          "description": "セルに共通するグリッド座標と表示モデルを保持する基底クラスです。Awakeで最初の子オブジェクトをモデルとして取得し、配置側が座標登録後に呼ぶInitializeSystemを仮想メソッドとして公開します。接続や在庫処理は派生型が追加します。",
+          "description": "セルのグリッド座標と表示モデルを持つ基底です。Awakeで最初の子をモデルとして取得し、InitializeSystemを公開します。搬送接点のIdentityを自身、IsAliveをUnityの破棄判定で提供します。",
           "references": [
             {
               "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
@@ -1715,7 +1725,7 @@
           ]
         },
         "Cells": {
-          "description": "セルの共通基底と役割別の具体セルをまとめたノードです。配置側は座標登録後にInitializeSystemを呼び、接続型の削除前にはOnDisconnectを呼びます。隣接通知と、選択UI向けのStatusChangedは別のイベント系統です。",
+          "description": "セルのグリッド座標と表示モデルを持つ基底です。Awakeで最初の子をモデルとして取得し、InitializeSystemを公開します。搬送接点のIdentityを自身、IsAliveをUnityの破棄判定で提供します。",
           "references": [
             {
               "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
@@ -1749,7 +1759,7 @@
           ]
         },
         "Coord": {
-          "description": "搬送の予約、演出、確定を順に進める調整役です。資源データと接続先の整合を確認し、表示の移動結果を受けて予約を確定します。再利用先へは確定前にIDを渡し、終端ではデータと表示を明示的に処分します。",
+          "description": "搬送一回の予約、資源データ照合、演出、確定と取消を進めます。演出前後に接点の生存・接続・同じ予約Tokenの継続を照合します。再利用先へは確定前にIDを渡し、通常終端では資源データと表示を返却します。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
@@ -1758,7 +1768,7 @@
           ]
         },
         "Target": {
-          "description": "搬送先が公開する搬入契約と、対応するセルの資源ID引継ぎ契約です。Coordinatorは全量予約・演出の後に搬入を確定し、再利用できる相手には先にIDを渡します。保管や加工などの終端と、コンベア等の継続搬送を区別する境界です。",
+          "description": "識別・生存の契約を継承し、全量予約・搬入確定・取消を提供する搬送先の契約です。セルと非セルの受け取り先が共通の予約・搬送処理へ接続できます。方向の引数にはUnityのVector3Intを使います。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/IContainableApplication.cs",
@@ -2141,7 +2151,7 @@
           ]
         },
         "C": {
-          "description": "搬送の予約、演出、確定を順に進める調整役です。資源データと接続先の整合を確認し、表示の移動結果を受けて予約を確定します。再利用先へは確定前にIDを渡し、終端ではデータと表示を明示的に処分します。",
+          "description": "搬送一回の予約、資源データ照合、演出、確定と取消を進めます。演出前後に接点の生存・接続・同じ予約Tokenの継続を照合します。再利用先へは確定前にIDを渡し、通常終端では資源データと表示を返却します。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs",
@@ -2150,7 +2160,7 @@
           ]
         },
         "T": {
-          "description": "搬入契約を実装した搬送先セルです。方向・種別・数量から全量予約し、確定時に数量を受け入れます。ID再利用契約も持つ場合は確定前に資源IDを引き継ぎます。実在庫と予約量の更新は各搬送先の実装が担います。",
+          "description": "搬入・識別・生存の契約を実装する受け取り先です。方向・種別・数量から全量予約し、確定時に数量を受け入れます。ID再利用契約を持つ場合は確定前にIDを引き継ぎます。実在庫と予約量、寿命終了時の後始末は受け取り先が管理します。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/IContainableApplication.cs",
@@ -2171,7 +2181,7 @@
           ]
         },
         "R": {
-          "description": "搬入先と方向、資源種別、数量を固定した全量予約のTokenです。生成時に搬入先へ予約を要求し、確定または取消を一度だけ受け付けます。具体セル参照で生存を確認し、取消時は残っている相手の予約量を戻します。",
+          "description": "受け取り先とIdentity、方向、種別、数量を固定する全量予約Tokenです。IsAliveを確認して予約・確定・取消の操作を呼び、確定または取消を一度だけ受け付けます。寿命終了後の取消はTokenだけを閉じます。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs",

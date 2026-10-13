@@ -10,7 +10,7 @@
 - `CancelStorage(dir, amount, resourceType)` は成功した未確定の予約を取り消す。呼び出し側は一件の予約につき、確定か取消のどちらか一方を一度だけ行う。保管セルと加工セルは予約量が 0 になり現在量も 0 の場合、資源種別を `None` に戻す。
 - 保管セルは搬送中の予約がある間、現在量が 0 になっても資源種別を保持する。別種の資源が割り込むことを防ぐ。
 - コンベアは一度に一件の搬送を全量受け入れる。交差セルは接続先の全量予約結果をそのまま返す。
-- `ResourceReservationApplication.TryCreate` は `AllocateStorage` に成功した予約一件に一意の ID を付け、受け取り先・方向・種別・数量を保持する。`TryCommit` または `TryCancel` の先着一回だけが受け付けられ、後続の呼び出しは `false` を返す。受け取り先が削除済みの場合、取消状態へ進むが削除済みセルの数量は操作しない。
+- `ResourceReservationApplication.TryCreate` は `AllocateStorage` に成功した予約一件に一意の ID を付け、受け取り先・方向・種別・数量を保持する。`TryCommit` または `TryCancel` の先着一回だけが受け付けられ、後続の呼び出しは `false` を返す。受け取り先のIsAliveがfalseの場合は、取消Tokenだけを閉じる。生存中の操作と識別は [搬送接点の契約](resource-transfer-state.md#搬送接点の契約trn-012026-10-14) に従う。
 - 受け取り側の予約量は引き続き方向・種別・数量で集計される。予約 ID は搬送側で操作の重複を防ぐためのものであり、受け取り側の `StoreResource`・`CancelStorage` の結果通知ではない。
 
 ## 数量計算とセルの境界

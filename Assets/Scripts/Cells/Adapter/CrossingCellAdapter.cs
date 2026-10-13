@@ -70,7 +70,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         foreach (var dir in directions)
         {
             _adjacentContainers.Remove(dir);
-            if (!_pending.TryGetValue(dir, out var transfer) || transfer.Operation.Target != cell) continue;
+            if (!_pending.TryGetValue(dir, out var transfer) || !ReferenceEquals(transfer.Operation.Target?.Identity, cell)) continue;
             // 受け取り先を失った予約だけを取り消し、資源IDは交差セルに保持する。
             transfer.Coordinator.WaitForNewTarget();
             transfer.ActiveCts?.Cancel();
@@ -82,10 +82,9 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         if (_isDisconnected || amount <= 0 || resourceType == ResourceTypeDomain.None || _pending.ContainsKey(dir))
             return false;
         if (!_adjacentContainers.TryGetValue(dir, out var adjacent) ||
-            adjacent is not CellBaseAdapter targetCell || targetCell == null ||
             !ResourceReservationApplication.TryCreate(adjacent, dir, amount, resourceType, out var reservation)) return false;
 
-        var operation = new ResourceTransferOperationApplication(this, targetCell, 0, resourceType, amount);
+        var operation = new ResourceTransferOperationApplication(this, adjacent, 0, resourceType, amount);
         operation.TryMarkReserved();
         _pending[dir] = new PendingTransfer
         {
@@ -129,8 +128,8 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                     var result = await transfer.Coordinator.RunAsync(dir, startPos,
                         transform.position + dir + Vector3.up * 1.1f,
                         () => _adjacentContainers.TryGetValue(dir, out var adjacent) ? adjacent : null,
-                        cell => _adjacentContainers.TryGetValue(dir, out var adjacent) &&
-                                ReferenceEquals(adjacent, cell), ResourceItemObjectPoolAdapter.Instance.Resources,
+                        endpoint => _adjacentContainers.TryGetValue(dir, out var adjacent) &&
+                                ReferenceEquals(adjacent.Identity, endpoint.Identity), ResourceItemObjectPoolAdapter.Instance.Resources,
                         ResourceItemObjectPoolAdapter.Instance, activeCts.Token);
                     if (result != ResourceAnimationResultApplication.Completed)
                     {

@@ -8,18 +8,18 @@ id: TRN-01
 uid: R4
 category: 搬送
 title: 搬送先の具体セル基底への制約を除く
-status: pending
-updated_at: '2026-10-13T20:57:55.839882+09:00'
+status: done
+updated_at: '2026-10-14T01:36:29.713691+09:00'
 ```
 
 ### 問題
 予約・搬送がIContainableApplicationだけでなくCellBaseAdapterの継承を要求し、非セルの搬送先に再利用できない。
 
 ### 解決策
-操作・識別・生存確認の契約を切り出し、Unityの破棄判定と予約・確定・取消の一回性を維持する。
+識別・生存契約を搬入契約へ組み合わせ、Reservation・Operation・Coordinatorの具体セル基底への依存を除いた。セルはUnityの破棄判定、非セルは自身の寿命を提供する。
 
 ### 結論
-未着手。UIS-01後に進め、非セル搬送先と既存の数量・ID・表示寿命を確認する予定で、設計方針にある同じ制約は別タスクとして重複登録しない。
+非セルの全量予約・確定・取消・再入・寿命終了・交換後の再試行・ID引継ぎと、既存セルの数量・接続・ID・表示寿命のPlay Mode回帰が成功した。Windowsビルドも成功。契約と検証はdocs/spec/resource-transfer-state.mdを参照する。
 
 ## タスク
 ```yaml

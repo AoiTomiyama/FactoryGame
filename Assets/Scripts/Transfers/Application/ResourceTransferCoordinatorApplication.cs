@@ -14,7 +14,7 @@ public sealed class ResourceTransferCoordinatorApplication
     {
         Operation = operation ?? throw new ArgumentNullException(nameof(operation));
         if (reservation != null && (operation.CurrentStage != ResourceTransferOperationApplication.Stage.Reserved ||
-                                    reservation.TargetCell != operation.Target ||
+                                    !ReferenceEquals(reservation.TargetIdentity, operation.Target?.Identity) ||
                                     reservation.Amount != operation.Amount ||
                                     reservation.Type != operation.Type))
             throw new ArgumentException("搬送記録と予約が一致しません。", nameof(reservation));
@@ -37,7 +37,7 @@ public sealed class ResourceTransferCoordinatorApplication
     }
 
     public async UniTask<ResourceAnimationResultApplication> RunAsync(Vector3Int direction, Vector3 from, Vector3 to,
-        Func<IContainableApplication> getTarget, Func<CellBaseAdapter, bool> isCurrentTarget,
+        Func<IContainableApplication> getTarget, Func<IContainableApplication, bool> isCurrentTarget,
         ResourceTransitStoreApplication resources, IResourceTransferPresentationApplication presentation,
         CancellationToken token, Action onAnimating = null)
     {
@@ -47,8 +47,10 @@ public sealed class ResourceTransferCoordinatorApplication
                 await UniTask.WaitUntil(() => TryReserve(getTarget(), direction), cancellationToken: token);
 
             token.ThrowIfCancellationRequested();
-            var targetCell = Reservation.TargetCell;
-            if (targetCell == null || !isCurrentTarget(targetCell))
+            // 接続喪失で現在の予約が外れても、この試行が所有するTokenで終端を判定する。
+            var reservation = Reservation;
+            var target = reservation.Target;
+            if (!target.IsAlive || !isCurrentTarget(target))
                 throw new OperationCanceledException();
 
             if (!resources.TryGet(Operation.ResourceId, out var info) ||
@@ -65,14 +67,13 @@ public sealed class ResourceTransferCoordinatorApplication
                 presentation.SetPosition(Operation.ResourceId, from);
                 return result;
             }
-            if (targetCell == null || !isCurrentTarget(targetCell) ||
-                Operation.Target != targetCell || Reservation?.TargetCell != targetCell)
+            if (!target.IsAlive || !isCurrentTarget(target) || !ReferenceEquals(Reservation, reservation) ||
+                !ReferenceEquals(Operation.Target?.Identity, reservation.TargetIdentity))
                 throw new OperationCanceledException();
 
             // 次のコンベアや交差セルは、確定の前に表示用IDを引き継ぐ。
-            var target = (IContainableApplication)targetCell;
             if (target is IResourceReusableApplication reusable) reusable.Reuse(direction, Operation.ResourceId);
-            if (!Reservation.TryCommit()) throw new OperationCanceledException();
+            if (!reservation.TryCommit()) throw new OperationCanceledException();
             if (!Operation.TryComplete()) throw new InvalidOperationException("搬送の完了状態へ進めません。");
             if (target is not IResourceReusableApplication)
             {
@@ -92,10 +93,10 @@ public sealed class ResourceTransferCoordinatorApplication
 
     private bool TryReserve(IContainableApplication target, Vector3Int direction)
     {
-        if (target is not CellBaseAdapter cell || cell == null ||
-            !ResourceReservationApplication.TryCreate(target, direction, Operation.Amount, Operation.Type,
+        if (!ResourceReservationApplication.TryCreate(target, direction, Operation.Amount, Operation.Type,
                 out var reservation)) return false;
-        if ((Operation.Target != cell && !Operation.TrySetTarget(cell)) || !Operation.TryMarkReserved())
+        if ((!ReferenceEquals(Operation.Target?.Identity, reservation.TargetIdentity) && !Operation.TrySetTarget(target)) ||
+            !Operation.TryMarkReserved())
         {
             reservation.TryCancel();
             return false;

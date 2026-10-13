@@ -52,6 +52,8 @@ public static class ResourceTransferVerifierEditor
             SetField(pool, "transferSecond", 0.8f);
             await UniTask.Yield(); // プールの Start を完了させる。
 
+            await VerifyNonCellEndpoints(pool);
+            ResourceReservationVerifierEditor.Run();
             await VerifyPresentationLifetime(pool);
             await VerifyMissingVisualRecovery(pool);
             await VerifyCrossingMissingVisualRecovery(pool);
@@ -72,6 +74,126 @@ public static class ResourceTransferVerifierEditor
             Debug.LogException(exception);
             EditorApplication.Exit(1);
         }
+    }
+
+    // 製品の新設備を追加せず、C#だけの受け取り先で契約の再利用を確認する。
+    private class EndpointFixture : IContainableApplication
+    {
+        public object Identity { get; } = new object();
+        public bool IsAlive { get; private set; } = true;
+        public int Amount, Reserved, CommitCalls, CancelCalls;
+        public Action OnCommit;
+        public bool AllocateStorage(Vector3Int dir, int amount, ResourceTypeDomain type)
+        {
+            if (!IsAlive || amount <= 0 || type == ResourceTypeDomain.None || Amount + Reserved + amount > 10) return false;
+            Reserved += amount;
+            return true;
+        }
+        public void StoreResource(Vector3Int dir, int amount)
+        {
+            Require(IsAlive && Reserved >= amount, "fixture commit has a live full reservation");
+            CommitCalls++; Reserved -= amount; Amount += amount;
+            OnCommit?.Invoke();
+        }
+        public void CancelStorage(Vector3Int dir, int amount, ResourceTypeDomain type)
+        {
+            Require(IsAlive && Reserved >= amount, "fixture cancel has a live reservation");
+            CancelCalls++; Reserved -= amount;
+        }
+        public void EndLifetime() { IsAlive = false; Reserved = 0; }
+        // Equalsが一致しても、別の寿命を持つ接点はIdentityの参照で区別する。
+        public override bool Equals(object other) => other is EndpointFixture;
+        public override int GetHashCode() => 0;
+    }
+
+    private sealed class ReusableEndpointFixture : EndpointFixture, IResourceReusableApplication
+    {
+        public int Id, ReuseCalls;
+        public void Reuse(Vector3Int dir, int resourceId) { Id = resourceId; ReuseCalls++; }
+    }
+
+    private static async UniTask VerifyNonCellEndpoints(ResourceItemObjectPoolAdapter pool)
+    {
+        var source = new EndpointFixture();
+        var target = new EndpointFixture();
+        Require(!ResourceReservationApplication.TryCreate(null, Vector3Int.right, 2, ResourceTypeDomain.Stone, out _) &&
+                !ResourceReservationApplication.TryCreate(target, Vector3Int.right, 11, ResourceTypeDomain.Stone, out _) &&
+                target.Reserved == 0, "non-cell null/capacity failures preserve state");
+        Require(ResourceReservationApplication.TryCreate(target, Vector3Int.right, 2, ResourceTypeDomain.Stone, out var ticket),
+            "non-cell endpoint accepts a full reservation");
+        target.OnCommit = () => Require(!ticket.TryCommit() && !ticket.TryCancel(), "reentrant reservation closes before callback");
+        Require(ticket.TryCommit() && target.Amount == 2 && target.CommitCalls == 1 &&
+                !ticket.TryCommit() && !ticket.TryCancel(), "non-cell commit is one-shot");
+        target.OnCommit = null;
+        Require(ResourceReservationApplication.TryCreate(target, Vector3Int.right, 3, ResourceTypeDomain.Stone, out var cancelled) &&
+                cancelled.Id != ticket.Id && cancelled.TryCancel() && !cancelled.TryCancel() && !cancelled.TryCommit() &&
+                target.Reserved == 0 && target.CancelCalls == 1, "non-cell cancel is independent and one-shot");
+        Require(ResourceReservationApplication.TryCreate(target, Vector3Int.right, 2, ResourceTypeDomain.Stone, out var expired),
+            "reserve before non-cell lifetime ends");
+        target.EndLifetime();
+        Require(!expired.TryCommit() && expired.TryCancel() && target.CancelCalls == 1 &&
+                !ResourceReservationApplication.TryCreate(target, Vector3Int.right, 2, ResourceTypeDomain.Stone, out _),
+            "dead non-cell endpoint receives no commit/cancel callback or new reservation");
+
+        target = new EndpointFixture();
+        var id = pool.CreateIdFromResourceData(ResourceTypeDomain.Stone, 5);
+        var coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, target, id,
+            ResourceTypeDomain.Stone, 5));
+        Require(await coordinator.RunAsync(Vector3Int.right, Vector3.zero, Vector3.right, () => target,
+                    endpoint => ReferenceEquals(endpoint.Identity, target.Identity), pool.Resources, pool, CancellationToken.None) ==
+                ResourceAnimationResultApplication.Completed && target.Amount == 5 && target.Reserved == 0 &&
+                target.CommitCalls == 1 && !ContainsId(pool, id) && !pool.ReleaseVisual(id) &&
+                !coordinator.Operation.TryComplete() && !coordinator.Operation.TryCancel(),
+            "non-cell delivery commits five and releases data/visual exactly once");
+
+        // 接続交換・寿命終了・取消Tokenの3経路で旧在庫へ確定せず、IDは所有者に残す。
+        for (var scenario = 0; scenario < 3; scenario++)
+        {
+            var oldTarget = new EndpointFixture();
+            IContainableApplication current = oldTarget;
+            id = pool.CreateIdFromResourceData(ResourceTypeDomain.Stone, 5);
+            coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, oldTarget, id,
+                ResourceTypeDomain.Stone, 5));
+            using var cts = new CancellationTokenSource();
+            var transfer = coordinator.RunAsync(Vector3Int.right, Vector3.zero, Vector3.right, () => current,
+                endpoint => ReferenceEquals(endpoint.Identity, current.Identity), pool.Resources, pool, cts.Token);
+            await UniTask.Delay(120);
+            Require(oldTarget.Reserved == 5, "non-cell transfer enters reserved animation");
+            if (scenario == 0) current = new EndpointFixture();
+            else if (scenario == 1) oldTarget.EndLifetime();
+            else cts.Cancel();
+            try { await transfer; throw new InvalidOperationException("invalidated non-cell transfer completed"); }
+            catch (OperationCanceledException) { }
+            Require(oldTarget.Amount == 0 && oldTarget.Reserved == 0 && oldTarget.CommitCalls == 0 &&
+                    oldTarget.CancelCalls == (scenario == 1 ? 0 : 1) && ContainsId(pool, id) &&
+                    coordinator.Operation.CurrentStage == ResourceTransferOperationApplication.Stage.Cancelled,
+                "non-cell replacement/death/token cancellation preserves resource ID and cancels once");
+            coordinator.Cancel();
+            Require(oldTarget.CancelCalls == (scenario == 1 ? 0 : 1), "repeated coordinator cancel is harmless");
+            if (scenario == 0)
+            {
+                Require(oldTarget.Equals(current) && !ReferenceEquals(oldTarget.Identity, current.Identity),
+                    "endpoint identity uses reference equality independently of Equals");
+                coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, current, id,
+                    ResourceTypeDomain.Stone, 5));
+                await coordinator.RunAsync(Vector3Int.right, Vector3.zero, Vector3.right, () => current,
+                    endpoint => ReferenceEquals(endpoint.Identity, current.Identity), pool.Resources, pool, CancellationToken.None);
+                Require(((EndpointFixture)current).Amount == 5 && !ContainsId(pool, id), "retained ID delivers once to replacement");
+            }
+            pool.DisposeId(id);
+        }
+
+        var reusable = new ReusableEndpointFixture();
+        id = pool.CreateIdFromResourceData(ResourceTypeDomain.Stone, 5);
+        reusable.OnCommit = () => Require(reusable.Id == id, "non-cell reuse precedes quantity commit");
+        coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, reusable, id,
+            ResourceTypeDomain.Stone, 5));
+        await coordinator.RunAsync(Vector3Int.right, Vector3.zero, Vector3.right, () => reusable,
+            endpoint => ReferenceEquals(endpoint.Identity, reusable.Identity), pool.Resources, pool, CancellationToken.None);
+        Require(reusable.Amount == 5 && reusable.ReuseCalls == 1 && ContainsId(pool, id),
+            "reusable non-cell target retains the transferred ID and visual");
+        pool.DisposeId(id);
+        Debug.Log("Non-cell endpoint checks passed: full reservation, commit/cancel/reentry, identity, lifetime end, quantity five, replacement/retry, token cancellation, reusable ID handoff, data/visual release.");
     }
 
     private static async UniTask VerifyPresentationLifetime(ResourceItemObjectPoolAdapter pool)
@@ -222,7 +344,7 @@ public static class ResourceTransferVerifierEditor
         var operation = (ResourceTransferOperationApplication)GetField(setup.source, "_activeTransfer");
         Require(setup.target.AllocatedAmount == 5 && setup.target.CurrentLoad == 0,
             $"successful path reserves before animation (reserved={setup.target.AllocatedAmount}, load={setup.target.CurrentLoad})");
-        Require(operation != null && operation.Source == setup.source && operation.Target == setup.target &&
+        Require(operation != null && ReferenceEquals(operation.Source.Identity, setup.source) && ReferenceEquals(operation.Target.Identity, setup.target) &&
                 operation.ResourceId == setup.id && operation.Type == ResourceTypeDomain.Stone &&
                 operation.Amount == 5 && operation.CurrentStage == ResourceTransferOperationApplication.Stage.Animating,
             "successful path tracks one active transfer");
@@ -281,7 +403,7 @@ public static class ResourceTransferVerifierEditor
         var setup = CreateCrossingTransfer(pool);
         await UniTask.Delay(120);
         var operation = GetCrossingOperation(setup.crossing);
-        Require(operation.Source == setup.crossing && operation.Target == setup.target &&
+        Require(ReferenceEquals(operation.Source.Identity, setup.crossing) && ReferenceEquals(operation.Target.Identity, setup.target) &&
                 operation.ResourceId == setup.id && operation.Type == ResourceTypeDomain.Stone &&
                 operation.Amount == 5 && operation.CurrentStage == ResourceTransferOperationApplication.Stage.Animating,
             "crossing tracks one active transfer");
@@ -357,7 +479,7 @@ public static class ResourceTransferVerifierEditor
         await UniTask.Delay(120);
         var secondReservation = GetCrossingReservation(setup.crossing);
         Require(secondReservation.Id != firstReservation.Id &&
-                secondReservation.TargetCell == replacement && replacement.AllocatedAmount == 5,
+                ReferenceEquals(secondReservation.Target.Identity, replacement) && replacement.AllocatedAmount == 5,
             "crossing reconnect creates a new reservation for the new target");
         await UniTask.Delay(1000);
         Require(replacement.CurrentLoad == 5 && replacement.AllocatedAmount == 0 &&

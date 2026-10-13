@@ -43,6 +43,11 @@ classDiagram
  }
  }
  namespace 搬入と演出の契約 {
+ class IResourceTransferEndpointApplication {
+  <<interface>>
+  object Identity
+  bool IsAlive
+ }
  class IContainableApplication
  class IResourceTransferPresentationApplication
  class IResourceReusableApplication
@@ -62,9 +67,13 @@ classDiagram
  PendingTransfer *-- ResourceTransferCoordinatorApplication
  ResourceTransferCoordinatorApplication --> ResourceTransferOperationApplication : 状態を進める
  ResourceTransferCoordinatorApplication --> ResourceReservationApplication : 現在の予約を管理
- ResourceTransferOperationApplication --> CellBaseAdapter : SourceとTarget借用
+ ResourceTransferOperationApplication --> IResourceTransferEndpointApplication : Source借用
+ ResourceTransferOperationApplication --> IContainableApplication : Target借用
  ResourceReservationApplication --> IContainableApplication : Target借用
- ResourceReservationApplication --> CellBaseAdapter : TargetCell生存判定
+ IContainableApplication --|> IResourceTransferEndpointApplication : 識別と生存
+ CellBaseAdapter ..|> IResourceTransferEndpointApplication : Unity破棄判定
+ ConveyorCellAdapter ..|> IContainableApplication
+ CrossingCellAdapter ..|> IContainableApplication
  ResourceTransferCoordinatorApplication ..> ResourceTransitStoreApplication : IDと資源データ
  ResourceTransferCoordinatorApplication ..> IResourceTransferPresentationApplication : 演出結果
  ResourceTransferCoordinatorApplication ..> IResourceReusableApplication : IDを次セルへ渡す

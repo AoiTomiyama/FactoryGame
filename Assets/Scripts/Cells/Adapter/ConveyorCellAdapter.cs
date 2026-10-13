@@ -152,7 +152,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         if (amount <= 0 || type == ResourceTypeDomain.None) return;
 
         // 一件の資源・ID・接続先を固定し、再接続時は新しい搬送記録を作る。
-        var transfer = new ResourceTransferOperationApplication(this, targetCell, id, type, amount);
+        var transfer = new ResourceTransferOperationApplication(this, target, id, type, amount);
         var pool = ResourceItemObjectPoolAdapter.Instance;
         var coordinator = new ResourceTransferCoordinatorApplication(transfer);
         _activeTransfer = transfer;
@@ -165,7 +165,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             _status = TransferStatus.WaitingForStorage;
             var result = await coordinator.RunAsync(dir, startPos, transform.position + dir + Vector3.up * 1.1f,
                 () => targetCell != null && _forwardCellBase == targetCell ? target : null,
-                cell => _forwardCellBase == cell, pool.Resources, pool, transferCts.Token,
+                endpoint => ReferenceEquals(_forwardCellBase, endpoint.Identity), pool.Resources, pool, transferCts.Token,
                 () => _status = TransferStatus.Storing);
             if (result != ResourceAnimationResultApplication.Completed)
             {

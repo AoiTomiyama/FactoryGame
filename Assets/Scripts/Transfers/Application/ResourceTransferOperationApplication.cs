@@ -12,18 +12,19 @@ public sealed class ResourceTransferOperationApplication
         Cancelled
     }
 
-    public CellBaseAdapter Source { get; }
-    public CellBaseAdapter Target { get; private set; }
+    public IResourceTransferEndpointApplication Source { get; }
+    public IContainableApplication Target { get; private set; }
     public int ResourceId { get; private set; }
     public ResourceTypeDomain Type { get; }
     public int Amount { get; }
     public Stage CurrentStage { get; private set; } = Stage.WaitingForReservation;
     public bool IsTerminal => CurrentStage is Stage.Completed or Stage.Cancelled;
 
-    public ResourceTransferOperationApplication(CellBaseAdapter source, CellBaseAdapter target, int resourceId,
+    public ResourceTransferOperationApplication(IResourceTransferEndpointApplication source, IContainableApplication target, int resourceId,
         ResourceTypeDomain type, int amount)
     {
-        if (source == null || target == null || type == ResourceTypeDomain.None || amount <= 0)
+        if (source == null || !source.IsAlive || source.Identity == null ||
+            target == null || !target.IsAlive || target.Identity == null || type == ResourceTypeDomain.None || amount <= 0)
             throw new ArgumentException("搬送元・先と資源の種別・数量を指定してください。");
         Source = source;
         Target = target;
@@ -43,7 +44,7 @@ public sealed class ResourceTransferOperationApplication
 
     public bool TryMarkReserved()
     {
-        if (CurrentStage != Stage.WaitingForReservation || Target == null) return false;
+        if (CurrentStage != Stage.WaitingForReservation || Target == null || !Target.IsAlive) return false;
         CurrentStage = Stage.Reserved;
         return true;
     }
@@ -64,16 +65,16 @@ public sealed class ResourceTransferOperationApplication
         return true;
     }
 
-    public bool TrySetTarget(CellBaseAdapter target)
+    public bool TrySetTarget(IContainableApplication target)
     {
-        if (CurrentStage != Stage.WaitingForReservation || target == null) return false;
+        if (CurrentStage != Stage.WaitingForReservation || target == null || !target.IsAlive || target.Identity == null) return false;
         Target = target;
         return true;
     }
 
     public bool TryComplete()
     {
-        if (CurrentStage != Stage.Animating || Target == null) return false;
+        if (CurrentStage != Stage.Animating || Target == null || !Target.IsAlive) return false;
         CurrentStage = Stage.Completed;
         return true;
     }

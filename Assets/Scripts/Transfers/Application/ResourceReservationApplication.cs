@@ -10,18 +10,19 @@ public sealed class ResourceReservationApplication
     private readonly IContainableApplication _target;
 
     public long Id { get; }
-    public CellBaseAdapter TargetCell { get; }
+    public IContainableApplication Target => _target;
+    public object TargetIdentity { get; }
     public Vector3Int Direction { get; }
     public ResourceTypeDomain Type { get; }
     public int Amount { get; }
     public Result CurrentResult { get; private set; } = Result.Pending;
 
-    private ResourceReservationApplication(IContainableApplication target, CellBaseAdapter targetCell, Vector3Int direction,
+    private ResourceReservationApplication(IContainableApplication target, Vector3Int direction,
         int amount, ResourceTypeDomain type)
     {
         Id = Interlocked.Increment(ref _nextId);
         _target = target;
-        TargetCell = targetCell;
+        TargetIdentity = target.Identity;
         Direction = direction;
         Amount = amount;
         Type = type;
@@ -31,16 +32,16 @@ public sealed class ResourceReservationApplication
         ResourceTypeDomain type, out ResourceReservationApplication reservation)
     {
         reservation = null;
-        if (target is not CellBaseAdapter cell || cell == null || amount <= 0 || type == ResourceTypeDomain.None ||
+        if (target == null || !target.IsAlive || target.Identity == null || amount <= 0 || type == ResourceTypeDomain.None ||
             !target.AllocateStorage(direction, amount, type)) return false;
 
-        reservation = new ResourceReservationApplication(target, cell, direction, amount, type);
+        reservation = new ResourceReservationApplication(target, direction, amount, type);
         return true;
     }
 
     public bool TryCommit()
     {
-        if (CurrentResult != Result.Pending || TargetCell == null) return false;
+        if (CurrentResult != Result.Pending || !_target.IsAlive) return false;
         // 再入で同じ予約を二度確定しないよう、受け取り側の呼び出しより先に閉じる。
         CurrentResult = Result.Committed;
         _target.StoreResource(Direction, Amount);
@@ -51,7 +52,7 @@ public sealed class ResourceReservationApplication
     {
         if (CurrentResult != Result.Pending) return false;
         CurrentResult = Result.Cancelled;
-        if (TargetCell != null) _target.CancelStorage(Direction, Amount, Type);
+        if (_target.IsAlive) _target.CancelStorage(Direction, Amount, Type);
         return true;
     }
 }
