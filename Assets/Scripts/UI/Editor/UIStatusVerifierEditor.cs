@@ -142,24 +142,7 @@ public static class UIStatusVerifierEditor
                 "resource name survives the configuration/provider split");
             view.SetStatusWindowActive(false);
 
-            var extractor = Cell<ExtractorCellAdapter>();
-            Set(extractor, "extractorProvider", Define<ExtractorProviderDefinition>(LabelEnumApplication.Amount, LabelEnumApplication.Progress));
-            Set(extractor, "resourceType", ResourceTypeDomain.Stone); Set(extractor, "storageCapacity", 2);
-            Set(extractor, "extractionAmount", 2); Set(extractor, "extractionSecond", 0.3f);
-            Set(extractor, "_isActivate", true);
-            view.UpdateUIStatusWindow(extractor);
-            using (var cts = new CancellationTokenSource())
-            {
-                var run = (UniTask)typeof(ExtractorCellAdapter).GetMethod("TakeResourcesFromAdjacentStorageAsync", Fields)
-                    .Invoke(extractor, new object[] { cts.Token });
-                await Wait(() => Fill(view, LabelEnumApplication.Progress) > 0);
-                Require(Fill(view, LabelEnumApplication.Progress) <= 1, "extraction progress notifies selected UI");
-                await Wait(() => extractor.CurrentLoad == 2);
-                Require(GaugeText(view, LabelEnumApplication.Amount) == "2/2", "extraction completion updates amount");
-                cts.Cancel();
-                try { await run; } catch (OperationCanceledException) { }
-            }
-            view.SetStatusWindowActive(false);
+            await VerifyExtractorLifecycle(view);
             await VerifyCrafting(view);
             view.SetStatusWindowActive(false);
             ResourceReservationVerifierEditor.Run();
@@ -168,6 +151,97 @@ public static class UIStatusVerifierEditor
             EditorApplication.Exit(0);
         }
         catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
+    }
+
+    private static async UniTask VerifyExtractorLifecycle(CellStatusViewAdapter view)
+    {
+        var root = new GameObject("StatusCheck:ExtractorGrid");
+        var grid = root.AddComponent<GridFieldDatabaseAdapter>();
+        Set(grid, "_gridCells", new CellBaseAdapter[3, 3]);
+        Set(grid, "_gridSize", 3);
+        var extractor = Cell<ExtractorCellAdapter>();
+        extractor.transform.SetParent(root.transform);
+        Set(extractor, "extractorProvider", Define<ExtractorProviderDefinition>(LabelEnumApplication.Amount, LabelEnumApplication.Progress));
+        Set(extractor, "resourceType", ResourceTypeDomain.Stone); Set(extractor, "storageCapacity", 4);
+        Set(extractor, "extractionAmount", 2); Set(extractor, "extractionSecond", 0.35f);
+        grid.SaveCell(1, 1, extractor);
+        extractor.InitializeSystem();
+        view.UpdateUIStatusWindow(extractor);
+        await UniTask.Delay(100);
+        Require(extractor.CurrentLoad == 0 && extractor.ElapsedTime == 0, "no source does not start extraction");
+        var resource = ExtractorSource(grid, root.transform, ResourceTypeDomain.Wood);
+        await UniTask.Delay(100);
+        Require(extractor.CurrentLoad == 0 && extractor.ElapsedTime == 0, "wrong resource type is not extracted");
+        Set(resource, "resourceType", ResourceTypeDomain.Stone);
+        extractor.InitializeSystem(); extractor.InitializeSystem();
+        await Wait(() => Fill(view, LabelEnumApplication.Progress) > 0);
+        Require(Fill(view, LabelEnumApplication.Progress) <= 1, "normal initialization publishes extraction progress");
+        await Wait(() => extractor.CurrentLoad == 2);
+        Require(GaugeText(view, LabelEnumApplication.Amount) == "2/4", "completion publishes existing extraction amount");
+        await Wait(() => extractor.ElapsedTime > 0.02f);
+        UnityEngine.Object.Destroy(resource.gameObject);
+        await UniTask.Delay(450);
+        Require(extractor.CurrentLoad == 2 && extractor.ElapsedTime == 0 && Fill(view, LabelEnumApplication.Progress) == 0,
+            "source deletion cancels unfinished gain and resets progress without consuming inventory");
+        resource = ExtractorSource(grid, root.transform, ResourceTypeDomain.Stone);
+        await Wait(() => extractor.ElapsedTime > 0.02f);
+        resource.enabled = false;
+        await UniTask.Delay(450);
+        Require(extractor.CurrentLoad == 2 && extractor.ElapsedTime == 0, "disabled source stops extraction");
+        resource.enabled = true;
+        await Wait(() => extractor.ElapsedTime > 0.02f);
+        // 同じ種別でも別セルなら未完了進捗を引き継がない。旧抽出の残り時間より長く、
+        // 新しい抽出時間より短い区間で、旧処理の早期確定がないことを確認する。
+        await Wait(() => extractor.ElapsedTime > 0.22f);
+        var replacedStone = resource;
+        resource = ExtractorSource(grid, root.transform, ResourceTypeDomain.Stone);
+        await UniTask.Delay(160);
+        Require(extractor.CurrentLoad == 2, "same-type replacement discards old progress before quantity commit");
+        UnityEngine.Object.Destroy(replacedStone.gameObject);
+        var previous = resource;
+        resource = ExtractorSource(grid, root.transform, ResourceTypeDomain.Wood);
+        await UniTask.Delay(450);
+        Require(extractor.CurrentLoad == 2 && extractor.ElapsedTime == 0, "replacement is re-read from grid, not stale adjacency");
+        UnityEngine.Object.Destroy(previous.gameObject);
+        Set(resource, "resourceType", ResourceTypeDomain.Stone);
+        await Wait(() => extractor.ElapsedTime > 0.02f);
+        extractor.enabled = false;
+        Require(extractor.ElapsedTime == 0 && Fill(view, LabelEnumApplication.Progress) == 0, "disable synchronously discards progress");
+        await UniTask.Delay(450);
+        Require(extractor.CurrentLoad == 2, "disabled equipment retains stock without producing");
+        extractor.enabled = true;
+        await Wait(() => extractor.ElapsedTime > 0.02f);
+        extractor.gameObject.SetActive(false);
+        await UniTask.Delay(450);
+        Require(extractor.CurrentLoad == 2 && extractor.ElapsedTime == 0, "inactive equipment cancels extraction");
+        extractor.gameObject.SetActive(true);
+        await Wait(() => extractor.CurrentLoad == 4);
+        await UniTask.Delay(450);
+        Require(extractor.CurrentLoad == 4 && extractor.ElapsedTime == 0, "re-enable resumes once and capacity remains bounded");
+        Require(extractor.TryExport(Vector3.zero, 1, out var amount, out var type) && amount == 1 && type == ResourceTypeDomain.Stone,
+            "existing export quantity and type survive lifecycle changes");
+        await Wait(() => extractor.CurrentLoad == 4);
+        Require(GaugeText(view, LabelEnumApplication.Amount) == "4/4", "remaining capacity clamps gain and UI stays current");
+        extractor.TryExport(Vector3.zero, 2, out _, out _);
+        await Wait(() => extractor.ElapsedTime > 0.02f);
+        extractor.OnDisconnect();
+        await UniTask.Delay(450);
+        Require(extractor.CurrentLoad == 2 && extractor.ElapsedTime == 0, "disconnect stops until initialization");
+        extractor.InitializeSystem();
+        await Wait(() => extractor.ElapsedTime > 0.02f);
+        UnityEngine.Object.Destroy(extractor.gameObject);
+        await UniTask.Yield();
+        Require(extractor == null, "destroy cancels the active runner without unobserved cancellation");
+        view.SetStatusWindowActive(false);
+        UnityEngine.Object.Destroy(root); await UniTask.Yield();
+        Debug.Log("Extractor lifecycle checks passed: normal initialization, duplicate initialization, missing/late/wrong/replaced/deleted/disabled source, disable/re-enable, progress discard, inventory/capacity/export/UI, disconnect/reinitialize/destroy.");
+    }
+
+    private static ResourceCellAdapter ExtractorSource(GridFieldDatabaseAdapter grid, Transform parent, ResourceTypeDomain type)
+    {
+        var cell = Cell<ResourceCellAdapter>(); cell.transform.SetParent(parent);
+        Set(cell, "resourceType", type); grid.SaveCell(1, 2, cell);
+        return cell;
     }
 
     private static async UniTask VerifyCrafting(CellStatusViewAdapter view)

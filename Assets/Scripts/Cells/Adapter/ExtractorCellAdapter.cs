@@ -1,4 +1,3 @@
-using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
@@ -17,8 +16,11 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     [SerializeField] private ResourceDefinition resourceDatabase;
     [SerializeField] private ExtractorProviderDefinition extractorProvider;
 
-    private CellBaseAdapter _forwardCell;
+    private ResourceCellAdapter _forwardCell;
+    private GridFieldDatabaseAdapter _grid;
+    private bool _initialized;
     private bool _isActivate;
+    private bool _runnerActive;
     private CancellationTokenSource _cts;
 
     public int CurrentLoad { get; private set; }
@@ -33,65 +35,129 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
 
     public override void InitializeSystem()
     {
+        StopExtraction();
         base.InitializeSystem();
-        _isActivate = true;
+        _grid = GridFieldDatabaseAdapter.Instance;
+        _initialized = true;
+        _isActivate = isActiveAndEnabled;
+        // 再初期化でも切断購読と生産処理を重複させない。
+        OnDisconnected -= StopForDisconnect;
+        OnDisconnected += StopForDisconnect;
+        RefreshExtraction();
+    }
 
-        _forwardCell = AdjacentCells
-            .OfType<ResourceCellAdapter>()
-            .FirstOrDefault(cell =>
-                cell.XIndex == XIndex + Mathf.RoundToInt(transform.forward.x) &&
-                cell.ZIndex == ZIndex + Mathf.RoundToInt(transform.forward.z) &&
-                cell.ResourceTypeDomain == ResourceTypeDomain);
+    private void OnEnable()
+    {
+        _isActivate = _initialized;
+        RefreshExtraction();
+    }
 
-        if (_forwardCell == null) return;
+    private void Update() => RefreshExtraction();
 
-        _cts = new();
-        TakeResourcesFromAdjacentStorageAsync(_cts.Token).Forget();
+    private void OnDisable()
+    {
+        _isActivate = false;
+        StopExtraction();
     }
 
     private void OnDestroy()
     {
+        OnDisconnected -= StopForDisconnect;
+        _initialized = false;
         _isActivate = false;
-        _cts?.Cancel();
-        _cts?.Dispose();
-        _cts = null;
+        StopExtraction();
     }
 
-    private void UpdateUI()
+    private void StopForDisconnect()
     {
-        StatusChanged?.Invoke();
+        _initialized = false;
+        _isActivate = false;
+        StopExtraction();
     }
 
-    private async UniTask TakeResourcesFromAdjacentStorageAsync(CancellationToken token)
+    private ResourceCellAdapter ResolveForwardResource()
     {
-        while (_isActivate && !token.IsCancellationRequested)
+        if (_grid == null) return null;
+        var x = XIndex + Mathf.RoundToInt(transform.forward.x);
+        var z = ZIndex + Mathf.RoundToInt(transform.forward.z);
+        if (!_grid.IsWithinBounds(x, z)) return null;
+        var cell = _grid.GetCell(x, z) as ResourceCellAdapter;
+        return cell != null && cell.isActiveAndEnabled && cell.ResourceTypeDomain == resourceType ? cell : null;
+    }
+
+    private void RefreshExtraction()
+    {
+        if (!_initialized || !_isActivate || !isActiveAndEnabled) return;
+        // 資源セルは非接続型なので、通知や初期化時の隣接配列だけでは後置き・交換を検知できない。
+        var target = ResolveForwardResource();
+        if (target == null || target != _forwardCell)
         {
-            // 容量に空きが出るまで待機
-            await UniTask.WaitUntil(() => CurrentLoad < StorageCapacity,
-                cancellationToken: token);
+            StopExtraction();
+            _forwardCell = target;
+        }
+        if (target == null || _runnerActive) return;
+        _cts = new CancellationTokenSource();
+        _runnerActive = true;
+        RunExtractionAsync(target, _cts).Forget();
+    }
 
-            var tween = DOTween.To(
-                    () => ElapsedTime,
-                    x => ElapsedTime = x,
-                    ExtractionSecond,
-                    ExtractionSecond)
-                .OnUpdate(UpdateUI)
-                .SetEase(Ease.Linear);
-
-            // 抽出が終わるまで待機
-            await tween.ToUniTask(cancellationToken: token);
+    private void StopExtraction()
+    {
+        // CTSのDisposeは所有するrunnerが行う。取消完了前の新runner起動を防ぐ。
+        var source = _cts;
+        _cts = null;
+        _forwardCell = null;
+        source?.Cancel();
+        if (ElapsedTime != 0)
+        {
             ElapsedTime = 0;
-
-            // 輸出モジュールにリソースを転送するまで待機
-            var available = StorageCapacity - CurrentLoad;
-            var gainAmount = Mathf.Min(available, extractionAmount);
-            CurrentLoad += gainAmount;
-            
             UpdateUI();
         }
     }
-    
-    
+
+    private void UpdateUI() => StatusChanged?.Invoke();
+
+    private async UniTask RunExtractionAsync(ResourceCellAdapter target, CancellationTokenSource source)
+    {
+        var token = source.Token;
+        Tween tween = null;
+        try
+        {
+            while (_isActivate && !token.IsCancellationRequested)
+            {
+                await UniTask.WaitUntil(() => CurrentLoad < StorageCapacity, cancellationToken: token);
+                var completed = false;
+                tween = DOTween.To(() => ElapsedTime, x => ElapsedTime = x,
+                        ExtractionSecond, ExtractionSecond)
+                    .OnUpdate(UpdateUI).OnComplete(() => completed = true).SetEase(Ease.Linear);
+                await tween.ToUniTask(TweenCancelBehaviour.CancelAwait, token);
+                // Tween完了と資源確定は別。取消・削除・交換・外部Killでは未完了分を増やさない。
+                if (token.IsCancellationRequested || !completed || !_isActivate || !isActiveAndEnabled ||
+                    !_initialized || target == null || ResolveForwardResource() != target) return;
+                ElapsedTime = 0;
+                CurrentLoad += Mathf.Min(StorageCapacity - CurrentLoad, extractionAmount);
+                UpdateUI();
+                tween = null;
+            }
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // 対象喪失・無効化・切断による正常な中断。
+        }
+        finally
+        {
+            if (tween != null && tween.IsActive()) tween.Kill();
+            if (ReferenceEquals(_cts, source))
+            {
+                _cts = null;
+                ElapsedTime = 0;
+                UpdateUI();
+            }
+            _runnerActive = false;
+            source.Dispose();
+        }
+    }
+
     public Vector3 GetPosition() => transform.position;
 
     public bool TryExport(Vector3 from, int requestedAmount, out int amount, out ResourceTypeDomain type)
