@@ -344,3 +344,155 @@ updated_at: '2026-10-13T20:57:55.839882+09:00'
 ### 結論
 移動・改名、既存の予約・接続・搬送・表示検証とWindowsビルドは完了済み。対応表はdocs/design/script-organization.mdを参照する。
 
+## タスク
+```yaml
+id: ECO-01
+uid: currency-wallet
+category: 経済
+title: 通貨残高と入出金取引を導入する
+status: pending
+updated_at: '2026-10-15T00:22:02.275858+09:00'
+```
+
+### 問題
+収益と支出を一貫して管理する残高と取引がない。
+
+### 解決策
+非負longの共有残高、売価・価格定義、入出金予約と一回限りの確定・取消をDomain/Applicationへ実装する。
+
+### 結論
+採用済み・未着手。依存は既存RES-02。数量・上限・不足・競合・取消・再入の検証を完了条件とする。 詳細はdocs/tasks/currency-game-loop-plan.mdを参照する。
+
+## タスク
+```yaml
+id: ECO-02
+uid: currency-singularity
+category: 経済
+title: 初期特異点への搬送で資源を換金する
+status: pending
+updated_at: '2026-10-15T00:22:02.275858+09:00'
+```
+
+### 問題
+資源を収益へ変える搬送先と初回換金の経路がない。
+
+### 解決策
+特異点1基と保護された初期配置を用意し、方向別の全量予約で売価と入金余地を固定して搬入確定時だけ換金する。
+
+### 結論
+採用済み・未着手。依存はECO-01と既存TRN-01・GRD-01/02。成功・取消・四方向競合・寿命・上限・ID解放と初回経路の検証を完了条件とする。 詳細はdocs/tasks/currency-game-loop-plan.mdを参照する。
+
+## タスク
+```yaml
+id: ECO-03
+uid: currency-placement
+category: 経済
+title: 通貨による設備設置を既存配置へ接続する
+status: pending
+updated_at: '2026-10-15T00:22:02.275858+09:00'
+```
+
+### 問題
+既存CellPlacerは通貨の支払いと配置成功を対応付けていない。
+
+### 解決策
+設置を支出取引へ接続し、生成・登録失敗時は復元する。範囲配置は座標順に確定して不足で停止し、資源と特異点を保護する。
+
+### 結論
+採用済み・未着手。依存はECO-01/02。成功だけ課金、途中不足・失敗復元・撤去・回転と既存接続/UIの検証を完了条件とする。 詳細はdocs/tasks/currency-game-loop-plan.mdを参照する。
+
+## タスク
+```yaml
+id: ECO-04
+uid: currency-equipment-upgrade
+category: 経済
+title: 通貨で設備を個別に強化する
+status: pending
+updated_at: '2026-10-15T00:22:02.275858+09:00'
+```
+
+### 問題
+設備ごとのレベルと強化費の支払いがない。
+
+### 解決策
+既存インスタンスをレベル1〜3へ強化し、支出とレベル更新を一回の取引で確定する。接続・在庫・予約・稼働状態を維持する。
+
+### 結論
+採用済み・未着手。依存はECO-03とPRG-01。価格・不足・上限・削除競合・連打と状態維持の検証を完了条件とする。 詳細はdocs/tasks/currency-game-loop-plan.mdを参照する。
+
+## タスク
+```yaml
+id: ECO-05
+uid: currency-loop-ui
+category: 経済
+title: 通貨と設備購入・強化・ツリーの操作を表示する
+status: pending
+updated_at: '2026-10-15T00:22:02.275858+09:00'
+```
+
+### 問題
+残高と費用、購入可否、成長効果を判断する表示がない。
+
+### 解決策
+残高、換金、設置見積りと結果、設備レベルと強化費、ツリー前提と効果をApplicationの状態から表示し、専用セル表示をCreateCustomへ接続する。
+
+### 結論
+採用済み・未着手。依存はECO-02/03/04とPRG-02。表示と操作可否の一致、失敗理由、選択・非表示・削除時の購読解除を完了条件とする。 詳細はdocs/tasks/currency-game-loop-plan.mdを参照する。
+
+## タスク
+```yaml
+id: ECO-06
+uid: currency-loop-verification
+category: 経済
+title: 基礎ゲームループを統合して検証する
+status: pending
+updated_at: '2026-10-15T00:22:02.275858+09:00'
+```
+
+### 問題
+換金から再投資と全体成長までを確認する統合証拠がない。
+
+### 解決策
+MainSceneの初期資金・経路・定義を配線し、初回換金から設備購入・強化・ツリーI/II取得を既存検証基盤で確認して仕様と証拠を更新する。
+
+### 結論
+採用済み・未着手。依存はECO-05。直接関連する搬送・数量・抽出・加工・UI回帰とWindowsビルドの成功を完了条件とする。 詳細はdocs/tasks/currency-game-loop-plan.mdを参照する。
+
+## タスク
+```yaml
+id: PRG-01
+uid: currency-effective-stats
+category: 成長
+title: 個別強化と全体効果を合成する能力規則を導入する
+status: pending
+updated_at: '2026-10-15T00:22:02.275858+09:00'
+```
+
+### 問題
+設備の定数から個別レベルと共有スキルの効果を合成する経路がない。
+
+### 解決策
+基礎値・レベル・共有加算率から有効能力を算出する。稼働中の数量と予約・加工計画を固定し、容量増加では在庫と予約を維持する。
+
+### 結論
+採用済み・未着手。依存はECO-03。未強化時の現行値一致、丸め・上限・稼働中変更・新設への適用を完了条件とする。 詳細はdocs/tasks/currency-game-loop-plan.mdを参照する。
+
+## タスク
+```yaml
+id: PRG-02
+uid: currency-skill-tree
+category: 成長
+title: スキルツリーの取得効果を全セルへ適用する
+status: pending
+updated_at: '2026-10-15T00:22:02.275858+09:00'
+```
+
+### 問題
+全セルに共通する成長状態とスキル前提の管理がない。
+
+### 解決策
+通貨で基礎研究と採取・搬送・保管のI/IIを取得し、固定ノードuidの前提と取得状態から共有効果を通知する。
+
+### 結論
+採用済み・未着手。依存はECO-01とPRG-01。前提・定義不正・重複購入を検証し、既設・再有効化・新設の該当能力へ同じ効果が及ぶことを完了条件とする。 詳細はdocs/tasks/currency-game-loop-plan.mdを参照する。
+
