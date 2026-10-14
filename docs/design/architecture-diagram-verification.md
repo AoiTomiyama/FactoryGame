@@ -16,17 +16,17 @@
 
 ## 現行の図・説明更新手順
 
-2026-10-11の全図説明追加から、更新は独立ハブが所有する共通CLIへ統一する。[共通CLI契約](../../../../.codex/session-routing/architecture-docs-tool.md) と [説明方針](../../../../.codex/session-routing/requests/architecture-description-policy-proposal.md) を参照する。上記SVGのparse/render記録は作成時の証拠として保持し、旧ASARサーバーとPythonによるSVG生成を通常更新手順には使わない。
+2026-10-11の全図説明追加から、更新はAtlasが提供するMetis共通CLIへ統一する。[共通CLI契約](../../../../.codex/atlas/docs/metis/metis-update-tool.md) を参照する。上記SVGのparse/render記録は作成時の証拠として保持し、旧ASARサーバーとPythonによるSVG生成を通常更新手順には使わない。
 
 説明の正本は [architecture-descriptions.json](architecture-descriptions.json)。図は既存MarkdownのMermaid、対応キーは直前のdiagram-idコメントである。ノードIDは図ごとの名前空間で対応する。SVGとHTML一覧は既存の閲覧用出力で、説明JSONの正本ではない。
 
 ```powershell
-python C:/Users/Taomo/.codex/session-routing/architecture_docs.py doctor --project factory
-python C:/Users/Taomo/.codex/session-routing/architecture_docs.py sync --project factory --write
-python C:/Users/Taomo/.codex/session-routing/architecture_docs.py inventory --project factory --output <担当のinventory保存先>
-python C:/Users/Taomo/.codex/session-routing/architecture_docs.py apply --project factory --patch <担当のpatch保存先> --write
-python C:/Users/Taomo/.codex/session-routing/architecture_docs.py validate --project factory
-python C:/Users/Taomo/.codex/session-routing/architecture_docs.py sync --project factory
+python C:/Users/Taomo/.codex/atlas/metis.py doctor --project factory
+python C:/Users/Taomo/.codex/atlas/metis.py sync --project factory --write
+python C:/Users/Taomo/.codex/atlas/metis.py inventory --project factory --output <担当のinventory保存先>
+python C:/Users/Taomo/.codex/atlas/metis.py apply --project factory --patch <担当のpatch保存先> --write
+python C:/Users/Taomo/.codex/atlas/metis.py validate --project factory
+python C:/Users/Taomo/.codex/atlas/metis.py sync --project factory
 ```
 
 inventoryのbase_revisionで競合を防ぎ、applyには変更する図の概要・ノード説明・根拠だけを指定する。図の変更は同じpatchにmermaidを含める。CLIを担当側で複製・修正せず、不具合はハブへ報告する。書込は--write指定時のみで、CLIは既存の描画資源による内部parse/renderと更新ジャーナルを管理する。今回の処理はSVGを書き出すものではない。
@@ -45,11 +45,13 @@ doctor、sync、inventory、applyを順に使用し、applyの全件検証はok=
 
 ## 配色・囲みの段階移行記録
 
+2026-10-14の照合では、以下の旧提出JSON3件と画面画像4件の保管場所は撤去済みだった。ファイル名と検証値は当時の記録として保持する。現行図・説明の合否は本書のMetis更新手順で確認する。
+
 タグ: `役割別配色` `囲み` `検証証拠` `再開情報`
 
 2026-10-12、文書開始版 `12a84b1b5a318c03dbe1801cad26478fdbe6762d` から、current-architecture-1とarchitecture-cells-grid-1の2図だけを共通CLI 1.1.0で移行した。最新inventoryのbase_revisionで下書きを照合し、applyのプレビュー成功後に書き込んだ。全体構成図はLRと外部ライブラリの囲み、セル図はLRと説明上の4分類を採用した。各17ノード、計34ノードへfoundation/middle/surface/externalを指定し、色コードは共通ビューアが管理する。
 
-既存のleaf ID、型付き関係、ラベル、属性・メソッド、概要・説明・根拠を保持した。追加したLibrariesの囲みには説明と相対根拠を付けた。クラス図のnamespaceは説明上の分類で、C#の名前空間ではない。全14図・180ノードのvalidateはok=true、errors=[]、missing=[]、syncプレビューはchanged=[]だった。構文・役割網羅・説明対応を確認した。詳細な実行結果とコミットは [担当の提出JSON](../../../../.codex/session-routing/requests/architecture-presentation-factory-pilot-result.json) に記録する。
+既存のleaf ID、型付き関係、ラベル、属性・メソッド、概要・説明・根拠を保持した。追加したLibrariesの囲みには説明と相対根拠を付けた。クラス図のnamespaceは説明上の分類で、C#の名前空間ではない。全14図・180ノードのvalidateはok=true、errors=[]、missing=[]、syncプレビューはchanged=[]だった。構文・役割網羅・説明対応を確認した。詳細な実行結果とコミットは `architecture-presentation-factory-pilot-result.json` に記録した。
 
 先行2図の移行時点では、残り12図の配色・囲み移行を次工程として原本を保持した。検証はCLI内部の解析・描画で、共通ビューアの配色や画面幅ごとの見え方を追加確認したものではない。製品コード、既存SVG、進行中の無関係差分は変更しない。
 
@@ -61,4 +63,4 @@ doctor、sync、inventory、applyを順に使用し、applyの全件検証はok=
 
 全14図の173ノードに役割を指定した。フロー2図へ機能別の囲み8件を追加し、クラス4図へ責務別のnamespaceを追加した。クラスの囲みは説明上の分類であり、実装の名前空間ではない。状態図に合成状態、シーケンスに新しいboxは追加せず、既存の開始・終了記号、処理順、分岐、注記を保持した。追加したフロー囲みには説明と根拠を付けた。
 
-既存のleaf ID・ラベル・型付き関係・クラス属性/メソッドと、既存の全概要・ノード説明・根拠を保持する。全14図・188ノードのvalidateはok=true、errors=[]、missing=[]、syncプレビューはchanged=[]だった。個別分類の根拠、既存差分の保全とコミットは [全図移行の提出JSON](../../../../.codex/session-routing/requests/architecture-presentation-factory-result.json) に記録する。担当の検証は共通CLI内部の解析・描画である。続くハブの最終検証では全48図・521役割の本番描画と構造・既存説明・根拠の保持が合格し、全4プロジェクトの代表フロー/クラスを1600px・390pxの16表示で確認した。クリック、根拠リンク、ドラッグ、25〜400%拡大も合格した。証拠は [ハブ操作検証JSON](../../../../.codex/session-routing/requests/architecture-viewer-interactions-test.json) と [Factoryフロー1600px](../../../../.codex/session-routing/artifacts/architecture-presentation-factory-flow-1600.png)、[390px](../../../../.codex/session-routing/artifacts/architecture-presentation-factory-flow-390.png)、[Factoryクラス1600px](../../../../.codex/session-routing/artifacts/architecture-presentation-factory-class-1600.png)、[390px](../../../../.codex/session-routing/artifacts/architecture-presentation-factory-class-390.png)。画面確認の残課題は解消済みである。製品コード・既存SVG・ハブツール・無関係な既存差分は変更せず、pushもしない。
+既存のleaf ID・ラベル・型付き関係・クラス属性/メソッドと、既存の全概要・ノード説明・根拠を保持する。全14図・188ノードのvalidateはok=true、errors=[]、missing=[]、syncプレビューはchanged=[]だった。個別分類の根拠、既存差分の保全とコミットは `architecture-presentation-factory-result.json` に記録した。担当の検証は共通CLI内部の解析・描画である。続くハブの最終検証では全48図・521役割の本番描画と構造・既存説明・根拠の保持が合格し、全4プロジェクトの代表フロー/クラスを1600px・390pxの16表示で確認した。クリック、根拠リンク、ドラッグ、25〜400%拡大も合格した。証拠は `architecture-viewer-interactions-test.json` と `architecture-presentation-factory-flow-1600.png`、`architecture-presentation-factory-flow-390.png`、`architecture-presentation-factory-class-1600.png`、`architecture-presentation-factory-class-390.png`。画面確認の残課題は解消済みである。製品コード・既存SVG・ハブツール・無関係な既存差分は変更せず、pushもしない。

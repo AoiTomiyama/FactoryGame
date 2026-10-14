@@ -6,11 +6,77 @@
 
 拡張性に関する追加タスク A〜H は `docs/tasks/architecture-extension.md` を参照する。タスク2の中断処理は同文書の C・G の最初の適用箇所とし、同じ完了条件を重複して計上しない。
 
-## 現行原本とID（2026-10-13）
+## 現行原本とID（2026-10-14）
 
 全18項目のカテゴリ・優先順・進捗は [タスクリスト原本](task-list.md) で管理する。18項目は完了している。搬送先の具体セル基底への制約を除く `TRN-01`（uid: `R4`）の契約と検証は [搬送状態の契約](../spec/resource-transfer-state.md) に記録した。セル定義 `GRD-01`、抽出寿命 `RES-01`、専用状態取得 `UIS-01` は完了している。
 
 各項目の表示IDはカテゴリ英字3文字とカテゴリ内優先順2桁で表す。旧IDは固定uidとして原本に保存し、以下の完了記録と対応付ける。
+
+## 新担当が状態と作成根拠を照合する手順
+
+タグ: `引継ぎ` `採用判断` `タスク原本` `Chronos`。照合版: `1f415e4`。原本はv2・18項目で全件done。原本SHA256は `66d20848f96a7ed9fce53178d174e239c2923929c34ac36eb564b0da525ec9dd`。再開時は現在のinventoryを優先する。
+
+1. `git status --short` とHEADを確認し、現在の依頼・原本・関連コードを照合する。着手前の差分は内容と所有者を確認する。
+2. [設計方針](../design/architecture-guidelines.md) と [現行設計索引](../design/current-architecture.md) から対象機能の仕様・コード・検証入口へ進む。仕様の契約と過去検証の実行版を区別する。
+3. Chronosのinventoryでid・uid・カテゴリ・状態・本文を取得する。過去文書の旧IDはuidと照合する。完了済み項目の再実装や新規項目の重複を防ぐため、問題・対象・完了条件も比較する。
+4. 新しいタスク提案には、コード・既存仕様・確認結果を根拠として問題、解決策、完了条件、仕様判断を示す。ユーザーが採用した範囲を原本へ登録する。仕様が未決定の採用項目はblockedと判断待ちを簡潔に記す。
+5. 依頼された工程を実施し、変更に直接関係する検証、現行仕様、原本の状態を揃えてコミットする。中断時は差分・検証結果・残作業を関連仕様へ記録する。
+
+### 採用済み項目の根拠
+
+| 現行ID | 作成根拠・仕様・証拠の入口 |
+| --- | --- |
+| TRN-01 / TRN-05 / TRN-06 | [搬送状態と接点契約](../spec/resource-transfer-state.md)。非セルの搬送、予約Tokenと進行管理の一回性 |
+| TRN-02 / TRN-03 / TRN-04 / RES-02 | [数量契約](../spec/resource-reservations.md)、本書の旧1・2、[追加実装](architecture-extension.md) の旧C・E。全量予約、取消、数量計算 |
+| TRN-07 | [資源と表示の寿命](../spec/resource-presentation.md)。IDデータと表示返却の分離 |
+| TRN-08 | [搬送の責務](../design/resource-transfer-responsibilities.md) と追加実装の旧A。採用時の責務調査を記録し、現行の契約は上記仕様を参照 |
+| RES-01 | [抽出寿命](../spec/extractor-lifecycle.md)。対象変更と無効化、中断進捗の破棄 |
+| GRD-01 / GRD-02 | [セル定義](../spec/cell-definitions.md)、[セル接続](../spec/cell-connections.md)。辞書初期化、4方向の直接参照 |
+| UIS-01 / UIS-02 / UIS-03 | [UI契約](../spec/cell-status-ui.md)、[アイコン](../spec/resource-icons.md)。専用取得、表示境界と購読寿命、資産参照 |
+| CRF-01 | [加工](../spec/crafting.md)。固定計画と再検証、消費・確定・取消 |
+| DEV-01 / DEV-02 | 本書の旧3、[配置・命名](../design/script-organization.md)、[グリッド検証入口](../../Assets/Scripts/Grid/Editor/GridFieldGeneratorVerifierEditor.cs)。Editor依存分離、GUID維持と配置整理 |
+
+上表と原本のuidから旧1〜5、A〜H、ORG-1、R1〜R4の記録へ到達できる。旧文書の「問題」「方針」「未着手」は記録当時の状態として読み、現行進捗は原本を使う。
+
+### カテゴリと優先順の判断
+
+2026-10-13のID移行で、担当が機能の責務ごとに6カテゴリへ分類し、ハブの切替依頼に従って反映した。番号はカテゴリ内の優先順で01が最優先。移行時の残作業R4をTRN-01へ置き、現在は完了している。
+
+| 英字 / カテゴリ | 優先順を決めた理由 |
+| --- | --- |
+| TRN / 搬送 | 移行時の残作業、数量整合、中断、予約、状態、進行、表示寿命、責務記録の順 |
+| RES / 資源 | 稼働中の抽出寿命、共通の数量計算の順 |
+| GRD / グリッド | 初期化・配置を成立させる定義、隣接探索の順 |
+| UIS / 状態表示 | 専用取得の拡張、取得・描画境界、資源アイコンの順 |
+| CRF / 加工 | レシピ判定・素材消費・確定と取消を一項目に集約 |
+| DEV / 開発基盤 | プレイヤービルドの成立、スクリプト配置・命名の順 |
+
+分類・再採番では英大文字3文字とカテゴリ名を一対一に対応させ、カテゴリ内の01〜99を使う。idが変わってもuidを固定し、移行済みの旧IDを別タスクへ再利用しない。数量や型名を含む本文の参照置換は共通CLIに任せて結果を照合する。
+
+### 原本の更新
+
+仕様は [ChronosカテゴリID契約](../../../../.codex/session-routing/docs/routing/chronos-category-ids.md)、形式は [タスクテンプレート](../../../../.codex/atlas/docs/chronos/chronos-task-list-template.md)、CLIは [Atlas更新仕様](../../../../.codex/atlas/docs/chronos/chronos-update-tool.md) と現行 `--help` を確認する。ローカル配信入口は `C:/Users/Taomo/.codex/atlas/chronos.py`。通信・担当管理は [ハブREADME](../../../../.codex/session-routing/README.md) から確認する。
+
+```powershell
+python -X utf8 C:/Users/Taomo/.codex/atlas/chronos.py inventory --project factory
+python -X utf8 C:/Users/Taomo/.codex/atlas/chronos.py apply --project factory --request <更新JSON>
+python -X utf8 C:/Users/Taomo/.codex/atlas/chronos.py apply --project factory --request <更新JSON> --write
+python -X utf8 C:/Users/Taomo/.codex/atlas/chronos.py validate --project factory
+```
+
+共有CLI仕様にあるv1の例と、カテゴリID移行後のv2は版が異なる。現行原本の更新JSONはschema_version=2、最新inventoryのbase_revision、tasksを指定する。tasksのキーは表示idでなく固定uid。値は変更するid/category/title/status/sectionsを指定し、sectionsの問題・解決策・結論を簡潔に更新する。既存のuidを保持し、updated_atはCLIが変更した項目へ自動設定する。新規登録では一意のuid、id・category・title・statusと3節を揃える。プレビューの範囲、数量と意味の保持を確認してからwriteし、validateを通す。
+
+原本は採用済みの実施項目を一プロジェクト一ファイルで管理し、完了項目も保持する。候補の評価は根拠文書へ記録し、ユーザーの採用判断を受けて原本へ反映する。タスク本文には問題・解決策・現在の結論を記し、詳細な検証や設計判断は関連仕様へリンクする。
+
+### 採用済み判断と再開時の注意
+
+- 抽出の中断では未完了進捗を破棄し、抽出済み在庫・抽出量・容量を維持する。ユーザー回答を実装した `686ae6b` と抽出寿命の仕様が根拠。
+- 専用状態取得はCreateCustomの接続契約を提供する。新設備の仕様と既存4種類の全面移行はUIS-01の範囲から外れ、追加依頼の対象となる。`1a689b5` とUI契約が根拠。
+- 搬送接点は固定Identityの参照一致と実装側のIsAliveを使う。セルの判定はUnity破棄で、無効化の扱いは既存の接続通知・取消経路を維持する。`1f415e4` と搬送状態の契約が根拠。
+- ID移行は `901e72b`。状態・本文・数量を保持し、旧IDをuidへ固定した。ハブのカテゴリID契約と原本が根拠。
+- MotionBlur設定の差分、未使用ServiceLocatorとそのmeta、IDEの4 XMLは着手前から保持している。採用状況と既存差分レビューは [UI契約の記録](../spec/cell-status-ui.md) を参照する。新担当はgit statusと現在の参照先を再確認する。
+
+全18項目の完了は採用済みリストの状態を示す。将来の設備仕様・追加改善・未追跡変更の採用は、ユーザーの判断と依頼範囲を確認して進める。
 
 ## 1. 資源の予約量と搬入量を一致させる
 
