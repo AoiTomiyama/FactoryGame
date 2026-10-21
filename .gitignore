@@ -74,14 +74,9 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 
-# Codex local instructions, plans and verification records
-/AGENTS.md
-/docs/tasks/
-/docs/knowledge/
-/docs/verification/
-/docs/design/architecture-guidelines.md
-/docs/design/script-organization.md
-/docs/design/architecture-diagram-verification.md
-/docs/design/crafting-separation-plan.md
-/docs/design/resource-transfer-responsibilities.md
+# Local task state and execution records
+/docs/tasks/task-list.md
+/docs/tasks/task-list.md.registrations/
+/docs/tasks/task-list.md.chronos.lock
+/docs/local/
 /docs/design/diagrams/verification.json
