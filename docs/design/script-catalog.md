@@ -4,7 +4,7 @@
 
 対象版・未コミット反映条件は [現行設計索引](current-architecture.md)。全 `Assets/Scripts/**/*.cs` を収録する。主な自作依存はコメントを除いた型参照を照合し、同ファイル内の補助型は型欄に示す。メソッドの全呼出一覧ではなく、設計図から実装を辿るための索引である。外部はusingに現れる名前空間であり、実使用の代表は図式の説明を参照する。入れ子型の名前は所属ファイルで識別する。
 
-確認ファイル数: 86（ECO-01の追加6件、未コミットServiceLocatorを1件含む）。
+確認ファイル数: 91（ECO-01の追加6件、ECO-02の追加5件、未コミットServiceLocatorを1件含む）。
 
 ## ランタイム・定義
 
@@ -124,3 +124,13 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | [CurrencyTransactionApplication](../../Assets/Scripts/Economy/Application/CurrencyTransactionApplication.cs) | 一件の予約額と終端。所有するCurrencyWalletApplicationを更新する |
 | [CurrencyEconomyDefinition](../../Assets/Scripts/Economy/Definitions/CurrencyEconomyDefinition.cs) | ScriptableObject設定をCurrencyPriceCatalogDomainへ複製する |
 | [CurrencyWalletVerifierEditor](../../Assets/Scripts/Economy/Editor/CurrencyWalletVerifierEditor.cs) | 通貨境界・再入と既存ResourceReservationVerifierEditorの回帰検証 |
+
+## ECO-02の追加
+
+| ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
+| --- | --- | --- | --- |
+| [SingularityIntakeApplication](../../Assets/Scripts/Economy/Application/SingularityIntakeApplication.cs) | 方向別の全量換金予約・確定・取消 | CurrencyWalletApplication, CurrencyPriceCatalogDomain | 標準C# |
+| [SingularityCellAdapter](../../Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs) | 消費専用セルと接続・無効化・破棄 | ConnectableCellBaseAdapter, IContainableApplication, SingularityIntakeApplication | UnityEngine |
+| [SingularityStartDefinition](../../Assets/Scripts/Economy/Definitions/SingularityStartDefinition.cs) | 中央初期配置と初回経路の設定検証 | CurrencyEconomyDefinition, SingularityCellAdapter, ResourceCellAdapter, EmptyCellAdapter | UnityEngine |
+| [SingularitySetupEditor](../../Assets/Scripts/Economy/Editor/SingularitySetupEditor.cs) | 初期設定・Prefab・MainScene配線の編集 | SingularityStartDefinition, GridFieldGeneratorAdapter | UnityEditor |
+| [SingularityVerifierEditor](../../Assets/Scripts/Economy/Editor/SingularityVerifierEditor.cs) | 換金境界・寿命・再入・再生成・初回経路の検証 | Economy, Coordinator, CellPlacerAdapter | UnityEditor, UniTask |

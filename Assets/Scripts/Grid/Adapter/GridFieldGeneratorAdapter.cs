@@ -8,6 +8,10 @@ using UnityEngine;
 
 public class GridFieldGeneratorAdapter : MonoBehaviour
 {
+    [SerializeField] private SingularityStartDefinition initialLayout;
+    public CurrencyWalletApplication Wallet { get; private set; }
+    public CurrencyPriceCatalogDomain Prices { get; private set; }
+
     [Header("基本設定")]
     [SerializeField] private GameObject emptyCellPrefab;
     [SerializeField] private int gridSize = 30;
@@ -53,7 +57,34 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
 
     private void Start()
     {
-        GridFieldDatabaseAdapter.Instance.InitializeCells(gridSize);
+        if (initialLayout != null) initialLayout.Validate(gridSize);
+        var grid = GridFieldDatabaseAdapter.Instance;
+        grid.InitializeCells(gridSize);
+        if (initialLayout == null) return;
+        var center = gridSize / 2;
+        if (grid.GetCell(center, center - 4) is not ResourceCellAdapter wood ||
+            wood.ResourceTypeDomain != ResourceTypeDomain.Wood)
+            throw new InvalidOperationException("Initial field requires wood beside the starter route.");
+        for (var z = center - 3; z < center; z++)
+            if (grid.GetCell(center, z) is not EmptyCellAdapter)
+                throw new InvalidOperationException("Initial starter route must be empty.");
+        Prices = initialLayout.CreateCatalog();
+        Wallet = new CurrencyWalletApplication(Prices.InitialBalance);
+        SingularityCellAdapter singularity = null;
+        var count = 0;
+        for (var x = 0; x < gridSize; x++)
+        for (var z = 0; z < gridSize; z++)
+        {
+            if (grid.GetCell(x, z) is not SingularityCellAdapter candidate) continue;
+            count++;
+            if (x != gridSize / 2 || z != gridSize / 2)
+                throw new InvalidOperationException("Singularity must occupy the center.");
+            singularity = candidate;
+        }
+        if (count != 1) throw new InvalidOperationException("Initial field requires exactly one singularity.");
+        singularity.Configure(Wallet, Prices);
+        // 登録と共有残高の構成後に接続を開始する。
+        singularity.InitializeSystem();
     }
 
 #if UNITY_EDITOR
@@ -86,6 +117,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     /// </summary>
     public void GenerateGrid(Transform parent)
     {
+        if (initialLayout != null) initialLayout.Validate(gridSize);
         // プロップのノイズオフセットをシード値とインスタンスIDから決定
         // これにより、同じシード値であれば常に同じ配置になるが、異なるプレハブを使うと異なる配置になる
         for (var i = 0; i < propPrefabs.Length; i++)
@@ -119,6 +151,8 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
                     obj = p.prefab;
                     break;
                 }
+
+                obj = initialLayout != null ? initialLayout.GetInitialPrefab(gridSize, x, z) ?? obj : obj;
 
                 // セルの生成
                 var tile = (GameObject)PrefabUtility.InstantiatePrefab(obj, separator.transform);

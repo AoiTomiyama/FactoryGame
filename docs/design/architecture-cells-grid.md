@@ -33,6 +33,7 @@ classDiagram
  class ConveyorCellAdapter
  class ExportConveyorCellAdapter
  class CrossingCellAdapter
+ class SingularityCellAdapter
  class CrafterCellAdapter
  }
  namespace 能力契約 {
@@ -94,6 +95,8 @@ MonoBehaviour <|-- CellBaseAdapter
  ConnectableCellBaseAdapter ..> GridFieldDatabaseAdapter : 座標検索
  StorageCellAdapter ..> ResourceStorageRulesDomain : 数量判定
  ExtractorCellAdapter --> ResourceCellAdapter : 採取元の初期参照
+ SingularityCellAdapter --|> ConnectableCellBaseAdapter
+ SingularityCellAdapter ..|> IContainableApplication
 ```
 
 [Cellsコード](../../Assets/Scripts/Cells/Adapter/) と [CrafterCell](../../Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs) が根拠。ResourceCellは固定資源種別と表示定義、Storageは在庫・予約量、Extractorは採取量・非同期処理、Conveyorは一件の搬送資源ID、Crossingは方向別保留搬送、Crafterは入出庫と加工を担う。ResourceCellは接続型ではなく、隣接に保持されても相互接続通知しない。接続変更はOnGetConnectedCell/OnLostConnectedCell、切断はOnDisconnectedで通知する。Extractorは初期化後に前方座標の有効な資源セルを再評価し、対象喪失・交換・設備無効化で未完了進捗を破棄する。稼働と再開の契約は [抽出セルの寿命](../spec/extractor-lifecycle.md) を参照する。

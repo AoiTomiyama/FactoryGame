@@ -318,6 +318,17 @@
               "path": "docs/design/current-architecture.md"
             }
           ]
+        },
+        "Economy": {
+          "description": "構成入口が一プレイの共有残高と価格カタログを生成し、特異点へ渡します。方向別の換金予約は数量・種別・換金額と入金余地を固定し、搬送の成功時に確定、取消や寿命終了時に解放します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Economy/Application/SingularityIntakeApplication.cs"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs"
+            }
+          ]
         }
       },
       "presentation": {
@@ -338,7 +349,8 @@
           "External": "external",
           "InputLib": "external",
           "UILib": "external",
-          "Editor": "external"
+          "Editor": "external",
+          "Economy": "middle"
         }
       },
       "number": "1"
@@ -803,6 +815,14 @@
               "symbol": "ResourceStorageRulesDomain"
             }
           ]
+        },
+        "SingularityCellAdapter": {
+          "description": "中央に初期配置される消費専用の受け取り先です。入力方向ごとの全量予約を換金予約へ接続し、搬入確定時に共有残高へ入金します。無効化では接続を取り消して予約を解放し、再有効化時に再接続します。資源IDの終端返却はCoordinatorが担います。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs"
+            }
+          ]
         }
       },
       "presentation": {
@@ -823,7 +843,8 @@
           "IDataProvidableApplication": "surface",
           "MonoBehaviour": "external",
           "GridFieldDatabaseAdapter": "surface",
-          "ResourceStorageRulesDomain": "foundation"
+          "ResourceStorageRulesDomain": "foundation",
+          "SingularityCellAdapter": "middle"
         }
       },
       "number": "2.1"

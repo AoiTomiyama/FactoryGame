@@ -41,4 +41,5 @@ public enum CellTypeDomain
     Conveyor,
     ExportConveyor,
     Crossing,
+    Singularity,
 }

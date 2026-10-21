@@ -4,7 +4,7 @@
 
 確認日: 2026-10-14。対象コード: `901e72b4011dee5f912ec27cb255b2970d421c08` からのTRN-01差分。搬送先の識別・生存・操作を契約へ移し、現行仕様と検証は [搬送接点の契約](../spec/resource-transfer-state.md) を参照する。
 
-この文書は現在動く仕組みの静的説明である。[設計方針](architecture-guidelines.md)の到達像と区別する。未コミットの `ServiceLocatorAdapter.cs` は一覧に未採用候補として記載したが、現行ゲームの依存図には加えていない（呼出箇所なし）。`SampleSceneProfile.asset` の描画設定差分は存在を確認し、描画品質の評価を行わず境界の注記だけに反映した。IDEの4 XMLとServiceLocatorのmetaを含む着手前7ファイルは変更・コミット対象外。
+この文書は現在動く仕組みの静的説明である。[設計方針](architecture-guidelines.md)の到達像と区別する。
 
 ## 読み方と対象範囲
 
@@ -16,9 +16,9 @@
 
 2026-10-12の配色・分類更新では、foundationは根底の規則・共通基底、middleは具体実装・実行状態・制御、surfaceは接続・能力契約、externalは自プロジェクト外の依存または検証支援を表す。自repoの型は、図の外から参照する型でもexternalには分類しない。クラス図のnamespaceは説明上の囲みで、C#の名前空間ではない。状態図の開始・終了記号には役割を付けず、状態遷移とシーケンスの既存の分岐・処理順は保持する。
 
-## 通貨の取引基盤（ECO-01）
+## 通貨と初期特異点（ECO-01/02）
 
-2026-10-21にEconomyのDomain/Applicationと設定定義を追加した。[通貨の仕様・依存・検証](../spec/currency-wallet.md)を参照する。構成入口が価格カタログと共有残高を生成して渡す。現時点ではMainSceneへの配線はECO-02以降の対象であり、以下のシーン構成図は既存の接続を示す。
+2026-10-21にEconomyのDomain/Applicationと設定定義を追加した。[通貨の仕様・依存・検証](../spec/currency-wallet.md)を参照する。構成入口が価格カタログと共有残高を生成して渡す。ECO-02ではGeneratorが同じ残高と価格カタログを中央の特異点へ渡し、搬送成功時に換金する。[特異点・初期経路・保護・検証](../spec/currency-singularity.md)を参照する。
 
 ## 全体構成
 
@@ -32,7 +32,7 @@ flowchart LR
  subgraph Adapter["Adapter: Unityとの接続"]
   Input["Input: PlayerCursor / CameraController"]
   Grid["Grid: Generator / Database / Placer"]
-  Cells["Cells: 保管・採取・搬送・交差 / Crafter"]
+  Cells["Cells: 保管・採取・搬送・交差 / Crafter / 特異点"]
   Presentation["Transfers: ObjectPool / Animation"]
   UI["UI: View / Provider変換 / Renderer / 行"]
  end
@@ -40,6 +40,7 @@ flowchart LR
   Transfer["搬送Coordinator・Operation・Reservation・TransitStore"]
   Craft["CraftingOperation"]
   Read["UI読み取りProvider・データ値"]
+  Economy["Economy: 共有残高・取引・方向別換金予約"]
  end
  subgraph Domain["Domain: Unity非依存の規則"]
   Storage["ResourceStorageRules"]
@@ -56,6 +57,8 @@ flowchart LR
  Input --> Grid
  Grid --> Cells
  Grid --> UI
+ Cells --> Economy
+ Grid --> Economy
  Cells --> Transfer
  Cells --> Craft
  Cells --> Storage

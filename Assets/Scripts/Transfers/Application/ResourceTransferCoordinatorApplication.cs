@@ -73,8 +73,9 @@ public sealed class ResourceTransferCoordinatorApplication
 
             // 次のコンベアや交差セルは、確定の前に表示用IDを引き継ぐ。
             if (target is IResourceReusableApplication reusable) reusable.Reuse(direction, Operation.ResourceId);
-            if (!reservation.TryCommit()) throw new OperationCanceledException();
-            if (!Operation.TryComplete()) throw new InvalidOperationException("搬送の完了状態へ進めません。");
+            // 入金通知から切断・破棄されても、確定済み資源を再試行しない。
+            // 予約と搬送記録を閉じてから受け取り側の確定通知へ進む。
+            if (!reservation.TryCommit(Operation.TryComplete)) throw new OperationCanceledException();
             if (target is not IResourceReusableApplication)
             {
                 resources.Remove(Operation.ResourceId);

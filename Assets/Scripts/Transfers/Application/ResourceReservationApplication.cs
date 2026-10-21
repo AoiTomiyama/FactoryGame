@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using UnityEngine;
 
@@ -39,9 +40,12 @@ public sealed class ResourceReservationApplication
         return true;
     }
 
-    public bool TryCommit()
+    public bool TryCommit() => TryCommit(null);
+
+    internal bool TryCommit(Func<bool> completeOperation)
     {
         if (CurrentResult != Result.Pending || !_target.IsAlive) return false;
+        if (completeOperation != null && !completeOperation()) return false;
         // 再入で同じ予約を二度確定しないよう、受け取り側の呼び出しより先に閉じる。
         CurrentResult = Result.Committed;
         _target.StoreResource(Direction, Amount);

@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c6f16260cab4e94ad7cac42bbdbd9ae, type: 3}
+  m_Name: CurrencyEconomy
+  m_EditorClassIdentifier: Assembly-CSharp::CurrencyEconomyDefinition
+  initialBalance: 100
+  salePrices:
+  - resource: 2
+    price: 1
+  - resource: 1
+    price: 1
+  placementPrices:
+  - cell: 6
+    price: 20
+  - cell: 5
+    price: 20
+  - cell: 9
+    price: 5
+  - cell: 10
+    price: 5
+  - cell: 11
+    price: 10
+  - cell: 7
+    price: 15
+  - cell: 8
+    price: 30

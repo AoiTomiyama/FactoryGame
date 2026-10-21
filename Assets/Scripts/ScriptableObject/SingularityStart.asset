@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b78f64806b8493fa175893bc9deae39, type: 3}
+  m_Name: SingularityStart
+  m_EditorClassIdentifier: Assembly-CSharp::SingularityStartDefinition
+  economy: {fileID: 11400000, guid: 8479dfec7df98764eb320af53144d0cd, type: 2}
+  singularity: {fileID: 4995878017902081181, guid: 1e4d88debd657e1409cfd23e30825a0d, type: 3}
+  wood: {fileID: 5769533041299315922, guid: 61951acb47f622b40bd14fc94c3b6359, type: 3}
+  empty: {fileID: 3770124899431596774, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}

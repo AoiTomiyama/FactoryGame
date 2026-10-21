@@ -43,14 +43,6 @@ ECO-01は取引基盤を提供する。MainSceneへの共有所有者の配線�
 - [共有残高](../../Assets/Scripts/Economy/Application/CurrencyWalletApplication.cs)、[取引](../../Assets/Scripts/Economy/Application/CurrencyTransactionApplication.cs)、[設定定義](../../Assets/Scripts/Economy/Definitions/CurrencyEconomyDefinition.cs)
 - [Editor検証](../../Assets/Scripts/Economy/Editor/CurrencyWalletVerifierEditor.cs): `CurrencyWalletVerifierEditor.Run`。数量・価格の境界、定義不正、設定コピー、残高不足・上限、入金競合、支出取消、終端の一回性、再入・通知例外を確認する。4予約の24処理順×16確定/取消の384ケースを独立した残高モデルと照合し、既存 `ResourceReservationVerifierEditor.Run` を同じ起動で実行する。
 
-## 検証証拠
+## MainSceneへの接続
 
-6つのC#ファイルをパス順で並べた `path SHA256\n`（UTF-8）のSHA256は `93ad8064e3e51327230adc58ab8415100dc261dcc698aede9a16566088ce0f2c`。対象コードは `b6a5d8e7dd5514c927446c4adb7803fcefe130ee` からの `Assets/Scripts/Economy/` 追加差分。Unity 6000.3.8f1のバッチ・描画なしで `CurrencyWalletVerifierEditor.Run` を実行し、コンパイル、通貨7,378項目と既存資源予約のEdit Mode検証が成功した。プロセス終了コード0、41.93秒。起動1回、再検証0回、仕様の取り違えによる手戻り0件。
-
-コマンド引数は `-batchmode -nographics -quit -projectPath C:/Users/Taomo/Unity/FactoryGame -executeMethod CurrencyWalletVerifierEditor.Run -logFile <log>`。ログはローカルの `~/.codex/runtime/FactoryGame-ECO01-wallet.log`。CSコンパイル警告・エラーは0件。ライセンス更新のaccess token警告と終了時のCurl error 42が出たが、検証成功ログとUnityプロセス終了コード0を確認した。新規コードはUnity非依存の計算・状態とSO入力であり、Play Mode・プレイヤービルドはECO-01では実行していない。
-
-meta監査は重複GUID・孤立meta・meta不足0件。既存のシーン・Prefab・設定アセットは変更していない。文章検査のerrorは0件。制約に関する警告は予約上限と既存設計の境界を説明するため保持した。
-
-## 着手前の差分
-
-SampleSceneProfileのfilter追加・MotionBlur有効化は描画結果と採用意図が未確認。未使用ServiceLocatorは破棄済みオブジェクトと登録解除の利用契約が未確定。IDEの4 XMLはローカルのCopilot移行記録。既存の[差分レビュー](cell-status-ui.md#着手前の差分レビュー)と照合し、これら7ファイルを保持した。描画比較、ServiceLocatorの採用判断と寿命検証は各変更を扱う際に行う。
+ECO-02でGeneratorが共有残高と価格カタログを生成し、特異点へ渡す構成を追加した。[特異点の仕様と検証](currency-singularity.md)を参照する。

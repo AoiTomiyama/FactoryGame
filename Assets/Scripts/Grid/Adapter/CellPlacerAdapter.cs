@@ -76,7 +76,8 @@ public class CellPlacerAdapter : MonoBehaviour
             if (cell == null) continue;
             // _cachedCellがEmptyCellの場合は、全て置き換える
             // そうでない場合は、置く先がEmptyCellでない場合、置き換えを行う
-            if (_cachedCell is EmptyCellAdapter || cell is EmptyCellAdapter)
+            if (cell is not ResourceCellAdapter && cell is not SingularityCellAdapter &&
+                (_cachedCell is EmptyCellAdapter || cell is EmptyCellAdapter))
             {
                 // 置き換え可能なセルを選択
                 newSelection.Add(cell);
@@ -145,6 +146,9 @@ public class CellPlacerAdapter : MonoBehaviour
     /// </summary>
     private void ReplaceCell(CellBaseAdapter replaceTarget)
     {
+        if (replaceTarget is ResourceCellAdapter || replaceTarget is SingularityCellAdapter ||
+            _cachedCell is ResourceCellAdapter || _cachedCell is SingularityCellAdapter) return;
+
         // 置こうとしているセル、および選択されているセルがEmptyCellでない場合、上書きが発生してしまうため中断する
         if (_cachedCell == null || replaceTarget == null ||
             _cachedCell is not EmptyCellAdapter && replaceTarget is not EmptyCellAdapter)
@@ -196,6 +200,7 @@ public class CellPlacerAdapter : MonoBehaviour
 
     public void SetSelectedCellType(CellTypeDomain cellType)
     {
+        if (cellType == CellTypeDomain.Singularity) return;
         foreach (var database in cellDatabaseArr)
         {
             if (!database.TryGetCellInfo(cellType, out var cellInfo)) continue;
