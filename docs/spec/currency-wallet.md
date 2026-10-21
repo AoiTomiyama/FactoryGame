@@ -7,7 +7,7 @@
 
 一プレイの構成入口が `CurrencyEconomyDefinition.CreateCatalog()` で設定のコピーを取得し、`new CurrencyWalletApplication(catalog.InitialBalance)` で共有残高を生成する。同じ残高インスタンスとカタログを利用先へ渡し、再開始時に作り直す。Application/DomainはUnity非依存。操作と購読はUnityのメインスレッドで行う。
 
-ECO-01は取引基盤を提供する。MainSceneへの共有所有者の配線と搬送換金はECO-02、設置課金はECO-03、画面表示はECO-05で接続する。現在のセル配置・搬送動作は既存経路を使う。
+ECO-01は取引基盤を提供する。MainSceneの共有所有者と搬送換金は[特異点仕様](currency-singularity.md)、ECO-03の設置課金は[設備設置仕様](currency-placement.md)を参照する。残高・強化・スキルの統合表示はECO-05で接続する。
 
 ## 数値と設定
 

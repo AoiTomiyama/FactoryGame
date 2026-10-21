@@ -62,18 +62,25 @@ sequenceDiagram
   P->>P: 配置可能な範囲とプレビューを更新
  end
  I->>P: PointerEnd
- loop 選択範囲の有効プレビュー
-  P->>O: 接続型ならOnDisconnect
-  P->>O: Destroy(gameObject)
-  P->>N: キャッシュをInstantiate
+ loop ドラッグ開始から終端への有効候補
+  P->>P: 対象確認・支出予約・対象再確認
+  P->>N: 非アクティブなキャッシュをInstantiate
   P->>F: SaveCell(x,z,newCell)
   P->>N: SetActive(true) / InitializeSystem
   N->>F: 隣接座標を検索し相互参照更新・通知
-  P->>V: 状態表示またはEmptyなら閉じる
+  alt 生成・登録・初期化が成功
+   P->>O: 切断・無効化・Destroy
+   P->>P: 選択参照更新・支出確定
+   P->>V: 状態表示または撤去なら閉じる
+  else 不足・失敗
+   P->>F: 登録失敗時は旧セル参照へ復元
+   P->>N: 生成済みなら切断・無効化・Destroy
+   P->>P: 支出予約取消・範囲停止
+  end
  end
 ```
 
-根拠: [Cursor](../../Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs)、[Placer](../../Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs)、[Connectable](../../Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs)。空セルへの配置またはEmptyによる削除だけを許す。UnityのDestroyは破棄予約だが、切断と配列差替えを先に処理する。
+根拠: [Cursor](../../Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs)、[Placer](../../Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs)、[設置取引](../../Assets/Scripts/Economy/Application/EquipmentPlacementApplication.cs)、[Connectable](../../Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs)。空セルへの設置と設備撤去を扱う。新セルの登録・初期化成功後に旧セルを退役させ、失敗時はグリッドと支出予約を戻す。詳細は[設備設置仕様](../spec/currency-placement.md)を参照する。
 
 ## 搬送の予約・演出・確定
 

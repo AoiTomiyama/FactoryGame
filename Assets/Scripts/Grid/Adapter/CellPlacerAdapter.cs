@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -10,19 +11,39 @@ public class CellPlacerAdapter : MonoBehaviour
     private GameObject _placeholderCell;
     private readonly HashSet<(CellBaseAdapter cell, GameObject placeholder)> _selectedRangeCells = new();
     private Vector3Int _dragBeginPos;
+    private Vector3Int _dragEndPos;
+    private CellTypeDomain _selectedType;
+    private EquipmentPlacementApplication _placement;
+    private CurrencyPriceCatalogDomain _prices;
+    private bool _placing;
+    private GUIStyle _costStyle;
+    public int PreviewCount => _selectedRangeCells.Count(t => t.placeholder.activeSelf);
+    public long PreviewCost => _prices != null && _prices.TryGetPlacementAmount(_selectedType, PreviewCount, out var cost) ? cost : 0;
+    public int LastPlacedCount { get; private set; }
+    public long LastPlacementCost { get; private set; }
+    public EquipmentPlacementApplication.Result LastPlacementResult { get; private set; }
+
+    public void Configure(CurrencyWalletApplication wallet, CurrencyPriceCatalogDomain prices)
+    {
+        if (_placing) throw new InvalidOperationException("Cannot configure placement during a transaction.");
+        _prices = prices;
+        _placement = new EquipmentPlacementApplication(wallet, prices);
+    }
 
     private void Start() => SetSelectedCellType(CellTypeDomain.Empty);
 
     public void PointerBegin()
     {
-        if (_selectedCell == null) return;
+        if (_placing || _selectedCell == null) return;
         _dragBeginPos = Vector3Int.RoundToInt(_selectedCell.transform.position);
+        _dragEndPos = _dragBeginPos;
     }
 
     public void PointerDrag()
     {
-        if (_selectedCell == null) return;
-        FindRangedGrid(_dragBeginPos, Vector3Int.RoundToInt(_selectedCell.transform.position));
+        if (_placing || _selectedCell == null) return;
+        _dragEndPos = Vector3Int.RoundToInt(_selectedCell.transform.position);
+        FindRangedGrid(_dragBeginPos, _dragEndPos);
     }
 
     public void PointerEnd() => ReplaceRangedCells();
@@ -34,7 +55,7 @@ public class CellPlacerAdapter : MonoBehaviour
     /// <param name="target"></param>
     public void SelectGrid(GameObject target)
     {
-        if (target == null) return;
+        if (_placing || target == null) return;
 
         // 直前に選択されていたオブジェクトがある場合、その色を元に戻す
         if (_selectedCell != null)
@@ -72,12 +93,13 @@ public class CellPlacerAdapter : MonoBehaviour
             var x = isX ? i : fixedCoord;
             var z = isX ? fixedCoord : i;
 
+            if (!GridFieldDatabaseAdapter.Instance.IsWithinBounds(x, z)) continue;
             var cell = GridFieldDatabaseAdapter.Instance.GetCell(x, z);
             if (cell == null) continue;
-            // _cachedCellがEmptyCellの場合は、全て置き換える
-            // そうでない場合は、置く先がEmptyCellでない場合、置き換えを行う
+            // 撤去は設備だけ、設置は空セルだけを対象にする。
             if (cell is not ResourceCellAdapter && cell is not SingularityCellAdapter &&
-                (_cachedCell is EmptyCellAdapter || cell is EmptyCellAdapter))
+                (_cachedCell is EmptyCellAdapter && cell is not EmptyCellAdapter ||
+                 _cachedCell is not EmptyCellAdapter && cell is EmptyCellAdapter))
             {
                 // 置き換え可能なセルを選択
                 newSelection.Add(cell);
@@ -126,84 +148,116 @@ public class CellPlacerAdapter : MonoBehaviour
 
     private void ReplaceRangedCells()
     {
-        // 選択されているセルの中で、選択されていないセルを削除
+        if (_placing || _selectedRangeCells.Count == 0) return;
+        _placing = true;
+        LastPlacedCount = 0;
+        LastPlacementCost = 0;
+        LastPlacementResult = EquipmentPlacementApplication.Result.Success;
+        try
+        {
+            // HashSetの列挙順に依存せず、ドラッグ開始から終端へ一列で確定する。
+            var direction = _dragEndPos - _dragBeginPos;
+            var isX = Mathf.Abs(direction.x) >= Mathf.Abs(direction.z);
+            var sign = (isX ? direction.x : direction.z) < 0 ? -1 : 1;
+            var targets = _selectedRangeCells.Where(t => t.placeholder.activeSelf)
+                .OrderBy(t => sign * (isX ? t.cell.XIndex : t.cell.ZIndex)).ToArray();
+            foreach (var (cell, _) in targets)
+            {
+                LastPlacementResult = TryReplaceCell(cell, out var cost);
+                if (LastPlacementResult != EquipmentPlacementApplication.Result.Success) break;
+                LastPlacedCount++;
+                LastPlacementCost = checked(LastPlacementCost + cost);
+            }
+        }
+        finally { ClearRange(); _placing = false; }
+    }
+
+    private void ClearRange()
+    {
         foreach (var (cell, placeholder) in _selectedRangeCells)
         {
-            // 選択されているセルを置き換える
-            if (placeholder.activeSelf)
-            {
-                ReplaceCell(cell);
-            }
-
-            Destroy(placeholder);
+            if (cell != null) cell.CellModel.SetActive(true);
+            if (placeholder != null) Destroy(placeholder);
         }
-
         _selectedRangeCells.Clear();
     }
 
-    /// <summary>
-    /// 選択されているセルを新しいセルに置き換える
-    /// </summary>
+    // 既存の直接呼出しも同じ取引を通す。
     private void ReplaceCell(CellBaseAdapter replaceTarget)
     {
-        if (replaceTarget is ResourceCellAdapter || replaceTarget is SingularityCellAdapter ||
-            _cachedCell is ResourceCellAdapter || _cachedCell is SingularityCellAdapter) return;
+        if (_placing) return;
+        _placing = true;
+        try { TryReplaceCell(replaceTarget, out _); }
+        finally { _placing = false; }
+    }
 
-        // 置こうとしているセル、および選択されているセルがEmptyCellでない場合、上書きが発生してしまうため中断する
-        if (_cachedCell == null || replaceTarget == null ||
-            _cachedCell is not EmptyCellAdapter && replaceTarget is not EmptyCellAdapter)
-        {
-            Debug.LogWarning("セルの置き換えに失敗しました。セルが選択されているか、適切なPrefabが割り当てられているか確認してください。");
-            return;
-        }
-
-        // 選択されているセルの情報を取得
+    private EquipmentPlacementApplication.Result TryReplaceCell(CellBaseAdapter replaceTarget, out long cost)
+    {
+        cost = 0;
+        if (_placement == null || replaceTarget == null) return EquipmentPlacementApplication.Result.InvalidTarget;
         var x = replaceTarget.XIndex;
         var z = replaceTarget.ZIndex;
-        var objName = replaceTarget.name;
-        var pos = replaceTarget.transform.position;
-        var parent = replaceTarget.transform.parent;
-        var index = replaceTarget.transform.GetSiblingIndex();
+        var grid = GridFieldDatabaseAdapter.Instance;
+        CellBaseAdapter newCell = null;
+        bool Validate() => this != null && isActiveAndEnabled && replaceTarget != null &&
+            replaceTarget.isActiveAndEnabled && _cachedCell != null &&
+            replaceTarget is not ResourceCellAdapter && replaceTarget is not SingularityCellAdapter &&
+            _cachedCell is not ResourceCellAdapter && _cachedCell is not SingularityCellAdapter &&
+            (_cachedCell is EmptyCellAdapter ? replaceTarget is not EmptyCellAdapter : replaceTarget is EmptyCellAdapter) &&
+            grid.IsWithinBounds(x, z) && grid.GetCell(x, z) == replaceTarget;
 
-        if (replaceTarget is ConnectableCellBaseAdapter connectableCell)
+        var result = _placement.Execute(_selectedType, Validate, () =>
         {
-            connectableCell.OnDisconnect();
-        }
-
-        // セルを削除
-        Destroy(replaceTarget.gameObject);
-
-        // 新しいセルを生成
-        var newCell = Instantiate(_cachedCell, pos, transform.rotation, parent);
-        newCell.transform.SetSiblingIndex(index);
-        newCell.name = objName;
-
-        // 新しいセルの情報を保存
-        GridFieldDatabaseAdapter.Instance.SaveCell(x, z, newCell);
-        newCell.gameObject.SetActive(true);
-        newCell.InitializeSystem();
-
-        if (_cachedCell is not EmptyCellAdapter)
+            // 非アクティブな雛形から準備し、旧セルは初期化成功まで保持する。
+            newCell = Instantiate(_cachedCell, replaceTarget.transform.position, transform.rotation, replaceTarget.transform.parent);
+            newCell.name = replaceTarget.name;
+            newCell.transform.SetSiblingIndex(replaceTarget.transform.GetSiblingIndex());
+            grid.SaveCell(x, z, newCell);
+            if (grid.GetCell(x, z) != newCell) throw new InvalidOperationException("Cell registration failed.");
+            newCell.gameObject.SetActive(true);
+            newCell.InitializeSystem();
+            if (newCell == null || !newCell.isActiveAndEnabled || grid.GetCell(x, z) != newCell)
+                throw new InvalidOperationException("Cell initialization changed the registration.");
+        }, () =>
         {
-            CellStatusViewAdapter.Instance.UpdateUIStatusWindow(newCell);
-        }
-        else
+            try { if (newCell is ConnectableCellBaseAdapter connected) connected.OnDisconnect(); }
+            finally
+            {
+                grid.SaveCell(x, z, replaceTarget);
+                if (newCell != null) { newCell.gameObject.SetActive(false); Destroy(newCell.gameObject); }
+            }
+        }, () =>
         {
-            CellStatusViewAdapter.Instance.SetStatusWindowActive(false);
-        }
+            // 退役処理の例外でも、成立した設置と支出の対応を保つ。
+            try { if (replaceTarget is ConnectableCellBaseAdapter connected) connected.OnDisconnect(); }
+            catch (Exception exception) { Debug.LogException(exception); }
+            replaceTarget.gameObject.SetActive(false);
+            Destroy(replaceTarget.gameObject);
+            if (_selectedCell == replaceTarget) _selectedCell = newCell;
+        }, out cost);
 
-        if (_selectedCell == replaceTarget)
+        if (result == EquipmentPlacementApplication.Result.Success)
         {
-            _selectedCell = newCell;
+            try
+            {
+                if (_cachedCell is EmptyCellAdapter) CellStatusViewAdapter.Instance.SetStatusWindowActive(false);
+                else CellStatusViewAdapter.Instance.UpdateUIStatusWindow(newCell);
+            }
+            catch (Exception exception) { Debug.LogException(exception); }
         }
+        return result;
     }
 
     public void SetSelectedCellType(CellTypeDomain cellType)
     {
-        if (cellType == CellTypeDomain.Singularity) return;
+        if (_placing || cellType == CellTypeDomain.Singularity ||
+            cellType == CellTypeDomain.ResourceWood || cellType == CellTypeDomain.ResourceStone ||
+            cellType == CellTypeDomain.ResourceIron) return;
         foreach (var database in cellDatabaseArr)
         {
             if (!database.TryGetCellInfo(cellType, out var cellInfo)) continue;
+            ClearRange();
+            _selectedType = cellType;
 
             // _selectedCellType = cellInfo.CellTypeDomain;
             Destroy(_placeholderCell);
@@ -221,5 +275,25 @@ public class CellPlacerAdapter : MonoBehaviour
         }
 
         // Debug.LogWarning($"CellTypeDomain {_selectedCellType} の情報が見つかりません。");
+    }
+
+    private void OnDisable() { if (!_placing) ClearRange(); }
+
+    public string PreviewText => $"設置予定 {PreviewCount}個 / 費用 {PreviewCost}";
+    public string ResultText => $"確定 {LastPlacedCount}個 / 支出 {LastPlacementCost}" +
+        (LastPlacementResult == EquipmentPlacementApplication.Result.InsufficientFunds ? " / 残高不足" :
+         LastPlacementResult == EquipmentPlacementApplication.Result.Success ? "" : " / 配置を停止しました");
+
+    private void OnGUI()
+    {
+        if (_placement == null) return;
+        _costStyle ??= new GUIStyle(GUI.skin.box)
+        {
+            fontSize = 16,
+            alignment = TextAnchor.MiddleLeft,
+            padding = new RectOffset(12, 12, 8, 8)
+        };
+        GUI.Box(new Rect(12, Screen.height - 74, Mathf.Min(380, Screen.width - 24), 62),
+            PreviewText + "\n" + ResultText, _costStyle);
     }
 }

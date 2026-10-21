@@ -2057,7 +2057,7 @@
     },
     "architecture-sequences-2": {
       "source": "architecture-sequences.md",
-      "summary": "ボタンでセル種別を選び、カーソルのドラッグから配置を確定する代表経路を示します。旧セルの切断後に複製を登録し、有効化・初期化して状態表示へ渡します。入力の判定、配置の可否、Unityの破棄予約を区別して追う図です。",
+      "summary": "設備選択から範囲プレビュー、座標順の設置と支出確定までを示します。旧セルを保持したまま新セルを登録・初期化し、成功時に退役させます。失敗時はグリッドと支出予約を戻し、不足・失敗で範囲操作を停止します。",
       "nodes": {
         "B": {
           "description": "選択ボタンの文字、画像、色とクリックActionを設定するUIコンポーネントです。Builderから受け取ったActionをButton.onClickへ登録します。セルDBの検索や配置を自身で行わず、クリックを配置側などの処理へつなぎます。",
@@ -2069,11 +2069,15 @@
           ]
         },
         "P": {
-          "description": "配置するセル種別、選択セル、配置プレビューと非アクティブな複製キャッシュを管理します。入力からドラッグ範囲を決め、配置時は旧セルを切断・破棄して新セルを登録して初期化します。配置結果と右操作による選択情報は状態UIへ渡します。",
+          "description": "設備の選択、範囲プレビュー、座標順の確定を担います。共有残高の支出予約後に対象を再確認し、新セルの登録と初期化が成功してから旧セルを退役させて課金します。失敗時はグリッドと予約を戻し、途中不足でも確定済みセルを保持します。",
           "references": [
             {
               "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
               "symbol": "CellPlacerAdapter"
+            },
+            {
+              "path": "Assets/Scripts/Economy/Application/EquipmentPlacementApplication.cs",
+              "symbol": "EquipmentPlacementApplication"
             }
           ]
         },

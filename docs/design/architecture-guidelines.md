@@ -60,4 +60,4 @@ Unity のコンポーネント構成を土台とし、ゲームのルール、�
 
 ## 採用済みの追加実装計画（2026-10-15）
 
-[通貨ゲームループ実装計画](../tasks/currency-game-loop-plan.md) を採用した。採取資源の特異点搬送による換金、通貨での設置・個別強化、共有スキルによる全セルの該当能力への効果を8タスクとして管理する。計算はDomain、取引と成長状態はApplication、セル・配置・表示との接続はAdapterに置く。全量予約と確定・取消の一回性、搬送中資源と在庫の所有契約を踏襲する。2026-10-21にECO-01の[通貨取引基盤](../spec/currency-wallet.md)を追加した。ECO-02でMainSceneへ[特異点の搬送換金](../spec/currency-singularity.md)を接続した。Generatorが共有残高を所有し、方向別換金予約をApplication、セル寿命と接続を専用Adapterが担う。設置課金はECO-03で接続する。
+[通貨ゲームループ実装計画](../tasks/currency-game-loop-plan.md) を採用した。採取資源の特異点搬送による換金、通貨での設置・個別強化、共有スキルによる全セルの該当能力への効果を8タスクとして管理する。計算はDomain、取引と成長状態はApplication、セル・配置・表示との接続はAdapterに置く。全量予約と確定・取消の一回性、搬送中資源と在庫の所有契約を踏襲する。2026-10-21にECO-01の[通貨取引基盤](../spec/currency-wallet.md)を追加した。ECO-02でMainSceneへ[特異点の搬送換金](../spec/currency-singularity.md)を接続した。Generatorが共有残高を所有し、方向別換金予約をApplication、セル寿命と接続を専用Adapterが担う。ECO-03で[設備設置の取引](../spec/currency-placement.md)を接続した。設置Applicationが支出予約と復元を管理し、Placerが新セル初期化後の旧セル退役と範囲順序を担う。

@@ -145,7 +145,7 @@ public static class SingularityVerifierEditor
             Require(grid.GetCell(50, 50) == singularity, "singularity deletion protected");
             Place(placer, grid.GetCell(50, 46), CellTypeDomain.Empty, 0);
             Require(grid.GetCell(50, 46) is ResourceCellAdapter, "resource deletion protected");
-            var before = wallet.Current.Balance;
+            var before = wallet.Current.Balance - 30;
             Place(placer, grid.GetCell(50, 47), CellTypeDomain.ExtractorWood, 180);
             Place(placer, grid.GetCell(50, 48), CellTypeDomain.ExportConveyor, 0);
             Place(placer, grid.GetCell(50, 49), CellTypeDomain.Conveyor, 0);

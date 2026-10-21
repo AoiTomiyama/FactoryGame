@@ -70,6 +70,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
                 throw new InvalidOperationException("Initial starter route must be empty.");
         Prices = initialLayout.CreateCatalog();
         Wallet = new CurrencyWalletApplication(Prices.InitialBalance);
+        FindAnyObjectByType<CellPlacerAdapter>()?.Configure(Wallet, Prices);
         SingularityCellAdapter singularity = null;
         var count = 0;
         for (var x = 0; x < gridSize; x++)
