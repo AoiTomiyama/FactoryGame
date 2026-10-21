@@ -350,8 +350,8 @@ id: ECO-01
 uid: currency-wallet
 category: 経済
 title: 通貨残高と入出金取引を導入する
-status: pending
-updated_at: '2026-10-15T00:22:02.275858+09:00'
+status: in_progress
+updated_at: '2026-10-21T13:12:45.510297+09:00'
 ```
 
 ### 問題
@@ -361,7 +361,7 @@ updated_at: '2026-10-15T00:22:02.275858+09:00'
 非負longの共有残高、売価・価格定義、入出金予約と一回限りの確定・取消をDomain/Applicationへ実装する。
 
 ### 結論
-採用済み・未着手。依存は既存RES-02。数量・上限・不足・競合・取消・再入の検証を完了条件とする。 詳細はdocs/tasks/currency-game-loop-plan.mdを参照する。
+実装・対象検証完了、ハブのレビュー待ち。共有残高・価格定義・入出金予約と一回限りの確定・取消を追加。Unity 6000.3.8f1で通貨7,378項目と既存資源予約のEdit Mode検証が成功（終了0、41.93秒）。仕様・境界・再入と証拠はdocs/spec/currency-wallet.mdを参照。
 
 ## タスク
 ```yaml

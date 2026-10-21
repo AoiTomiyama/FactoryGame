@@ -4,7 +4,7 @@
 
 対象版・未コミット反映条件は [現行設計索引](current-architecture.md)。全 `Assets/Scripts/**/*.cs` を収録する。主な自作依存はコメントを除いた型参照を照合し、同ファイル内の補助型は型欄に示す。メソッドの全呼出一覧ではなく、設計図から実装を辿るための索引である。外部はusingに現れる名前空間であり、実使用の代表は図式の説明を参照する。入れ子型の名前は所属ファイルで識別する。
 
-確認ファイル数: 80（未コミットServiceLocatorを1件含む）。
+確認ファイル数: 86（ECO-01の追加6件、未コミットServiceLocatorを1件含む）。
 
 ## ランタイム・定義
 
@@ -111,3 +111,16 @@
 EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ検証入口で、独立したゲーム実行サービスではない。Test Runnerの外部パッケージ導入と自作Verifierの存在は区別する。CellDefinitionVerifierAdapterは `UNITY_EDITOR || DEVELOPMENT_BUILD` とコマンドラインflagで有効化する検証コードで、Releaseの通常ゲーム動作には含まれない。GridFieldGeneratorAdapterは同一コンポーネント中の生成処理だけUNITY_EDITOR限定。InlineSO/ReadOnly属性はランタイム側宣言、対応DrawerはEditor側である。ServiceLocatorは参照元がなく、Singletonを置き換えた設計として扱わない。
 
 `.meta`、ScriptableObject `.asset`、外部ライブラリはクラスファイル数に含めない。SO・Prefabの参照は [実際のUnity配線](current-architecture.md#実際のunity配線)を参照する。
+
+## ECO-01の追加スクリプト（2026-10-21）
+
+[通貨取引の仕様と検証](../spec/currency-wallet.md)を参照する。上記の既存一覧に次の6ファイルを追加した。
+
+| ファイル | 責務・依存 |
+| --- | --- |
+| [CurrencyRulesDomain](../../Assets/Scripts/Economy/Domain/CurrencyRulesDomain.cs) | Unity非依存の価格×数量と上限判定 |
+| [CurrencyPriceCatalogDomain](../../Assets/Scripts/Economy/Domain/CurrencyPriceCatalogDomain.cs) | 売価・設備価格の検証と固定。CurrencyRulesDomain、ResourceTypeDomain、CellTypeDomainを使う |
+| [CurrencyWalletApplication](../../Assets/Scripts/Economy/Application/CurrencyWalletApplication.cs) | 残高と予約合計、スナップショット通知。CurrencyTransactionApplicationを生成する |
+| [CurrencyTransactionApplication](../../Assets/Scripts/Economy/Application/CurrencyTransactionApplication.cs) | 一件の予約額と終端。所有するCurrencyWalletApplicationを更新する |
+| [CurrencyEconomyDefinition](../../Assets/Scripts/Economy/Definitions/CurrencyEconomyDefinition.cs) | ScriptableObject設定をCurrencyPriceCatalogDomainへ複製する |
+| [CurrencyWalletVerifierEditor](../../Assets/Scripts/Economy/Editor/CurrencyWalletVerifierEditor.cs) | 通貨境界・再入と既存ResourceReservationVerifierEditorの回帰検証 |
