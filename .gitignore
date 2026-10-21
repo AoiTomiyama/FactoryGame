@@ -73,3 +73,15 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# Codex local instructions, plans and verification records
+/AGENTS.md
+/docs/tasks/
+/docs/knowledge/
+/docs/verification/
+/docs/design/architecture-guidelines.md
+/docs/design/script-organization.md
+/docs/design/architecture-diagram-verification.md
+/docs/design/crafting-separation-plan.md
+/docs/design/resource-transfer-responsibilities.md
+/docs/design/diagrams/verification.json
