@@ -6,6 +6,8 @@
 
 この文書は現在動く仕組みの静的説明である。[設計方針](architecture-guidelines.md)の到達像と区別する。
 
+PRG-01の能力合成は[設備の有効能力](../spec/effective-stats.md)を参照する。グリッドが共有効果を所有し、登録時に各設備へ渡す。セルは個別レベルと基礎設定から有効値を読み、稼働中の数量・予約・加工計画を保持する。
+
 ## 読み方と対象範囲
 
 原本は各Markdownの `mermaid` ブロック。概要から機能別へ読む。[セル・配置](architecture-cells-grid.md)、[搬送・加工](architecture-transfers-crafting.md)、[UI・イベント](architecture-ui-events.md)、[起動と操作シーケンス](architecture-sequences.md)、[全スクリプト対応表](script-catalog.md)で実ファイルに遡れる。既存閲覧用SVGと説明更新・検証手順は [図の検証記録](architecture-diagram-verification.md)を参照する。

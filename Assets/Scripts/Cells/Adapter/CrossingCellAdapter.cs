@@ -29,7 +29,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         base.InitializeSystem();
     }
 
-    private void OnDestroy() => Shutdown();
+    protected override void OnDestroy() { base.OnDestroy(); Shutdown(); }
 
     private void Shutdown()
     {

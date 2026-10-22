@@ -4,13 +4,22 @@
 
 対象版・未コミット反映条件は [現行設計索引](current-architecture.md)。全 `Assets/Scripts/**/*.cs` を収録する。主な自作依存はコメントを除いた型参照を照合し、同ファイル内の補助型は型欄に示す。メソッドの全呼出一覧ではなく、設計図から実装を辿るための索引である。外部はusingに現れる名前空間であり、実使用の代表は図式の説明を参照する。入れ子型の名前は所属ファイルで識別する。
 
-確認ファイル数: 94（ECO-01の追加6件、ECO-02の追加5件、ECO-03の追加3件、未コミットServiceLocatorを1件含む）。
+確認ファイル数: 98（ECO-01の追加6件、ECO-02の追加5件、ECO-03の追加3件、PRG-01の追加4件、未コミットServiceLocatorを1件含む）。
+
+## 設備能力（PRG-01）
+
+| ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
+| --- | --- | --- | --- |
+| [EffectiveStatsRulesDomain](../../Assets/Scripts/Progression/Domain/EffectiveStatsRulesDomain.cs)<br>EffectiveStatsRulesDomain, StatBranchDomain | 能力合成、切り捨て、範囲と最大値検証 | 標準C# | 標準C# |
+| [EquipmentLevelApplication](../../Assets/Scripts/Progression/Application/EquipmentLevelApplication.cs) | 設備ごとのレベルと増加制約 | EffectiveStatsRulesDomain | 標準C# |
+| [SharedStatEffectsApplication](../../Assets/Scripts/Progression/Application/SharedStatEffectsApplication.cs) | 一プレイの枝別加算率と変更通知 | EffectiveStatsRulesDomain, StatBranchDomain | 標準C# |
+| [EffectiveStatsVerifierEditor](../../Assets/Scripts/Progression/Editor/EffectiveStatsVerifierEditor.cs) | 基礎設定一致、計算境界、稼働中変更、予約維持と新設への適用検証 | Progression, Cells, Crafting, Grid, ResourceReservationVerifierEditor | UnityEditor, UnityEngine, UniTask |
 
 ## ランタイム・定義
 
 | ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
 | --- | --- | --- | --- |
-| [CellBaseAdapter](../../Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs)<br>CellBaseAdapter | 座標・モデル・初期化入口と搬送接点の識別・Unity破棄判定 | IResourceTransferEndpointApplication | UnityEngine |
+| [CellBaseAdapter](../../Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs)<br>CellBaseAdapter | 座標・モデル・初期化入口、搬送接点、個別レベルと共有能力の接続 | IResourceTransferEndpointApplication, EquipmentLevelApplication, SharedStatEffectsApplication, EffectiveStatsRulesDomain | UnityEngine |
 | [ConnectableCellBaseAdapter](../../Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs)<br>ConnectableCellBaseAdapter | 4方向の隣接参照と接続通知 | CellBaseAdapter, DirectionsDomain, EmptyCellAdapter, GridFieldDatabaseAdapter | UnityEngine |
 | [ConveyorCellAdapter](../../Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs)<br>ConveyorCellAdapter, TransferStatus | 一件のID受付・前方搬送・取消と終了 | CellBaseAdapter, ConnectableCellBaseAdapter, DirectionsDomain, IContainableApplication, IResourceReusableApplication, ResourceAnimationResultApplication, ResourceItemObjectPoolAdapter, ResourceTransferCoordinatorApplication, ResourceTransferOperationApplication, ResourceTypeDomain | Cysharp.Threading.Tasks, UnityEngine |
 | [CrossingCellAdapter](../../Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs)<br>CrossingCellAdapter, PendingTransfer | 方向別の下流予約・ID引継ぎ・保留搬送 | CellBaseAdapter, ConnectableCellBaseAdapter, IContainableApplication, IResourceReusableApplication, ResourceAnimationResultApplication, ResourceItemObjectPoolAdapter, ResourceReservationApplication, ResourceTransferCoordinatorApplication, ResourceTransferOperationApplication, ResourceTypeDomain | Cysharp.Threading.Tasks, UnityEngine |

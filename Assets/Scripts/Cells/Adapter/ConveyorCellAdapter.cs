@@ -17,7 +17,9 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     private bool _readyToSend;
     private int _incomingReservationAmount;
     private ResourceTypeDomain _incomingReservationType;
-    protected int TransferAmount => transferAmount;
+    public int TransferAmount => EffectiveStat(transferAmount, StatBranchDomain.Transfer);
+    public override bool SupportsProgression => true;
+    protected override void ValidateBaseStats() => EffectiveStatsRulesDomain.ValidateBase(transferAmount);
     protected bool HasResource { get; set; }
 
     /// <summary>
@@ -56,7 +58,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         StoreResourceAsync(_cts.Token).Forget();
     }
 
-    private void OnDestroy() => Shutdown();
+    protected override void OnDestroy() { base.OnDestroy(); Shutdown(); }
 
     private void Shutdown()
     {

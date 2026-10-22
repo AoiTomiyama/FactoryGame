@@ -29,7 +29,15 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     public ResourceTypeDomain ResourceTypeDomain => resourceType;
     public event Action StatusChanged;
 
-    public int StorageCapacity => storageCapacity;
+    public int StorageCapacity => EffectiveStat(storageCapacity, StatBranchDomain.Storage);
+    public int ExtractionAmount => EffectiveStat(extractionAmount, StatBranchDomain.Extraction);
+    public override bool SupportsProgression => true;
+    protected override void ValidateBaseStats()
+    {
+        EffectiveStatsRulesDomain.ValidateBase(storageCapacity);
+        EffectiveStatsRulesDomain.ValidateBase(extractionAmount);
+    }
+    protected override void OnStatsChanged() => UpdateUI();
 
     public IUIDataProviderApplication GetDataProvider() => CellStatusProviderAdapter.Create(this, extractorProvider);
 
@@ -60,8 +68,9 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
         StopExtraction();
     }
 
-    private void OnDestroy()
+    protected override void OnDestroy()
     {
+        base.OnDestroy();
         OnDisconnected -= StopForDisconnect;
         _initialized = false;
         _isActivate = false;
@@ -126,6 +135,8 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
             while (_isActivate && !token.IsCancellationRequested)
             {
                 await UniTask.WaitUntil(() => CurrentLoad < StorageCapacity, cancellationToken: token);
+                // 周期開始時の空きと抽出量を固定し、途中の強化は次周期へ反映する。
+                var cycleAmount = Mathf.Min(StorageCapacity - CurrentLoad, ExtractionAmount);
                 var completed = false;
                 tween = DOTween.To(() => ElapsedTime, x => ElapsedTime = x,
                         ExtractionSecond, ExtractionSecond)
@@ -135,7 +146,7 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
                 if (token.IsCancellationRequested || !completed || !_isActivate || !isActiveAndEnabled ||
                     !_initialized || target == null || ResolveForwardResource() != target) return;
                 ElapsedTime = 0;
-                CurrentLoad += Mathf.Min(StorageCapacity - CurrentLoad, extractionAmount);
+                CurrentLoad += cycleAmount;
                 UpdateUI();
                 tween = null;
             }

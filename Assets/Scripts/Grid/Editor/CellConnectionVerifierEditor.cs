@@ -98,6 +98,8 @@ public static class CellConnectionVerifierEditor
         var sibling = old.transform.GetSiblingIndex();
         UnityEngine.Object.DestroyImmediate(old.gameObject);
         var cell = CreateCell<T>(parent, x, z, rotation ?? Quaternion.identity);
+        if (cell is StorageCellAdapter)
+            typeof(StorageCellAdapter).GetField("capacity", PrivateInstance).SetValue(cell, 10);
         cell.transform.SetSiblingIndex(sibling);
         grid.SaveCell(x, z, cell);
         return cell;

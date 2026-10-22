@@ -4,6 +4,8 @@
 
 対象版・凡例は [現行設計索引](current-architecture.md)。ここでは管理対象状態と借用参照を区別する。GameObjectの寿命はUnity、配置時の生成・破棄はCellPlacerが制御する。
 
+設備の能力は[有効能力の契約](../spec/effective-stats.md)に従う。`GridFieldDatabaseAdapter.StatEffects` が共有効果を所有し、`SaveCell` が `CellBaseAdapter.ConfigureProgression` へ渡す。抽出・コンベア・保管・加工セルは `EffectiveStatsRulesDomain` の計算値を読み、個別レベル変更と共有通知で表示を更新する。交差セルは受領した固定数量を中継する。
+
 ## セル型と能力契約
 
 囲みは設計図を読むための分類で、C#の名前空間を表すものではない。配色のfoundationは共通基底、middleは具体セル、surfaceは能力契約、externalは自プロジェクト外の依存を示す。数量規則はfoundation、座標検索を提供するグリッドDBはsurfaceである。「外部と参照先」の囲みはexternalの色分類と同じ区分ではない。

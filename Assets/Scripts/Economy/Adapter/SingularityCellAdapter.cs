@@ -40,7 +40,7 @@ public sealed class SingularityCellAdapter : ConnectableCellBaseAdapter, IContai
         OnDisconnect();
         StopIntake();
     }
-    private void OnDestroy() => StopIntake();
+    protected override void OnDestroy() { base.OnDestroy(); StopIntake(); }
 
     private static int Input(Vector3Int dir)
         => dir == Vector3Int.right ? 0 : dir == Vector3Int.left ? 1 :

@@ -7,7 +7,10 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
     [SerializeField] private int capacity;
     [SerializeField] private StorageProviderDefinition dataProvider;
 
-    public int Capacity => capacity;
+    public int Capacity => EffectiveStat(capacity, StatBranchDomain.Storage);
+    public override bool SupportsProgression => true;
+    protected override void ValidateBaseStats() => EffectiveStatsRulesDomain.ValidateBase(capacity);
+    protected override void OnStatsChanged() => UpdateUI();
 
     public int CurrentLoad { get; private set; }
     public int AllocatedAmount { get; private set; }
@@ -32,14 +35,14 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
 
     public bool AllocateStorage(Vector3Int dir, int amount, ResourceTypeDomain resourceType)
     {
-        if (!ResourceStorageRulesDomain.TryReserve(capacity, Stock, amount, resourceType, out var next)) return false;
+        if (!ResourceStorageRulesDomain.TryReserve(Capacity, Stock, amount, resourceType, out var next)) return false;
         ApplyStock(next);
         return true;
     }
 
     public void StoreResource(Vector3Int dir, int amount)
     {
-        if (ResourceStorageRulesDomain.TryCommit(capacity, Stock, amount, out var next)) ApplyStock(next);
+        if (ResourceStorageRulesDomain.TryCommit(Capacity, Stock, amount, out var next)) ApplyStock(next);
     }
 
     public void CancelStorage(Vector3Int dir, int amount, ResourceTypeDomain resourceType)

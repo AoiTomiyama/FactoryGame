@@ -5,6 +5,7 @@ public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<Gri
 {
     private CellBaseAdapter[,] _gridCells;
     private int _gridSize;
+    public SharedStatEffectsApplication StatEffects { get; private set; } = new();
 
     /// <summary>
     /// 配列の初期化とセルの保存を行う
@@ -18,6 +19,7 @@ public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<Gri
             return;
         }
 
+        StatEffects = new SharedStatEffectsApplication();
         _gridCells = new CellBaseAdapter[size, size];
         _gridSize = size;
 
@@ -58,6 +60,8 @@ public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<Gri
             return;
         }
 
+        // 初期配置と購入配置を同じ入口で構成し、新設セルにも現在の共有効果を渡す。
+        cellBase.ConfigureProgression(StatEffects);
         _gridCells[x, z] = cellBase;
         cellBase.XIndex = x;
         cellBase.ZIndex = z;

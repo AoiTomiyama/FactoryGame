@@ -32,9 +32,16 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
 
     public ResourceTypeDomain ExportResourceType { get; private set; }
 
-    public int IngredientCapacity => ingredientCapacity;
+    public int IngredientCapacity => EffectiveStat(ingredientCapacity, StatBranchDomain.Storage);
 
-    public int ExporterCapacity => exporterCapacity;
+    public int ExporterCapacity => EffectiveStat(exporterCapacity, StatBranchDomain.Storage);
+    public override bool SupportsProgression => true;
+    protected override void ValidateBaseStats()
+    {
+        EffectiveStatsRulesDomain.ValidateBase(ingredientCapacity);
+        EffectiveStatsRulesDomain.ValidateBase(exporterCapacity);
+    }
+    protected override void OnStatsChanged() => UpdateUI();
 
     public IUIDataProviderApplication GetDataProvider() => CellStatusProviderAdapter.Create(this, crafterProvider);
 
@@ -70,7 +77,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
 
     private void OnEnable() => StartProcessing();
     private void OnDisable() => StopProcessing();
-    private void OnDestroy() => StopProcessing();
+    protected override void OnDestroy() { base.OnDestroy(); StopProcessing(); }
 
     private void StartProcessing()
     {

@@ -9,6 +9,46 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
     public int XIndex { get; set; }
     public int ZIndex { get; set; }
     public GameObject CellModel { get; private set; }
+    private SharedStatEffectsApplication _statEffects;
+    private readonly EquipmentLevelApplication _equipmentLevel = new();
+    public int EquipmentLevel => _equipmentLevel.Level;
+    public virtual bool SupportsProgression => false;
+
+    public void ConfigureProgression(SharedStatEffectsApplication effects)
+    {
+        if (!SupportsProgression) return;
+        if (effects == null) throw new ArgumentNullException(nameof(effects));
+        ValidateBaseStats();
+        if (ReferenceEquals(_statEffects, effects)) return;
+        // 再構成による容量減少を防ぎ、既存の在庫・予約をそのまま保持する。
+        if (_statEffects != null)
+            foreach (StatBranchDomain branch in Enum.GetValues(typeof(StatBranchDomain)))
+                if (effects.GetBonus(branch) < _statEffects.GetBonus(branch))
+                    throw new InvalidOperationException("Cannot reduce equipment effects.");
+        if (_statEffects != null) _statEffects.Changed -= OnStatsChanged;
+        _statEffects = effects;
+        _statEffects.Changed += OnStatsChanged;
+        OnStatsChanged();
+    }
+
+    public bool TrySetEquipmentLevel(int level)
+    {
+        if (!SupportsProgression || level < EquipmentLevel || level > EffectiveStatsRulesDomain.MaxLevel) return false;
+        ValidateBaseStats();
+        if (level == EquipmentLevel) return true;
+        _equipmentLevel.TrySet(level);
+        OnStatsChanged();
+        return true;
+    }
+
+    protected int EffectiveStat(int baseValue, StatBranchDomain branch)
+        => EffectiveStatsRulesDomain.Calculate(baseValue, EquipmentLevel, _statEffects?.GetBonus(branch) ?? 0);
+    protected virtual void ValidateBaseStats() { }
+    protected virtual void OnStatsChanged() { }
+    protected virtual void OnDestroy()
+    {
+        if (_statEffects != null) _statEffects.Changed -= OnStatsChanged;
+    }
 
     private void Awake()
     {
