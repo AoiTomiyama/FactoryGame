@@ -24,6 +24,10 @@ PRG-01の能力合成は[設備の有効能力](../spec/effective-stats.md)を�
 
 ECO-03では同じ残高をCellPlacerへ渡し、[設備設置の支出取引](../spec/currency-placement.md)へ接続した。新セルの登録・初期化成功時だけ課金し、失敗時は元のグリッド参照と予約額を復元する。範囲はドラッグ順に確定し、不足・失敗で停止する。設置見積りと確定個数・支出額を表示する。
 
+## 共有スキルと設備能力（PRG-01/02）
+
+能力合成とセル登録時の共有状態接続は [有効能力仕様](../spec/effective-stats.md)、ツリー定義・取得前提・購入取引は [共有スキルツリー仕様](../spec/skill-tree.md) を参照する。GeneratorはMainSceneのSkillTree定義からカタログを作り、共有残高とグリッドの共有効果を `SkillTreeApplication` へ渡す。取得状態と効果を更新して支出を確定し、能力とツリーの変更を通知する。全セルは同じ共有効果を読み、設備ごとのレベルと合成する。
+
 ## 全体構成
 
 <!-- diagram-id: current-architecture-1 -->
@@ -31,7 +35,7 @@ ECO-03では同じ残高をCellPlacerへ渡し、[設備設置の支出取引](.
 flowchart LR
  subgraph Scene["Unityシーン・Prefab・設定アセット"]
   Main["MainScene / グリッド子階層 / UI"]
-  SO["CellDatabase・ResourceDefinition・RecipeDatabase・Provider定義"]
+  SO["CellDatabase・ResourceDefinition・RecipeDatabase・Provider・SkillTree定義"]
  end
  subgraph Adapter["Adapter: Unityとの接続"]
   Input["Input: PlayerCursor / CameraController"]
@@ -44,9 +48,11 @@ flowchart LR
   Transfer["搬送Coordinator・Operation・Reservation・TransitStore"]
   Craft["CraftingOperation"]
   Read["UI読み取りProvider・データ値"]
+  Progression["Progression: 取得状態・共有能力・設備レベル"]
   Economy["Economy: 共有残高・取引・方向別換金予約"]
  end
  subgraph Domain["Domain: Unity非依存の規則"]
+  Stats["能力合成・スキル前提の定義規則"]
   Storage["ResourceStorageRules"]
   Recipe["RecipeRules / RecipePlan"]
   Enum["Cell / Resource / Direction列挙"]
@@ -62,6 +68,10 @@ flowchart LR
  Grid --> Cells
  Grid --> UI
  Cells --> Economy
+ Grid --> Progression
+ Cells --> Progression
+ Progression --> Economy
+ Progression --> Stats
  Grid --> Economy
  Cells --> Transfer
  Cells --> Craft

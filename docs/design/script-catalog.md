@@ -4,7 +4,16 @@
 
 対象版・未コミット反映条件は [現行設計索引](current-architecture.md)。全 `Assets/Scripts/**/*.cs` を収録する。主な自作依存はコメントを除いた型参照を照合し、同ファイル内の補助型は型欄に示す。メソッドの全呼出一覧ではなく、設計図から実装を辿るための索引である。外部はusingに現れる名前空間であり、実使用の代表は図式の説明を参照する。入れ子型の名前は所属ファイルで識別する。
 
-確認ファイル数: 98（ECO-01の追加6件、ECO-02の追加5件、ECO-03の追加3件、PRG-01の追加4件、未コミットServiceLocatorを1件含む）。
+確認ファイル数: 102（PRG-02の追加4件、ECO-01の追加6件、ECO-02の追加5件、ECO-03の追加3件、PRG-01の追加4件、未コミットServiceLocatorを1件含む）。
+
+## 共有スキル（PRG-02）
+
+| ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
+| --- | --- | --- | --- |
+| [SkillTreeCatalogDomain](../../Assets/Scripts/Progression/Domain/SkillTreeCatalogDomain.cs)<br>SkillTreeCatalogDomain, SkillNodeDomain | 不変ノード、固定uidと前提・価格・効果上限の定義検証 | EffectiveStatsRulesDomain, StatBranchDomain | 標準C# |
+| [SkillTreeApplication](../../Assets/Scripts/Progression/Application/SkillTreeApplication.cs)<br>SkillTreeApplication, SkillPurchaseResultApplication | 取得状態、購入可否、支出と共有効果の確定・通知 | SkillTreeCatalogDomain, CurrencyWalletApplication, CurrencyTransactionApplication, SharedStatEffectsApplication | 標準C# |
+| [SkillTreeDefinition](../../Assets/Scripts/Progression/Definitions/SkillTreeDefinition.cs) | 編集設定から不変カタログを生成 | SkillTreeCatalogDomain, SkillNodeDomain, StatBranchDomain | UnityEngine |
+| [SkillTreeVerifierEditor](../../Assets/Scripts/Progression/Editor/SkillTreeVerifierEditor.cs) | 定義・取引・再入と全設備の既設・再有効化・新設のI/II効果検証 | Progression, Economy, Grid, EffectiveStatsVerifierEditor | UnityEditor, UnityEngine, UniTask |
 
 ## 設備能力（PRG-01）
 

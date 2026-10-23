@@ -17,7 +17,7 @@
 
 ## 実行時状態と反映
 
-グリッドが一プレイの `SharedStatEffectsApplication` を所有し、`SaveCell` で初期配置・新設セルへ同じ参照を渡す。個別レベルはセルごとに1から始める。`TrySetEquipmentLevel` と `TrySetBonus` は増加と同値の設定を許可する。同値では通知を発行しない。購入費用、スキルの前提条件、取得済み状態は後続タスクECO-04・PRG-02で扱う。
+グリッドが一プレイの `SharedStatEffectsApplication` を所有し、`SaveCell` で初期配置・新設セルへ同じ参照を渡す。個別レベルはセルごとに1から始める。`TrySetEquipmentLevel` と `TrySetBonus` は増加と同値の設定を許可する。同値では通知を発行しない。スキルの前提・取得状態・支出は [共有スキルツリー](skill-tree.md) が管理し、取得と支出の確定後に能力変更を通知する。個別強化の購入費用はECO-04で扱う。
 
 個別レベルの実行時状態は `EquipmentLevelApplication` が保持する。セル基底はレベル更新前の基礎値検証と、更新後の数量表示通知を担う。
 

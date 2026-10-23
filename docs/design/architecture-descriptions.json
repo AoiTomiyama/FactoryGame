@@ -18,7 +18,7 @@
           ]
         },
         "SO": {
-          "description": "セル、資源、レシピ、表示項目のScriptableObject定義群です。配置用Prefab、アイコン、加工条件、表示ラベルを各機能へ供給します。共有設定を正本とし、セル在庫・搬送状態・選択中の表示値は別の実行時オブジェクトへ置きます。",
+          "description": "セル、資源、レシピ、表示項目のScriptableObject定義群です。配置用Prefab、アイコン、加工条件、表示ラベルを各機能へ供給します。共有設定を正本とし、セル在庫・搬送状態・選択中の表示値は別の実行時オブジェクトへ置きます。スキル定義は起動時に不変カタログへ変換し、購入後の取得状態はApplicationへ置きます。",
           "references": [
             {
               "path": "Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs",
@@ -35,6 +35,9 @@
             {
               "path": "Assets/Scripts/UI/Definitions/ProviderBaseDefinition.cs",
               "symbol": "ProviderBaseDefinition"
+            },
+            {
+              "path": "Assets/Scripts/Progression/Definitions/SkillTreeDefinition.cs"
             }
           ]
         },
@@ -329,6 +332,31 @@
               "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs"
             }
           ]
+        },
+        "Progression": {
+          "description": "一プレイの取得状態と枝別の共有能力、設備ごとのレベルを保持します。スキル購入では通貨の支出を予約し、取得と効果を更新して支出を確定します。全セルは共通の能力状態を参照し、新設セルにも現在の効果が及びます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Progression/Application/SkillTreeApplication.cs"
+            },
+            {
+              "path": "Assets/Scripts/Progression/Application/SharedStatEffectsApplication.cs"
+            },
+            {
+              "path": "Assets/Scripts/Progression/Application/EquipmentLevelApplication.cs"
+            }
+          ]
+        },
+        "Stats": {
+          "description": "基礎値・個別レベル・枝の加算率から整数の能力値を計算し、最大合成値を検証します。スキル定義は固定uidで前提を参照し、重複・欠落・循環や効果上限の不正を購入前に拒否します。実行中の取得状態はApplicationが保持します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Progression/Domain/EffectiveStatsRulesDomain.cs"
+            },
+            {
+              "path": "Assets/Scripts/Progression/Domain/SkillTreeCatalogDomain.cs"
+            }
+          ]
         }
       },
       "presentation": {
@@ -350,7 +378,9 @@
           "InputLib": "external",
           "UILib": "external",
           "Editor": "external",
-          "Economy": "middle"
+          "Economy": "middle",
+          "Progression": "middle",
+          "Stats": "foundation"
         }
       },
       "number": "1"

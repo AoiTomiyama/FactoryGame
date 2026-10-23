@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57d30d5b445241ce956361333e01479b, type: 3}
+  m_Name: SkillTree
+  m_EditorClassIdentifier:
+  nodes:
+  - uid: basic-research
+    label: 基礎研究
+    price: 50
+    prerequisite:
+    hasEffect: 0
+    branch: 0
+    bonusPercent: 0
+  - uid: extraction-1
+    label: 採取効率 I
+    price: 50
+    prerequisite: basic-research
+    hasEffect: 1
+    branch: 0
+    bonusPercent: 25
+  - uid: extraction-2
+    label: 採取効率 II
+    price: 100
+    prerequisite: extraction-1
+    hasEffect: 1
+    branch: 0
+    bonusPercent: 25
+  - uid: transfer-1
+    label: 搬送効率 I
+    price: 50
+    prerequisite: basic-research
+    hasEffect: 1
+    branch: 1
+    bonusPercent: 25
+  - uid: transfer-2
+    label: 搬送効率 II
+    price: 100
+    prerequisite: transfer-1
+    hasEffect: 1
+    branch: 1
+    bonusPercent: 25
+  - uid: storage-1
+    label: 保管効率 I
+    price: 50
+    prerequisite: basic-research
+    hasEffect: 1
+    branch: 2
+    bonusPercent: 25
+  - uid: storage-2
+    label: 保管効率 II
+    price: 100
+    prerequisite: storage-1
+    hasEffect: 1
+    branch: 2
+    bonusPercent: 25
