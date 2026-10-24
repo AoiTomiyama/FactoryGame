@@ -28,3 +28,5 @@
 [EquipmentUpgradeVerifierEditor.Run](../../Assets/Scripts/Economy/Editor/EquipmentUpgradeVerifierEditor.cs)は価格、不足、上限、long境界、重複要求、予約競合、通知再入・例外、変更後の再確認を検証する。MainSceneで全7種の価格と段階、同一インスタンス・位置・方向、削除・置換・無効化・座標変更、不正能力の失敗復元、交差の接続・予約・保持IDを確認する。
 
 同じ起動で[既存能力検証](../../Assets/Scripts/Progression/Editor/EffectiveStatsVerifierEditor.cs)を購入経由で実行し、抽出周期・搬送IDと数量・加工計画、在庫と予約、共有効果との合成を確認する。既存の数量・加工規則・接続の検証も含む。再生前にEditor音声を消音する。実行条件、対象コード、結果と最終ログはローカルの`docs/verification/eco04-equipment-upgrade.json`へ集約する。
+
+[SkillTreeVerifierEditor.Run](../../Assets/Scripts/Progression/Editor/SkillTreeVerifierEditor.cs)では、交差セルの個別レベル対応と共有効果を分けて確認する。共有スキルI/IIの取得前に予約した中継数量5と同じ処理・個別レベルを維持し、受け取り側の容量だけが共有効果で増加すること、取得後も元の予約を取り消せることを確認する。

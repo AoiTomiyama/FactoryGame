@@ -161,9 +161,25 @@ public static class SkillTreeVerifierEditor
             Require(storage.AllocateStorage(Vector3Int.back, 30, ResourceTypeDomain.Wood), "reserve existing capacity");
             storage.StoreResource(Vector3Int.back, 20);
             var identity = storage.Identity;
+            // 交差は個別レベルを持つが、中継数量は上流の予約値を使う。
+            for (var x = 27; x <= 30; x++)
+            for (var z = 21; z <= 23; z++) Install(grid, "Empty", x, z);
+            var crossing = (CrossingCellAdapter)Install(grid, "Crossing", 28, 22);
+            var crossingTarget = (StorageCellAdapter)Install(grid, "Storage", 29, 22);
+            crossingTarget.InitializeSystem();
+            crossing.InitializeSystem();
+            Require(crossing.SupportsProgression && crossing.TrySetEquipmentLevel(2), "crossing supports individual level");
+            Require(crossing.AllocateStorage(Vector3Int.right, 5, ResourceTypeDomain.Stone), "crossing fixes upstream quantity");
+            var crossingPending = (System.Collections.IDictionary)typeof(CrossingCellAdapter)
+                .GetField("_pending", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(crossing);
+            var crossingTransfer = crossingPending[Vector3Int.right];
+            var crossingOperation = (ResourceTransferOperationApplication)crossingTransfer.GetType().GetProperty("Operation").GetValue(crossingTransfer);
             Require(tree.Purchase("basic-research") == SkillPurchaseResultApplication.Success, "scene root purchase");
             foreach (var branch in new[] { "extraction", "transfer", "storage" })
                 Require(tree.Purchase(branch + "-1") == SkillPurchaseResultApplication.Success, "scene tier one");
+            Require(crossing.EquipmentLevel == 2 && ReferenceEquals(crossingPending[Vector3Int.right], crossingTransfer) &&
+                crossingOperation.Amount == 5 && crossingTarget.AllocatedAmount == 5 && crossingTarget.Capacity == 62,
+                "tier one grows receiver capacity and preserves crossing level and upstream quantity");
             for (var index = 0; index < prefabNames.Length; index++)
             {
                 VerifyStats(existing[index], 25);
@@ -175,6 +191,11 @@ public static class SkillTreeVerifierEditor
             Require(existing[0].TrySetEquipmentLevel(3), "individual level composes with skills");
             foreach (var branch in new[] { "extraction", "transfer", "storage" })
                 Require(tree.Purchase(branch + "-2") == SkillPurchaseResultApplication.Success, "scene tier two");
+            Require(crossing.EquipmentLevel == 2 && ReferenceEquals(crossingPending[Vector3Int.right], crossingTransfer) &&
+                crossingOperation.Amount == 5 && crossingTarget.AllocatedAmount == 5 && crossingTarget.Capacity == 75,
+                "tier two preserves crossing level and upstream quantity");
+            crossing.CancelStorage(Vector3Int.right, 5, ResourceTypeDomain.Stone);
+            Require(crossingTarget.AllocatedAmount == 0 && crossingPending.Count == 0, "crossing reservation cancels after shared effects");
             for (var index = 0; index < prefabNames.Length; index++)
             {
                 VerifyStats(existing[index], 50);
@@ -186,8 +207,8 @@ public static class SkillTreeVerifierEditor
             storage.StoreResource(Vector3Int.back, 10);
             Require(storage.CurrentLoad == 30 && storage.AllocatedAmount == 0, "old reservation commits after purchase");
             Require(generator.Wallet.Current.Balance == 100 && generator.Wallet.Current.ReservedExpense == 0, "scene total charged once");
-            Require(!grid.GetCell(50, 50).SupportsProgression && !grid.GetCell(50, 46).SupportsProgression && !Install(grid, "Empty", 28, 20).SupportsProgression &&
-                !Install(grid, "Crossing", 28, 22).SupportsProgression, "cells without quantity remain unchanged");
+            Require(!grid.GetCell(50, 50).SupportsProgression && !grid.GetCell(50, 46).SupportsProgression && !Install(grid, "Empty", 28, 20).SupportsProgression,
+                "protected cells have no progression");
             Debug.Log($"Skill tree checks passed: {_checks} assertions; definitions, transactions, callbacks, scene wallet, all ability types, I/II, existing/reenabled/new cells.");
             EditorApplication.Exit(0);
         }

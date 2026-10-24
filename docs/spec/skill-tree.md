@@ -48,3 +48,5 @@ Domainは空定義、nullノード、空uid・名称、価格0以下、uid重複
 [SkillTreeVerifierEditor](../../Assets/Scripts/Progression/Editor/SkillTreeVerifierEditor.cs) の `Run` は定義不正、前提、不足、重複、long最大価格、通知再入と例外、予約後の再確認を検証する。同じ起動で通貨・資源予約の既存検証を実行し、MainSceneのPlay Modeで共有残高から全7ノードを購入する。抽出2種、通常・搬出コンベア、保管、加工についてI・IIそれぞれの既設・再有効化・新設セル、個別レベルの合成、在庫・予約・Identityの維持を確認する。
 
 `RunRegression` は消音を確認して既存 `EffectiveStatsVerifierEditor.Run` を実行し、稼働中の抽出・搬送・加工、予約確定、数量表示通知と購読寿命を確認する。実行条件・対象版・結果・ログはローカルの `docs/verification/prg02-skill-tree.json` に記録する。
+
+ECO-04の[交差セル対応](currency-equipment-upgrade.md)では、`Run`で個別レベルと共有数量効果を区別し、I/II取得前後の中継予約維持と取消を確認する。追加検証の結果はローカルの`docs/verification/eco04-equipment-upgrade.json`を参照する。
