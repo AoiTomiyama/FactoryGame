@@ -4,7 +4,15 @@
 
 対象版・未コミット反映条件は [現行設計索引](current-architecture.md)。全 `Assets/Scripts/**/*.cs` を収録する。主な自作依存はコメントを除いた型参照を照合し、同ファイル内の補助型は型欄に示す。メソッドの全呼出一覧ではなく、設計図から実装を辿るための索引である。外部はusingに現れる名前空間であり、実使用の代表は図式の説明を参照する。入れ子型の名前は所属ファイルで識別する。
 
-確認ファイル数: 102（PRG-02の追加4件、ECO-01の追加6件、ECO-02の追加5件、ECO-03の追加3件、PRG-01の追加4件、未コミットServiceLocatorを1件含む）。
+確認ファイル数: 105（ECO-04の追加3件、PRG-02の追加4件、ECO-01の追加6件、ECO-02の追加5件、ECO-03の追加3件、PRG-01の追加4件、未コミットServiceLocatorを1件含む）。
+
+## 個別強化（ECO-04）
+
+| ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
+| --- | --- | --- | --- |
+| [EquipmentUpgradeApplication](../../Assets/Scripts/Economy/Application/EquipmentUpgradeApplication.cs)<br>EquipmentUpgradeApplication, IEquipmentUpgradeTargetApplication, EquipmentUpgradeResultApplication | 期待レベル・価格・対象を照合し、レベルと支出の確定後に通知 | CurrencyWalletApplication, CurrencyPriceCatalogDomain, EffectiveStatsRulesDomain | 標準C# |
+| [EquipmentUpgradeAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentUpgradeAdapter.cs) | セルの実種別・生存・登録参照と固定座標を購入契約へ接続 | GridFieldDatabaseAdapter, CellBaseAdapter, EquipmentUpgradeApplication | Unityセル参照 |
+| [EquipmentUpgradeVerifierEditor](../../Assets/Scripts/Economy/Editor/EquipmentUpgradeVerifierEditor.cs) | 取引境界・再入・削除競合、全7種と交差予約、購入経由の稼働中状態維持の検証 | Economy, EffectiveStatsVerifierEditor, Grid, Cells | UnityEditor, UnityEngine |
 
 ## 共有スキル（PRG-02）
 

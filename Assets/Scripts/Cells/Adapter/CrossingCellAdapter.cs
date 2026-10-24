@@ -6,6 +6,8 @@ using UnityEngine;
 
 public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableApplication, IResourceReusableApplication
 {
+    // 独立した数量能力は持たず、購入レベルだけを保持して中継中の数量を維持する。
+    public override bool SupportsProgression => true;
     private readonly Dictionary<Vector3Int, IContainableApplication> _adjacentContainers = new();
     private readonly Dictionary<Vector3Int, PendingTransfer> _pending = new();
     private CancellationTokenSource _cts;

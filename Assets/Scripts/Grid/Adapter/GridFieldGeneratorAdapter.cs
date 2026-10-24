@@ -11,6 +11,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     [SerializeField] private SingularityStartDefinition initialLayout;
     [SerializeField] private SkillTreeDefinition skillTree;
     public SkillTreeApplication Skills { get; private set; }
+    public EquipmentUpgradeAdapter Upgrades { get; private set; }
     public CurrencyWalletApplication Wallet { get; private set; }
     public CurrencyPriceCatalogDomain Prices { get; private set; }
 
@@ -72,6 +73,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
                 throw new InvalidOperationException("Initial starter route must be empty.");
         Prices = initialLayout.CreateCatalog();
         Wallet = new CurrencyWalletApplication(Prices.InitialBalance);
+        Upgrades = new EquipmentUpgradeAdapter(grid, Wallet, Prices);
         if (skillTree == null) throw new InvalidOperationException("Skill tree definition must be assigned.");
         Skills = new SkillTreeApplication(skillTree.CreateCatalog(), Wallet, grid.StatEffects);
         FindAnyObjectByType<CellPlacerAdapter>()?.Configure(Wallet, Prices);

@@ -33,13 +33,23 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
 
     public bool TrySetEquipmentLevel(int level)
     {
+        var previous = EquipmentLevel;
+        if (!TrySetEquipmentLevelWithoutNotification(level)) return false;
+        if (previous != EquipmentLevel) OnStatsChanged();
+        return true;
+    }
+
+    // 購入経路は残高の確定後に通知し、購読先が支出と能力を同時に読み取れるようにする。
+    internal bool TrySetEquipmentLevelWithoutNotification(int level)
+    {
         if (!SupportsProgression || level < EquipmentLevel || level > EffectiveStatsRulesDomain.MaxLevel) return false;
         ValidateBaseStats();
         if (level == EquipmentLevel) return true;
         _equipmentLevel.TrySet(level);
-        OnStatsChanged();
         return true;
     }
+
+    internal void NotifyEquipmentStatsChanged() => OnStatsChanged();
 
     protected int EffectiveStat(int baseValue, StatBranchDomain branch)
         => EffectiveStatsRulesDomain.Calculate(baseValue, EquipmentLevel, _statEffects?.GetBonus(branch) ?? 0);

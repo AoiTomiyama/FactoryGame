@@ -30,6 +30,8 @@ ECO-03では同じ残高をCellPlacerへ渡し、[設備設置の支出取引](.
 
 ## 全体構成
 
+ECO-04の[個別強化](../spec/currency-equipment-upgrade.md)では、Generatorが共有残高と価格から`EquipmentUpgradeAdapter`を構成する。Adapterが対象セルの登録・寿命を確認し、Applicationが期待レベルと支出予約を照合する。同じセルのレベルと支出を確定してから能力変更を通知し、在庫・接続・予約・稼働中の数量を保持する。
+
 <!-- diagram-id: current-architecture-1 -->
 ```mermaid
 flowchart LR
@@ -40,6 +42,7 @@ flowchart LR
  subgraph Adapter["Adapter: Unityとの接続"]
   Input["Input: PlayerCursor / CameraController"]
   Grid["Grid: Generator / Database / Placer"]
+  Upgrade["Economy: 設備強化のセル接続"]
   Cells["Cells: 保管・採取・搬送・交差 / Crafter / 特異点"]
   Presentation["Transfers: ObjectPool / Animation"]
   UI["UI: View / Provider変換 / Renderer / 行"]
@@ -49,7 +52,7 @@ flowchart LR
   Craft["CraftingOperation"]
   Read["UI読み取りProvider・データ値"]
   Progression["Progression: 取得状態・共有能力・設備レベル"]
-  Economy["Economy: 共有残高・取引・方向別換金予約"]
+  Economy["Economy: 共有残高・設置・強化取引・換金予約"]
  end
  subgraph Domain["Domain: Unity非依存の規則"]
   Stats["能力合成・スキル前提の定義規則"]
@@ -65,6 +68,9 @@ flowchart LR
  SO -. "定義を読む" .-> Cells
  SO -. "アイコン・表示項目" .-> UI
  Input --> Grid
+ Grid --> Upgrade
+ Upgrade --> Cells
+ Upgrade --> Economy
  Grid --> Cells
  Grid --> UI
  Cells --> Economy

@@ -323,13 +323,16 @@
           ]
         },
         "Economy": {
-          "description": "構成入口が一プレイの共有残高と価格カタログを生成し、特異点へ渡します。方向別の換金予約は数量・種別・換金額と入金余地を固定し、搬送の成功時に確定、取消や寿命終了時に解放します。",
+          "description": "一プレイの共有残高と予約取引を管理します。換金は方向別予約を成功時に入金し、設置は失敗時に登録と予約を戻します。個別強化では期待レベルと対象を再確認し、同じ設備のレベルと支出を通知前に確定します。",
           "references": [
             {
               "path": "Assets/Scripts/Economy/Application/SingularityIntakeApplication.cs"
             },
             {
-              "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs"
+              "path": "Assets/Scripts/Economy/Application/EquipmentPlacementApplication.cs"
+            },
+            {
+              "path": "Assets/Scripts/Economy/Application/EquipmentUpgradeApplication.cs"
             }
           ]
         },
@@ -357,6 +360,17 @@
               "path": "Assets/Scripts/Progression/Domain/SkillTreeCatalogDomain.cs"
             }
           ]
+        },
+        "Upgrade": {
+          "description": "Generatorが共有残高と価格から生成する個別強化の接続入口です。セルの実種別、生存と有効状態、固定座標と登録参照を購入処理へ渡し、レベル更新と支出の確定後に能力変更を通知します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Economy/Adapter/EquipmentUpgradeAdapter.cs"
+            },
+            {
+              "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs"
+            }
+          ]
         }
       },
       "presentation": {
@@ -380,7 +394,8 @@
           "Editor": "external",
           "Economy": "middle",
           "Progression": "middle",
-          "Stats": "foundation"
+          "Stats": "foundation",
+          "Upgrade": "surface"
         }
       },
       "number": "1"

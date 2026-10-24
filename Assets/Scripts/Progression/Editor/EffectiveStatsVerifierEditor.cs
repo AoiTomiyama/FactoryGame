@@ -10,6 +10,14 @@ public static class EffectiveStatsVerifierEditor
 {
     private const string SessionKey = "FactoryGame.EffectiveStatsVerification";
     private static int _checks;
+    private const string UpgradeKey = "FactoryGame.PaidUpgradeVerification";
+
+    public static void RunUpgrades()
+    {
+        EquipmentUpgradeVerifierEditor.VerifyRules();
+        SessionState.SetBool(UpgradeKey, true);
+        Run();
+    }
     static EffectiveStatsVerifierEditor() => EditorApplication.playModeStateChanged += state =>
     {
         if (state != PlayModeStateChange.EnteredPlayMode || !SessionState.GetBool(SessionKey, false)) return;
@@ -45,6 +53,8 @@ public static class EffectiveStatsVerifierEditor
         CellConnectionVerifierEditor.Run();
         EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity");
         SessionState.SetBool(SessionKey, true);
+        EditorUtility.audioMasterMute = true;
+        Require(EditorUtility.audioMasterMute, "editor muted before play");
         EditorApplication.isPlaying = true;
     }
 
@@ -91,6 +101,7 @@ public static class EffectiveStatsVerifierEditor
             await UniTask.Yield();
             var grid = GridFieldDatabaseAdapter.Instance;
             var effects = grid.StatEffects;
+            if (SessionState.GetBool(UpgradeKey, false)) EquipmentUpgradeVerifierEditor.VerifyScene();
             // 資源セルを含む既存の隣接参照が検証用の置換先を占有しないよう、空の区画を用意する。
             for (var x = 39; x <= 46; x++)
             for (var z = 39; z <= 48; z++)
@@ -102,7 +113,7 @@ public static class EffectiveStatsVerifierEditor
             var identity = storage.Identity;
             var notifications = 0;
             storage.StatusChanged += () => notifications++;
-            Require(storage.TrySetEquipmentLevel(2) && effects.TrySetBonus(StatBranchDomain.Storage, 25), "grow capacity");
+            Require(SetLevel(storage, 2) && effects.TrySetBonus(StatBranchDomain.Storage, 25), "grow capacity");
             Require(storage.Capacity == 125 && storage.CurrentLoad == 20 && storage.AllocatedAmount == 10 &&
                     ReferenceEquals(identity, storage.Identity) && notifications == 2, "stock, reservation, identity and UI preserved");
             storage.StoreResource(Vector3Int.back, 10);
@@ -122,7 +133,7 @@ public static class EffectiveStatsVerifierEditor
             { Set(cell, "extractionAmount", 4); Set(cell, "extractionSecond", .6f); });
             Require(extractor.ExtractionAmount == 4 && extractor.StorageCapacity == 15, "extractor baseline and storage branch");
             await Wait(() => extractor.ElapsedTime > .05f);
-            extractor.TrySetEquipmentLevel(2);
+            Require(SetLevel(extractor, 2), "upgrade active extraction");
             effects.TrySetBonus(StatBranchDomain.Extraction, 25);
             await Wait(() => extractor.CurrentLoad > 0);
             Require(extractor.CurrentLoad == 4 && extractor.ExtractionAmount == 10 && extractor.StorageCapacity == 30,
@@ -137,7 +148,7 @@ public static class EffectiveStatsVerifierEditor
             var pool = ResourceItemObjectPoolAdapter.Instance;
             var id = GetResourceId(exporter);
             Require(pool.TakeResourceDataById(id).amount == 5, "transfer captures base quantity");
-            exporter.TrySetEquipmentLevel(2);
+            Require(SetLevel(exporter, 2), "upgrade active export");
             effects.TrySetBonus(StatBranchDomain.Transfer, 50);
             Require(exporter.TransferAmount == 15 && GetResourceId(exporter) == id &&
                     pool.TakeResourceDataById(id).amount == 5, "in-flight ID and quantity fixed after growth");
@@ -146,7 +157,7 @@ public static class EffectiveStatsVerifierEditor
             await Wait(() => GetResourceId(exporter) != 0 && GetResourceId(exporter) != id);
             Require(pool.TakeResourceDataById(GetResourceId(exporter)).amount == 15, "next export uses effective quantity");
             var conveyor = Install<ConveyorCellAdapter>(grid, "Conveyor", 44, 46);
-            Require(conveyor.TransferAmount == 7 && conveyor.TrySetEquipmentLevel(3) && conveyor.TransferAmount == 22,
+            Require(conveyor.TransferAmount == 7 && SetLevel(conveyor, 3) && conveyor.TransferAmount == 22,
                 "normal conveyor uses same rule with floor");
 
             var crafter = Install<CrafterCellAdapter>(grid, "Crafter", 40, 40, 0, cell =>
@@ -162,7 +173,7 @@ public static class EffectiveStatsVerifierEditor
             await Wait(() => GetOperation(crafter) != null);
             var operation = GetOperation(crafter);
             crafter.AllocateStorage(Vector3Int.left, 2, ResourceTypeDomain.Stone);
-            crafter.TrySetEquipmentLevel(3);
+            Require(SetLevel(crafter, 3), "upgrade active crafting");
             Require(ReferenceEquals(operation, GetOperation(crafter)) && crafter.IngredientCapacity == 22 &&
                     crafter.ExporterCapacity == 45 && crafter.GetInput(DirectionsDomain.Left).Allocated == 2,
                 "growth preserves active plan and input reservation");
@@ -182,9 +193,19 @@ public static class EffectiveStatsVerifierEditor
                     notifications == beforeDestroy, "destroy detaches shared subscription");
             Require(new SharedStatEffectsApplication().GetBonus(StatBranchDomain.Storage) == 0, "new session resets effects");
             Debug.Log($"Effective stats checks passed: {_checks} assertions; rules, limits, baseline, active extraction/transfer/crafting, reservations, existing/new/reenabled cells and subscription lifetime.");
+            SessionState.EraseBool(UpgradeKey);
             EditorApplication.Exit(0);
         }
         catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
+    }
+
+    private static bool SetLevel(CellBaseAdapter cell, int level)
+    {
+        if (!SessionState.GetBool(UpgradeKey, false)) return cell.TrySetEquipmentLevel(level);
+        var generator = UnityEngine.Object.FindAnyObjectByType<GridFieldGeneratorAdapter>();
+        while (cell.EquipmentLevel < level)
+            if (generator.Upgrades.Purchase(cell, cell.EquipmentLevel) != EquipmentUpgradeResultApplication.Success) return false;
+        return cell.EquipmentLevel == level;
     }
 
     private static T Install<T>(GridFieldDatabaseAdapter grid, string prefab, int x, int z, float rotation = 0, Action<T> configure = null)
