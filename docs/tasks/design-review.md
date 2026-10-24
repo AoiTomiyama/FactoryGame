@@ -10,7 +10,7 @@
 
 全26項目のカテゴリ・優先順・進捗は [タスクリスト原本](task-list.md) で管理する。既存18項目は完了し、2026-10-15に採用した通貨ゲームループの8項目は未着手。仕様・依存順・完了条件は [実装計画](currency-game-loop-plan.md) を参照する。搬送先の具体セル基底への制約を除く `TRN-01`（uid: `R4`）の契約と検証は [搬送状態の契約](../spec/resource-transfer-state.md) に記録した。セル定義 `GRD-01`、抽出寿命 `RES-01`、専用状態取得 `UIS-01` は完了している。
 
-各項目の表示IDはカテゴリ英字3文字とカテゴリ内優先順2桁で表す。旧IDは固定uidとして原本に保存し、以下の完了記録と対応付ける。
+各項目はカテゴリ英字3文字と2桁番号の固定IDで識別する。優先順を変更してもIDを保持し、原本の配置順で並べる。旧IDは過去の完了記録を読むための識別として扱う。
 
 ## 新担当が状態と作成根拠を照合する手順
 
@@ -18,7 +18,7 @@
 
 1. `git status --short` とHEADを確認し、現在の依頼・原本・関連コードを照合する。着手前の差分は内容と所有者を確認する。
 2. [設計方針](../design/architecture-guidelines.md) と [現行設計索引](../design/current-architecture.md) から対象機能の仕様・コード・検証入口へ進む。仕様の契約と過去検証の実行版を区別する。
-3. Chronosのinventoryでid・uid・カテゴリ・状態・本文を取得する。過去文書の旧IDはuidと照合する。完了済み項目の再実装や新規項目の重複を防ぐため、問題・対象・完了条件も比較する。
+3. Chronosのinventoryで固定ID・カテゴリ・状態・本文を取得する。過去文書の旧IDは本書の根拠表と関連仕様から照合する。完了済み項目の再実装や新規項目の重複を防ぐため、問題・対象・完了条件も比較する。
 4. 新しいタスク提案には、コード・既存仕様・確認結果を根拠として問題、解決策、完了条件、仕様判断を示す。ユーザーが採用した範囲を原本へ登録する。仕様が未決定の採用項目はblockedと判断待ちを簡潔に記す。
 5. 依頼された工程を実施し、変更に直接関係する検証、現行仕様、原本の状態を揃えてコミットする。中断時は差分・検証結果・残作業を関連仕様へ記録する。
 
@@ -37,7 +37,7 @@
 | ECO-01〜06 / PRG-01〜02 | [通貨ゲームループ実装計画](currency-game-loop-plan.md)。ユーザーの計画・登録依頼と曖昧点補完の許可に基づく採用仕様、搬送換金、支出取引、設備強化、共有スキルと依存順 |
 | DEV-01 / DEV-02 | 本書の旧3、[配置・命名](../design/script-organization.md)、[グリッド検証入口](../../Assets/Scripts/Grid/Editor/GridFieldGeneratorVerifierEditor.cs)。Editor依存分離、GUID維持と配置整理 |
 
-上表と原本のuidから旧1〜5、A〜H、ORG-1、R1〜R4の記録へ到達できる。旧文書の「問題」「方針」「未着手」は記録当時の状態として読み、現行進捗は原本を使う。
+上表の関連仕様から旧1〜5、A〜H、ORG-1、R1〜R4の記録へ到達できる。旧文書の「問題」「方針」「未着手」は記録当時の状態として読み、現行進捗は原本を使う。
 
 ### カテゴリと優先順の判断
 
@@ -52,22 +52,22 @@
 | CRF / 加工 | レシピ判定・素材消費・確定と取消を一項目に集約 |
 | DEV / 開発基盤 | プレイヤービルドの成立、スクリプト配置・命名の順 |
 
-分類・再採番では英大文字3文字とカテゴリ名を一対一に対応させ、カテゴリ内の01〜99を使う。idが変わってもuidを固定し、移行済みの旧IDを別タスクへ再利用しない。数量や型名を含む本文の参照置換は共通CLIに任せて結果を照合する。
+新規登録はregisterでカテゴリ内の固定IDを採番する。既存IDを保持し、優先順の変更はorderで指定する。数量や型名を含む本文の意味と参照を照合する。
 
 2026-10-15にECO / 経済（残高、換金、設置、強化、表示、統合検証）とPRG / 成長（能力合成、共有ツリー）を追加した。カテゴリ内は基盤から利用側へ並べ、カテゴリ間の依存順は通貨ゲームループ実装計画を参照する。
 
 ### 原本の更新
 
-仕様は [ChronosカテゴリID契約](../../../../.codex/session-routing/docs/routing/chronos-category-ids.md)、形式は [タスクテンプレート](../../../../.codex/atlas/docs/chronos/chronos-task-list-template.md)、CLIは [Atlas更新仕様](../../../../.codex/atlas/docs/chronos/chronos-update-tool.md) と現行 `--help` を確認する。ローカル配信入口は `C:/Users/Taomo/.codex/atlas/chronos.py`。通信・担当管理は [ハブREADME](../../../../.codex/session-routing/README.md) から確認する。
+仕様は [ChronosカテゴリID契約](../../../../.codex/session-routing/docs/routing/chronos-category-ids.md)、形式は [タスクテンプレート](../../../../.codex/atlas/docs/chronos/chronos-task-list-template.md)、CLIは [Atlas更新仕様](../../../../.codex/atlas/docs/chronos/chronos-update-tool.md) と現行 `--help` を確認する。ローカル配信入口は `C:/Users/Taomo/.codex/atlas/chronos.cmd`。通信・担当管理は [ハブREADME](../../../../.codex/session-routing/README.md) から確認する。
 
 ```powershell
-python -X utf8 C:/Users/Taomo/.codex/atlas/chronos.py inventory --project factory
-python -X utf8 C:/Users/Taomo/.codex/atlas/chronos.py apply --project factory --request <更新JSON>
-python -X utf8 C:/Users/Taomo/.codex/atlas/chronos.py apply --project factory --request <更新JSON> --write
-python -X utf8 C:/Users/Taomo/.codex/atlas/chronos.py validate --project factory
+C:/Users/Taomo/.codex/atlas/chronos.cmd inventory --project factory
+C:/Users/Taomo/.codex/atlas/chronos.cmd apply --project factory --request <更新JSON>
+C:/Users/Taomo/.codex/atlas/chronos.cmd apply --project factory --request <更新JSON> --write
+C:/Users/Taomo/.codex/atlas/chronos.cmd validate --project factory
 ```
 
-共有CLI仕様にあるv1の例と、カテゴリID移行後のv2は版が異なる。現行原本の更新JSONはschema_version=2、最新inventoryのbase_revision、tasksを指定する。tasksのキーは表示idでなく固定uid。値は変更するid/category/title/status/sectionsを指定し、sectionsの問題・解決策・結論を簡潔に更新する。既存のuidを保持し、updated_atはCLIが変更した項目へ自動設定する。新規登録では一意のuid、id・category・title・statusと3節を揃える。プレビューの範囲、数量と意味の保持を確認してからwriteし、validateを通す。
+現行原本と更新JSONはschema_version=3。最新のbase_revisionと、固定IDをキーにしたtasksで変更するcategory/title/status/sectionsを指定する。並び順はorder、新規登録は登録キーを保持したregisterを使う。プレビューで対象と本文の意味を確認してからwriteし、validateを通す。
 
 原本は採用済みの実施項目を一プロジェクト一ファイルで管理し、完了項目も保持する。候補の評価は根拠文書へ記録し、ユーザーの採用判断を受けて原本へ反映する。タスク本文には問題・解決策・現在の結論を記し、詳細な検証や設計判断は関連仕様へリンクする。
 
