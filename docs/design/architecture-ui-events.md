@@ -110,6 +110,11 @@ flowchart LR
  end
  subgraph SelectedDisplay["選択状態の読み取りと表示"]
   View["CellStatusViewAdapter 選択中のみ購読"]
+  EconomyPanel["EconomyPanelAdapter 経済表示と購入"]
+  Wallet["CurrencyWalletApplication 共有残高"]
+  Skills["SkillTreeApplication 取得状態と前提"]
+  Upgrade["EquipmentUpgradeAdapter 強化対象と取引"]
+  SingularityReader["特異点専用Reader / CreateCustom"]
   Renderer["UIElementRendererAdapter"]
   Provider["CellStatusDataProviderApplication.ReadData"]
   Bridge["CellStatusProviderAdapter.Read"]
@@ -140,6 +145,22 @@ flowchart LR
  Renderer --> Rows
  Rows --> UnityUI
  CameraInput -. "購読とポーリング" .-> Camera
+ View -. "SelectionChanged" .-> EconomyPanel
+ Cells -. "選択中のStatusChanged" .-> EconomyPanel
+ Wallet -. "Changed" .-> EconomyPanel
+ Skills -. "Changed" .-> EconomyPanel
+ EconomyPanel --> Wallet
+ EconomyPanel --> Skills
+ EconomyPanel --> Upgrade
+ EconomyPanel --> Placer
+ Provider --> SingularityReader
+ SingularityReader --> Wallet
 ```
 
 点線は左から右へのイベント／値の授受、実線は利用側→依存先。InputActionはOnEnableで有効化・購読、OnDisableで解除。左ボタン開始→PointerBegin、保持中Update→PointerDrag、終了→PointerEnd、右操作→TransferDataToUI。回転操作はPlacerの向きを変える。選択ボタンはBuilderがDBから生成し通常ボタンにSetSelectedCellTypeを渡す。SubMenuUIBuilderは未完成の分岐を含み、完全なサブメニュー機構として図に展開しない。接続イベントは隣接参照を更新してから通知し、UIのStatusChangedとは別系統である。
+
+## 経済パネルと特異点の専用表示（ECO-05）
+
+GeneratorがEconomyPanelAdapterを構成し、共有残高・スキル・設備強化を渡す。パネルはCanPurchaseの結果で購入ボタンを制御し、命令を同じApplicationへ渡す。ViewのSelectedCellとSelectionChangedから対象を読み、Providerを持たない成長対象設備も強化対象として選択できる。
+
+特異点は専用ReaderとSingularityProviderDefinitionをCreateCustomへ渡す。残高と換金待ちを取得し、残高通知をStatusChangedへつなぐ。経済パネルは選択切替で前のセル、非表示・無効化・破棄で全購読を解除する。UIRaycasterはEventSystemの全Canvasを照合し、追加パネル上の操作をフィールドから遮る。表示項目・操作・検証入口は[経済UI仕様](../spec/currency-loop-ui.md)を参照する。

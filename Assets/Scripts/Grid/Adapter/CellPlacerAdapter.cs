@@ -16,7 +16,7 @@ public class CellPlacerAdapter : MonoBehaviour
     private EquipmentPlacementApplication _placement;
     private CurrencyPriceCatalogDomain _prices;
     private bool _placing;
-    private GUIStyle _costStyle;
+    private CurrencyWalletApplication _wallet;
     public int PreviewCount => _selectedRangeCells.Count(t => t.placeholder.activeSelf);
     public long PreviewCost => _prices != null && _prices.TryGetPlacementAmount(_selectedType, PreviewCount, out var cost) ? cost : 0;
     public int LastPlacedCount { get; private set; }
@@ -27,6 +27,7 @@ public class CellPlacerAdapter : MonoBehaviour
     {
         if (_placing) throw new InvalidOperationException("Cannot configure placement during a transaction.");
         _prices = prices;
+        _wallet = wallet;
         _placement = new EquipmentPlacementApplication(wallet, prices);
     }
 
@@ -187,7 +188,12 @@ public class CellPlacerAdapter : MonoBehaviour
     {
         if (_placing) return;
         _placing = true;
-        try { TryReplaceCell(replaceTarget, out _); }
+        try
+        {
+            LastPlacementResult = TryReplaceCell(replaceTarget, out var cost);
+            LastPlacedCount = LastPlacementResult == EquipmentPlacementApplication.Result.Success ? 1 : 0;
+            LastPlacementCost = LastPlacedCount == 1 ? cost : 0;
+        }
         finally { _placing = false; }
     }
 
@@ -279,21 +285,19 @@ public class CellPlacerAdapter : MonoBehaviour
 
     private void OnDisable() { if (!_placing) ClearRange(); }
 
-    public string PreviewText => $"設置予定 {PreviewCount}個 / 費用 {PreviewCost}";
+    public string PreviewText
+    {
+        get
+        {
+            if (_selectedType == CellTypeDomain.Empty) return $"撤去予定 {PreviewCount}個 / 無料・返金なし";
+            if (_prices == null || !_prices.TryGetPlacementAmount(_selectedType, 1, out var unit)) return "設置価格が無効です";
+            return $"{_selectedType} 単価 {unit}\n設置予定 {PreviewCount}個 / 費用 {PreviewCost}" +
+                (PreviewCost > (_wallet?.Current.AvailableBalance ?? 0) ? " / 残高不足で途中停止" : "");
+        }
+    }
     public string ResultText => $"確定 {LastPlacedCount}個 / 支出 {LastPlacementCost}" +
         (LastPlacementResult == EquipmentPlacementApplication.Result.InsufficientFunds ? " / 残高不足" :
-         LastPlacementResult == EquipmentPlacementApplication.Result.Success ? "" : " / 配置を停止しました");
-
-    private void OnGUI()
-    {
-        if (_placement == null) return;
-        _costStyle ??= new GUIStyle(GUI.skin.box)
-        {
-            fontSize = 16,
-            alignment = TextAnchor.MiddleLeft,
-            padding = new RectOffset(12, 12, 8, 8)
-        };
-        GUI.Box(new Rect(12, Screen.height - 74, Mathf.Min(380, Screen.width - 24), 62),
-            PreviewText + "\n" + ResultText, _costStyle);
-    }
+         LastPlacementResult == EquipmentPlacementApplication.Result.Success ? "" :
+         LastPlacementResult == EquipmentPlacementApplication.Result.InvalidTarget ? " / 設置先または価格が無効です" :
+         LastPlacementResult == EquipmentPlacementApplication.Result.Busy ? " / 設置処理中" : " / 設置に失敗しました");
 }

@@ -1,17 +1,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.UI;
 
 public class UIRaycasterAdapter : MonoBehaviour
 {
-    private GraphicRaycaster _graphicRaycaster;
-
-    private void Start()
-    {
-        _graphicRaycaster = GetComponent<GraphicRaycaster>();
-    }
-
     public bool IsPointerOverUI(Vector2 mousePosition)
     {
         var eventData = new PointerEventData(EventSystem.current)
@@ -19,7 +11,8 @@ public class UIRaycasterAdapter : MonoBehaviour
             position = mousePosition
         };
         var results = new List<RaycastResult>();
-        _graphicRaycaster.Raycast(eventData, results);
+        // 実行時に追加した経済パネルも含め、全Canvasの入力をフィールドから遮る。
+        EventSystem.current.RaycastAll(eventData, results);
         return results.Count > 0;
     }
 }

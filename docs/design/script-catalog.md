@@ -168,3 +168,11 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | [EquipmentPlacementApplication](../../Assets/Scripts/Economy/Application/EquipmentPlacementApplication.cs) | 支出予約・対象再確認・設置失敗復元・再入拒否 | CurrencyWalletApplication, CurrencyPriceCatalogDomain | 標準C# |
 | [EquipmentPlacementVerifierEditor](../../Assets/Scripts/Economy/Editor/EquipmentPlacementVerifierEditor.cs) | 設置取引の境界とMainSceneの配置・撤去・接続・表示検証 | EquipmentPlacementApplication, CellPlacerAdapter, CellConnectionVerifierEditor, UIStatusVerifierEditor | UnityEditor, UniTask |
 | [FailingPlacementCellAdapter](../../Assets/Scripts/Economy/Adapter/FailingPlacementCellAdapter.cs) | 初期化失敗・登録変更を注入するEditor限定セル | ConnectableCellBaseAdapter, GridFieldDatabaseAdapter | UnityEngine（UNITY_EDITOR限定） |
+
+## 経済UI（ECO-05）
+
+| ファイル | 役割 | 主な依存 |
+| --- | --- | --- |
+| [EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs) | 残高・換金・設置・強化・スキルの表示と購入操作、購読寿命 | CurrencyWalletApplication, SkillTreeApplication, EquipmentUpgradeAdapter, CellStatusViewAdapter, uGUI |
+| [SingularityProviderDefinition](../../Assets/Scripts/UI/Definitions/SingularityProviderDefinition.cs) | 特異点の専用Readerへ渡すラベル | ProviderBaseDefinition |
+| [EconomyUIVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs) | MainSceneの経済表示・購入可否・購読寿命・レイアウト検証、既存UIと設置の検証入口 | EconomyPanelAdapter, UIStatusVerifierEditor, EquipmentPlacementVerifierEditor, UnityEditor, UniTask |

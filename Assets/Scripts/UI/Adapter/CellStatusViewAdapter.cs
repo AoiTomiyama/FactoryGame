@@ -14,6 +14,8 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
     
     private IDataProvidableApplication _renderingCell;
     private CellBaseAdapter _selectedCell;
+    public CellBaseAdapter SelectedCell => _selectedCell;
+    public event Action<CellBaseAdapter> SelectionChanged;
 
     private readonly Dictionary<UIStatusRowTypeApplication, ObjectPool<UIStatusRowBaseAdapter>> _statusRowUIPool = new();
     private readonly Stack<(UIStatusRowTypeApplication, UIStatusRowBaseAdapter)> _activeStatusRows = new();
@@ -94,27 +96,33 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
     
     public void UpdateUIStatusWindow(CellBaseAdapter selectedCell)
     {
-        if (selectedCell == null || selectedCell is not IDataProvidableApplication renderingCell)
+        if (selectedCell == null)
         {
             SetStatusWindowActive(false);
             return;
         }
         if (_selectedCell == selectedCell) { SetStatusWindowActive(true); UpdateUI(); return; }
         DeactivateCurrentStatus();
-        var provider = renderingCell.GetDataProvider();
-        if (provider == null) { SetStatusWindowActive(false); return; }
+        var renderingCell = selectedCell as IDataProvidableApplication;
+        var provider = renderingCell?.GetDataProvider();
+        if (provider == null && !selectedCell.SupportsProgression) { SetStatusWindowActive(false); return; }
         _selectedCell = selectedCell;
         _renderingCell = renderingCell;
         // 選択中の表示だけが通知を受ける。切替・非表示・削除で購読を解除する。
-        _renderingCell.StatusChanged += UpdateUI;
-        _uiRenderer.InitUI(provider, CreateStatusRow);
+        if (provider != null)
+        {
+            _renderingCell.StatusChanged += UpdateUI;
+            _uiRenderer.InitUI(provider, CreateStatusRow);
+        }
+        SelectionChanged?.Invoke(_selectedCell);
         SetStatusWindowActive(true);
         if (selectionMarker != null) selectionMarker.position = selectedCell.transform.position;
     }
 
     private void LateUpdate()
     {
-        if (_renderingCell != null && _selectedCell == null) SetStatusWindowActive(false);
+        if (!ReferenceEquals(_selectedCell, null) && _selectedCell == null)
+            SetStatusWindowActive(false);
     }
 
     private void OnDisable() => SetStatusWindowActive(false);
@@ -124,6 +132,7 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
         if (_renderingCell != null) _renderingCell.StatusChanged -= UpdateUI;
         _renderingCell = null;
         _selectedCell = null;
+        SelectionChanged?.Invoke(null);
         ResetStatusUI();
     }
 

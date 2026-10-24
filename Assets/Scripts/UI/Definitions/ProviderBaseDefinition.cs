@@ -18,4 +18,9 @@ public struct LabelNameDefinition
     public LabelEnumApplication Label => label;
 
     public string Name => name;
+    public LabelNameDefinition(LabelEnumApplication label, string name)
+    {
+        this.label = label;
+        this.name = name;
+    }
 }

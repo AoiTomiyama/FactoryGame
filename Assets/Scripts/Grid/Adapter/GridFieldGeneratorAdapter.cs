@@ -92,6 +92,8 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         singularity.Configure(Wallet, Prices);
         // 登録と共有残高の構成後に接続を開始する。
         singularity.InitializeSystem();
+        var panel = GetComponent<EconomyPanelAdapter>() ?? gameObject.AddComponent<EconomyPanelAdapter>();
+        panel.Configure(Wallet, Skills, Upgrades, FindAnyObjectByType<CellStatusViewAdapter>(), FindAnyObjectByType<CellPlacerAdapter>());
     }
 
 #if UNITY_EDITOR

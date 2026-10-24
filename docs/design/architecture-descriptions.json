@@ -102,19 +102,15 @@
           ]
         },
         "UI": {
-          "description": "セル状態を表示値へ変換し、選択中のセルからの通知購読、行の取得と描画を担うUI群です。Viewが表示セッションを管理し、ProviderとRendererが読み取り・描画を分担します。セルの具体型に応じた変換はAdapterに残り、共通読み取り契約とは区別します。",
+          "description": "セルの選択状態をProviderで読み、Rendererと表示行で描画します。Generatorが経済パネルへ共有残高・強化・スキルを渡し、パネルは費用と購入可否を表示して購入命令をApplicationへ接続します。非表示時に購読を解除します。",
           "references": [
+            {
+              "path": "Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs",
+              "symbol": "EconomyPanelAdapter"
+            },
             {
               "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
               "symbol": "CellStatusViewAdapter"
-            },
-            {
-              "path": "Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs",
-              "symbol": "CellStatusProviderAdapter"
-            },
-            {
-              "path": "Assets/Scripts/UI/Adapter/UIElementRendererAdapter.cs",
-              "symbol": "UIElementRendererAdapter"
             }
           ]
         },
@@ -1733,15 +1729,11 @@
           ]
         },
         "Ray": {
-          "description": "UI上のポインター判定とワールド上の物理Raycastをまとめた入力経路です。カーソル側は先にUIRaycasterでUI操作を除外し、CameraからのRaycast結果を配置側のセル選択へ渡します。",
+          "description": "UIRaycasterがEventSystemの全Canvasを調べ、経済パネルを含むUI上の操作をフィールド入力から遮ります。UI外ではPlayerCursorがPhysics.Raycastでセルを取得し、選択と設置の操作へ渡します。",
           "references": [
             {
-              "path": "Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs",
-              "symbol": "PlayerCursorBehaviourAdapter"
-            },
-            {
               "path": "Assets/Scripts/UI/Adapter/UIRaycasterAdapter.cs",
-              "symbol": "UIRaycasterAdapter"
+              "symbol": "IsPointerOverUI"
             }
           ]
         },
@@ -1864,7 +1856,7 @@
           ]
         },
         "View": {
-          "description": "選択中のセル参照、変更通知の購読、表示窓と行プールを管理するUIコンポーネントです。選択時にProviderを取得してRendererへ渡します。非表示、選択変更、無効化、破棄で購読を解除して貸出行を返却し、破棄された選択セルも監視します。",
+          "description": "選択ごとにProviderと表示行を構成し、選択セルの変更通知を購読します。SelectedCellとSelectionChangedで経済パネルへ対象を渡し、既存Providerを持たない成長対象設備も選択できます。非表示・無効化・削除で選択と購読を解除します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
@@ -1997,6 +1989,51 @@
               "path": "docs/design/architecture-ui-events.md"
             }
           ]
+        },
+        "EconomyPanel": {
+          "description": "共有残高、換金通知、設置見積りと結果、選択設備の強化、スキル購入を表示します。Applicationの購入可否でボタンを制御し、選択切替では前のセル、非表示・無効化・破棄ではすべての購読を解除します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs",
+              "symbol": "EconomyPanelAdapter"
+            }
+          ]
+        },
+        "Wallet": {
+          "description": "一プレイの残高と入出金予約を所有し、確定済みのスナップショットを通知します。経済パネルは使用可能額と予約額を表示し、直前の残高より増えた通知から換金額を表示します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Economy/Application/CurrencyWalletApplication.cs",
+              "symbol": "CurrencyWalletApplication"
+            }
+          ]
+        },
+        "Skills": {
+          "description": "固定uidの前提条件と取得状態、共有能力の加算率を管理します。経済パネルはCanPurchaseの結果から取得可否と理由を表示し、ボタン操作を同じApplicationのPurchaseへ渡します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Progression/Application/SkillTreeApplication.cs",
+              "symbol": "SkillTreeApplication"
+            }
+          ]
+        },
+        "Upgrade": {
+          "description": "選択セルの生存、登録、座標と設備種別を購入Applicationへ接続します。経済パネルは現在レベルと次の強化費、購入可否を読み、操作時に再確認を伴う購入を要求します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Economy/Adapter/EquipmentUpgradeAdapter.cs",
+              "symbol": "EquipmentUpgradeAdapter"
+            }
+          ]
+        },
+        "SingularityReader": {
+          "description": "特異点の施設名、座標、残高と換金待ちを専用Readerで読み取ります。SingularityProviderDefinitionのラベルをCreateCustomへ渡して新しい表示値を返し、残高変更をセルのStatusChangedへ接続します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs",
+              "symbol": "GetDataProvider"
+            }
+          ]
         }
       },
       "presentation": {
@@ -2022,7 +2059,12 @@
           "Actions": "external",
           "Ray": "surface",
           "UnityUI": "external",
-          "CameraInput": "external"
+          "CameraInput": "external",
+          "EconomyPanel": "middle",
+          "Wallet": "middle",
+          "Skills": "middle",
+          "Upgrade": "middle",
+          "SingularityReader": "middle"
         }
       },
       "number": "6"

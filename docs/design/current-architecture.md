@@ -45,7 +45,7 @@ flowchart LR
   Upgrade["Economy: 設備強化のセル接続"]
   Cells["Cells: 保管・採取・搬送・交差 / Crafter / 特異点"]
   Presentation["Transfers: ObjectPool / Animation"]
-  UI["UI: View / Provider変換 / Renderer / 行"]
+  UI["UI: View / Provider変換 / Renderer / 行 / 経済パネル"]
  end
  subgraph Application["Application: 進行と契約"]
   Transfer["搬送Coordinator・Operation・Reservation・TransitStore"]
@@ -98,6 +98,9 @@ flowchart LR
  InputLib["Input System / Physics / Cinemachine"]
  UILib["uGUI / TextMeshPro"]
  end
+ UI --> Economy
+ UI --> Progression
+ UI --> Upgrade
 ```
 
 搬送Applicationは接点の契約を使い、セルの識別・Unity破棄判定はAdapter側が提供する。搬送契約はUnity座標型、演出契約はUniTaskも使う。UI/ApplicationとCrafting Domain/ApplicationはUnity非依存。Unity 6000.3.8f1、Input System 1.18.0、Cinemachine 3.1.4、uGUI 2.0.0、URP 17.3.0は [ProjectVersion](../../ProjectSettings/ProjectVersion.txt) と [manifest](../../Packages/manifest.json)で確認。UniTaskはGit依存、DOTweenはAssets内の既存プラグイン。Test Frameworkは検証境界で、ゲーム実行の入口ではない。
@@ -178,3 +181,7 @@ flowchart LR
 ## 更新・再開時
 
 コードや配線変更時は本索引から該当機能図と対応表を更新する。採用済み作業の状態は [タスクリスト](../tasks/task-list.md)、作成根拠・提案の採用判断・更新手順は [引継ぎ手順](../tasks/design-review.md) を参照する。将来の改修案は根拠文書へ記録し、ユーザーの採用判断を受けて原本へ反映する。R1は完了版を説明し再実装していない。R2の採取寿命は2026-10-13の実装差分を反映し、検証結果は抽出セルの契約へ記録する。R3の専用取得入口と検証はUI契約へ記録する。TRN-01の接点契約と検証は搬送状態の契約へ記録する。asmdef導入は別の判断事項として扱う。検証は構文・参照・静的整合性に限定し、ゲーム体験や配置動作の新たな実行証拠を意味しない。
+
+## 経済・成長の操作表示（ECO-05）
+
+[経済UI仕様](../spec/currency-loop-ui.md)に従い、Generatorが共有残高・スキル・強化処理をEconomyPanelAdapterへ渡す。パネルは残高と予約、換金通知、設置見積りと結果、選択設備の有効能力・強化費、スキルの前提・効果・可否を表示する。選択変更はViewのSelectionChanged、特異点の専用ReaderはCreateCustomへ接続する。パネルと選択の寿命に合わせて購読を解除する。

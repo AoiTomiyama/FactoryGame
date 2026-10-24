@@ -11,7 +11,7 @@
 
 ## 購入入口と取引
 
-[Generator](../../Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs)が一プレイの`Upgrades`を生成し、設置・特異点・スキルと同じ共有残高と固定価格カタログを渡す。[EquipmentUpgradeAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentUpgradeAdapter.cs)の`CanPurchase(cell, expectedLevel, out cost)`で費用と操作可否を読み、`Purchase(cell, expectedLevel)`で購入する。`expectedLevel`には表示・見積り時のレベルを渡す。同じレベルを期待する連続入力は一度だけ成功し、次段階を購入するときは新しいレベルで見積もる。購入ボタンと統合表示はECO-05で接続する。
+[Generator](../../Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs)が一プレイの`Upgrades`を生成し、設置・特異点・スキルと同じ共有残高と固定価格カタログを渡す。[EquipmentUpgradeAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentUpgradeAdapter.cs)の`CanPurchase(cell, expectedLevel, out cost)`で費用と操作可否を読み、`Purchase(cell, expectedLevel)`で購入する。`expectedLevel`には表示・見積り時のレベルを渡す。同じレベルを期待する連続入力は一度だけ成功し、次段階を購入するときは新しいレベルで見積もる。購入ボタンと統合表示は[経済UI](currency-loop-ui.md)へ接続した。
 
 [EquipmentUpgradeApplication](../../Assets/Scripts/Economy/Application/EquipmentUpgradeApplication.cs)は対象確認、全額支出予約、対象再確認、通知を伴わないレベル更新、支出確定、能力変更通知の順で同期的に進める。Adapterはセルの生存、有効状態、固定座標とグリッド登録参照の一致、実際の設備種別を提供する。支出予約通知中の削除・置換・無効化・座標変更・レベル変更では予約を取り消す。基礎能力の検証失敗でも更新前のレベルと残高を保持する。
 
