@@ -169,6 +169,12 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | [EquipmentPlacementVerifierEditor](../../Assets/Scripts/Economy/Editor/EquipmentPlacementVerifierEditor.cs) | 設置取引の境界とMainSceneの配置・撤去・接続・表示検証 | EquipmentPlacementApplication, CellPlacerAdapter, CellConnectionVerifierEditor, UIStatusVerifierEditor | UnityEditor, UniTask |
 | [FailingPlacementCellAdapter](../../Assets/Scripts/Economy/Adapter/FailingPlacementCellAdapter.cs) | 初期化失敗・登録変更を注入するEditor限定セル | ConnectableCellBaseAdapter, GridFieldDatabaseAdapter | UnityEngine（UNITY_EDITOR限定） |
 
+## 基礎ゲームループの統合（ECO-06）
+
+| スクリプト | 責務 |
+| --- | --- |
+| [EconomyLoopVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyLoopVerifierEditor.cs) | MainSceneの実収益で初回換金・Lv.3・全枝I/II・再投資を確認。搬送・加工回帰の消音起動入口も提供 |
+
 ## 経済UI（ECO-05）
 
 | ファイル | 役割 | 主な依存 |

@@ -174,6 +174,10 @@ flowchart LR
 | ScriptableObject設定 / データ駆動（Unity方式） | CellDatabaseDefinition、ResourceDefinition、RecipeDatabaseDefinition、ProviderBaseDefinition | Prefab・アイコン・レシピ・表示ラベルを編集可能な定義へ集約。SO自体をゲーム状態やRepositoryパターンとは扱わない |
 | 継承＋仮想フック（Template Method的な部分） | CellBase / ConnectableCellBase / Conveyor / ExportConveyor のInitializeSystem | 共通接続処理をbase呼出で再利用。派生型が呼出順も制御し、固定されたテンプレートではない |
 
+## 基礎ゲームループの統合（ECO-06）
+
+MainSceneの共有残高と初回経路、実際の換金収益による個別強化・全枝I/II取得・新設設備への再投資は[統合仕様](../spec/currency-game-loop.md)を参照する。[EconomyLoopVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyLoopVerifierEditor.cs)がPointer操作入口と経済パネルを通して能力と収支を確認し、既存の搬送・数量・抽出・加工・UI検証とWindowsビルドへ接続する。
+
 ## 図と説明の正本
 
 2026-10-11に全14図・179ノードの概要・説明を [architecture-descriptions.json](architecture-descriptions.json) へ追加した。各Mermaidの固定diagram-idと図内ノードIDで対応する。説明は短い要約、詳細な契約や制約は本図式・コード・仕様文書を根拠とする。pilotの17件も保持している。説明を含む更新は [共通CLI契約](../../../../.codex/atlas/docs/metis/metis-update-tool.md) に従い、[更新手順と検証記録](architecture-diagram-verification.md)のdoctor→sync→inventory→apply→validateを使う。SVGは既存の閲覧用生成物で、説明の正本ではない。
