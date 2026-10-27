@@ -116,7 +116,18 @@ public static class EquipmentPlacementVerifierEditor
             placer.SelectGrid(grid.GetCell(50, 49).gameObject); placer.PointerBegin();
             placer.SelectGrid(grid.GetCell(50, 47).gameObject); placer.PointerDrag();
             Require(placer.PreviewCount == 3 && placer.PreviewCost == 15 && placer.PreviewText.Contains("15"), "range preview quantity and cost");
+            var panel = generator.GetComponent<EconomyPanelAdapter>();
+            var availableBeforeToggle = wallet.Current.AvailableBalance;
+            panel.ShowPage(1); panel.ShowPage(2); panel.ShowPage(0);
+            panel.SetExpanded(false); panel.SetExpanded(true);
+            panel.enabled = false; panel.enabled = true;
+            Require(wallet.Current.AvailableBalance == availableBeforeToggle && placer.PreviewCount == 3,
+                "UI page, visibility and enable changes preserve placement quote without payment");
+            await UniTask.DelayFrame(2);
+            Require(panel.PlacementText.Contains("費用 15") && panel.PlacementText.Contains("残高不足"), "integrated range quote reports insufficient funds");
             placer.PointerEnd(); placer.PointerEnd();
+            await UniTask.DelayFrame(2);
+            Require(panel.PlacementText.Contains("確定 2個 / 支出 10") && panel.PlacementText.Contains("残高不足"), "integrated result matches partial placement expense");
             // 反復PointerEnd後も残高と配置を変えない。
             Require(grid.GetCell(50, 49) is ConveyorCellAdapter && grid.GetCell(50, 48) is ConveyorCellAdapter &&
                 grid.GetCell(50, 47) is EmptyCellAdapter && wallet.Current.Balance == 0, "reverse range stops on third cell");

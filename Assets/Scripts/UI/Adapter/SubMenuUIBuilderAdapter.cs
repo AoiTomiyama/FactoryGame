@@ -1,49 +1,41 @@
 using System;
 using UnityEngine;
 
+/// <summary>配置ボタンと同じ定義・選択処理をサブメニューへ渡す。</summary>
 public class SubMenuUIBuilderAdapter : MonoBehaviour
 {
-    [SerializeField] private Color subMenuColor = Color.white;
-
+    [SerializeField] private Color subMenuColor = new Color(0.18f, 0.28f, 0.35f);
     private CellSelectButtonUIAdapter _buttonPrefab;
     private CellPlacerAdapter _cellPlacer;
+    private Font _font;
+    private CellDatabaseDefinition _database;
 
-    public void SetDatabase(CellSelectButtonUIAdapter button, CellPlacerAdapter placer)
+    public void SetDatabase(CellSelectButtonUIAdapter button, CellPlacerAdapter placer,
+        CellDatabaseDefinition database = null, Font font = null)
     {
-        _buttonPrefab = button;
-        _cellPlacer = placer;
+        _buttonPrefab = button; _cellPlacer = placer; _database = database; _font = font;
     }
 
     public Action<bool> CreateSubMenuSystem(CellTypeDomain type)
     {
-        Action<bool> onToggle = null;
-        switch (type)
+        Action<bool> toggle = null;
+        if (_database == null) return toggle;
+        foreach (var info in _database.GetAllCellInfos())
         {
-            // TODO: サブメニューの実装
-            // case CellTypeDomain.ItemPipe:
-            //     // ItemPipeの場合、パイプの色を選択するサブメニューを作成
-            //     var colors = (PipeColorEnum[])Enum.GetValues(typeof(PipeColorEnum));
-            //     foreach (var color in colors)
-            //     {
-            //         var subButton = Instantiate(_buttonPrefab, transform);
-            //         subButton.SetColor(subMenuColor);
-            //         subButton.Set(null, $"{color}", () =>
-            //         {
-            //             _cellPlacer.SetSelectedCellType(type);
-            //             if (color == PipeColorEnum.Default) return;
-            //             _cellPlacer.UpdateCellData((cellBase, placeholder) => (cellBase, placeholder));
-            //         });
-            //         onToggle += isActive => subButton.gameObject.SetActive(isActive);
-            //         subButton.gameObject.SetActive(false);
-            //     }
-            //
-            //     break;
-            // 他のCellTypeに対するサブメニューが必要な場合はここに追加
-            default:
-                Debug.LogWarning($"サブメニューが未実装のCellType: {type}");
-                break;
+            if (type == CellTypeDomain.ExtractorWood)
+            {
+                if (info.CellTypeDomain != CellTypeDomain.ExtractorWood && info.CellTypeDomain != CellTypeDomain.ExtractorStone) continue;
+            }
+            else if (info.CellTypeDomain != type) continue;
+            var selected = info.CellTypeDomain;
+            var button = Instantiate(_buttonPrefab, transform);
+            button.name = $"{selected}Choice";
+            button.Set(null, SelectButtonBuilderAdapter.PlacementLabel(selected), () => _cellPlacer.SetSelectedCellType(selected));
+            button.SetColor(subMenuColor);
+            if (_font != null) button.ApplyStyle(_font);
+            toggle += active => button.gameObject.SetActive(active);
+            button.gameObject.SetActive(false);
         }
-
-        return onToggle;
+        return toggle;
     }
 }

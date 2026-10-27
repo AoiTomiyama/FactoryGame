@@ -17,6 +17,7 @@ public class CellPlacerAdapter : MonoBehaviour
     private CurrencyPriceCatalogDomain _prices;
     private bool _placing;
     private CurrencyWalletApplication _wallet;
+    public CellTypeDomain SelectedType => _selectedType;
     public int PreviewCount => _selectedRangeCells.Count(t => t.placeholder.activeSelf);
     public long PreviewCost => _prices != null && _prices.TryGetPlacementAmount(_selectedType, PreviewCount, out var cost) ? cost : 0;
     public int LastPlacedCount { get; private set; }
@@ -47,6 +48,7 @@ public class CellPlacerAdapter : MonoBehaviour
         FindRangedGrid(_dragBeginPos, _dragEndPos);
     }
 
+    public void CancelPlacementPreview() { if (!_placing) ClearRange(); }
     public void PointerEnd() => ReplaceRangedCells();
     public void TransferDataToUI() => CellStatusViewAdapter.Instance.UpdateUIStatusWindow(_selectedCell);
 

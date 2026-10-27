@@ -89,8 +89,11 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
 
     private void OnLeftClickUp(InputAction.CallbackContext context)
     {
+        if (!_isLeftClickPressed) return;
         _isLeftClickPressed = false;
-        placer.PointerEnd();
+        // UI上で離したドラッグは取消し、ボタン操作から配置を確定しない。
+        if (raycaster.IsPointerOverUI(_mousePosition)) placer.CancelPlacementPreview();
+        else placer.PointerEnd();
     }
 
     private void OnRightClick(InputAction.CallbackContext context)

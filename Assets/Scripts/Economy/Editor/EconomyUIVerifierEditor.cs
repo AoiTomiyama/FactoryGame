@@ -85,15 +85,18 @@ public static class EconomyUIVerifierEditor
             Require(panel.UpgradeInteractable, "reactivated equipment refreshes purchase state");
             var root = generator.Skills.Catalog.Nodes.Single(n => n.Prerequisite == null);
             var branch = generator.Skills.Catalog.Nodes.First(n => n.Prerequisite == root.Uid);
-            Require(!panel.SkillButton(branch.Uid).interactable && panel.SkillButton(branch.Uid).GetComponentInChildren<Text>().text.Contains("前提スキルが必要"), "tree prerequisites and reason");
+            Require(!panel.SkillButton(branch.Uid).interactable && panel.SkillButton(branch.Uid).GetComponentInChildren<Text>(true).text.Contains("前提スキルが必要"), "tree prerequisites and reason");
             wallet.TryReserveExpense(wallet.Current.AvailableBalance, out expense);
             Require(!panel.UpgradeInteractable && panel.EquipmentText.Contains("残高不足") && !panel.SkillButton(root.Uid).interactable, "reservations disable unaffordable actions");
             expense.TryCancel();
             wallet.TryReserveIncome(1000, out var income); income.TryCommit();
             panel.SkillButton(root.Uid).onClick.Invoke();
             Require(generator.Skills.IsOwned(root.Uid) && !panel.SkillButton(root.Uid).interactable && panel.SkillButton(branch.Uid).interactable, "real button purchases root and unlocks branch");
+            var paidBalance = wallet.Current.Balance;
+            panel.SkillButton(root.Uid).onClick.Invoke();
+            Require(wallet.Current.Balance == paidBalance, "repeat root click never pays twice");
             panel.SkillButton(branch.Uid).onClick.Invoke();
-            Require(generator.Skills.IsOwned(branch.Uid) && panel.SkillButton(branch.Uid).GetComponentInChildren<Text>().text.Contains("取得済み"), "branch state and effect label");
+            Require(generator.Skills.IsOwned(branch.Uid) && panel.SkillButton(branch.Uid).GetComponentInChildren<Text>(true).text.Contains("取得済み"), "branch state and effect label");
             view.UpdateUIStatusWindow(storage);
             view.SetStatusWindowActive(false);
             Require(Subscribers(storage, "StatusChanged") == 0 && !panel.UpgradeInteractable, "hide selection releases subscriptions");
@@ -115,27 +118,60 @@ public static class EconomyUIVerifierEditor
             await UniTask.Yield();
             Canvas.ForceUpdateCanvases();
             var canvas = panel.GetComponentInChildren<Canvas>();
-            var buttons = canvas.GetComponentsInChildren<Button>();
-            Require(buttons.Length == generator.Skills.Catalog.Nodes.Count + 2, "all skill and upgrade buttons exist");
-            foreach (var button in buttons)
-                Require(button.GetComponent<RectTransform>().rect.height >= 32, "button height");
-            foreach (var text in canvas.GetComponentsInChildren<Text>())
-                Require(text.preferredHeight <= text.rectTransform.rect.height + 1, "text fits allocated height: " + text.text);
-            Require(canvas.GetComponentsInChildren<Text>().First().font.HasCharacter('換'), "Japanese glyph available");
+            var buttons = canvas.GetComponentsInChildren<Button>(true);
+            Require(buttons.Length >= generator.Skills.Catalog.Nodes.Count + 5, "placement, navigation, skill and upgrade buttons exist");
+            Require(canvas.GetComponentsInChildren<Text>(true).First().font.HasCharacter('換'), "Japanese glyph available");
             var raycaster = UnityEngine.Object.FindAnyObjectByType<UIRaycasterAdapter>();
-            var header = buttons.First(b => b.GetComponentInChildren<Text>().text.Contains("表示 / 非表示"));
+            var header = buttons.First(b => b.GetComponentInChildren<Text>(true).text.Contains("表示 / 非表示"));
             var point = RectTransformUtility.WorldToScreenPoint(null, header.transform.position + new Vector3(20, -15));
-            Require(raycaster.IsPointerOverUI(point), "new canvas blocks field input through existing raycaster");
-            // 幅390相当でも経済パネルをCanvas内へ収め、行高を再計算する。
-            var canvasRect = canvas.GetComponent<RectTransform>();
+            Require(raycaster.IsPointerOverUI(point), "integrated canvas blocks field input");
+            var placer = UnityEngine.Object.FindAnyObjectByType<CellPlacerAdapter>();
+            var before = wallet.Current.Balance;
+            var storageButton = canvas.GetComponentsInChildren<CellSelectButtonUIAdapter>(true).Single(b => b.name == "StorageButton");
+            storageButton.GetComponentInChildren<Button>(true).onClick.Invoke();
+            await UniTask.DelayFrame(2);
+            Require(panel.PlacementText.Contains("保管庫 単価 15"), "existing placement button updates quote");
+            var submenu = canvas.GetComponentsInChildren<CellSelectButtonUIAdapter>(true).Single(b => b.name == "ExtractorWoodSubMenuButton");
+            submenu.GetComponentInChildren<Button>(true).onClick.Invoke();
+            var choice = canvas.GetComponentsInChildren<CellSelectButtonUIAdapter>(true).Single(b => b.name == "ExtractorStoneChoice");
+            Require(choice.gameObject.activeInHierarchy, "existing submenu opens choices");
+            choice.GetComponentInChildren<Button>(true).onClick.Invoke();
+            await UniTask.DelayFrame(2);
+            Require(panel.PlacementText.Contains("石材採取 単価"), "submenu selects placement type");
+            Require(wallet.Current.Balance == before, "selection and menu changes do not pay");
+            VerifyInputCancellation(placer, raycaster, point, wallet, grid);
+            for (var page = 0; page < 3; page++)
+            {
+                var subscribers = Subscribers(wallet, "Changed");
+                panel.PageButton(page).onClick.Invoke();
+                Require(panel.SelectedPage == page && Subscribers(wallet, "Changed") == subscribers, "page switch keeps one subscription");
+            }
+            // CanvasScalerの高さ基準720に合わせ、指定解像度の論理幅で実UIを検査する。
             canvas.renderMode = RenderMode.WorldSpace;
-            canvasRect.sizeDelta = new Vector2(390, 720);
-            await UniTask.DelayFrame(3);
-            Canvas.ForceUpdateCanvases();
-            foreach (var rect in canvas.GetComponentsInChildren<ScrollRect>().Select(s => s.GetComponent<RectTransform>()))
-                Require(rect.anchoredPosition.x + rect.rect.width <= 390, "narrow canvas panel width");
-            foreach (var text in canvas.GetComponentsInChildren<Text>())
-                Require(text.preferredHeight <= text.rectTransform.rect.height + 1, "narrow canvas text height: " + text.text);
+            canvas.GetComponent<CanvasScaler>().enabled = false;
+            foreach (var resolution in new[] { new Vector2(1600, 900), new Vector2(1366, 768) })
+            {
+                canvas.GetComponent<RectTransform>().sizeDelta = new Vector2(resolution.x * 720 / resolution.y, 720);
+                for (var page = 0; page < 3; page++)
+                {
+                    panel.ShowPage(page);
+                    await UniTask.DelayFrame(4);
+                    Canvas.ForceUpdateCanvases();
+                    VerifyLayout(canvas, resolution, page);
+                    if (page == 2)
+                    {
+                        var scroll = canvas.GetComponentInChildren<ScrollRect>();
+                        scroll.verticalNormalizedPosition = 0;
+                        await UniTask.DelayFrame(2);
+                        Canvas.ForceUpdateCanvases();
+                        var last = panel.SkillButton(generator.Skills.Catalog.Nodes.Last().Uid).GetComponent<RectTransform>();
+                        var lastBounds = BoundsIn(canvas.GetComponent<RectTransform>(), last);
+                        var viewportBounds = BoundsIn(canvas.GetComponent<RectTransform>(), scroll.viewport);
+                        Require(lastBounds.yMin >= viewportBounds.yMin - 1 && lastBounds.yMax <= viewportBounds.yMax + 1,
+                            $"{resolution}: final skill reachable by scrolling");
+                    }
+                }
+            }
             Require(wallet.LastNotificationException == null && generator.Skills.LastNotificationException == null, "notification handlers succeed");
             UnityEngine.Object.Destroy(panel);
             await UniTask.DelayFrame(2);
@@ -146,6 +182,81 @@ public static class EconomyUIVerifierEditor
         }
         catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
     }
+    private static void VerifyInputCancellation(CellPlacerAdapter placer, UIRaycasterAdapter raycaster,
+        Vector2 point, CurrencyWalletApplication wallet, GridFieldDatabaseAdapter grid)
+    {
+        var cursor = UnityEngine.Object.FindAnyObjectByType<PlayerCursorBehaviourAdapter>();
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        var cell = grid.GetCell(30, 30);
+        var before = wallet.Current.Balance;
+        placer.SetSelectedCellType(CellTypeDomain.Storage);
+        placer.SelectGrid(cell.gameObject); placer.PointerBegin(); placer.PointerDrag();
+        typeof(PlayerCursorBehaviourAdapter).GetField("_mousePosition", flags).SetValue(cursor, point);
+        var callback = default(UnityEngine.InputSystem.InputAction.CallbackContext);
+        typeof(PlayerCursorBehaviourAdapter).GetMethod("OnLeftClickDown", flags).Invoke(cursor, new object[] { callback });
+        typeof(PlayerCursorBehaviourAdapter).GetMethod("OnLeftClickUp", flags).Invoke(cursor, new object[] { callback });
+        Require(ReferenceEquals(grid.GetCell(30, 30), cell) && wallet.Current.Balance == before, "UI click does not confirm pending placement");
+        typeof(PlayerCursorBehaviourAdapter).GetField("_isLeftClickPressed", flags).SetValue(cursor, true);
+        typeof(PlayerCursorBehaviourAdapter).GetMethod("OnLeftClickUp", flags).Invoke(cursor, new object[] { callback });
+        Require(placer.PreviewCount == 0 && wallet.Current.Balance == before && ReferenceEquals(grid.GetCell(30, 30), cell), "drag release over UI cancels without payment");
+    }
+
+    private static void VerifyLayout(Canvas canvas, Vector2 resolution, int page)
+    {
+        var canvasRect = canvas.GetComponent<RectTransform>();
+        var corners = new Vector3[4];
+        foreach (var scroll in canvas.GetComponentsInChildren<ScrollRect>())
+        {
+            scroll.GetComponent<RectTransform>().GetWorldCorners(corners);
+            foreach (var corner in corners)
+                Require(canvasRect.rect.Contains(canvasRect.InverseTransformPoint(corner)), $"{resolution} page {page}: viewport inside canvas");
+        }
+        foreach (var text in canvas.GetComponentsInChildren<Text>())
+            Require(text.preferredHeight <= text.rectTransform.rect.height + 1, $"{resolution} page {page}: text fits: {text.text}");
+        var buttons = canvas.GetComponentsInChildren<Button>();
+        for (var i = 0; i < buttons.Length; i++)
+        {
+            var a = VisibleBounds(canvasRect, buttons[i]);
+            for (var j = i + 1; j < buttons.Length; j++)
+            {
+                var b = VisibleBounds(canvasRect, buttons[j]);
+                Require(Mathf.Min(a.xMax, b.xMax) - Mathf.Max(a.xMin, b.xMin) < 1 ||
+                    Mathf.Min(a.yMax, b.yMax) - Mathf.Max(a.yMin, b.yMin) < 1,
+                    $"{resolution} page {page}: visible buttons do not overlap");
+            }
+        }
+        foreach (var button in buttons)
+        {
+            var rect = button.GetComponent<RectTransform>();
+            Require(rect.rect.height >= 32, $"{resolution} page {page}: button height");
+            rect.GetWorldCorners(corners);
+            var parent = rect.parent as RectTransform;
+            foreach (var corner in corners)
+            {
+                var local = parent.InverseTransformPoint(corner);
+                Require(local.x >= parent.rect.xMin - 1 && local.x <= parent.rect.xMax + 1,
+                    $"{resolution} page {page}: button inside parent width");
+            }
+        }
+    }
+
+    private static Rect BoundsIn(RectTransform canvas, RectTransform rect)
+    {
+        var corners = new Vector3[4]; rect.GetWorldCorners(corners);
+        var min = canvas.InverseTransformPoint(corners[0]);
+        var max = canvas.InverseTransformPoint(corners[2]);
+        return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+    }
+    private static Rect VisibleBounds(RectTransform canvas, Button button)
+    {
+        var bounds = BoundsIn(canvas, button.GetComponent<RectTransform>());
+        var scroll = button.GetComponentInParent<ScrollRect>();
+        if (scroll == null) return bounds;
+        var viewport = BoundsIn(canvas, scroll.viewport);
+        return Rect.MinMaxRect(Mathf.Max(bounds.xMin, viewport.xMin), Mathf.Max(bounds.yMin, viewport.yMin),
+            Mathf.Min(bounds.xMax, viewport.xMax), Mathf.Min(bounds.yMax, viewport.yMax));
+    }
+
     private static int Subscribers(object owner, string name)
     {
         for (var type = owner.GetType(); type != null; type = type.BaseType)

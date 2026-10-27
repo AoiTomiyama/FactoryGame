@@ -1,11 +1,15 @@
 # 通貨・設備強化・スキルの表示と操作
 
-タグ: `現行仕様` `ECO-05` `経済UI` `購入可否` `購読寿命`
-更新日: 2026-10-25
+タグ: `現行仕様` `ECO-05` `ECO-07` `経済UI` `購入可否` `購読寿命`
+更新日: 2026-10-27
 
 ## 表示と操作
 
-[GridFieldGeneratorAdapter](../../Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs)が一プレイの共有残高・スキル・設備強化を[EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs)へ渡す。MainSceneの起動時に画面左上へuGUIの経済パネルを生成する。「経済・成長」のボタンで開閉し、スクロールで全項目を操作する。見出しと本文の文字サイズを分け、日本語を含むOSフォントを使う。
+[GridFieldGeneratorAdapter](../../Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs)が一プレイの共有残高・スキル・設備強化を[EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs)へ渡す。MainSceneの起動時に、画面左上へ配置と成長の統合UIを生成する。「配置・成長」のボタンで開閉し、残高・予約・換金通知の下にある「配置」「設備強化」「スキル」で操作を切り替える。各ページはスクロールできる。見出しは18、本文と操作は16、通知は14の文字サイズとし、日本語を含む同じOSフォントを使う。
+
+配置ページは[SelectButtonBuilderAdapter](../../Assets/Scripts/UI/Adapter/SelectButtonBuilderAdapter.cs)がMainSceneで参照する既存のSelectButton Prefabとセル定義を使う。Builderを統合UIへ移し、元のUITabを非表示にする。撤去・保管・加工・搬送は直接選択し、採取設備は[SubMenuUIBuilderAdapter](../../Assets/Scripts/UI/Adapter/SubMenuUIBuilderAdapter.cs)のサブメニューで木材・石材を選択する。固定資源と特異点は配置候補に含めない。選択は既存Placerへ渡し、単価・範囲費用・確定結果を同じページで表示する。選択やページ切替では支払を行わない。
+
+UI上で始めたクリックは配置確定へ進めず、フィールドからの配置ドラッグをUI上で離した場合はプレビューを取り消す。[PlayerCursorBehaviourAdapter](../../Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs)が既存Raycasterの結果で判定する。
 
 | 項目 | 表示・操作 |
 | --- | --- |
@@ -24,10 +28,10 @@
 
 [CellStatusViewAdapter](../../Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs)はSelectedCellとSelectionChangedを公開する。既存Providerを持たない搬送・交差設備も選択でき、経済パネルへ強化対象を渡す。選択解除、非表示、無効化、破棄で選択通知を送り、前のセルの購読と表示行を解放する。削除した選択セルはLateUpdateで閉じる。設備の無効化中は選択を保持し、強化を購入不可にする。
 
-経済パネルは残高・スキル変更・選択変更と、選択セルのStatusChangedを購読する。選択切替では前のセル、パネルを閉じたときと無効化・破棄時にはすべての購読を解除する。再表示は現在の残高と選択セルから読み直す。設置プレビューはLateUpdateで読み、各フレームの状態を表示する。
+統合UIは残高・スキル変更・選択変更と、選択セルのStatusChangedを購読する。選択切替では前のセル、パネルを閉じたときと無効化・破棄時にはすべての購読を解除する。再表示は現在の残高と選択セルから読み直す。ページ切替では購読を保ち、切替先を先頭へスクロールする。設置プレビューはLateUpdateで読み、各フレームの状態を表示する。
 
 ## 検証
 
-[EconomyUIVerifierEditor.Run](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs)がMainSceneで、残高と予約額、換金の予約・取消・確定、専用Reader、設備選択・強化・上限、支出予約による購入不可、実Buttonのスキル取得と前提解除、選択・非表示・無効化・削除時の購読解除、UIの入力遮断を検証する。再生前にEditorの音声を消音する。
+[EconomyUIVerifierEditor.Run](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs)がMainSceneで、残高と予約額、換金の予約・取消・確定、専用Reader、設備選択・強化・上限、支出予約による購入不可、実Buttonのスキル取得と前提解除、選択・非表示・無効化・削除時の購読解除、UIの入力遮断を検証する。ECO-07では既存配置ボタンと採取サブメニューによる選択、ページ切替時の購読数、スキル連打時の支払一回性、UIクリックとドラッグ終了による誤配置防止も確認する。1600×900・1366×768はCanvasScalerの高さ基準720に換算した論理サイズで、各ページの文字高さ・ボタン幅・操作領域・スクロール領域の画面内配置を検査する。描画の目視確認とは区別する。再生前にEditorの音声を消音する。
 
-実行条件・対象コード・結果・ログはローカルの`docs/verification/eco05-ui.json`へ集約する。既存UIと設置の回帰を直接依存する検証として実行する。Windowsビルドとゲームループ全体の統合検証はECO-06で扱う。
+実行条件・対象コード・結果・ログはローカルの`docs/verification/eco05-ui.json`、統合UIへの変更分は`docs/verification/eco07-ui.json`へ集約する。既存UIと設置の回帰を直接依存する検証として実行する。Windowsビルドとゲームループ全体の統合検証はECO-06の記録を参照する。

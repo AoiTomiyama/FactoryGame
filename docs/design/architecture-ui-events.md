@@ -153,14 +153,15 @@ flowchart LR
  EconomyPanel --> Skills
  EconomyPanel --> Upgrade
  EconomyPanel --> Placer
+ EconomyPanel --> Builder
  Provider --> SingularityReader
  SingularityReader --> Wallet
 ```
 
-点線は左から右へのイベント／値の授受、実線は利用側→依存先。InputActionはOnEnableで有効化・購読、OnDisableで解除。左ボタン開始→PointerBegin、保持中Update→PointerDrag、終了→PointerEnd、右操作→TransferDataToUI。回転操作はPlacerの向きを変える。選択ボタンはBuilderがDBから生成し通常ボタンにSetSelectedCellTypeを渡す。SubMenuUIBuilderは未完成の分岐を含み、完全なサブメニュー機構として図に展開しない。接続イベントは隣接参照を更新してから通知し、UIのStatusChangedとは別系統である。
+点線は左から右へのイベント／値の授受、実線は利用側→依存先。InputActionはOnEnableで有効化・購読、OnDisableで解除。左ボタン開始→PointerBegin、保持中Update→PointerDrag、終了→UI外ならPointerEnd、UI上ならプレビュー取消、右操作→TransferDataToUI。回転操作はPlacerの向きを変える。選択ボタンはBuilderがDBから生成し通常ボタンにSetSelectedCellTypeを渡す。SubMenuUIBuilderは同じセル定義から採取設備の候補を生成し、選択をPlacerへ渡す。接続イベントは隣接参照を更新してから通知し、UIのStatusChangedとは別系統である。
 
-## 経済パネルと特異点の専用表示（ECO-05）
+## 配置・成長の統合UIと特異点表示（ECO-05・ECO-07）
 
-GeneratorがEconomyPanelAdapterを構成し、共有残高・スキル・設備強化を渡す。パネルはCanPurchaseの結果で購入ボタンを制御し、命令を同じApplicationへ渡す。ViewのSelectedCellとSelectionChangedから対象を読み、Providerを持たない成長対象設備も強化対象として選択できる。
+GeneratorがEconomyPanelAdapterを構成し、共有残高・スキル・設備強化を渡す。パネルは既存の配置Builderを配置ページへ移し、設備強化・スキルのページを同じUI内で切り替える。CanPurchaseの結果で購入ボタンを制御し、命令を同じApplicationへ渡す。ViewのSelectedCellとSelectionChangedから対象を読み、Providerを持たない成長対象設備も強化対象として選択できる。
 
 特異点は専用ReaderとSingularityProviderDefinitionをCreateCustomへ渡す。残高と換金待ちを取得し、残高通知をStatusChangedへつなぐ。経済パネルは選択切替で前のセル、非表示・無効化・破棄で全購読を解除する。UIRaycasterはEventSystemの全Canvasを照合し、追加パネル上の操作をフィールドから遮る。表示項目・操作・検証入口は[経済UI仕様](../spec/currency-loop-ui.md)を参照する。

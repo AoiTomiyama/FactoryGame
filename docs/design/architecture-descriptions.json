@@ -1720,7 +1720,7 @@
           ]
         },
         "Cursor": {
-          "description": "マウス位置やボタン、回転のInputActionを受け取り、UI上の入力を除外してセルをRaycastで選びます。開始・保持・終了を配置側の操作へ渡し、右操作は状態表示を要求します。OnEnableで購読し、OnDisableで解除します。",
+          "description": "マウス位置とクリック・回転のInputActionを受け、UIの外にあるセルをRaycastで選択します。フィールドで始めた左ドラッグをUI上で離すとプレビューを取り消し、UIクリックから配置を確定しません。右操作はセル状態表示を要求し、有効化で購読、無効化で解除します。",
           "references": [
             {
               "path": "Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs",
@@ -1756,7 +1756,7 @@
           ]
         },
         "Builder": {
-          "description": "セルDBからNone以外の定義を読み、選択ボタンを生成するコンポーネントです。通常ボタンへ配置側の種別選択Actionを登録します。設定されたサブメニュー分岐もありますが、そのBuilderには未完成の処理が残っています。",
+          "description": "セルDBから配置可能な設備と撤去の選択ボタンを生成します。統合UIへ移されると旧タブを非表示にし、採取設備は同じ定義を使うサブメニューから選択します。ボタンは既存Placerへ種類を渡し、選択時には支払を行いません。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/SelectButtonBuilderAdapter.cs",
@@ -1991,7 +1991,7 @@
           ]
         },
         "EconomyPanel": {
-          "description": "共有残高、換金通知、設置見積りと結果、選択設備の強化、スキル購入を表示します。Applicationの購入可否でボタンを制御し、選択切替では前のセル、非表示・無効化・破棄ではすべての購読を解除します。",
+          "description": "既存配置ボタンを持つページと設備強化・スキルのページを切り替え、共有残高・予約・換金通知を同じUIへ表示します。購入はApplicationへ渡します。ページ切替では購読を保ち、閉じる・無効化・破棄で全購読を解除し、再表示時に最新値を読み直します。",
           "references": [
             {
               "path": "Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs",
