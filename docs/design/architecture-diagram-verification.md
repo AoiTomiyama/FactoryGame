@@ -21,12 +21,12 @@
 説明の正本は [architecture-descriptions.json](architecture-descriptions.json)。図は既存MarkdownのMermaid、対応キーは直前のdiagram-idコメントである。ノードIDは図ごとの名前空間で対応する。SVGとHTML一覧は既存の閲覧用出力で、説明JSONの正本ではない。
 
 ```powershell
-C:/Users/Taomo/.codex/atlas/metis.cmd doctor --project factory
-C:/Users/Taomo/.codex/atlas/metis.cmd sync --project factory --write
-C:/Users/Taomo/.codex/atlas/metis.cmd inventory --project factory --output <担当のinventory保存先>
-C:/Users/Taomo/.codex/atlas/metis.cmd apply --project factory --patch <担当のpatch保存先> --write
-C:/Users/Taomo/.codex/atlas/metis.cmd validate --project factory
-C:/Users/Taomo/.codex/atlas/metis.cmd sync --project factory
+C:/Users/Taomo/.codex/atlas/opsis.cmd doctor --project factory
+C:/Users/Taomo/.codex/atlas/opsis.cmd sync --project factory --write
+C:/Users/Taomo/.codex/atlas/opsis.cmd inventory --project factory --output <担当のinventory保存先>
+C:/Users/Taomo/.codex/atlas/opsis.cmd apply --project factory --patch <担当のpatch保存先> --write
+C:/Users/Taomo/.codex/atlas/opsis.cmd validate --project factory
+C:/Users/Taomo/.codex/atlas/opsis.cmd sync --project factory
 ```
 
 inventoryのbase_revisionで競合を防ぎ、applyには変更する図の概要・ノード説明・根拠だけを指定する。図の変更は同じpatchにmermaidを含める。CLIを担当側で複製・修正せず、不具合はハブへ報告する。書込は--write指定時のみで、CLIは既存の描画資源による内部parse/renderと更新ジャーナルを管理する。今回の処理はSVGを書き出すものではない。

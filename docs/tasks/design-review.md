@@ -58,13 +58,13 @@
 
 ### 原本の更新
 
-仕様は [ChronosカテゴリID契約](../../../../.codex/session-routing/docs/routing/chronos-category-ids.md)、形式は [タスクテンプレート](../../../../.codex/atlas/docs/chronos/chronos-task-list-template.md)、CLIは [Atlas更新仕様](../../../../.codex/atlas/docs/chronos/chronos-update-tool.md) と現行 `--help` を確認する。ローカル配信入口は `C:/Users/Taomo/.codex/atlas/chronos.cmd`。通信・担当管理は [ハブREADME](../../../../.codex/session-routing/README.md) から確認する。
+仕様は [ChronosカテゴリID契約](../../../../.codex/session-routing/docs/routing/chronos-category-ids.md)、形式は [タスクテンプレート](../../../../.codex/atlas/docs/chronos/chronos-task-list-template.md)、CLIは [Atlas更新仕様](../../../../.codex/atlas/docs/chronos/chronos-update-tool.md) と現行 `--help` を確認する。ローカル配信入口は `C:/Users/Taomo/.codex/atlas/taxis.cmd`。通信・担当管理は [ハブREADME](../../../../.codex/session-routing/README.md) から確認する。
 
 ```powershell
-C:/Users/Taomo/.codex/atlas/chronos.cmd inventory --project factory
-C:/Users/Taomo/.codex/atlas/chronos.cmd apply --project factory --request <更新JSON>
-C:/Users/Taomo/.codex/atlas/chronos.cmd apply --project factory --request <更新JSON> --write
-C:/Users/Taomo/.codex/atlas/chronos.cmd validate --project factory
+C:/Users/Taomo/.codex/atlas/taxis.cmd inventory --project factory
+C:/Users/Taomo/.codex/atlas/taxis.cmd apply --project factory --request <更新JSON>
+C:/Users/Taomo/.codex/atlas/taxis.cmd apply --project factory --request <更新JSON> --write
+C:/Users/Taomo/.codex/atlas/taxis.cmd validate --project factory
 ```
 
 現行原本と更新JSONはschema_version=3。最新のbase_revisionと、固定IDをキーにしたtasksで変更するcategory/title/status/sectionsを指定する。並び順はorder、新規登録は登録キーを保持したregisterを使う。プレビューで対象と本文の意味を確認してからwriteし、validateを通す。
