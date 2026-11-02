@@ -16,7 +16,7 @@
 
 ## 現行の図・説明更新手順
 
-2026-10-11の全図説明追加から、更新はAtlasが提供するMetis共通CLIへ統一する。[共通CLI契約](../../../../.codex/atlas/docs/metis/metis-update-tool.md) を参照する。上記SVGのparse/render記録は作成時の証拠として保持し、旧ASARサーバーとPythonによるSVG生成を通常更新手順には使わない。
+2026-10-11の全図説明追加から、更新はHenosisが提供するOpsis共通CLIへ統一する。[共通CLI契約](../../../../.codex/atlas/docs/opsis/opsis-update-tool.md) を参照する。上記SVGのparse/render記録は作成時の証拠として保持し、旧ASARサーバーとPythonによるSVG生成を通常更新手順には使わない。
 
 説明の正本は [architecture-descriptions.json](architecture-descriptions.json)。図は既存MarkdownのMermaid、対応キーは直前のdiagram-idコメントである。ノードIDは図ごとの名前空間で対応する。SVGとHTML一覧は既存の閲覧用出力で、説明JSONの正本ではない。
 
@@ -45,7 +45,7 @@ doctor、sync、inventory、applyを順に使用し、applyの全件検証はok=
 
 ## 配色・囲みの段階移行記録
 
-2026-10-14の照合では、以下の旧提出JSON3件と画面画像4件の保管場所は撤去済みだった。ファイル名と検証値は当時の記録として保持する。現行図・説明の合否は本書のMetis更新手順で確認する。
+2026-10-14の照合では、以下の旧提出JSON3件と画面画像4件の保管場所は撤去済みだった。ファイル名と検証値は当時の記録として保持する。現行図・説明の合否は本書のOpsis更新手順で確認する。
 
 タグ: `役割別配色` `囲み` `検証証拠` `再開情報`
 

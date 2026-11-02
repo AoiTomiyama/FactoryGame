@@ -14,11 +14,11 @@
 
 ## 新担当が状態と作成根拠を照合する手順
 
-タグ: `引継ぎ` `採用判断` `タスク原本` `Chronos`。照合版: `1f415e4`。照合当時の原本はv2・18項目で全件done。照合当時の原本SHA256は `66d20848f96a7ed9fce53178d174e239c2923929c34ac36eb564b0da525ec9dd`。再開時は現在のinventoryを優先する。
+タグ: `引継ぎ` `採用判断` `タスク原本` `Taxis`。照合版: `1f415e4`。照合当時の原本はv2・18項目で全件done。照合当時の原本SHA256は `66d20848f96a7ed9fce53178d174e239c2923929c34ac36eb564b0da525ec9dd`。再開時は現在のinventoryを優先する。
 
 1. `git status --short` とHEADを確認し、現在の依頼・原本・関連コードを照合する。着手前の差分は内容と所有者を確認する。
 2. [設計方針](../design/architecture-guidelines.md) と [現行設計索引](../design/current-architecture.md) から対象機能の仕様・コード・検証入口へ進む。仕様の契約と過去検証の実行版を区別する。
-3. Chronosのinventoryで固定ID・カテゴリ・状態・本文を取得する。過去文書の旧IDは本書の根拠表と関連仕様から照合する。完了済み項目の再実装や新規項目の重複を防ぐため、問題・対象・完了条件も比較する。
+3. Taxisのinventoryで固定ID・カテゴリ・状態・本文を取得する。過去文書の旧IDは本書の根拠表と関連仕様から照合する。完了済み項目の再実装や新規項目の重複を防ぐため、問題・対象・完了条件も比較する。
 4. 新しいタスク提案には、コード・既存仕様・確認結果を根拠として問題、解決策、完了条件、仕様判断を示す。ユーザーが採用した範囲を原本へ登録する。仕様が未決定の採用項目はblockedと判断待ちを簡潔に記す。
 5. 依頼された工程を実施し、変更に直接関係する検証、現行仕様、原本の状態を揃えてコミットする。中断時は差分・検証結果・残作業を関連仕様へ記録する。
 
@@ -58,7 +58,7 @@
 
 ### 原本の更新
 
-仕様は [ChronosカテゴリID契約](../../../../.codex/session-routing/docs/routing/chronos-category-ids.md)、形式は [タスクテンプレート](../../../../.codex/atlas/docs/chronos/chronos-task-list-template.md)、CLIは [Atlas更新仕様](../../../../.codex/atlas/docs/chronos/chronos-update-tool.md) と現行 `--help` を確認する。ローカル配信入口は `C:/Users/Taomo/.codex/atlas/taxis.cmd`。通信・担当管理は [ハブREADME](../../../../.codex/session-routing/README.md) から確認する。
+仕様は [TaxisカテゴリID契約](../../../../.codex/session-routing/docs/routing/taxis-category-ids.md)、形式は [タスクテンプレート](../../../../.codex/atlas/docs/taxis/taxis-task-list-template.md)、CLIは [Henosis更新仕様](../../../../.codex/atlas/docs/taxis/taxis-update-tool.md) と現行 `--help` を確認する。ローカル配信入口は `C:/Users/Taomo/.codex/atlas/taxis.cmd`。通信・担当管理は [ハブREADME](../../../../.codex/session-routing/README.md) から確認する。
 
 ```powershell
 C:/Users/Taomo/.codex/atlas/taxis.cmd inventory --project factory

@@ -19,7 +19,7 @@
 | 採用済み作業の状態 | [タスクリスト](docs/tasks/task-list.md) |
 | タスク作成の根拠、分類と優先順、更新・再開 | [タスク根拠と引継ぎ手順](docs/tasks/design-review.md) |
 | 機能別の仕様、コード・配線・検証への参照 | [現行設計索引](docs/design/current-architecture.md) |
-| 設計図・説明JSONの更新 | [Metis更新手順](docs/design/architecture-diagram-verification.md) |
+| 設計図・説明JSONの更新 | [Opsis更新手順](docs/design/architecture-diagram-verification.md) |
 
 タスク提案の採用判断はユーザーが行う。採用内容と依頼の工程を正本へ照合し、許可された範囲を進める。
 
@@ -29,7 +29,7 @@
 
 ## 作業規則
 
-- 設計改修はタスクリスト正本の優先順と現在の依頼を照合して進める。原本更新はAtlasのChronos共通CLIを使い、変更した仕様と検証証拠を関連文書へ記録する。数量や中断処理の状態変更では境界条件も確認する。
+- 設計改修はタスクリスト正本の優先順と現在の依頼を照合して進める。原本更新はHenosisのTaxis共通CLIを使い、変更した仕様と検証証拠を関連文書へ記録する。数量や中断処理の状態変更では境界条件も確認する。
 
 ## ローカル運用文書
 
