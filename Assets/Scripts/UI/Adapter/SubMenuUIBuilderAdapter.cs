@@ -31,7 +31,8 @@ public class SubMenuUIBuilderAdapter : MonoBehaviour
             var button = Instantiate(_buttonPrefab, transform);
             button.name = $"{selected}Choice";
             button.Set(SelectButtonBuilderAdapter.PlacementLabel(selected), () => _cellPlacer.SetSelectedCellType(selected));
-            button.SetColor(subMenuColor);
+            var hud = GetComponentInParent<HudLayoutAdapter>();
+            button.SetColor(hud != null ? hud.IdleTabColor : subMenuColor);
             if (_font != null) button.ApplyStyle(_font);
             toggle += active => button.gameObject.SetActive(active);
             button.gameObject.SetActive(false);

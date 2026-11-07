@@ -27,6 +27,24 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     private float _width, _summaryHeight;
     public Font Font => TextRow.font;
     private void Awake() => InitializeLayout();
+    public void ApplyColors()
+    {
+        // 背景と操作だけを共通色へ揃え、資源アイコンや進捗ゲージの意味を保つ。
+        Summary.GetComponent<Image>().color = IdleTabColor;
+        Body.GetComponent<Image>().color = IdleTabColor;
+        var status = GetComponentInChildren<CellStatusViewAdapter>(true);
+        if (status != null) status.StatusScroll.GetComponent<Image>().color = IdleTabColor;
+        foreach (var button in GetComponentsInChildren<Button>(true)) StyleButton(button);
+    }
+    public void StyleButton(Button button, bool selected = false)
+    {
+        // ColorTintへ色を渡し、背景との二重乗算を避ける。
+        button.targetGraphic.color = Color.white;
+        var colors = button.colors;
+        colors.normalColor = selected ? SelectedTabColor : IdleTabColor;
+        colors.highlightedColor = colors.pressedColor = colors.selectedColor = SelectedTabColor;
+        button.colors = colors;
+    }
     private void InitializeLayout()
     {
         if (_initialized) return;

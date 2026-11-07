@@ -22,10 +22,17 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
     public void Configure(Font font)
     {
         _font = font;
+        var hud = GetComponentInParent<HudLayoutAdapter>();
+        if (hud != null) { defaultBackgroundColor = hud.IdleTabColor; openedSubMenuColor = hud.SelectedTabColor; }
         subMenuUIBuilder.SetDatabase(buttonPrefab, placer, cellDatabase, _font);
     }
 
-    private void Awake() => _font = GetComponentInParent<HudLayoutAdapter>()?.Font;
+    private void Awake()
+    {
+        var hud = GetComponentInParent<HudLayoutAdapter>();
+        _font = hud != null ? hud.Font : null;
+        if (hud != null) { defaultBackgroundColor = hud.IdleTabColor; openedSubMenuColor = hud.SelectedTabColor; }
+    }
 
     private void Start()
     {

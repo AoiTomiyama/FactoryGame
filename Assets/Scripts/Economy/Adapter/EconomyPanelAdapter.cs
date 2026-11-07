@@ -51,8 +51,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         for (var i = 0; i < _pages.Length; i++)
         {
             _pages[i].SetActive(i == index);
-            _tabs[i].GetComponent<Image>().color = i == index
-                ? layout.SelectedTabColor : layout.IdleTabColor;
+            layout.StyleButton(_tabs[i], i == index);
         }
     }
     private Text _placement;
@@ -220,6 +219,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         // 固定枠は保存済みPrefabを使い、実行時は状態と操作だけを接続する。
         if (layout == null) throw new InvalidOperationException("HUD layout must be assigned in the scene.");
+        layout.ApplyColors();
         _font = layout.Font;
         _canvas = layout.gameObject;
         _body = layout.Body.gameObject;
@@ -248,6 +248,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         {
             var uid = node.Uid;
             var button = Instantiate(layout.SkillRow, _pages[2].transform);
+            layout.StyleButton(button);
             var label = button.GetComponentInChildren<Text>(true);
             if (label.font == null) label.font = _font;
             button.onClick.AddListener(() => PurchaseSkill(uid));

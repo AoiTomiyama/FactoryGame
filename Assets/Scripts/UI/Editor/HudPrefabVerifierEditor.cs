@@ -35,10 +35,11 @@ public static class HudPrefabVerifierEditor
         // 保存済み参照に対する編集を再生前に加え、起動・再設定で保持されることを確認する。
         ((RectTransform)hud.Close.transform).anchoredPosition += new Vector2(3, 0);
         hud.Close.GetComponentInChildren<Text>().fontSize = 19;
-        bar.RotateButton.GetComponent<Image>().color = new Color(.3f, .4f, .5f);
+        hud.SelectedTabColor = new Color(.3f, .5f, .6f);
+        hud.IdleTabColor = new Color(.12f, .22f, .32f);
         ((RectTransform)bar.RotateButton.transform).anchoredPosition += new Vector2(2, 0);
         foreach (var edited in new Component[] { (RectTransform)hud.Close.transform, hud.Close.GetComponentInChildren<Text>(),
-            bar.RotateButton.GetComponent<Image>(), (RectTransform)bar.RotateButton.transform })
+            hud, (RectTransform)bar.RotateButton.transform })
         {
             EditorUtility.SetDirty(edited);
             PrefabUtility.RecordPrefabInstancePropertyModifications(edited);
@@ -64,7 +65,23 @@ public static class HudPrefabVerifierEditor
         var header = (RectTransform)hud.Close.transform;
         Require(Mathf.Abs(header.anchoredPosition.x - 103) < .01f, "edited fixed frame position retained");
         Require(hud.Close.GetComponentInChildren<Text>().fontSize == 19, "edited font size retained");
-        Require(bar.RotateButton.GetComponent<Image>().color == new Color(.3f, .4f, .5f), "edited button color retained");
+        Require(hud.SelectedTabColor == new Color(.3f, .5f, .6f) && hud.IdleTabColor == new Color(.12f, .22f, .32f), "edited shared palette retained");
+        Require(hud.Summary.GetComponent<Image>().color == hud.IdleTabColor && hud.Body.GetComponent<Image>().color == hud.IdleTabColor &&
+            hud.GetComponentInChildren<CellStatusViewAdapter>(true).StatusScroll.GetComponent<Image>().color == hud.IdleTabColor &&
+            bar.Bar.GetComponent<Image>().color == hud.IdleTabColor, "fixed panels and separate operation bar share normal color");
+        foreach (var button in hud.GetComponentsInChildren<Button>(true).Concat(bar.GetComponentsInChildren<Button>(true)))
+        {
+            Require(button.targetGraphic.color == Color.white, "no double color multiplication");
+            Require(button.colors.normalColor == (button == hud.Tabs[0] ? hud.SelectedTabColor : hud.IdleTabColor) &&
+                button.colors.selectedColor == hud.SelectedTabColor, "static and generated buttons share both colors");
+        }
+        foreach (var cell in hud.GetComponentsInChildren<CellSelectButtonUIAdapter>(true))
+            Require(cell.GetComponent<Image>().color == hud.IdleTabColor, "placement and submenu outer backgrounds share normal color");
+        panel.ShowPage(1);
+        Require(hud.Tabs[1].colors.normalColor == hud.SelectedTabColor && hud.Tabs[0].colors.normalColor == hud.IdleTabColor, "page selection shares palette");
+        panel.RecipeView.Render(hud.Recipes, hud.Resources);
+        Require(hud.ResourceRow.GetComponentInChildren<Image>(true).color == Color.white, "resource icon color preserved on list refresh");
+        panel.ShowPage(0);
         var rotate = (RectTransform)bar.RotateButton.transform;
         Require(Mathf.Abs(rotate.offsetMin.x - 14) < .01f, "edited operation position retained");
         var fixedObjects = new[] { hud.Close.gameObject, hud.Navigation.gameObject, hud.Body.gameObject,
@@ -81,7 +98,11 @@ public static class HudPrefabVerifierEditor
         typeof(HudLayoutAdapter).GetField("_headerPosition", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
             .SetValue(hud, header.anchoredPosition);
         hud.Close.GetComponentInChildren<Text>().fontSize = 18;
-        bar.RotateButton.GetComponent<Image>().color = new Color(.22f, .34f, .43f);
+        hud.SelectedTabColor = new Color(.24f, .43f, .53f); hud.IdleTabColor = new Color(.14f, .21f, .27f);
+        hud.ApplyColors(); hud.PlacementBuilder.Configure(hud.Font);
+        foreach (var cell in hud.GetComponentsInChildren<CellSelectButtonUIAdapter>(true)) cell.SetColor(hud.IdleTabColor);
+        bar.Configure(UnityEngine.Object.FindAnyObjectByType<PlayerCursorBehaviourAdapter>(), UnityEngine.Object.FindAnyObjectByType<CameraControllerAdapter>());
+        panel.ShowPage(0);
         rotate.anchoredPosition -= new Vector2(2, 0);
         Debug.Log("HUD prefab runtime edit retention and reconfigure checks passed.");
     }

@@ -11,7 +11,7 @@
 
 [RecipeReferenceViewAdapter](../../Assets/Scripts/UI/Adapter/RecipeReferenceViewAdapter.cs)は既存RecipeDatabaseDefinitionとResourceDefinitionから、レシピ名・加工時間・材料名と必要数・成果物名と数量・資源アイコンを表示する。参照ページの表示は加工処理と独立しており、現行の自動判定を保つ。
 
-[PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs)は残高・使用可能額・支出予約・換金待ちを表示する。SetWalletOrderで4項目の順を、SetItemsで追加項目と順を指定する。残高4項目と追加項目を指定順に横へ並べ、画面幅を超えると折り返して枠の高さを増やす。常時表示枠にはスクロールや切り抜きを付けず、全項目を表示する。左右パネルはその下へ追従し、下端108以上を保つ。固定枠と行Prefabの参照は[HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs)へ集約する。タブの選択色は同Adapter、配置・状態行の色は各Prefabの設定で編集する。
+[PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs)は残高・使用可能額・支出予約・換金待ちを表示する。SetWalletOrderで4項目の順を、SetItemsで追加項目と順を指定する。残高4項目と追加項目を指定順に横へ並べ、画面幅を超えると折り返して枠の高さを増やす。常時表示枠にはスクロールや切り抜きを付けず、全項目を表示する。左右パネルはその下へ追従し、下端108以上を保つ。固定枠と行Prefabの参照は[HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs)へ集約する。通常のパネル背景・ボタン・生成行のボタン・操作帯は同AdapterのIdleTabColor、選択・強調・押下はSelectedTabColorを使う。文字・資源アイコン・進捗ゲージ・無効状態の色は各部品の設定を保つ。
 
 UI上で始めたクリックは配置確定へ進めず、フィールドからの配置ドラッグをUI上で離した場合はプレビューを取り消す。[PlayerCursorBehaviourAdapter](../../Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs)が既存Raycasterの結果で判定する。
 
@@ -78,7 +78,7 @@ EconomyUIVerifierEditor.Runは、既存の購入・配置・入力遮断に加�
 
 MainSceneは[FactoryHud.prefab](../../Assets/Prefabs/UI/FactoryHud.prefab)と[OperationBar.prefab](../../Assets/Prefabs/UI/OperationBar.prefab)を直接参照する。上部の常時表示、左3タブと閉じるボタン、右のセル情報・設備強化、下部操作帯はEditorで配置・文字・色を編集できる。GeneratorとCursorには接続先のシーン参照を保存し、起動時は共有状態と操作を接続する。固定枠を生成・移動する移行処理は実行経路に置かない。
 
-左右のパネルは保存した位置・寸法を基準に、常時表示の折返しで増えた高さと画面幅の差分だけを反映する。レイアウトグループによる子要素の整列と、表示文の高さへの追従は継続する。直接タブの選択色はHudLayoutAdapter、配置ボタンの通常色とサブメニュー色は既存BuilderのInspectorで編集する。各Textの書体・サイズと背景ImageはPrefabの値を使う。HudFont.fontsettingsは従来のOSフォント名と描画用Material・Textureを保存し、Editorと再生で同じ参照を使う。
+左右のパネルは保存した位置・寸法を基準に、常時表示の折返しで増えた高さと画面幅の差分だけを反映する。レイアウトグループによる子要素の整列と、表示文の高さへの追従は継続する。通常色と選択色はHudLayoutAdapterの既存IdleTabColor・SelectedTabColorを固定HUD・配置/スキルの生成ボタン・採取サブメニュー・操作帯で共用する。ButtonはColorTintで反映し、色の二重乗算を避ける。各Textの書体・サイズと背景ImageはPrefabの値を使う。HudFont.fontsettingsは従来のOSフォント名と描画用Material・Textureを保存し、Editorと再生で同じ参照を使う。
 
 | アセット | 再利用・変更内容 |
 | --- | --- |
@@ -91,26 +91,3 @@ MainSceneは[FactoryHud.prefab](../../Assets/Prefabs/UI/FactoryHud.prefab)と[Op
 旧RecipeUIBuilder・RecipeElementUI・ResourceRowUI、HudUIAdapterの実行時生成、旧ページの非表示化、セル情報の移設・復元処理を撤去した。Text/Gauge/StorageParamLineは独立UIの契約と既存検証で使う行Prefabとして保持する。経済パネルの終了時は購読と購入リスナーを解除し、保存済みHUDを非表示にする。旧UIの復元や二重生成は行わない。
 
 配置タブ枠とレシピ1行を旧Prefabと比較してから全体へ展開した。代表比較と変更理由、対象差分、実行結果はローカルの`docs/verification/uis06-ui.json`に集約する。EconomyUIVerifierEditorはHudPrefabVerifierEditorの保存参照・Editor編集保持・再設定時の同一部品保持を加え、既存のPC2寸法、24レシピ・6材料、常時表示の追加12項目、購入、入力遮断、購読寿命を検証する。最終画像は既存固定名`docs/verification/uis05/hud-1600x900.png`と`hud-1366x768.png`を更新する。
-
-## Edit ModeのHUD調整（UIS-07）
-
-タグ: `カスタムInspector` `共通設定` `Undo` `Prefab Override` `編集保持`
-
-[HudLayoutInspectorEditor](../../Assets/Scripts/UI/Editor/HudLayoutInspectorEditor.cs)はHudLayoutAdapterを選択したときの共通設定の入口である。主な調整項目を次の6つに絞り、操作した項目だけを固定UI・参照先の6種類の行Prefab・指定した操作帯へ一括反映する。個別部品の設定一覧は初期表示へ並べず、余白・間隔・配置などの詳細は各部品のUnity標準Inspectorで編集する。
-
-| 調整項目 | 反映する用途 |
-| --- | --- |
-| 共通フォント | 固定UI・生成行・操作帯の全Text。現在値は追加項目のTextRowから読む。 |
-| 基本文字サイズ | TextRowの本文サイズを基準に変更分を全Textへ加える。初期の本文16・見出し18・補足14なら、基本17で本文17・見出し19・補足15となる。個別に付けたサイズ差も保ち、最小文字が1以上になる範囲で変更する。 |
-| 文字色 | 固定UI・生成行・操作帯の全Text。画像アイコンとゲージは対象外。 |
-| パネル背景色 | 保存参照から特定する常時表示・左ページ・右セル情報・操作帯の4パネル。画像アイコン、ゲージ、マスクは対象外。 |
-| ボタン通常色 | 固定UI・生成行・操作帯のButton背景、未選択タブ、配置と採取サブメニューのBuilderの通常色。タブは配置ページの選択状態でプレビューする。 |
-| 選択色 | 選択タブと配置Builderの展開中色、各Buttonの選択時のColorTint。通常ボタンはUnityの既存ColorTintに従って背景色へ乗算する。 |
-
-代表値は既存部品から読み、一括操作では既存SerializedPropertyを書き換える。独立した設定アセットや実行時の部品生成は追加しない。未操作の項目と既定の見た目を保ち、一括調整の後も標準Inspectorで個別編集できる。再描画・選択・再生開始時に共通値を強制適用する処理は持たない。
-
-Sceneの操作帯は同じSceneから取得し、Prefab Modeでは対象の操作帯Prefabを指定する。固定UIと操作帯の変更先を常に表示し、共有行Prefabの一覧は折りたたむ。生成行はHudLayoutAdapter、PlacementBuilder、CellStatusViewAdapterの参照先を使う。SceneのPrefabインスタンスの変更はOverrideとしてSceneへ、Prefab Modeの変更は開いているPrefabへ保存する。共有行PrefabとProjectから指定した操作帯は共有アセットなのでProjectを保存し、同じPrefabを使う他のHUDにも反映する。Apply/RevertはUnity標準のOverridesで操作する。
-
-一回の一括操作を一つのUndoグループにまとめ、固定UI・共有行・操作帯をまとめてUndo/Redoする。生成・一覧再構築・プール再取得では保存済み行Prefabの値を使い、個別編集も保持する。常時表示の非スクロールと折返し、データ読取・購入・購読・入力遮断は既存の処理を使う。
-
-[HudLayoutEditingVerifierEditor.RunRendered](../../Assets/Scripts/UI/Editor/HudLayoutEditingVerifierEditor.cs)は専用バッチプロジェクトで、実Inspectorの未操作時の無変更、6項目の一括反映、文字サイズ差、アイコン・ゲージと配置の保持、一回のUndo/Redo、Scene Override・Prefab Mode、共有アセットの分離、保存・再読込、再生後と一覧更新への反映を検査する。基本17・見出し19・補足15の状態でもPC2寸法の収容を既存判定で確認する。その後、既定の見た目へ戻してEconomyUIVerifierEditorの2710項目、非スクロールの常時表示、PC2寸法の収容と画像出力を続ける。試験用Scene・行Prefab・フォントは専用コピー内へ作る。実行条件・対象差分・結果・整理状況はローカルの`docs/verification/uis07-ui.json`へ、最終画像は既存固定名`docs/verification/uis05/hud-1600x900.png`と`hud-1366x768.png`へ保存する。

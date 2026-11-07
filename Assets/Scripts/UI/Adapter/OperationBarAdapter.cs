@@ -19,6 +19,14 @@ public sealed class OperationBarAdapter : MonoBehaviour
         rotateButton.onClick.AddListener(Rotate);
         viewButton.onClick.AddListener(SwitchView);
         viewButton.interactable = cameraController != null;
+        foreach (var root in gameObject.scene.GetRootGameObjects())
+        {
+            var hud = root.GetComponentInChildren<HudLayoutAdapter>(true);
+            if (hud == null) continue;
+            bar.GetComponent<Image>().color = hud.IdleTabColor;
+            hud.StyleButton(rotateButton); hud.StyleButton(viewButton);
+            break;
+        }
     }
     private void Rotate() => _cursor.RotatePlacement();
     private void SwitchView() => _cameraController?.SwitchCameraAngle();

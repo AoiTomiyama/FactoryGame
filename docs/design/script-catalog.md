@@ -195,14 +195,7 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 
 | ファイル | 責務と主な依存 |
 | --- | --- |
-| [HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs) | FactoryHud内の固定枠・3タブ・行Prefab参照と、保存した配置を基準にする幅・上余白の追従 |
+| [HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs) | FactoryHud内の固定枠・3タブ・行Prefab参照、既存の通常色・選択色の共用と、保存した配置を基準にする幅・上余白の追従 |
 | [RecipeResourceRowAdapter](../../Assets/Scripts/UI/Adapter/RecipeResourceRowAdapter.cs) | Recipe.prefabの資源アイコン・名称・数量の表示 |
 | [EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs) | 選択設備の状態読取、強化見積り、購入とボタン購読の解除 |
 | [HudPrefabVerifierEditor](../../Assets/Scripts/UI/Editor/HudPrefabVerifierEditor.cs) | MainSceneとPrefabの保存参照、欠損、Editor編集保持、再構成時の固定部品保持を既存UI回帰へ追加 |
-
-## HUDのEdit Mode調整（UIS-07）
-
-| ファイル | 責務と主な依存 |
-| --- | --- |
-| [HudLayoutInspectorEditor](../../Assets/Scripts/UI/Editor/HudLayoutInspectorEditor.cs) | HudLayoutAdapterのカスタムInspector。共通フォント・基本文字サイズ・文字色・パネル背景色・ボタン通常色・選択色を、固定部品・参照先行Prefab・別Prefabの操作帯の既存SerializedPropertyへ一括保存する |
-| [HudLayoutEditingVerifierEditor](../../Assets/Scripts/UI/Editor/HudLayoutEditingVerifierEditor.cs) | Inspector再描画の無変更、Undo/Redo、Scene Override・Prefab Mode、保存・再読込と再生後の生成行・一覧更新を検査し、既存のHUD回帰へ接続する |

@@ -27,5 +27,7 @@ public class CellSelectButtonUIAdapter : MonoBehaviour
     {
         backgroundImage.color = color;
         if (_label != null) button.GetComponent<Image>().color = color;
+        var hud = GetComponentInParent<HudLayoutAdapter>();
+        if (hud != null) hud.StyleButton(button, color == hud.SelectedTabColor);
     }
 }

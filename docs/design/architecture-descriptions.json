@@ -1751,7 +1751,7 @@
           ]
         },
         "Builder": {
-          "description": "保存済みの配置ページ内で、セル定義から既存SelectButton.prefabを複製します。採取設備は同じ定義を使うサブメニューから選び、ボタンはPlacerへ種類を渡します。選択とタブの開閉で支払は行いません。",
+          "description": "セル定義と既存行Prefabから配置ボタンを生成します。親のHudLayoutAdapterから共通書体と既存2色を読み、通常ボタンと採取サブメニュー、展開中色へ反映します。配置の選択と費用判定は既存Placerへ渡します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/SelectButtonBuilderAdapter.cs",
@@ -2089,7 +2089,7 @@
           ]
         },
         "HudStyle": {
-          "description": "FactoryHudに保存した固定枠、3タブ、閉じるボタンと行Prefabの参照を公開します。折返しで増えた常時表示の高さと画面幅の差分だけを反映し、保存した配置を基準にします。",
+          "description": "固定枠・タブ・行Prefabの保存参照と、画面幅・折返しへの追従を担います。既存IdleTabColorを背景と通常ボタン、SelectedTabColorを選択・強調・押下へ使い、配置Builderと操作帯も同じ色を読みます。アイコン・ゲージ・文字の固有色と保存配置は保持します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs",
@@ -2116,20 +2116,11 @@
           ]
         },
         "Operation": {
-          "description": "保存済みOperationBar.prefabの回転と視点ボタンを既存カーソルとカメラへ接続します。固定枠や操作説明は実行時に生成せず、Editorの配置と文字設定を使用します。",
+          "description": "保存済み操作帯のボタンをカーソルの配置回転とカメラの視点切替へ接続します。同じSceneのHudLayoutAdapterから既存2色を読み、操作帯背景とボタンへ適用します。R・Lのキー操作とボタンは既存入力を共用します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/OperationBarAdapter.cs",
               "symbol": "Configure"
-            }
-          ]
-        },
-        "HudEditor": {
-          "description": "HudLayoutAdapterを選択したときのEditor専用の共通設定です。共通フォント、基本文字サイズ、文字色、パネル背景色、ボタン通常色、選択色を、固定UI・参照先の共有行Prefab・指定した操作帯へ一括反映します。文字サイズ差とアイコン・ゲージを保ち、一回のUndo/Redoで対象全体を戻します。変更先はScene OverrideまたはPrefabです。",
-          "references": [
-            {
-              "path": "Assets/Scripts/UI/Editor/HudLayoutInspectorEditor.cs",
-              "symbol": "HudLayoutInspectorEditor"
             }
           ]
         }
@@ -2172,8 +2163,7 @@
           "HudStyle": "surface",
           "EquipmentPresenter": "middle",
           "RecipeRow": "surface",
-          "Operation": "surface",
-          "HudEditor": "surface"
+          "Operation": "surface"
         }
       },
       "number": "6"
