@@ -204,5 +204,5 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 
 | ファイル | 責務と主な依存 |
 | --- | --- |
-| [HudLayoutInspectorEditor](../../Assets/Scripts/UI/Editor/HudLayoutInspectorEditor.cs) | HudLayoutAdapterのカスタムInspector。固定部品・参照先行Prefab・別Prefabの操作帯を分け、用途別の文字、色、余白・間隔と配置を既存SerializedPropertyへ保存する |
+| [HudLayoutInspectorEditor](../../Assets/Scripts/UI/Editor/HudLayoutInspectorEditor.cs) | HudLayoutAdapterのカスタムInspector。共通フォント・基本文字サイズ・文字色・パネル背景色・ボタン通常色・選択色を、固定部品・参照先行Prefab・別Prefabの操作帯の既存SerializedPropertyへ一括保存する |
 | [HudLayoutEditingVerifierEditor](../../Assets/Scripts/UI/Editor/HudLayoutEditingVerifierEditor.cs) | Inspector再描画の無変更、Undo/Redo、Scene Override・Prefab Mode、保存・再読込と再生後の生成行・一覧更新を検査し、既存のHUD回帰へ接続する |

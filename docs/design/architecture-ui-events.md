@@ -188,11 +188,11 @@ flowchart LR
  RecipeRow --> UnityUI
  Operation --> Cursor
  Operation --> Camera
- HudEditor -. "固定部品と用途別の文字・色・配置を編集" .-> HudStyle
- HudEditor -. "参照先の共有行Prefabを編集" .-> HudRows
- HudEditor -. "参照先の共有行Prefabを編集" .-> RecipeRow
- HudEditor -. "別Prefabの操作帯を編集" .-> Operation
- HudEditor -. "配置の表示色と行参照を読む" .-> Builder
+ HudEditor -. "共通の文字・色を固定UIへ一括反映" .-> HudStyle
+ HudEditor -. "共通の文字・色を共有行Prefabへ一括反映" .-> HudRows
+ HudEditor -. "共通の文字・色を共有行Prefabへ一括反映" .-> RecipeRow
+ HudEditor -. "共通の文字・色を操作帯へ一括反映" .-> Operation
+ HudEditor -. "通常色・選択色と行参照を編集" .-> Builder
 ```
 
 点線は左から右へのイベント／値の授受、実線は利用側→依存先。InputActionはOnEnableで有効化・購読、OnDisableで解除。左ボタン開始→PointerBegin、保持中Update→PointerDrag、終了→UI外ならPointerEnd、UI上ならプレビュー取消、右操作→TransferDataToUI。回転操作はPlacerの向きを変える。選択ボタンはBuilderがDBから生成し通常ボタンにSetSelectedCellTypeを渡す。SubMenuUIBuilderは同じセル定義から採取設備の候補を生成し、選択をPlacerへ渡す。接続イベントは隣接参照を更新してから通知し、UIのStatusChangedとは別系統である。

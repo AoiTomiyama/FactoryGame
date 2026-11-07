@@ -6,51 +6,57 @@ using UnityEngine;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
-/// <summary>既存の保存先を直接編集し、描画だけでは値を書き込まないHUD編集入口。</summary>
+/// <summary>既存の部品へ、操作した共通項目だけを一括反映する編集入口。</summary>
 [CustomEditor(typeof(HudLayoutAdapter))]
 public sealed class HudLayoutInspectorEditor : Editor
 {
-    private bool _fixed = true, _rows, _bar, _references;
     private OperationBarAdapter _operation;
+    private bool _targets;
 
     public override void OnInspectorGUI()
     {
         var hud = (HudLayoutAdapter)target;
+        if (_operation == null) _operation = SceneOperation(hud);
+        EditorGUILayout.LabelField("HUDの共通設定", EditorStyles.boldLabel);
+        EditorGUILayout.HelpBox("変更した項目を固定UI・共有行Prefab・操作帯へ一括反映します。行Prefabの変更は、それを使う他のHUDにも反映されます。", MessageType.Info);
         using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
         {
-            EditorGUILayout.HelpBox("変更した項目だけを反映します。複数の値が異なる項目は「—」で表示します。部品の個別編集は各参照から開けます。", MessageType.Info);
-            _fixed = EditorGUILayout.Foldout(_fixed, "固定UI：選択中のHUD", true);
-            if (_fixed)
-            {
-                Destination(hud);
-                DrawStatic(hud);
-            }
-            _rows = EditorGUILayout.Foldout(_rows, "生成行：参照先の共有Prefab", true);
-            if (_rows)
-            {
-                EditorGUILayout.HelpBox("ここでの変更は参照先アセットへ保存され、同じ行Prefabを使うHUDへ反映されます。SceneのOverrideにはなりません。行の内容は再生中に設定されます。", MessageType.Info);
-                foreach (var row in RowRoots(hud)) DrawPart(row, true);
-                if (hud.PlacementBuilder != null)
-                {
-                    Destination(hud.PlacementBuilder);
-                    DrawProperties(hud.PlacementBuilder, "配置ボタンの表示色（このHUDのBuilder）", "defaultBackgroundColor", "openedSubMenuColor");
-                    DrawProperties(Reference<SubMenuUIBuilderAdapter>(hud.PlacementBuilder, "subMenuUIBuilder"),
-                        "採取サブメニューの表示色", "subMenuColor");
-                }
-            }
-            _bar = EditorGUILayout.Foldout(_bar, "操作帯：別Prefab", true);
-            if (_bar)
-            {
-                // Prefab Modeでは他のSceneやPrefab資産を自動選択しない。
-                if (_operation == null && !EditorUtility.IsPersistent(hud) && PrefabStageUtility.GetPrefabStage(hud.gameObject) == null)
-                    _operation = hud.gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<OperationBarAdapter>(true)).FirstOrDefault();
-                _operation = (OperationBarAdapter)EditorGUILayout.ObjectField("編集する操作帯", _operation, typeof(OperationBarAdapter), true);
-                EditorGUILayout.HelpBox("Sceneでは同じSceneの操作帯を表示します。Prefab Modeでは操作帯Prefabを指定してください。変更先は下に表示します。", MessageType.Info);
-                if (_operation != null) { Destination(_operation); DrawPart(_operation.gameObject, false); }
-            }
+            Edit("共通フォント", hud.TextRow != null ? hud.TextRow.font : null,
+                value => (Font)EditorGUILayout.ObjectField("共通フォント", value, typeof(Font), false),
+                value => ApplyFont(hud, _operation, value));
+            var size = hud.TextRow != null ? hud.TextRow.fontSize : 16;
+            Edit("基本文字サイズ", size, value => EditorGUILayout.IntField("基本文字サイズ", value),
+                value => ApplyBaseSize(hud, _operation, value));
+            Edit("文字色", hud.TextRow != null ? hud.TextRow.color : Color.white,
+                value => EditorGUILayout.ColorField("文字色", value), value => ApplyTextColor(hud, _operation, value));
+            var panel = Panels(hud, _operation).FirstOrDefault();
+            Edit("パネル背景色", panel != null ? panel.color : Color.black,
+                value => EditorGUILayout.ColorField("パネル背景色", value), value => ApplyPanelColor(hud, _operation, value));
+            var button = hud.Upgrade != null ? hud.Upgrade.targetGraphic : null;
+            Edit("ボタン通常色", button != null ? button.color : Color.white,
+                value => EditorGUILayout.ColorField("ボタン通常色", value), value => ApplyButtonColor(hud, _operation, value));
+            Edit("選択色", hud.SelectedTabColor, value => EditorGUILayout.ColorField("選択色", value),
+                value => ApplySelectedColor(hud, _operation, value));
+            EditorGUILayout.HelpBox("基本文字サイズは追加項目の本文サイズです。変更分を全Textへ加え、見出し・本文・補足の差を保ちます。細かな色・文字・配置は各部品の標準Inspectorで編集できます。", MessageType.None);
+            _operation = (OperationBarAdapter)EditorGUILayout.ObjectField("対象の操作帯", _operation, typeof(OperationBarAdapter), true);
         }
-        _references = EditorGUILayout.Foldout(_references, "既存の参照・個別設定", true);
-        if (_references) DrawDefaultInspector();
+        Destination(hud);
+        if (_operation != null) Destination(_operation);
+        else EditorGUILayout.HelpBox("操作帯は未指定です。Prefab Modeでは操作帯Prefabを指定すると一括調整に含まれます。", MessageType.Info);
+        _targets = EditorGUILayout.Foldout(_targets, "共有行Prefab・個別編集の参照", true);
+        if (_targets)
+        {
+            foreach (var row in RowRoots(hud)) EditorGUILayout.ObjectField("共有行Prefab", row, typeof(GameObject), false);
+            EditorGUILayout.ObjectField("固定UI", hud.gameObject, typeof(GameObject), true);
+            EditorGUILayout.HelpBox("SceneはOverrideとしてSceneを保存、Prefab Modeは開いているPrefabを保存、共有行とProjectから指定した操作帯はProjectを保存します。Apply/Revertは標準のOverridesを使います。", MessageType.None);
+        }
+    }
+
+    private static void Edit<T>(string name, T value, Func<T, T> draw, Action<T> apply)
+    {
+        EditorGUI.BeginChangeCheck();
+        var next = draw(value);
+        if (EditorGUI.EndChangeCheck()) { Undo.SetCurrentGroupName("HUD：" + name); apply(next); }
     }
 
     internal static T Reference<T>(Object owner, string field) where T : Object
@@ -60,6 +66,10 @@ public sealed class HudLayoutInspectorEditor : Editor
         return data.FindProperty(field)?.objectReferenceValue as T;
     }
 
+    internal static OperationBarAdapter SceneOperation(HudLayoutAdapter hud)
+        => EditorUtility.IsPersistent(hud) || PrefabStageUtility.GetPrefabStage(hud.gameObject) != null ? null
+            : hud.gameObject.scene.GetRootGameObjects().SelectMany(root => root.GetComponentsInChildren<OperationBarAdapter>(true)).FirstOrDefault();
+
     internal static GameObject[] RowRoots(HudLayoutAdapter hud)
     {
         var view = hud.GetComponentInChildren<CellStatusViewAdapter>(true);
@@ -68,152 +78,85 @@ public sealed class HudLayoutInspectorEditor : Editor
             .Where(value => value != null).Select(value => value.gameObject).Distinct().ToArray();
     }
 
-    internal static Text[][] TextRoles(HudLayoutAdapter hud)
+    internal static GameObject[] Roots(HudLayoutAdapter hud, OperationBarAdapter operation)
+        => RowRoots(hud).Append(hud.gameObject).Concat(operation != null ? new[] { operation.gameObject } : Array.Empty<GameObject>()).Distinct().ToArray();
+    internal static Text[] Texts(HudLayoutAdapter hud, OperationBarAdapter operation)
+        => Roots(hud, operation).SelectMany(root => root.GetComponentsInChildren<Text>(true)).Distinct().ToArray();
+    internal static Button[] Buttons(HudLayoutAdapter hud, OperationBarAdapter operation)
+        => Roots(hud, operation).SelectMany(root => root.GetComponentsInChildren<Button>(true)).Distinct().ToArray();
+    internal static Image[] Panels(HudLayoutAdapter hud, OperationBarAdapter operation)
     {
-        var all = hud.GetComponentsInChildren<Text>(true);
-        var headings = new[] { hud.EquipmentHeading, hud.Close != null ? hud.Close.GetComponentInChildren<Text>(true) : null }
-            .Where(value => value != null).ToArray();
-        var notes = new[] { hud.Feedback, hud.EquipmentFeedback }.Where(value => value != null).ToArray();
-        return new[] { headings, all.Except(headings).Except(notes).ToArray(), notes };
+        var status = hud.GetComponentInChildren<CellStatusViewAdapter>(true);
+        // 用途が保存参照で特定できるパネルだけを扱い、アイコン・ゲージ・マスクを除く。
+        return new Component[] { hud.Summary, hud.Body, status != null ? status.StatusScroll : null, operation != null ? operation.Bar : null }
+            .Where(component => component != null).Select(component => component.GetComponent<Image>()).Where(image => image != null).Distinct().ToArray();
     }
 
-    private static void DrawStatic(HudLayoutAdapter hud)
+    private static void Write(Object target, string path, Action<SerializedProperty> change)
     {
-        var roles = TextRoles(hud);
-        DrawText(roles[0], "見出し"); DrawText(roles[1], "本文・操作"); DrawText(roles[2], "補足・結果");
-        var selected = hud.SelectedTabColor; var idle = hud.IdleTabColor;
-        DrawProperties(hud, "タブの表示色", "SelectedTabColor", "IdleTabColor");
-        PreviewTabPalette(hud, selected, idle);
-        EditorGUILayout.HelpBox("タブ色の変更は配置ページを選択した状態でプレビューします。配置ボタンの表示色は生成行欄のBuilder設定を使います。", MessageType.None);
-        DrawGeometry(hud.gameObject);
-        DrawImagesAndButtons(hud.gameObject);
+        if (target == null) return;
+        using var data = new SerializedObject(target);
+        data.Update(); change(data.FindProperty(path)); data.ApplyModifiedProperties();
     }
-
-    internal static void PreviewTabPalette(HudLayoutAdapter hud, Color previousSelected, Color previousIdle)
+    private static void Together(Action edit)
     {
-        if (hud.SelectedTabColor == previousSelected && hud.IdleTabColor == previousIdle) return;
+        Undo.IncrementCurrentGroup();
+        var group = Undo.GetCurrentGroup();
+        Undo.SetCurrentGroupName("HUDの共通設定を変更");
+        try { edit(); Undo.FlushUndoRecordObjects(); }
+        finally { Undo.CollapseUndoOperations(group); }
+    }
+    internal static void ApplyFont(HudLayoutAdapter hud, OperationBarAdapter operation, Font font) => Together(() =>
+    {
+        foreach (var text in Texts(hud, operation)) Write(text, "m_FontData.m_Font", p => p.objectReferenceValue = font);
+    });
+    internal static void ApplyBaseSize(HudLayoutAdapter hud, OperationBarAdapter operation, int size) => Together(() =>
+    {
+        var texts = Texts(hud, operation);
+        if (texts.Length == 0 || hud.TextRow == null) return;
+        // 最小文字を1以上に保てる範囲で同じ差分を使い、個別のサイズ差を維持する。
+        var delta = Mathf.Max(size - hud.TextRow.fontSize, 1 - texts.Min(text => text.fontSize));
+        foreach (var text in texts) { var next = text.fontSize + delta; Write(text, "m_FontData.m_FontSize", p => p.intValue = next); }
+    });
+    internal static void ApplyTextColor(HudLayoutAdapter hud, OperationBarAdapter operation, Color color) => Together(() =>
+    {
+        foreach (var text in Texts(hud, operation)) Write(text, "m_Color", p => p.colorValue = color);
+    });
+    internal static void ApplyPanelColor(HudLayoutAdapter hud, OperationBarAdapter operation, Color color) => Together(() =>
+    {
+        foreach (var panel in Panels(hud, operation)) Write(panel, "m_Color", p => p.colorValue = color);
+    });
+    internal static void ApplyButtonColor(HudLayoutAdapter hud, OperationBarAdapter operation, Color color) => Together(() =>
+    {
+        foreach (var button in Buttons(hud, operation)) Write(button.targetGraphic, "m_Color", p => p.colorValue = color);
+        foreach (var cell in Roots(hud, operation).SelectMany(root => root.GetComponentsInChildren<CellSelectButtonUIAdapter>(true)).Distinct())
+            Write(Reference<Image>(cell, "backgroundImage"), "m_Color", p => p.colorValue = color);
+        Write(hud, "IdleTabColor", p => p.colorValue = color);
+        Write(hud.PlacementBuilder, "defaultBackgroundColor", p => p.colorValue = color);
+        Write(Reference<SubMenuUIBuilderAdapter>(hud.PlacementBuilder, "subMenuUIBuilder"), "subMenuColor", p => p.colorValue = color);
+        PreviewTabs(hud);
+    });
+    internal static void ApplySelectedColor(HudLayoutAdapter hud, OperationBarAdapter operation, Color color) => Together(() =>
+    {
+        Write(hud, "SelectedTabColor", p => p.colorValue = color);
+        Write(hud.PlacementBuilder, "openedSubMenuColor", p => p.colorValue = color);
+        foreach (var button in Buttons(hud, operation)) Write(button, "m_Colors.m_SelectedColor", p => p.colorValue = color);
+        PreviewTabs(hud);
+    });
+    private static void PreviewTabs(HudLayoutAdapter hud)
+    {
         for (var i = 0; i < hud.Tabs.Length; i++)
         {
-            if (hud.Tabs[i] == null) continue;
-            using var data = new SerializedObject(hud.Tabs[i].GetComponent<Image>());
-            data.FindProperty("m_Color").colorValue = i == 0 ? hud.SelectedTabColor : hud.IdleTabColor;
-            data.ApplyModifiedProperties();
+            var color = i == 0 ? hud.SelectedTabColor : hud.IdleTabColor;
+            if (hud.Tabs[i] != null) Write(hud.Tabs[i].targetGraphic, "m_Color", p => p.colorValue = color);
         }
     }
-
-    private static void DrawText(Text[] texts, string label)
+    private static void Destination(Component value)
     {
-        if (texts.Length == 0) return;
-        EditorGUILayout.LabelField(label, EditorStyles.boldLabel);
-        DrawProperties(texts.Cast<Object>().ToArray(), "共通項目", "m_FontData.m_Font", "m_FontData.m_FontSize", "m_Color");
-        foreach (var text in texts) EditorGUILayout.ObjectField(text.name, text, typeof(Text), true);
+        var stage = PrefabStageUtility.GetPrefabStage(value.gameObject);
+        var destination = stage != null ? "Prefab Mode：" + stage.assetPath
+            : EditorUtility.IsPersistent(value) ? "共有アセット：" + AssetDatabase.GetAssetPath(value)
+            : "Scene Override：" + value.gameObject.scene.path;
+        EditorGUILayout.LabelField("変更先", destination, EditorStyles.wordWrappedLabel);
     }
-
-    private static void DrawPart(GameObject root, bool shared)
-    {
-        EditorGUILayout.Space();
-        EditorGUILayout.ObjectField(shared ? "共有行Prefab" : "操作帯", root, typeof(GameObject), true);
-        Destination(root);
-        if (!Foldout(root, "表示と配置を編集")) return;
-        // 行Prefab内にも見出し・本文・補足が混在するため、サイズを一律に揃えない。
-        foreach (var text in root.GetComponentsInChildren<Text>(true))
-        {
-            EditorGUILayout.ObjectField("文字の編集先", text, typeof(Text), true);
-            DrawProperties(text, "文字：" + text.name, "m_FontData.m_Font", "m_FontData.m_FontSize", "m_Color");
-        }
-        DrawImagesAndButtons(root);
-        DrawGeometry(root);
-    }
-
-    private static void DrawImagesAndButtons(GameObject root)
-    {
-        if (!Foldout(root, "背景・ボタンの色")) return;
-        foreach (var image in root.GetComponentsInChildren<Image>(true))
-        {
-            EditorGUILayout.ObjectField(image.GetComponent<Button>() != null ? "ボタン背景" : "背景・画像", image, typeof(Image), true);
-            DrawProperties(image, image.name, "m_Color");
-        }
-        foreach (var button in root.GetComponentsInChildren<Button>(true))
-            DrawProperties(button, "ボタン状態色：" + button.name, "m_Colors");
-    }
-
-    private static void DrawGeometry(GameObject root)
-    {
-        if (!Foldout(root, "余白・間隔・配置")) return;
-        EditorGUILayout.HelpBox("自動整列する部品はLayoutGroupの余白・間隔を編集します。常時表示の項目位置、文字に合わせる行の高さ、ゲージ幅は表示内容に応じて自動更新します。", MessageType.None);
-        foreach (var group in root.GetComponentsInChildren<LayoutGroup>(true))
-        {
-            EditorGUILayout.ObjectField("整列する範囲", group, typeof(LayoutGroup), true);
-            if (group is GridLayoutGroup) DrawProperties(group, group.name, "m_Padding", "m_Spacing", "m_CellSize");
-            else DrawProperties(group, group.name, "m_Padding", "m_Spacing");
-        }
-        foreach (var rect in EditableRects(root))
-        {
-            EditorGUILayout.ObjectField("配置する部品", rect, typeof(RectTransform), true);
-            DrawProperties(rect, rect.name, "m_AnchoredPosition", "m_SizeDelta");
-        }
-    }
-
-    internal static RectTransform[] EditableRects(GameObject root)
-    {
-        var hud = root.GetComponent<HudLayoutAdapter>();
-        var gauge = Reference<Image>(root.GetComponent<HudStatusRowAdapter>(), "_gauge");
-        // 自動配置で上書きされる座標は一括編集から外し、固定枠の保存座標だけを示す。
-        return root.GetComponentsInChildren<RectTransform>(true).Where(rect =>
-            (rect.parent == null || rect.parent.GetComponent<LayoutGroup>() == null) &&
-            (hud == null || hud.Summary == null || rect == hud.Summary || !rect.IsChildOf(hud.Summary)) &&
-            (gauge == null || rect != gauge.rectTransform) &&
-            rect.GetComponent<ContentSizeFitter>() == null && rect.GetComponent<LayoutElement>() == null).ToArray();
-    }
-
-    private static bool Foldout(Object root, string label)
-    {
-        var key = "UIS07.Inspector." + root.GetInstanceID() + "." + label;
-        var expanded = EditorGUILayout.Foldout(SessionState.GetBool(key, false), label, true);
-        SessionState.SetBool(key, expanded);
-        return expanded;
-    }
-
-    private static void Destination(Object value)
-    {
-        var component = value as Component;
-        var go = component != null ? component.gameObject : value as GameObject;
-        var stage = go != null ? PrefabStageUtility.GetPrefabStage(go) : null;
-        var path = AssetDatabase.GetAssetPath(value);
-        var message = stage != null ? "変更先：Prefab Mode " + stage.assetPath + "（Prefabを保存）"
-            : EditorUtility.IsPersistent(value) ? "変更先：共有アセット " + path + "（Projectを保存）"
-            : "変更先：Scene " + (go != null ? go.scene.path : "") + "（Sceneを保存）";
-        if (stage == null && PrefabUtility.IsPartOfPrefabInstance(value))
-            message += "\nPrefab Overrideとして保持します。Apply/Revertは既存InspectorのOverridesで操作してください。";
-        EditorGUILayout.HelpBox(message, MessageType.None);
-    }
-
-    private static void DrawProperties(Object value, string label, params string[] paths)
-        => DrawProperties(value != null ? new[] { value } : Array.Empty<Object>(), label, paths);
-
-    private static void DrawProperties(Object[] values, string label, params string[] paths)
-    {
-        if (values.Length == 0) return;
-        using var data = new SerializedObject(values);
-        data.Update();
-        EditorGUILayout.LabelField(label);
-        EditorGUI.indentLevel++;
-        foreach (var path in paths)
-        {
-            var property = data.FindProperty(path);
-            if (property != null) EditorGUILayout.PropertyField(property, Label(path), true);
-        }
-        EditorGUI.indentLevel--;
-        // SerializedPropertyは変更した値だけをUndo・Prefab Overrideへ記録する。
-        data.ApplyModifiedProperties();
-    }
-
-    private static GUIContent Label(string path) => new(path switch
-    {
-        "m_FontData.m_Font" => "フォント", "m_FontData.m_FontSize" => "文字サイズ", "m_Color" => "色",
-        "m_Colors" => "通常・強調・押下・選択・無効", "m_Padding" => "内側の余白", "m_Spacing" => "間隔",
-        "m_CellSize" => "セル寸法", "m_AnchoredPosition" => "位置", "m_SizeDelta" => "寸法の差分",
-        "SelectedTabColor" => "選択中", "IdleTabColor" => "未選択", "defaultBackgroundColor" => "通常",
-        "openedSubMenuColor" => "サブメニュー展開中", "subMenuColor" => "サブメニュー背景", _ => path
-    });
 }

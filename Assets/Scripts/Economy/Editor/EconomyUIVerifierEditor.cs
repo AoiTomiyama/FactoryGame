@@ -61,6 +61,7 @@ public static class EconomyUIVerifierEditor
             var wallet = generator.Wallet;
             var panel = generator.GetComponent<EconomyPanelAdapter>();
             var view = UnityEngine.Object.FindAnyObjectByType<CellStatusViewAdapter>();
+            await HudLayoutEditingVerifierEditor.VerifyRuntime(panel);
             HudPrefabVerifierEditor.VerifyRuntime(panel);
             var grid = GridFieldDatabaseAdapter.Instance;
             Require(panel.IsSubscribed && panel.BalanceText.Contains("残高 100"), "initial shared balance");
@@ -214,6 +215,39 @@ public static class EconomyUIVerifierEditor
             EditorApplication.Exit(0);
         }
         catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
+    }
+    internal static async UniTask VerifyCommonLayout(EconomyPanelAdapter panel)
+    {
+        var before = _checks;
+        var canvas = panel.GetComponentInChildren<HudLayoutAdapter>().GetComponent<Canvas>();
+        var root = canvas.GetComponent<RectTransform>();
+        var size = root.sizeDelta;
+        var scaler = canvas.GetComponent<CanvasScaler>();
+        var mode = canvas.renderMode; var scaling = scaler.enabled;
+        canvas.renderMode = RenderMode.WorldSpace; scaler.enabled = false;
+        panel.SetSummaryItems(Enumerable.Range(0, 12).Select(i => "追加項目 " + i + "：12345").ToArray());
+        try
+        {
+            foreach (var resolution in new[] { new Vector2(1600, 900), new Vector2(1366, 768) })
+            {
+                root.sizeDelta = new Vector2(resolution.x * 720 / resolution.y, 720);
+                for (var page = 0; page < 3; page++)
+                {
+                    panel.ShowPage(page);
+                    await UniTask.DelayFrame(4); Canvas.ForceUpdateCanvases();
+                    VerifyLayout(canvas, resolution, page);
+                }
+                VerifyFixedSummary(panel, root, resolution);
+            }
+            VerifyOperationBarLayout();
+            Debug.Log($"HUD common edited-size PC layout checks passed: {_checks - before} assertions; base 17, heading 19, note 15; 1600x900 and 1366x768.");
+        }
+        finally
+        {
+            panel.SetSummaryItems(); panel.ShowPage(0);
+            root.sizeDelta = size; scaler.enabled = scaling; canvas.renderMode = mode;
+            _checks = before;
+        }
     }
     private static async UniTask VerifySideTabs(EconomyPanelAdapter panel, CellStatusViewAdapter view,
         Canvas canvas, CurrencyWalletApplication wallet, GridFieldDatabaseAdapter grid)
@@ -464,6 +498,11 @@ public static class EconomyUIVerifierEditor
             Require(raycaster.IsPointerOverUI(position), "operation button blocks field input");
             VerifyInputCancellation(placer, raycaster, position, wallet, grid);
         }
+        VerifyOperationBarLayout();
+    }
+    private static void VerifyOperationBarLayout()
+    {
+        var bar = UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>();
         var canvas = bar.GetComponentInChildren<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.GetComponent<CanvasScaler>().enabled = false;

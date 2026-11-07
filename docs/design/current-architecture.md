@@ -10,7 +10,7 @@ PRG-01の能力合成は[設備の有効能力](../spec/effective-stats.md)を�
 
 ## 読み方と対象範囲
 
-UIS-07の[Edit Mode調整](../spec/currency-loop-ui.md#edit-modeのhud調整uis-07)はHudLayoutAdapterのカスタムInspectorから既存のText・Image・Buttonと配置を編集する。固定部品、参照先の共有行Prefab、別Prefabの操作帯の変更先を分け、Scene OverrideとPrefab保存を使う。
+UIS-07の[Edit Mode調整](../spec/currency-loop-ui.md#edit-modeのhud調整uis-07)はHudLayoutAdapterのカスタムInspectorから共通フォント・基本文字サイズ・文字色・パネル背景色・ボタン通常色・選択色を一括調整する。固定部品、参照先の共有行Prefab、別Prefabの操作帯の変更先を示し、Scene OverrideとPrefab保存を使う。
 
 UIS-05は上部の常時表示、左の配置・レシピ・スキル、右のセル情報と設備強化へ表示を分ける。EconomyPanelAdapterが配線と購読を、各Viewが表示を所有し、購入判定は既存Applicationへ渡す。責務・依存と検証は[経済UI仕様](../spec/currency-loop-ui.md#uis-05の責務と検証)と[UI・イベント](architecture-ui-events.md)を参照する。
 
