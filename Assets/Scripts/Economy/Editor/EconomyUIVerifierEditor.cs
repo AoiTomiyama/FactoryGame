@@ -268,7 +268,7 @@ public static class EconomyUIVerifierEditor
             Require(panel.EquipmentView.Heading.transform.GetSiblingIndex() == 0 &&
                 panel.EquipmentView.UpgradeRoot.GetSiblingIndex() == view.StatusContent.childCount - 1,
                 "cell heading then inventory then upgrade");
-            foreach (var scroll in new[] { leftScroll, panel.SummaryView.Scroll, view.StatusScroll })
+            foreach (var scroll in new[] { leftScroll, view.StatusScroll })
             {
                 scroll.verticalNormalizedPosition = 0;
                 await UniTask.DelayFrame(3);
@@ -276,7 +276,13 @@ public static class EconomyUIVerifierEditor
             }
             var lastRecipe = (RectTransform)panel.RecipeContent.GetChild(panel.RecipeContent.childCount - 1);
             Require(Inside(root, lastRecipe, leftScroll.viewport), "last of 24 recipes with six ingredients reachable " + resolution);
-            Require(Inside(root, panel.SummaryView.Items.Last().rectTransform, panel.SummaryView.Scroll.viewport), "last additional summary item reachable " + resolution);
+            VerifyFixedSummary(panel, root, resolution);
+            var fixedPositions = panel.SummaryView.WalletItems.Concat(panel.SummaryView.Items).Select(t => t.rectTransform.anchoredPosition).ToArray();
+            ExecuteEvents.ExecuteHierarchy(panel.SummaryRect.gameObject, new PointerEventData(EventSystem.current) { scrollDelta = new Vector2(0, -12) }, ExecuteEvents.scrollHandler);
+            await UniTask.DelayFrame(2);
+            VerifyFixedSummary(panel, root, resolution);
+            Require(fixedPositions.SequenceEqual(panel.SummaryView.WalletItems.Concat(panel.SummaryView.Items).Select(t => t.rectTransform.anchoredPosition)),
+                "wheel input does not move persistent summary " + resolution);
             Require(Inside(root, panel.EquipmentView.UpgradeButton.GetComponent<RectTransform>(), view.StatusScroll.viewport), "upgrade button reachable " + resolution);
             foreach (var text in panel.RecipeContent.GetComponentsInChildren<Text>())
                 Require(text.preferredHeight <= text.rectTransform.rect.height + 1, "expanded recipe text height " + resolution);
@@ -319,8 +325,32 @@ public static class EconomyUIVerifierEditor
         Require(panel.EquipmentView.Heading.text.Contains("加工設備") && panel.EquipmentView.Heading.text.Contains("待機") &&
             panel.EquipmentText.Contains("強化後: 入力容量 " + crafter.IngredientCapacityAtLevel(2)), "crafter name operating state and next capacity");
     }
+    private static void VerifyFixedSummary(EconomyPanelAdapter panel, RectTransform root, Vector2 resolution)
+    {
+        Require(panel.SummaryRect.GetComponentsInChildren<ScrollRect>(true).Length == 0 &&
+            panel.SummaryRect.GetComponentsInChildren<RectMask2D>(true).Length == 0, "persistent summary has no scrolling or clipping " + resolution);
+        var texts = panel.SummaryView.WalletItems.Concat(panel.SummaryView.Items).Where(t => t.gameObject.activeSelf).ToArray();
+        Require(texts.Length == 16, "all four wallet and twelve extra items visible " + resolution);
+        foreach (var text in texts)
+        {
+            Require(Inside(root, text.rectTransform, panel.SummaryRect) && Inside(root, text.rectTransform, root), "every summary item inside visible frame " + resolution);
+            Require(text.preferredHeight <= text.rectTransform.rect.height + 1 && text.preferredWidth <= text.rectTransform.rect.width + 1,
+                "summary item text fits " + resolution);
+        }
+        for (var i = 0; i < texts.Length; i++)
+            for (var j = i + 1; j < texts.Length; j++)
+            {
+                var a = BoundsIn(root, texts[i].rectTransform); var b = BoundsIn(root, texts[j].rectTransform);
+                Require(Mathf.Min(a.xMax, b.xMax) - Mathf.Max(a.xMin, b.xMin) < 1 || Mathf.Min(a.yMax, b.yMax) - Mathf.Max(a.yMin, b.yMin) < 1,
+                    "summary items do not overlap " + resolution);
+            }
+        var bottom = BoundsIn(root, panel.SummaryRect).yMin;
+        Require(bottom > root.rect.yMin + 108, "summary clears bottom operation bar " + resolution);
+    }
+
     private static async UniTask CaptureHud(EconomyPanelAdapter panel, CellStatusViewAdapter view, Canvas canvas)
     {
+        panel.SetSummaryItems(Enumerable.Range(0, 12).Select(i => "追加項目 " + i + "：12345").ToArray());
         // GUI操作を使わず、実際のHUDを専用カメラから画像へ書き出す。
         var canvases = new[] { canvas, UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>().GetComponentInChildren<Canvas>() };
         var objects = canvases.SelectMany(c => c.GetComponentsInChildren<Transform>(true)).Distinct().ToArray();
@@ -357,6 +387,7 @@ public static class EconomyUIVerifierEditor
         }
         foreach (var c in canvases) { c.renderMode = RenderMode.ScreenSpaceOverlay; c.worldCamera = null; }
         for (var i = 0; i < objects.Length; i++) if (objects[i] != null) objects[i].gameObject.layer = layers[i];
+        panel.SetSummaryItems();
         UnityEngine.Object.Destroy(cameraObject);
     }
 

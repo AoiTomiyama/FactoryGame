@@ -51,11 +51,10 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
                 ? HudUIAdapter.Selected : HudUIAdapter.Idle;
         }
     }
-    private Text _balance;
     private Text _placement;
     private Text _feedback;
     private readonly Dictionary<string, Button> _nodes = new();
-    public string BalanceText => _balance != null ? _balance.text : "";
+    public string BalanceText => _summaryView != null ? _summaryView.BalanceText : "";
     public string EquipmentText => _equipmentView != null ? _equipmentView.EquipmentText : "";
     public string FeedbackText => _feedback != null ? _feedback.text : "";
     public bool UpgradeInteractable => _equipmentView != null && _equipmentView.Interactable;
@@ -140,7 +139,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
 
     private void Refresh()
     {
-        if (_balance == null || _wallet == null) return;
+        if (_summaryView == null || _wallet == null) return;
         var current = _wallet.Current;
         _summaryView.RenderWallet(current);
         _equipmentView.Refresh(_selected);
@@ -203,7 +202,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         _equipmentView.UpdateLayout();
         foreach (var button in _nodes.Values)
             button.GetComponent<LayoutElement>().preferredHeight = Mathf.Max(88, button.GetComponentInChildren<Text>(true).preferredHeight + 12);
-        foreach (var text in new[] { _balance, _feedback, _placement })
+        foreach (var text in new[] { _feedback, _placement })
             text.GetComponent<LayoutElement>().preferredHeight = Mathf.Max(text.GetComponent<LayoutElement>().minHeight, text.preferredHeight);
     }
     private void OnEnable() { if (_canvas != null) _canvas.SetActive(true); Bind(); }
@@ -254,7 +253,6 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         scroll.viewport = viewport.GetComponent<RectTransform>(); scroll.content = rect; scroll.horizontal = false;
         scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 25;
         _summaryView = new PersistentSummaryViewAdapter(_canvas.transform, _font);
-        _balance = _summaryView.Balance;
         _feedback = MakeText(content.transform, "換金するとここに入金額を表示します", 14, 40);
         var navigation = new GameObject("Pages", typeof(RectTransform), typeof(VerticalLayoutGroup));
         navigation.transform.SetParent(_canvas.transform, false);

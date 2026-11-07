@@ -4,45 +4,32 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>常時表示項目を指定順で並べ、項目増加時は枠内をスクロールする。</summary>
+/// <summary>常時表示項目を指定順で横に並べ、画面幅に応じて折り返す。</summary>
 public sealed class PersistentSummaryViewAdapter
 {
     public enum WalletField { Balance, Available, Expense, Income }
     private WalletField[] _walletOrder = { WalletField.Balance, WalletField.Available, WalletField.Expense, WalletField.Income };
     private CurrencyWalletApplication.Snapshot _wallet;
     private readonly Font _font;
-    private readonly Transform _content;
     private readonly List<Text> _items = new();
+    private readonly Text[] _walletItems = new Text[4];
     public RectTransform Rect { get; }
-    public Text Balance { get; }
-    public ScrollRect Scroll { get; }
+    public string BalanceText => string.Join("　", _walletItems.Select(text => text.text));
+    public IReadOnlyList<Text> WalletItems => _walletItems;
     public IReadOnlyList<Text> Items => _items;
     public PersistentSummaryViewAdapter(Transform canvas, Font font)
     {
         _font = font;
-        var root = new GameObject("PersistentSummary", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+        var root = new GameObject("PersistentSummary", typeof(RectTransform), typeof(Image));
         root.transform.SetParent(canvas, false);
         Rect = root.GetComponent<RectTransform>();
-        HudUIAdapter.Anchor(Rect, Vector2.up, Vector2.one, new Vector2(12, -12), new Vector2(-24, 68));
+        HudUIAdapter.Anchor(Rect, Vector2.up, Vector2.one, new Vector2(12, -12), new Vector2(-24, 64));
         root.GetComponent<Image>().color = HudUIAdapter.Background;
-        var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
-        viewport.transform.SetParent(root.transform, false);
-        var viewportRect = viewport.GetComponent<RectTransform>();
-        HudUIAdapter.Stretch(viewportRect);
-        viewportRect.offsetMin = new Vector2(12, 8); viewportRect.offsetMax = new Vector2(-12, -8);
-        var content = new GameObject("SummaryItems", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
-        content.transform.SetParent(viewport.transform, false);
-        var contentRect = content.GetComponent<RectTransform>();
-        contentRect.anchorMin = Vector2.up; contentRect.anchorMax = Vector2.one; contentRect.pivot = Vector2.up; contentRect.sizeDelta = Vector2.zero;
-        var layout = content.GetComponent<VerticalLayoutGroup>();
-        layout.childControlHeight = true; layout.childForceExpandHeight = false; layout.spacing = 4;
-        content.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        _content = content.transform;
-        Balance = HudUIAdapter.MakeText(font, _content, "", 16, 48);
-        Balance.fontStyle = FontStyle.Bold;
-        Scroll = root.GetComponent<ScrollRect>();
-        Scroll.viewport = viewportRect; Scroll.content = contentRect; Scroll.horizontal = false;
-        Scroll.movementType = ScrollRect.MovementType.Clamped; Scroll.scrollSensitivity = 25;
+        for (var i = 0; i < _walletItems.Length; i++)
+        {
+            _walletItems[i] = HudUIAdapter.MakeText(font, root.transform, "", 16, 28);
+            _walletItems[i].fontStyle = FontStyle.Bold;
+        }
     }
     public void RenderWallet(CurrencyWalletApplication.Snapshot wallet)
     {
@@ -52,7 +39,8 @@ public sealed class PersistentSummaryViewAdapter
             WalletField.Balance => $"残高 {wallet.Balance}", WalletField.Available => $"使用可能 {wallet.AvailableBalance}",
             WalletField.Expense => $"支出予約 {wallet.ReservedExpense}", _ => $"換金待ち {wallet.ReservedIncome}"
         }).ToArray();
-        Balance.text = $"{entries[0]}　{entries[1]}\n{entries[2]}　{entries[3]}";
+        for (var i = 0; i < entries.Length; i++) _walletItems[i].text = entries[i];
+        UpdateLayout();
     }
     public void SetWalletOrder(params WalletField[] order)
     {
@@ -63,7 +51,7 @@ public sealed class PersistentSummaryViewAdapter
     }
     public void SetItems(params string[] items)
     {
-        while (_items.Count < items.Length) _items.Add(HudUIAdapter.MakeText(_font, _content, "", 16, 24));
+        while (_items.Count < items.Length) _items.Add(HudUIAdapter.MakeText(_font, Rect, "", 16, 28));
         for (var i = 0; i < _items.Count; i++)
         {
             _items[i].gameObject.SetActive(i < items.Length);
@@ -73,16 +61,25 @@ public sealed class PersistentSummaryViewAdapter
     }
     public void UpdateLayout()
     {
-        var height = Fit(Balance);
-        foreach (var text in _items)
-            if (text.gameObject.activeSelf) height += Fit(text) + 4;
-        // 左右パネルと下部操作帯の領域を残し、増えた項目へスクロールで到達させる。
-        Rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Clamp(height + 16, 64, 220));
-    }
-    private static float Fit(Text text)
-    {
-        var height = Mathf.Max(text.GetComponent<LayoutElement>().minHeight, text.preferredHeight);
-        text.GetComponent<LayoutElement>().preferredHeight = height;
-        return height;
+        // 全項目を通常の表示領域へ置き、画面幅に応じて行を増やす。
+        var available = Mathf.Max(1, Rect.rect.width - 24);
+        var x = 0f; var y = 8f; var rowHeight = 0f;
+        foreach (var text in _walletItems.Concat(_items).Where(text => text.gameObject.activeSelf))
+        {
+            var width = Mathf.Min(available, Mathf.Ceil(text.preferredWidth) + 8);
+            if (x > 0 && x + width > available)
+            {
+                x = 0; y += rowHeight + 6; rowHeight = 0;
+            }
+            var rect = text.rectTransform;
+            rect.anchorMin = rect.anchorMax = Vector2.up; rect.pivot = Vector2.up;
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+            var height = Mathf.Max(28, Mathf.Ceil(text.preferredHeight));
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
+            rect.anchoredPosition = new Vector2(12 + x, -y);
+            rowHeight = Mathf.Max(rowHeight, height);
+            x += width + 16;
+        }
+        Rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Max(64, y + rowHeight + 8));
     }
 }

@@ -188,7 +188,7 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 
 | ファイル | 責務と主な依存 |
 | --- | --- |
-| [PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs) | 残高項目の順、追加項目と並び、常時表示枠の高さとスクロール。WalletのスナップショットとHudUIAdapterを利用 |
+| [PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs) | 残高項目の順、追加項目と並び、横並び・折返しと常時表示枠の高さ。WalletのスナップショットとHudUIAdapterを利用 |
 | [RecipeReferenceViewAdapter](../../Assets/Scripts/UI/Adapter/RecipeReferenceViewAdapter.cs) | RecipeDatabaseDefinition・ResourceDefinitionを参照表示。加工操作を持たない |
 | [EquipmentDetailsViewAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsViewAdapter.cs) | 選択セルの見出しと強化比較・操作。CellBase派生とEquipmentUpgradeAdapterを利用 |
 | [HudStatusProviderAdapter](../../Assets/Scripts/UI/Adapter/HudStatusProviderAdapter.cs) | 既存Providerの表示スナップショットから見出しとの重複を省き、用途ラベルを付ける |
