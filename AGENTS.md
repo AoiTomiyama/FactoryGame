@@ -1,37 +1,20 @@
-# FactoryGame Codex 作業ガイド
+# FactoryGame 作業ガイド
 
-タグ: `作業方針` `Unity` `設計改修` `検証`
+タグ: `Unity` `設計` `検証` `UI`
 
-## プロジェクト概要
+## 環境と配置
 
-- Unity Editor のバージョンは `ProjectSettings/ProjectVersion.txt` に記録された 6000.3.8f1。
-- ゲームの C# コードは `Assets/Scripts/`、メインシーンは `Assets/Scenes/MainScene.unity`。
-- `Packages/manifest.json` は UniTask を Git URL から取得する。
-- 採用済みタスクの状態は `docs/tasks/task-list.md` を正本とする。作成根拠・カテゴリ順・更新手順は `docs/tasks/design-review.md`、採用時の詳細は `docs/tasks/architecture-extension.md` と `docs/tasks/extension-readiness-review.md` から辿る。
-- 今後の追加実装と設計改修は `docs/design/architecture-guidelines.md` の責務分担と依存方向を踏襲する。既存コードは同文書の現在地とタスクリスト正本を照合して改修する。
-- スクリプト追加・移動・改名は `docs/design/script-organization.md` に従い、機能 → レイヤーの配置と、レイヤー名に一致する接尾辞を使う。
+- Unityの版は`ProjectSettings/ProjectVersion.txt`、C#は`Assets/Scripts/`、メインシーンは`Assets/Scenes/MainScene.unity`。UniTaskは`Packages/manifest.json`のGit依存を使う。
+- 実装は[設計方針](docs/design/architecture-guidelines.md)の責務と依存方向に従う。スクリプトの追加・移動・改名は[配置・命名規則](docs/design/script-organization.md)を使う。
 
-## 新担当の入口
+## 作業の入口
 
-| 読む目的 | 正本・索引 |
-| --- | --- |
-| 現行機能の目的と採用した設計 | [設計方針](docs/design/architecture-guidelines.md) |
-| 採用済み作業の状態 | [タスクリスト](docs/tasks/task-list.md) |
-| タスク作成の根拠、分類と優先順、更新・再開 | [タスク根拠と引継ぎ手順](docs/tasks/design-review.md) |
-| 機能別の仕様、コード・配線・検証への参照 | [現行設計索引](docs/design/current-architecture.md) |
-| 設計図・説明JSONの更新 | [Opsis更新手順](docs/design/architecture-diagram-verification.md) |
-
-タスク提案の採用判断はユーザーが行う。採用内容と依頼の工程を正本へ照合し、許可された範囲を進める。
-
-## 共通規則との関係
-
-このローカル環境では `~/.codex/AGENTS.md` の対話・記録・作業効率・Git運用規則を適用する。報告は `~/.codex/knowledge/policies/review-verification-reporting.md`、Unityの参照・GUID維持と生成物保護は `~/.codex/knowledge/policies/unity-project-workflow.md` を正本とし、作業に該当する規則だけ参照する。別環境でこのガイドを再利用するときは共通規則も併せて提供する。固有条件は以下に残す。
+- 対象機能とコード: [現行設計索引](docs/design/current-architecture.md)。
+- 採用済み作業と状態: [タスクリスト](docs/tasks/task-list.md)。作成根拠・順序・更新・再開は[タスク運用](docs/tasks/design-review.md)、採用時の詳細は[設計改修](docs/tasks/architecture-extension.md)と[拡張性レビュー](docs/tasks/extension-readiness-review.md)を参照する。
+- 図と説明JSON: [Opsis更新手順](docs/design/architecture-diagram-verification.md)。
 
 ## 作業規則
 
-- プロトタイプ段階のUIは機能の確認と変更のしやすさを優先する。色は文字の読みやすさと操作・選択・警告などの識別に必要な最低限に留め、色指定を少数の共通設定へまとめる。UIS-04・UIS-05の採用配置は[UI仕様](docs/spec/currency-loop-ui.md#採用済みのサイドタブ統合方針未実装)を参照する。
-- 設計改修はタスクリスト正本の優先順と現在の依頼を照合して進める。原本更新はHenosisのTaxis共通CLIを使い、変更した仕様と検証証拠を関連文書へ記録する。数量や中断処理の状態変更では境界条件も確認する。
-
-## ローカル運用文書
-
-タスクリスト・登録記録・一時的な引継ぎ・検証実行記録はローカル管理する。現行仕様・設計判断・プロジェクト固有の規約はGitで管理し、関連実装とまとめてコミットする。
+- 共通の対話・計画・検証・Git方針は`~/.codex/AGENTS.md`に従う。Taxis経由の依頼・返信・レビューは、同文書から参照する通信手順を使う。別環境へ持ち出す際は参照先も提供する。
+- プロトタイプUIは機能確認と変更のしやすさを優先する。色は可読性・操作・選択・警告の識別に絞り、少数の共通設定で管理する。UIS-04/05の配置は[UI仕様](docs/spec/currency-loop-ui.md#採用済みのサイドタブ統合方針未実装)を使う。
+- タスクの優先順と現在の依頼を照合し、更新はTaxis CLIで行う。数量・中断処理の変更では境界条件を確認する。
