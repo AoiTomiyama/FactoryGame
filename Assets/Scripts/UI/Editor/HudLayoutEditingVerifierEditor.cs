@@ -203,6 +203,10 @@ public sealed class HudLayoutEditingVerifierEditor : EditorWindow
         // UIS-06が直後に検査する代表編集を保ち、他の値を既定へ戻して回帰と画像を比較する。
         hud.Close.GetComponentInChildren<Text>(true).fontSize = 19; bar.RotateButton.targetGraphic.color = new Color(.3f, .4f, .5f);
         panel.SetSummaryItems(); panel.RecipeView.Render(hud.Recipes, hud.Resources); panel.ShowPage(0);
+        // 代表試験の折返しによる一時的な上余白を戻してから、既存回帰の基準座標を採る。
+        hud.UpdateLayout();
+        Require(Mathf.Abs(((RectTransform)hud.Close.transform).anchoredPosition.y -
+            ((RectTransform)sourceHud.Close.transform).anchoredPosition.y) < .01f, "edited-size layout restores authored header position");
     }
     private static void CopyField(Object source, Object target, string path)
     {
