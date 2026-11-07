@@ -91,3 +91,22 @@ MainSceneは[FactoryHud.prefab](../../Assets/Prefabs/UI/FactoryHud.prefab)と[Op
 旧RecipeUIBuilder・RecipeElementUI・ResourceRowUI、HudUIAdapterの実行時生成、旧ページの非表示化、セル情報の移設・復元処理を撤去した。Text/Gauge/StorageParamLineは独立UIの契約と既存検証で使う行Prefabとして保持する。経済パネルの終了時は購読と購入リスナーを解除し、保存済みHUDを非表示にする。旧UIの復元や二重生成は行わない。
 
 配置タブ枠とレシピ1行を旧Prefabと比較してから全体へ展開した。代表比較と変更理由、対象差分、実行結果はローカルの`docs/verification/uis06-ui.json`に集約する。EconomyUIVerifierEditorはHudPrefabVerifierEditorの保存参照・Editor編集保持・再設定時の同一部品保持を加え、既存のPC2寸法、24レシピ・6材料、常時表示の追加12項目、購入、入力遮断、購読寿命を検証する。最終画像は既存固定名`docs/verification/uis05/hud-1600x900.png`と`hud-1366x768.png`を更新する。
+
+## Edit ModeのHUD調整（UIS-07）
+
+タグ: `カスタムInspector` `Undo` `Prefab Override` `編集保持`
+
+[HudLayoutInspectorEditor](../../Assets/Scripts/UI/Editor/HudLayoutInspectorEditor.cs)はHudLayoutAdapterを選択したときの編集入口である。固定UIの文字を見出し、本文・操作、補足・結果に分け、各用途のフォント・文字サイズ・文字色を編集する。複数の値が異なる場合は混在表示し、操作した項目だけを各Textへ反映する。見出しと補足のサイズを保ったまま本文だけを変更できる。各Textの参照から個別編集へ進める。
+
+| Inspectorの範囲 | 変更先と再生時の反映 |
+| --- | --- |
+| 固定UI | 選択中HUDのText、背景Image、Button状態色、LayoutGroupの余白・間隔、固定部品のRectTransform。タブ色を変更すると配置タブを選んだ状態でプレビューし、再生中の切替でも同じ色を使う。 |
+| 生成行 | HudLayoutAdapter、PlacementBuilder、CellStatusViewAdapterが参照する6種類の行Prefab。用途別の文字サイズ、画像・ボタン色、余白・間隔・配置を直接編集する。同じPrefabを使うHUDで共有し、生成・一覧再構築・プール再取得時にも保存値を使う。 |
+| 配置・採取サブメニューの表示色 | このHUD内の既存Builder。配置ボタンの通常・展開中色と採取サブメニュー背景はBuilderが描画時に設定するため、行Prefabの背景色と区別する。 |
+| 操作帯 | Sceneでは同じSceneのOperationBarAdapterを表示する。Prefab Modeでは編集する操作帯Prefabを指定する。操作帯のText・Image・Buttonと保存配置を編集する。 |
+
+各範囲に変更先を表示する。SceneのPrefabインスタンスはOverrideとしてSceneへ保存し、Prefab Modeでは開いているPrefabへ保存する。共有行PrefabとProjectから指定した操作帯は共有アセットへの変更としてProjectを保存する。Apply/RevertはUnityの既存Overridesを使う。生成行の内容は再生時の表示データから設定するため、見た目は参照先Prefabを開いて確認する。
+
+編集にはSerializedObject・SerializedPropertyを使い、Undo/RedoとPrefab OverrideをUnityへ記録する。Inspectorの再描画は既存値を読み、変更のあった項目だけを書き込む。別Sceneの操作帯や未参照のPrefabを自動探索して変更する処理は持たない。配置はLayoutGroupの駆動対象を区別し、常時表示の折返し、文字高さへの追従、狭い画面への幅調整は既存処理を使う。初期のPrefab、書体階層、データ読取・購入・購読・入力遮断は既存の値と処理を使う。
+
+[HudLayoutEditingVerifierEditor.RunRendered](../../Assets/Scripts/UI/Editor/HudLayoutEditingVerifierEditor.cs)は専用バッチプロジェクトでInspectorの実描画、用途別編集と個別色、Undo/Redo、Scene Override、Prefab Mode、共有アセットの分離、保存・再読込、再生後の固定部品・生成行・一覧再構築を検査する。その後、既定の見た目へ戻してEconomyUIVerifierEditorの購入・購読・入力遮断、非スクロールの常時表示、PC2寸法の収容と画像出力を続ける。試験用Sceneと行Prefabは専用コピー内へ作る。実行条件・対象差分・結果・整理状況はローカルの`docs/verification/uis07-ui.json`へ集約する。

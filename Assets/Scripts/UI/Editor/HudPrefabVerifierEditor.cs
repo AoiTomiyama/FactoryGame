@@ -57,6 +57,7 @@ public static class HudPrefabVerifierEditor
     }
     public static void VerifyRuntime(EconomyPanelAdapter panel)
     {
+        HudLayoutEditingVerifierEditor.VerifyRuntime(panel);
         Require(SessionState.GetBool("UIS06.Edits", false), "Editor edits prepared");
         SessionState.EraseBool("UIS06.Edits");
         var hud = panel.GetComponentInChildren<HudLayoutAdapter>();

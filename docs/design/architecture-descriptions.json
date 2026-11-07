@@ -2123,6 +2123,15 @@
               "symbol": "Configure"
             }
           ]
+        },
+        "HudEditor": {
+          "description": "HudLayoutAdapterを選択したときのEditor専用の編集入口です。固定部品、参照先の共有行Prefab、別Prefabの操作帯を分け、用途別の文字・色・余白と配置を既存のSerializedPropertyへ保存します。Scene OverrideとPrefab保存、Undo/Redoを使い、Inspectorの再描画では保存値を変更しません。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Editor/HudLayoutInspectorEditor.cs",
+              "symbol": "HudLayoutInspectorEditor"
+            }
+          ]
         }
       },
       "presentation": {
@@ -2163,7 +2172,8 @@
           "HudStyle": "surface",
           "EquipmentPresenter": "middle",
           "RecipeRow": "surface",
-          "Operation": "surface"
+          "Operation": "surface",
+          "HudEditor": "surface"
         }
       },
       "number": "6"

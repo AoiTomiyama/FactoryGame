@@ -22,6 +22,15 @@ public static class EconomyUIVerifierEditor
     public static void Run()
     {
         EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity");
+        RunPrepared();
+    }
+    internal static void RunPreparedRendered()
+    {
+        SessionState.SetBool(Key + ".Render", true);
+        RunPrepared();
+    }
+    private static void RunPrepared()
+    {
         HudPrefabVerifierEditor.Prepare();
         EditorUtility.audioMasterMute = true;
         Require(EditorUtility.audioMasterMute, "mute before play");
