@@ -17,19 +17,13 @@ public sealed class PersistentSummaryViewAdapter
     public string BalanceText => string.Join("　", _walletItems.Select(text => text.text));
     public IReadOnlyList<Text> WalletItems => _walletItems;
     public IReadOnlyList<Text> Items => _items;
-    public PersistentSummaryViewAdapter(Transform canvas, Font font)
+    private readonly Text _rowPrefab;
+    public PersistentSummaryViewAdapter(RectTransform root, Font font, Text[] walletItems, Text rowPrefab)
     {
         _font = font;
-        var root = new GameObject("PersistentSummary", typeof(RectTransform), typeof(Image));
-        root.transform.SetParent(canvas, false);
-        Rect = root.GetComponent<RectTransform>();
-        HudUIAdapter.Anchor(Rect, Vector2.up, Vector2.one, new Vector2(12, -12), new Vector2(-24, 64));
-        root.GetComponent<Image>().color = HudUIAdapter.Background;
-        for (var i = 0; i < _walletItems.Length; i++)
-        {
-            _walletItems[i] = HudUIAdapter.MakeText(font, root.transform, "", 16, 28);
-            _walletItems[i].fontStyle = FontStyle.Bold;
-        }
+        Rect = root;
+        _rowPrefab = rowPrefab;
+        _walletItems = walletItems;
     }
     public void RenderWallet(CurrencyWalletApplication.Snapshot wallet)
     {
@@ -51,13 +45,24 @@ public sealed class PersistentSummaryViewAdapter
     }
     public void SetItems(params string[] items)
     {
-        while (_items.Count < items.Length) _items.Add(HudUIAdapter.MakeText(_font, Rect, "", 16, 28));
+        while (_items.Count < items.Length) _items.Add(CreateItem());
         for (var i = 0; i < _items.Count; i++)
         {
             _items[i].gameObject.SetActive(i < items.Length);
             if (i < items.Length) _items[i].text = items[i];
         }
         UpdateLayout();
+    }
+    public void Dispose()
+    {
+        foreach (var text in _items) if (text != null) UnityEngine.Object.Destroy(text.gameObject);
+        _items.Clear();
+    }
+    private Text CreateItem()
+    {
+        var text = UnityEngine.Object.Instantiate(_rowPrefab, Rect);
+        if (text.font == null) text.font = _font;
+        return text;
     }
     public void UpdateLayout()
     {

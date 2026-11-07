@@ -18,6 +18,7 @@ public static class ResourceIconVerifierEditor
 
     public static void Run()
     {
+        EditorUtility.audioMasterMute = true;
         SessionState.SetBool(SessionKey, true);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         EditorApplication.isPlaying = true;
@@ -48,19 +49,21 @@ public static class ResourceIconVerifierEditor
             var wood = GetResource(resources, ResourceTypeDomain.Wood);
             Require(stone.Icon != null && wood.Icon != null, "both icons resolve as sprites");
 
-            var recipeObject = UnityEngine.Object.Instantiate(recipePrefab);
-            var recipeUI = recipeObject.GetComponent<RecipeElementUIAdapter>();
-            Require(recipeUI != null, "recipe prefab has RecipeElementUIAdapter");
-            recipeUI.CreateRecipeUI(recipes.recipes[0]);
-            await UniTask.Yield(); // CreateRecipeUI が破棄するテンプレート行を除外する。
+            var recipeObject = new GameObject("RecipeRows", typeof(RectTransform));
+            var rowPrefab = recipePrefab.GetComponent<RecipeResourceRowAdapter>();
+            Require(rowPrefab != null, "recipe prefab has serialized resource row");
+            var heading = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/HudRecipeHeading.prefab").GetComponent<Text>();
+            var view = new RecipeReferenceViewAdapter(recipeObject.transform, heading.font, heading, rowPrefab);
+            view.Render(recipes, resources);
+            await UniTask.Yield();
             var stoneRow = false;
             var woodRow = false;
-            foreach (var row in recipeObject.GetComponentsInChildren<ResourceRowUIAdapter>(true))
+            foreach (var row in recipeObject.GetComponentsInChildren<RecipeResourceRowAdapter>(true))
             {
-                var label = GetField<TextMeshProUGUI>(row, "nameTextBox");
+                var label = GetField<Text>(row, "label");
                 var icon = GetField<Image>(row, "icon");
-                if (label.text == stone.Name && icon.sprite == stone.Icon) stoneRow = true;
-                if (label.text == wood.Name && icon.sprite == wood.Icon) woodRow = true;
+                if (label.text.Contains(stone.Name) && icon.sprite == stone.Icon) stoneRow = true;
+                if (label.text.Contains(wood.Name) && icon.sprite == wood.Icon) woodRow = true;
             }
             Require(stoneRow && woodRow, "recipe rows display the stone and wood icons");
 

@@ -78,4 +78,4 @@ ViewはSelectedCellとSelectionChangedを経済パネルへ公開する。既存
 
 ## サイドタブ統合時の表示（UIS-05）
 
-CellStatusViewAdapterは選択とProviderの寿命を保ち、右側の共通HUDへ状態行を移す。HudStatusProviderAdapterはセル名・座標を見出しへ集約し、在庫と進捗に用途ラベルを付ける。HudStatusRowAdapterは既存の行基底とプールを使い、共通書体・色で表示値を描画する。右側の「閉じる」で選択を解放する。左ページの開閉は右側の選択へ影響しない。生成HUDを解放するときは借用フォントを使う行も破棄し、元の表示プールを再構成する。詳細と検証入口は[経済UI仕様](currency-loop-ui.md#uis-05の責務と検証)を参照する。
+CellStatusViewAdapterは選択とProviderの寿命を保ち、Prefabに保存した右側の共通HUDへ状態行を表示する。HudStatusProviderAdapterはセル名・座標を見出しへ集約し、在庫と進捗に用途ラベルを付ける。HudStatusRowAdapterは既存の行基底とプールを使い、共通書体・色で表示値を描画する。右側の「閉じる」で選択を解放する。左ページの開閉は右側の選択へ影響しない。UIS-06では状態行をHudStatusRow.prefabから複製する。固定枠の移設・復元と実行時の部品生成を撤去し、選択解除時に行をプールへ返す。経済パネルの終了時は購読を解除して保存済みHUDを非表示にする。詳細と検証入口は[経済UI仕様](currency-loop-ui.md#uis-05の責務と検証)を参照する。

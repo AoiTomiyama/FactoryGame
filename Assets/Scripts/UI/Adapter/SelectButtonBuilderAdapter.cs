@@ -12,7 +12,6 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
     [SerializeField] private CellTypeDomain[] subMenuInfos;
 
     private Font _font;
-    private bool _started;
     public static string PlacementLabel(CellTypeDomain type) => type switch
     {
         CellTypeDomain.Empty => "撤去", CellTypeDomain.ExtractorWood => "木材採取",
@@ -20,42 +19,16 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
         CellTypeDomain.Crafter => "加工設備", CellTypeDomain.Conveyor => "搬送路",
         CellTypeDomain.ExportConveyor => "搬出路", CellTypeDomain.Crossing => "交差搬送路", _ => type.ToString()
     };
-    public void AttachTo(Transform container, Font font)
+    public void Configure(Font font)
     {
-        var oldTab = transform.parent;
-        transform.SetParent(container, false);
-        if (oldTab != null) oldTab.gameObject.SetActive(false);
-        gameObject.SetActive(true);
         _font = font;
-        defaultBackgroundColor = HudUIAdapter.Idle;
-        openedSubMenuColor = HudUIAdapter.Selected;
-        subMenuInfos = new[] { CellTypeDomain.ExtractorWood };
-        subMenuUIBuilder = GetComponent<SubMenuUIBuilderAdapter>() ?? gameObject.AddComponent<SubMenuUIBuilderAdapter>();
-        if (_started)
-        {
-            foreach (Transform child in transform) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
-            subMenuUIBuilder.SetDatabase(buttonPrefab, placer, cellDatabase, _font);
-            GenerateButtons();
-        }
-        var grid = GetComponent<UnityEngine.UI.GridLayoutGroup>();
-        if (grid != null)
-        {
-            grid.cellSize = new Vector2(174, 40);
-            grid.spacing = new Vector2(8, 8);
-            grid.constraint = UnityEngine.UI.GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 2;
-            grid.padding = new RectOffset();
-        }
-        var image = GetComponent<UnityEngine.UI.Image>();
-        if (image != null) image.enabled = false;
-        var size = GetComponent<UnityEngine.UI.ContentSizeFitter>() ?? gameObject.AddComponent<UnityEngine.UI.ContentSizeFitter>();
-        size.verticalFit = UnityEngine.UI.ContentSizeFitter.FitMode.PreferredSize;
-        foreach (var button in GetComponentsInChildren<CellSelectButtonUIAdapter>(true)) button.ApplyStyle(font);
+        subMenuUIBuilder.SetDatabase(buttonPrefab, placer, cellDatabase, _font);
     }
+
+    private void Awake() => _font = GetComponentInParent<HudLayoutAdapter>()?.Font;
 
     private void Start()
     {
-        _started = true;
         if (placer == null)
         {
             placer = FindAnyObjectByType<CellPlacerAdapter>();
@@ -72,7 +45,11 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
     {
         if (_font == null) return;
         var grid = GetComponent<UnityEngine.UI.GridLayoutGroup>();
-        if (grid != null) grid.cellSize = new Vector2(Mathf.Max(1, (((RectTransform)transform).rect.width - grid.spacing.x) / 2), 40);
+        if (grid != null && grid.constraint == UnityEngine.UI.GridLayoutGroup.Constraint.FixedColumnCount)
+        {
+            var columns = Mathf.Max(1, grid.constraintCount);
+            grid.cellSize = new Vector2(Mathf.Max(1, (((RectTransform)transform).rect.width - grid.padding.horizontal - grid.spacing.x * (columns - 1)) / columns), grid.cellSize.y);
+        }
     }
 
     private void GenerateButtons()
@@ -101,11 +78,11 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
                 onToggle += isActive => buttonParam.SubMenuActive = !isActive;
                 onToggle += isActive => buttonParam.SetColor(isActive ? openedSubMenuColor : defaultBackgroundColor);
                 buttonParam.name = $"{type}SubMenuButton";
-                buttonParam.Set(null, type == CellTypeDomain.ExtractorWood ? "採取設備 ▾" : PlacementLabel(type), () => onToggle?.Invoke(buttonParam.SubMenuActive));
+                buttonParam.Set(type == CellTypeDomain.ExtractorWood ? "採取設備 ▾" : PlacementLabel(type), () => onToggle?.Invoke(buttonParam.SubMenuActive));
             }
             else
             {
-                buttonParam.Set(null, PlacementLabel(type), () => placer.SetSelectedCellType(type));
+                buttonParam.Set(PlacementLabel(type), () => placer.SetSelectedCellType(type));
                 buttonParam.name = $"{type}Button";
                 buttonParam.SetColor(defaultBackgroundColor);
             }

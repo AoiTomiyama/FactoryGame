@@ -10,6 +10,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
     [SerializeField] private InputAction rotateAction;
     [SerializeField] private UIRaycasterAdapter raycaster;
     [SerializeField] private CellPlacerAdapter placer;
+    [SerializeField] private OperationBarAdapter operationBar;
 
     private Camera _camera;
     private Vector2 _mousePosition;
@@ -23,7 +24,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
         }
 
         _camera = Camera.main;
-        gameObject.AddComponent<OperationBarAdapter>().Configure(this, FindAnyObjectByType<CameraControllerAdapter>());
+        if (operationBar != null) operationBar.Configure(this, FindAnyObjectByType<CameraControllerAdapter>());
     }
 
     private void Update()

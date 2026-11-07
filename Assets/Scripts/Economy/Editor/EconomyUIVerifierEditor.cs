@@ -22,6 +22,7 @@ public static class EconomyUIVerifierEditor
     public static void Run()
     {
         EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity");
+        HudPrefabVerifierEditor.Prepare();
         EditorUtility.audioMasterMute = true;
         Require(EditorUtility.audioMasterMute, "mute before play");
         SessionState.SetBool(Key, true);
@@ -51,6 +52,7 @@ public static class EconomyUIVerifierEditor
             var wallet = generator.Wallet;
             var panel = generator.GetComponent<EconomyPanelAdapter>();
             var view = UnityEngine.Object.FindAnyObjectByType<CellStatusViewAdapter>();
+            HudPrefabVerifierEditor.VerifyRuntime(panel);
             var grid = GridFieldDatabaseAdapter.Instance;
             Require(panel.IsSubscribed && panel.BalanceText.Contains("残高 100"), "initial shared balance");
             Require(!panel.UpgradeInteractable, "no selected equipment");
@@ -187,13 +189,18 @@ public static class EconomyUIVerifierEditor
             Require(wallet.LastNotificationException == null && generator.Skills.LastNotificationException == null, "notification handlers succeed");
             UnityEngine.Object.Destroy(panel);
             await UniTask.DelayFrame(2);
-            Require(canvas == null && view != null && Subscribers(wallet, "Changed") == 1 && Subscribers(view, "SelectionChanged") == 0,
-                "destroying panel releases generated canvas and subscriptions");
-            view.UpdateUIStatusWindow(singularity);
-            Require(view.SelectedCell == singularity && view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>(true).Length == 0 &&
-                ((RectTransform)view.StatusContent).anchorMin == Vector2.zero && ((RectTransform)view.StatusContent).anchorMax == Vector2.one,
-                "destroying HUD restores legacy view layout and rows without borrowed font");
-            view.SetStatusWindowActive(false);
+            Require(canvas != null && !canvas.gameObject.activeSelf && view != null &&
+                Subscribers(wallet, "Changed") == 1 && Subscribers(view, "SelectionChanged") == 0,
+                "destroying controller releases subscriptions and retains authored HUD inactive");
+            Require(view.SelectedCell == null && view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>().Length == 0,
+                "controller destruction releases selection and active rows without legacy restoration");
+            var authored = canvas.GetComponent<HudLayoutAdapter>();
+            var pageStates = authored.Pages.Select(page => page.gameObject.activeSelf).ToArray();
+            var bodyActive = authored.Body.gameObject.activeSelf;
+            foreach (var tab in authored.Tabs) tab.onClick.Invoke();
+            authored.Close.onClick.Invoke();
+            Require(pageStates.SequenceEqual(authored.Pages.Select(page => page.gameObject.activeSelf)) &&
+                bodyActive == authored.Body.gameObject.activeSelf, "destroyed controller removes static button listeners");
             Debug.Log($"Economy UI checks passed: {_checks} assertions; MainScene balance, conversion, quotes, buttons, prerequisites and subscription lifetime.");
             EditorApplication.Exit(0);
         }
@@ -380,6 +387,7 @@ public static class EconomyUIVerifierEditor
             var texture = new Texture2D(resolution.x, resolution.y, TextureFormat.RGB24, false);
             texture.ReadPixels(new Rect(0, 0, resolution.x, resolution.y), 0, 0); texture.Apply();
             var path = $"docs/verification/uis05/hud-{resolution.x}x{resolution.y}.png";
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
             System.IO.File.WriteAllBytes(path, texture.EncodeToPNG());
             Require(System.IO.File.Exists(path), "HUD rendering exported " + resolution);
             RenderTexture.active = previous;
@@ -489,7 +497,7 @@ public static class EconomyUIVerifierEditor
                 Require(canvasRect.rect.Contains(canvasRect.InverseTransformPoint(corner)), $"{resolution} page {page}: viewport inside canvas");
         }
         foreach (var text in canvas.GetComponentsInChildren<Text>())
-            Require(text.preferredHeight <= text.rectTransform.rect.height + 1, $"{resolution} page {page}: text fits: {text.text}");
+            Require(text.preferredHeight <= text.rectTransform.rect.height + 1, $"{resolution} page {page}: text fits: {text.text} preferred={text.preferredHeight} rect={text.rectTransform.rect}");
         var buttons = canvas.GetComponentsInChildren<Button>();
         for (var i = 0; i < buttons.Length; i++)
         {

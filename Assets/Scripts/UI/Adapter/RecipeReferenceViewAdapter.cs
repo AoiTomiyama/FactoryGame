@@ -1,43 +1,36 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>レシピ定義を参照表示する。加工の判定・開始・選択は行わない。</summary>
+/// <summary>定義の読取結果を行Prefabへ渡す。加工状態と購入を所有しない。</summary>
 public sealed class RecipeReferenceViewAdapter
 {
     private readonly Transform _root;
     private readonly Font _font;
-    public RecipeReferenceViewAdapter(Transform root, Font font) { _root = root; _font = font; }
+    private readonly Text _heading;
+    private readonly RecipeResourceRowAdapter _resource;
+    public RecipeReferenceViewAdapter(Transform root, Font font, Text heading, RecipeResourceRowAdapter resource)
+    { _root = root; _font = font; _heading = heading; _resource = resource; }
+    public void Dispose()
+    {
+        if (_root == null) return;
+        foreach (Transform child in _root) { child.gameObject.SetActive(false); Object.Destroy(child.gameObject); }
+    }
     public void Render(RecipeDatabaseDefinition database, ResourceDefinition resources)
     {
-        foreach (Transform child in _root) { child.gameObject.SetActive(false); Object.Destroy(child.gameObject); }
+        Dispose();
         foreach (var recipe in database.recipes)
         {
-            MakeText(_root, $"{recipe.RecipeName}　加工時間 {recipe.CraftSecond} 秒", 18, 40);
+            var heading = Object.Instantiate(_heading, _root);
+            if (heading.font == null) heading.font = _font;
+            heading.text = $"{recipe.RecipeName}　加工時間 {recipe.CraftSecond} 秒";
             foreach (var ingredient in recipe.Ingredients)
-                MakeRecipeResource(resources, ingredient.resourceType, ingredient.requiredAmount, "材料");
-            MakeRecipeResource(resources, recipe.Result, recipe.ResultAmount, "成果物");
+                Resource(resources, ingredient.resourceType, ingredient.requiredAmount, "材料");
+            Resource(resources, recipe.Result, recipe.ResultAmount, "成果物");
         }
     }
-    private void MakeRecipeResource(ResourceDefinition resources, ResourceTypeDomain type, int amount, string label)
+    private void Resource(ResourceDefinition resources, ResourceTypeDomain type, int amount, string kind)
     {
         var info = resources.GetResourceByType(type);
-        var row = new GameObject("RecipeResource", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
-        row.transform.SetParent(_root, false);
-        row.GetComponent<LayoutElement>().preferredHeight = 36;
-        row.GetComponent<HorizontalLayoutGroup>().spacing = 8;
-        row.GetComponent<HorizontalLayoutGroup>().childForceExpandWidth = false;
-        row.GetComponent<HorizontalLayoutGroup>().childAlignment = TextAnchor.MiddleLeft;
-        var icon = new GameObject("Icon", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
-        icon.transform.SetParent(row.transform, false);
-        icon.GetComponent<Image>().sprite = info.Icon;
-        icon.GetComponent<Image>().preserveAspect = true;
-        icon.GetComponent<LayoutElement>().minWidth = 32;
-        icon.GetComponent<LayoutElement>().preferredWidth = 32;
-        icon.GetComponent<LayoutElement>().flexibleWidth = 0;
-        icon.GetComponent<LayoutElement>().minHeight = 32;
-        icon.GetComponent<LayoutElement>().preferredHeight = 32;
-        MakeText(row.transform, $"{label}: {info.ResourceName} ×{amount}", 16, 32).GetComponent<LayoutElement>().flexibleWidth = 1;
+        Object.Instantiate(_resource, _root).Render(info.Icon, $"{kind}: {info.ResourceName} ×{amount}", _font);
     }
-    private Text MakeText(Transform parent, string value, int size, int height)
-        => HudUIAdapter.MakeText(_font, parent, value, size, height);
 }

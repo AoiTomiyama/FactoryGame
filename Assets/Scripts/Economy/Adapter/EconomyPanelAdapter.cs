@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Events;
 
 /// <summary>共有Applicationの判定をそのまま表示し、購入命令を同じ所有者へ渡す。</summary>
 public sealed class EconomyPanelAdapter : MonoBehaviour
@@ -17,13 +18,14 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     private bool _bound;
     private bool _expanded = true;
     private bool _selectedActive;
+    [SerializeField] private HudLayoutAdapter layout;
     private Font _font;
     private GameObject _canvas;
     private GameObject _body;
     private RectTransform _header;
     private PersistentSummaryViewAdapter _summaryView;
-    private RectTransform _navigation;
     private EquipmentDetailsViewAdapter _equipmentView;
+    private EquipmentDetailsPresenterAdapter _equipmentPresenter;
     public EquipmentDetailsViewAdapter EquipmentView => _equipmentView;
     public PersistentSummaryViewAdapter SummaryView => _summaryView;
     public RectTransform SummaryRect => _summaryView.Rect;
@@ -32,6 +34,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     public void SetSummaryItems(params string[] items) => _summaryView.SetItems(items);
     private readonly GameObject[] _pages = new GameObject[3];
     private readonly Button[] _tabs = new Button[3];
+    private readonly UnityAction[] _tabActions = new UnityAction[3];
+    private UnityAction _closeAction;
     public int SelectedPage { get; private set; }
     public bool IsExpanded => _expanded;
     public Button PageButton(int index) => _tabs[index];
@@ -48,7 +52,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         {
             _pages[i].SetActive(i == index);
             _tabs[i].GetComponent<Image>().color = i == index
-                ? HudUIAdapter.Selected : HudUIAdapter.Idle;
+                ? layout.SelectedTabColor : layout.IdleTabColor;
         }
     }
     private Text _placement;
@@ -70,7 +74,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         _upgrades = upgrades ?? throw new ArgumentNullException(nameof(upgrades));
         _view = view;
         _placer = placer;
-        if (_canvas == null) Build();
+        if (_canvas == null) BindLayout();
         if (isActiveAndEnabled) Bind();
     }
 
@@ -124,7 +128,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
 
     public EquipmentUpgradeResultApplication PurchaseUpgrade()
     {
-        var result = _equipmentView.Purchase();
+        var result = _equipmentPresenter.Purchase();
         Refresh();
         return result;
     }
@@ -142,7 +146,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         if (_summaryView == null || _wallet == null) return;
         var current = _wallet.Current;
         _summaryView.RenderWallet(current);
-        _equipmentView.Refresh(_selected);
+        _equipmentPresenter.Refresh(_selected);
         foreach (var node in _skills.Catalog.Nodes)
         {
             var button = _nodes[node.Uid];
@@ -183,16 +187,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         if (_canvas != null)
         {
             _summaryView.UpdateLayout();
-            var top = _summaryView.Rect.rect.height + 20;
-            _navigation.anchoredPosition = new Vector2(12, -top);
-            _header.anchoredPosition = new Vector2(100, -top);
-            var bodyRect = _body.GetComponent<RectTransform>();
-            bodyRect.anchoredPosition = new Vector2(100, -(top + 44));
-            bodyRect.sizeDelta = new Vector2(bodyRect.sizeDelta.x, -(top + 44 + 108));
-            _view.TopInset = top;
-            var width = Mathf.Min(400, Mathf.Max(120, _canvas.GetComponent<RectTransform>().rect.width - 524));
-            _header.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
-            _body.GetComponent<RectTransform>().SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+            layout.UpdateLayout();
+            _view.TopInset = _summaryView.Rect.rect.height + 20;
         }
         if (!_bound) return;
         if (!ReferenceEquals(_selected, null) && _selected == null) Select(null);
@@ -206,97 +202,57 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
             text.GetComponent<LayoutElement>().preferredHeight = Mathf.Max(text.GetComponent<LayoutElement>().minHeight, text.preferredHeight);
     }
     private void OnEnable() { if (_canvas != null) _canvas.SetActive(true); Bind(); }
-    private void OnDisable() { Unbind(); _equipmentView?.SetActive(false); if (_canvas != null) _canvas.SetActive(false); }
+    private void OnDisable() { Unbind(); _equipmentPresenter?.SetActive(false); if (_canvas != null) _canvas.SetActive(false); }
     private void OnDestroy()
     {
         Unbind();
-        _equipmentView?.Dispose();
-        if (_view != null) _view.ReleaseHud();
-        if (_canvas != null) Destroy(_canvas);
-        if (_font != null) Destroy(_font);
+        _equipmentPresenter?.Dispose();
+        for (var i = 0; i < _tabs.Length; i++)
+            if (_tabs[i] != null && _tabActions[i] != null) _tabs[i].onClick.RemoveListener(_tabActions[i]);
+        if (layout != null && _closeAction != null) layout.Close.onClick.RemoveListener(_closeAction);
+        foreach (var button in _nodes.Values) if (button != null) Destroy(button.gameObject);
+        _nodes.Clear();
+        RecipeView?.Dispose();
+        _summaryView?.Dispose();
     }
 
-    private void Build()
+    private void BindLayout()
     {
-        // OSフォントで既存TMPアセットに不足する日本語も表示する。
-        _font = Font.CreateDynamicFontFromOSFont(new[] { "Yu Gothic", "Meiryo", "Arial" }, 16);
-        _canvas = new GameObject("PlacementCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-        _canvas.transform.SetParent(transform, false);
-        _canvas.GetComponent<Canvas>().renderMode = RenderMode.ScreenSpaceOverlay;
-        _canvas.GetComponent<Canvas>().sortingOrder = 20;
-        var scaler = _canvas.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1280, 720);
-        scaler.matchWidthOrHeight = 1;
-        var header = MakeButton(_canvas.transform, "閉じる", () => SetExpanded(!_expanded), 36);
-        header.GetComponentInChildren<Text>().fontSize = 18;
-        header.GetComponentInChildren<Text>().fontStyle = FontStyle.Bold;
-        _header = header.GetComponent<RectTransform>();
-        Anchor(header.GetComponent<RectTransform>(), new Vector2(0, 1), new Vector2(0, 1), new Vector2(100, -88), new Vector2(400, 36));
-        _body = new GameObject("EconomyScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
-        _body.transform.SetParent(_canvas.transform, false);
-        // 下部の操作帯へスクロール内容が重ならない余白を確保する。
-        Anchor(_body.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 1), new Vector2(100, -132), new Vector2(400, -240));
-        _body.GetComponent<Image>().color = HudUIAdapter.Background;
-        var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
-        viewport.transform.SetParent(_body.transform, false);
-        Stretch(viewport.GetComponent<RectTransform>());
-        var content = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
-        content.transform.SetParent(viewport.transform, false);
-        var rect = content.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0, 1); rect.anchorMax = Vector2.one; rect.pivot = new Vector2(0.5f, 1); rect.sizeDelta = Vector2.zero;
-        var layout = content.GetComponent<VerticalLayoutGroup>();
-        layout.padding = new RectOffset(12, 12, 10, 10); layout.spacing = 8;
-        layout.childControlHeight = true; layout.childForceExpandHeight = false;
-        content.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-        var scroll = _body.GetComponent<ScrollRect>();
-        scroll.viewport = viewport.GetComponent<RectTransform>(); scroll.content = rect; scroll.horizontal = false;
-        scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 25;
-        _summaryView = new PersistentSummaryViewAdapter(_canvas.transform, _font);
-        _feedback = MakeText(content.transform, "換金するとここに入金額を表示します", 14, 40);
-        var navigation = new GameObject("Pages", typeof(RectTransform), typeof(VerticalLayoutGroup));
-        navigation.transform.SetParent(_canvas.transform, false);
-        _navigation = navigation.GetComponent<RectTransform>();
-        Anchor(navigation.GetComponent<RectTransform>(), Vector2.up, Vector2.up, new Vector2(12, -88), new Vector2(80, 136));
-        var navigationLayout = navigation.GetComponent<VerticalLayoutGroup>();
-        navigationLayout.spacing = 8; navigationLayout.childControlHeight = true; navigationLayout.childForceExpandHeight = false;
-        var names = new[] { "配置", "レシピ", "スキル" };
-        for (var i = 0; i < names.Length; i++)
+        // 固定枠は保存済みPrefabを使い、実行時は状態と操作だけを接続する。
+        if (layout == null) throw new InvalidOperationException("HUD layout must be assigned in the scene.");
+        _font = layout.Font;
+        _canvas = layout.gameObject;
+        _body = layout.Body.gameObject;
+        _header = layout.Close.GetComponent<RectTransform>();
+        _feedback = layout.Feedback;
+        _placement = layout.Placement;
+        for (var i = 0; i < 3; i++)
         {
             var page = i;
-            _tabs[i] = MakeButton(navigation.transform, names[i], () => { if (_expanded && SelectedPage == page) SetExpanded(false); else ShowPage(page); }, 36);
-            _pages[i] = new GameObject(names[i], typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
-            _pages[i].transform.SetParent(content.transform, false);
-            var pageLayout = _pages[i].GetComponent<VerticalLayoutGroup>();
-            pageLayout.spacing = 8; pageLayout.childControlHeight = true; pageLayout.childForceExpandHeight = false;
-            _pages[i].GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            _tabs[i] = layout.Tabs[i];
+            _pages[i] = layout.Pages[i].gameObject;
+            _tabActions[i] = () => { if (_expanded && SelectedPage == page) SetExpanded(false); else ShowPage(page); };
+            _tabs[i].onClick.AddListener(_tabActions[i]);
         }
-        _placement = MakeText(_pages[0].transform, "", 16, 84);
-        // シーンの既存Builderとボタン定義を使い、旧タブの表示を統合UIへ移す。
-        foreach (var builder in FindObjectsByType<SelectButtonBuilderAdapter>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-            builder.AttachTo(_pages[0].transform, _font);
-        RecipeView = new RecipeReferenceViewAdapter(_pages[1].transform, _font);
-        var recipeBuilder = FindAnyObjectByType<RecipeUIBuilderAdapter>(FindObjectsInactive.Include);
-        if (recipeBuilder != null && recipeBuilder.Database != null)
-        {
-            RecipeView.Render(recipeBuilder.Database, recipeBuilder.Resources);
-            recipeBuilder.RetireLegacyPage();
-        }
-        _view.AttachToHud(_canvas.transform, _font, recipeBuilder != null ? recipeBuilder.Resources : null);
-        _equipmentView = new EquipmentDetailsViewAdapter(_view.StatusContent, _font, _upgrades);
+        _closeAction = () => SetExpanded(!_expanded);
+        layout.Close.onClick.AddListener(_closeAction);
+        _summaryView = new PersistentSummaryViewAdapter(layout.Summary, _font, layout.WalletItems, layout.TextRow);
+        layout.PlacementBuilder.Configure(_font);
+        RecipeView = new RecipeReferenceViewAdapter(_pages[1].transform, _font, layout.RecipeHeading, layout.ResourceRow);
+        RecipeView.Render(layout.Recipes, layout.Resources);
+        _view.ConfigureHud(_font, layout.Resources);
+        _equipmentView = new EquipmentDetailsViewAdapter(layout.EquipmentHeading, layout.EquipmentGroup,
+            layout.EquipmentText, layout.Upgrade, layout.EquipmentFeedback);
+        _equipmentPresenter = new EquipmentDetailsPresenterAdapter(_equipmentView, _upgrades);
         foreach (var node in _skills.Catalog.Nodes)
         {
             var uid = node.Uid;
-            _nodes.Add(uid, MakeButton(_pages[2].transform, "", () => PurchaseSkill(uid), 88));
+            var button = Instantiate(layout.SkillRow, _pages[2].transform);
+            var label = button.GetComponentInChildren<Text>(true);
+            if (label.font == null) label.font = _font;
+            button.onClick.AddListener(() => PurchaseSkill(uid));
+            _nodes.Add(uid, button);
         }
         ShowPage(0);
     }
-
-    private Text MakeText(Transform parent, string value, int size, int height)
-        => HudUIAdapter.MakeText(_font, parent, value, size, height);
-    private Button MakeButton(Transform parent, string label, Action click, int height)
-        => HudUIAdapter.MakeButton(_font, parent, label, click, height);
-    private static void Stretch(RectTransform rect) => HudUIAdapter.Stretch(rect);
-    private static void Anchor(RectTransform rect, Vector2 min, Vector2 max, Vector2 position, Vector2 size)
-        => HudUIAdapter.Anchor(rect, min, max, position, size);
 }

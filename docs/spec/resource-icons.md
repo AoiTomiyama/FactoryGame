@@ -11,3 +11,5 @@
 ## 資源定義 API の名称整理（2026-10-06）
 
 既存差分の `Resource` / `GetResourceByType` / `GetAllResources` と資源名フィールドを採用し、唯一の資源定義アセットと利用側を合わせた。対象は `0f26ef0` からの当該 API・アセット差分。Unity 6000.3.8f1 の `ResourceIconVerifierEditor.Run` が終了コード 0（18.43 秒）で通過し、レシピ・保管欄のアイコンと資源名を確認した。
+
+UIS-06ではRecipe.prefabをRecipeResourceRowAdapterの資源行へ統合した。ResourceIconVerifierEditorは同じRecipeDatabaseとResourceDefinitionをRecipeReferenceViewへ渡し、生成した材料・成果物行のSpriteと名称、既存StorageParamLineの表示を確認する。HUDの描画画像と実行記録は`docs/verification/uis06-ui.json`を参照する。

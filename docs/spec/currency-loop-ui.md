@@ -11,7 +11,7 @@
 
 [RecipeReferenceViewAdapter](../../Assets/Scripts/UI/Adapter/RecipeReferenceViewAdapter.cs)は既存RecipeDatabaseDefinitionとResourceDefinitionから、レシピ名・加工時間・材料名と必要数・成果物名と数量・資源アイコンを表示する。参照ページの表示は加工処理と独立しており、現行の自動判定を保つ。
 
-[PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs)は残高・使用可能額・支出予約・換金待ちを表示する。SetWalletOrderで4項目の順を、SetItemsで追加項目と順を指定する。残高4項目と追加項目を指定順に横へ並べ、画面幅を超えると折り返して枠の高さを増やす。常時表示枠にはスクロールや切り抜きを付けず、全項目を表示する。左右パネルはその下へ追従し、下端108以上を保つ。共通色と文字・ボタン生成は[HudUIAdapter](../../Assets/Scripts/UI/Adapter/HudUIAdapter.cs)へ集約する。
+[PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs)は残高・使用可能額・支出予約・換金待ちを表示する。SetWalletOrderで4項目の順を、SetItemsで追加項目と順を指定する。残高4項目と追加項目を指定順に横へ並べ、画面幅を超えると折り返して枠の高さを増やす。常時表示枠にはスクロールや切り抜きを付けず、全項目を表示する。左右パネルはその下へ追従し、下端108以上を保つ。固定枠と行Prefabの参照は[HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs)へ集約する。タブの選択色は同Adapter、配置・状態行の色は各Prefabの設定で編集する。
 
 UI上で始めたクリックは配置確定へ進めず、フィールドからの配置ドラッグをUI上で離した場合はプレビューを取り消す。[PlayerCursorBehaviourAdapter](../../Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs)が既存Raycasterの結果で判定する。
 
@@ -44,7 +44,7 @@ UI上で始めたクリックは配置確定へ進めず、フィールドから
 
 タグ: `操作案内` `回転` `視点切替` `UIS-04`
 
-[OperationBarAdapter](../../Assets/Scripts/UI/Adapter/OperationBarAdapter.cs)はカーソルの起動時に、画面下へ操作案内と「設備回転 [R]」「視点切替 [L]」を生成する。左ドラッグの配置、右クリックの設備情報、中ドラッグの移動、ホイールの拡大・縮小を短い説明で案内する。ボタンは既存カーソルの90度回転とカメラの視点切替を呼び、R・Lの入力設定を保持する。
+[OperationBarAdapter](../../Assets/Scripts/UI/Adapter/OperationBarAdapter.cs)はシーンのOperationBar.prefabを参照し、画面下の「設備回転 [R]」「視点切替 [L]」へ既存入力を接続する。操作案内・枠・ボタンはPrefabに保存する。左ドラッグの配置、右クリックの設備情報、中ドラッグの移動、ホイールの拡大・縮小を短い説明で案内する。ボタンは既存カーソルの90度回転とカメラの視点切替を呼び、R・Lの入力設定を保持する。
 
 操作帯は高さ720の論理画面で下端12〜96に配置する。経済パネルと右側セル情報は下端108以上へ収める。セル情報は既存Canvasの高さへ換算して余白を確保する。操作帯の背景とボタンも既存UIRaycasterの判定対象となり、UI上のクリックとドラッグ終了は既存の配置取消規則に従う。サイドタブの再構成はUIS-05の採用方針を参照する。
 
@@ -68,6 +68,26 @@ UI上で始めたクリックは配置確定へ進めず、フィールドから
 
 EconomyPanelAdapterは共有状態の配線・購読、タブ切替、配置・スキル操作を管理する。レシピ参照・常時表示・設備強化の表示はそれぞれのViewへ委譲する。購入と支払の判定は既存ApplicationとEquipmentUpgradeAdapterを使う。
 
-[EquipmentDetailsViewAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsViewAdapter.cs)は選択セルの見出しと強化比較・購入ボタンを所有する。セルの能力はレベルを指定する読み取りメソッドを通じて同じEffectiveStatsRulesDomainから計算する。比較表示でセルの実レベルや在庫を書き換えない。強化対象外のセルでは強化欄を隠す。CellStatusViewAdapterは既存の選択・Provider・行プールを保ち、[HudStatusProviderAdapter](../../Assets/Scripts/UI/Adapter/HudStatusProviderAdapter.cs)と[HudStatusRowAdapter](../../Assets/Scripts/UI/Adapter/HudStatusRowAdapter.cs)で在庫と進捗を共通書体の行へ変換する。セル名・座標は見出しへ集約する。右側の「閉じる」は選択と購読を解除する。
+[EquipmentDetailsViewAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsViewAdapter.cs)はPrefab内の見出し・比較・結果・購入ボタンを表示する。[EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs)が選択セルの読取と購入を担当する。セルの能力はレベルを指定する読み取りメソッドを通じて同じEffectiveStatsRulesDomainから計算する。比較表示でセルの実レベルや在庫を書き換えない。強化対象外のセルでは強化欄を隠す。CellStatusViewAdapterは既存の選択・Provider・行プールを保ち、[HudStatusProviderAdapter](../../Assets/Scripts/UI/Adapter/HudStatusProviderAdapter.cs)と[HudStatusRowAdapter](../../Assets/Scripts/UI/Adapter/HudStatusRowAdapter.cs)で在庫と進捗を共通書体の行へ変換する。セル名・座標は見出しへ集約する。右側の「閉じる」は選択と購読を解除する。
 
 EconomyUIVerifierEditor.Runは、既存の購入・配置・入力遮断に加え、直接タブ、開閉後の設備・配置方向の保持、強化前後の能力、右側の実ボタンによる購入、在庫保持、対象外セルの状態表示を検査する。24レシピ・各6材料、常時表示への12項目追加と順序変更を代表例とし、1600×900・1366×768に相当する論理サイズで文字の収容・左右の非重複・レシピ末尾と強化ボタンへの到達を確認する。常時表示は残高4項目と追加12項目を全て枠内に収め、項目間の非重複とホイール操作前後の位置保持を検査する。RunRenderedは同じ検査に加えて実HUDを画像へ書き出す。実行条件・結果・画像・対象差分はローカルの`docs/verification/uis05-ui.json`へ集約する。
+
+## HUDのPrefabと編集範囲（UIS-06）
+
+タグ: `Prefab` `UGUI` `Editor編集` `旧資産統合`
+
+MainSceneは[FactoryHud.prefab](../../Assets/Prefabs/UI/FactoryHud.prefab)と[OperationBar.prefab](../../Assets/Prefabs/UI/OperationBar.prefab)を直接参照する。上部の常時表示、左3タブと閉じるボタン、右のセル情報・設備強化、下部操作帯はEditorで配置・文字・色を編集できる。GeneratorとCursorには接続先のシーン参照を保存し、起動時は共有状態と操作を接続する。固定枠を生成・移動する移行処理は実行経路に置かない。
+
+左右のパネルは保存した位置・寸法を基準に、常時表示の折返しで増えた高さと画面幅の差分だけを反映する。レイアウトグループによる子要素の整列と、表示文の高さへの追従は継続する。直接タブの選択色はHudLayoutAdapter、配置ボタンの通常色とサブメニュー色は既存BuilderのInspectorで編集する。各Textの書体・サイズと背景ImageはPrefabの値を使う。HudFont.fontsettingsは従来のOSフォント名と描画用Material・Textureを保存し、Editorと再生で同じ参照を使う。
+
+| アセット | 再利用・変更内容 |
+| --- | --- |
+| SelectButton.prefab | GUIDと選択Adapter・Button・背景を継承。旧TMP文字と空アイコンを共通書体のTextへ整理し、実行時の文字部品の追加を撤去した。 |
+| Recipe.prefab | GUIDと資源アイコン・名称・数量を表示する用途を継承。材料数の増加を縦に収容する資源行へ変更し、見出し・加工時間はHudRecipeHeading.prefabへ分けた。 |
+| HudStatusRow.prefab | 既存Providerと行プールから在庫・進捗を表示する。文字・アイコン・ゲージを保存し、Configureで部品を生成しない。 |
+| HudTextRow / HudRecipeHeading / HudSkillRow | 常時表示の追加項目、レシピ見出し、スキルの変動一覧用。定義や表示項目数に応じて複製する。 |
+| UITab.prefab・旧Canvas | 旧タブの再押下による開閉を3タブへ引き継ぎ、重複するMainSceneのCanvasと未参照のUITab資産を撤去した。 |
+
+旧RecipeUIBuilder・RecipeElementUI・ResourceRowUI、HudUIAdapterの実行時生成、旧ページの非表示化、セル情報の移設・復元処理を撤去した。Text/Gauge/StorageParamLineは独立UIの契約と既存検証で使う行Prefabとして保持する。経済パネルの終了時は購読と購入リスナーを解除し、保存済みHUDを非表示にする。旧UIの復元や二重生成は行わない。
+
+配置タブ枠とレシピ1行を旧Prefabと比較してから全体へ展開した。代表比較と変更理由、対象差分、実行結果はローカルの`docs/verification/uis06-ui.json`に集約する。EconomyUIVerifierEditorはHudPrefabVerifierEditorの保存参照・Editor編集保持・再設定時の同一部品保持を加え、既存のPC2寸法、24レシピ・6材料、常時表示の追加12項目、購入、入力遮断、購読寿命を検証する。最終画像は既存固定名`docs/verification/uis05/hud-1600x900.png`と`hud-1366x768.png`を更新する。

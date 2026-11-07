@@ -4,30 +4,14 @@ using UnityEngine.UI;
 /// <summary>既存Providerの表示値を、共通HUDの書体・色・寸法で描画する。</summary>
 public sealed class HudStatusRowAdapter : UIStatusRowBaseAdapter
 {
-    private Text _label, _value;
-    private Image _icon, _gauge;
+    [SerializeField] private Text _label, _value;
+    [SerializeField] private Image _icon, _gauge;
     private ResourceDefinition _resources;
     public void Configure(Font font, ResourceDefinition resources)
     {
         _resources = resources;
-        var layout = gameObject.AddComponent<HorizontalLayoutGroup>();
-        layout.padding = new RectOffset(8, 8, 4, 6); layout.spacing = 8;
-        layout.childControlHeight = true; layout.childForceExpandHeight = false;
-        layout.childForceExpandWidth = false;
-        var sizing = gameObject.AddComponent<LayoutElement>(); sizing.preferredHeight = 44;
-        _label = HudUIAdapter.MakeText(font, transform, "", 16, 32);
-        _label.GetComponent<LayoutElement>().preferredWidth = 100;
-        var icon = new GameObject("ResourceIcon", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
-        icon.transform.SetParent(transform, false);
-        _icon = icon.GetComponent<Image>(); _icon.preserveAspect = true; _icon.raycastTarget = false;
-        icon.GetComponent<LayoutElement>().minWidth = 24; icon.GetComponent<LayoutElement>().preferredWidth = 24;
-        _value = HudUIAdapter.MakeText(font, transform, "", 16, 32);
-        _value.alignment = TextAnchor.MiddleRight;
-        _value.GetComponent<LayoutElement>().flexibleWidth = 1;
-        var gauge = new GameObject("Gauge", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
-        gauge.transform.SetParent(transform, false);
-        gauge.GetComponent<LayoutElement>().ignoreLayout = true;
-        _gauge = gauge.GetComponent<Image>(); _gauge.color = HudUIAdapter.Selected; _gauge.raycastTarget = false;
+        if (_label.font == null) _label.font = font;
+        if (_value.font == null) _value.font = font;
     }
     public override void RenderUIByData(UIElementDataBaseApplication data)
     {

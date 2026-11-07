@@ -124,11 +124,11 @@ flowchart LR
  subgraph InputDisplay["入力と表示"]
   View["CellStatusView"]
   Cursor["PlayerCursor / CameraController"]
-  RecipeUI["RecipeUIBuilder"]
-  Tab["UITab Prefab: SelectButtonBuilder"]
+  RecipeUI["RecipeReferenceView / Recipe.prefab"]
+  Tab["FactoryHud Prefab: SelectButtonBuilder"]
   Preview["P_*Cell: 配置プレビュー"]
   Visual["StoneItem / WoodItem Prefab・Sprite"]
-  Rows["Text / Gauge / Storage ParamLine Prefab"]
+  Rows["HudStatusRow Prefab / 独立UI行"]
  end
  subgraph TransferDisplay["搬送表示の管理"]
   Pool["ResourceItemObjectPool"]
@@ -146,6 +146,7 @@ flowchart LR
  Main --> View
  Main --> Cursor
  Main --> RecipeUI
+ Main --> Tab
  Tab --> DB
  Placer --> DB
  DB --> Fields
@@ -160,7 +161,7 @@ flowchart LR
  Rows --> ResourceDB
 ```
 
-線はシリアライズ参照／コンポーネント配置の要約。シーンのローカルfileIDとPrefab overrideを含めて確認した。一般セル10定義は [GeneralCellDB](../../Assets/Scripts/ScriptableObject/GeneralCellDB.asset) の `fieldCellPrefab` / `placeholderCellPrefab` と [Field Prefab群](../../Assets/Prefabs/Field/General/) を参照する。加工Prefabは [F_CrafterCell](../../Assets/Prefabs/Field/General/F_CrafterCell.prefab) の `recipeDatabase` / `crafterProvider`、保管は [F_StorageCell](../../Assets/Prefabs/Field/General/F_StorageCell.prefab) の `dataProvider`、採取は [F_ExtractorStoneCell](../../Assets/Prefabs/Field/General/F_ExtractorStoneCell.prefab) の `resourceDatabase` / `extractorProvider` が根拠。[MainScene](../../Assets/Scenes/MainScene.unity) は上記管理コンポーネントを含む。 [UITab](../../Assets/Prefabs/UI/UITab.prefab) のセルDBはシーンoverrideでGeneralCellDBを指定する。既存グリッドの子階層を起動時に登録し、実行中の配置ではPrefabを複製する。SOは設定を所有し、セル在庫・搬送中資源は所有しない。
+線はシリアライズ参照／コンポーネント配置の要約。シーンのローカルfileIDとPrefab overrideを含めて確認した。一般セル10定義は [GeneralCellDB](../../Assets/Scripts/ScriptableObject/GeneralCellDB.asset) の `fieldCellPrefab` / `placeholderCellPrefab` と [Field Prefab群](../../Assets/Prefabs/Field/General/) を参照する。加工Prefabは [F_CrafterCell](../../Assets/Prefabs/Field/General/F_CrafterCell.prefab) の `recipeDatabase` / `crafterProvider`、保管は [F_StorageCell](../../Assets/Prefabs/Field/General/F_StorageCell.prefab) の `dataProvider`、採取は [F_ExtractorStoneCell](../../Assets/Prefabs/Field/General/F_ExtractorStoneCell.prefab) の `resourceDatabase` / `extractorProvider` が根拠。[MainScene](../../Assets/Scenes/MainScene.unity) は上記管理コンポーネントを含む。 [FactoryHud](../../Assets/Prefabs/UI/FactoryHud.prefab) の配置BuilderはGeneralCellDBとSelectButtonを参照し、Placerはシーン参照で接続する。既存グリッドの子階層を起動時に登録し、実行中の配置ではPrefabを複製する。SOは設定を所有し、セル在庫・搬送中資源は所有しない。
 
 ## 設計パターン対応表
 
@@ -195,3 +196,5 @@ MainSceneの共有残高と初回経路、実際の換金収益による個別�
 [経済UI仕様](../spec/currency-loop-ui.md)に従い、Generatorが共有残高・スキル・強化処理をEconomyPanelAdapterへ渡す。パネルは残高と予約、換金通知、設置見積りと結果、選択設備の有効能力・強化費、スキルの前提・効果・可否を表示する。選択変更はViewのSelectionChanged、特異点の専用ReaderはCreateCustomへ接続する。パネルと選択の寿命に合わせて購読を解除する。
 
 UIS-05では既存のSelectButtonBuilderを左の配置ページへ移し、レシピ・スキルと直接タブで切り替える。残高は上部に常時表示し、設備強化は右側のセル情報へ統合する。採取設備のサブメニューは同じセル定義とPlacerを使う。UI上で離した配置ドラッグは取消し、選択・表示切替では支払を行わない。
+
+UIS-06ではMainSceneのHUDと操作帯を保存済みPrefabへ移し、固定枠・タブ・操作ボタンは起動時に生成しない。動的一覧は行Prefabを複製し、設備強化の読取と購入はEquipmentDetailsPresenterAdapter、表示はEquipmentDetailsViewAdapterが担当する。旧Canvas・UITab資産と移設・復元経路の整理、Editor編集範囲と検証は[HUDのPrefab仕様](../spec/currency-loop-ui.md#hudのprefabと編集範囲uis-06)を参照する。

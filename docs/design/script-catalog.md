@@ -80,9 +80,6 @@
 | [CellStatusProviderAdapter](../../Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs)<br>CellStatusProviderAdapter | 具体セルを表示読み取りへ変換する静的生成入口 | CellBaseAdapter, CellStatusDataProviderApplication, CrafterCellAdapter, DirectionsDomain, ExtractorCellAdapter, GaugeElementDataApplication, IUIDataProviderApplication, LabelEnumApplication, ProviderBaseDefinition, ResourceCellAdapter, ResourceProviderDefinition, ResourceTypeDomain, StorageCellAdapter, StorageElementDataApplication, TextElementDataApplication, UIElementDataBaseApplication | 標準C# |
 | [CellStatusViewAdapter](../../Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs)<br>CellStatusViewAdapter, StatusRowInfoAdapter | 選択・購読寿命・行プール・表示窓制御 | CellBaseAdapter, IDataProvidableApplication, SingletonMonoBehaviourAdapter, UIElementDataBaseApplication, UIElementRendererAdapter, UIStatusRowBaseAdapter, UIStatusRowTypeApplication | UnityEngine, UnityEngine.Pool |
 | [GaugeUIStatusRowAdapter](../../Assets/Scripts/UI/Adapter/GaugeUIStatusRowAdapter.cs)<br>GaugeUIStatusRowAdapter | ゲージImageと数値表示行 | GaugeElementDataApplication, UIElementDataBaseApplication, UIStatusRowBaseAdapter | TMPro, UnityEngine, UnityEngine.UI |
-| [RecipeElementUIAdapter](../../Assets/Scripts/UI/Adapter/RecipeElementUIAdapter.cs)<br>RecipeElementUIAdapter | レシピの時間・素材・出力表示 | RecipeDataDefinition, ResourceDefinition, ResourceRowUIAdapter | TMPro, UnityEngine |
-| [RecipeUIBuilderAdapter](../../Assets/Scripts/UI/Adapter/RecipeUIBuilderAdapter.cs)<br>RecipeUIBuilderAdapter | レシピDBから一覧表示生成 | RecipeDatabaseDefinition, RecipeElementUIAdapter | UnityEngine |
-| [ResourceRowUIAdapter](../../Assets/Scripts/UI/Adapter/ResourceRowUIAdapter.cs)<br>ResourceRowUIAdapter | 資源名・アイコン・数量の表示 |  | TMPro, UnityEngine, UnityEngine.UI |
 | [SelectButtonBuilderAdapter](../../Assets/Scripts/UI/Adapter/SelectButtonBuilderAdapter.cs)<br>SelectButtonBuilderAdapter | セルDBから配置ボタン生成・統合UI接続・Action登録 | CellDatabaseDefinition, CellPlacerAdapter, CellSelectButtonUIAdapter, CellTypeDomain, SubMenuUIBuilderAdapter | UnityEngine |
 | [StorageUIStatusRowAdapter](../../Assets/Scripts/UI/Adapter/StorageUIStatusRowAdapter.cs)<br>StorageUIStatusRowAdapter | 資源アイコン付き保管表示行 | GaugeUIStatusRowAdapter, ResourceDefinition, ResourceTypeDomain, StorageElementDataApplication, UIElementDataBaseApplication | TMPro, UnityEngine, UnityEngine.UI |
 | [SubMenuUIBuilderAdapter](../../Assets/Scripts/UI/Adapter/SubMenuUIBuilderAdapter.cs)<br>SubMenuUIBuilderAdapter | セル定義から採取設備のサブメニュー生成・選択登録 | CellPlacerAdapter, CellSelectButtonUIAdapter, CellTypeDomain | UnityEngine |
@@ -113,7 +110,7 @@
 | [GenerateVariantWindowEditor](../../Assets/Scripts/Grid/Editor/GenerateVariantWindowEditor.cs)<br>GenerateVariantWindowEditor | Prefab variant生成支援Window |  | UnityEditor, UnityEngine |
 | [GridFieldGeneratorVerifierEditor](../../Assets/Scripts/Grid/Editor/GridFieldGeneratorVerifierEditor.cs)<br>GridFieldGeneratorVerifierEditor | 生成条件と座標の既存検証 | CellDatabaseDefinition, CellInfoDefinition, CellTypeDomain, GridFieldGeneratorAdapter | UnityEditor, UnityEditor.Build.Reporting, UnityEngine |
 | [GridGeneratorEditor](../../Assets/Scripts/Grid/Editor/GridGeneratorEditor.cs)<br>GridGeneratorEditor | グリッド生成Inspector | GridFieldDatabaseAdapter, GridFieldGeneratorAdapter | Unity.VisualScripting, UnityEditor, UnityEngine |
-| [ResourceIconVerifierEditor](../../Assets/Scripts/Resources/Editor/ResourceIconVerifierEditor.cs)<br>ResourceIconVerifierEditor | 資源アイコン・設定参照の既存検証 | RecipeDatabaseDefinition, RecipeElementUIAdapter, ResourceDefinition, ResourceRowUIAdapter, ResourceTypeDomain, StorageElementDataApplication, StorageUIStatusRowAdapter | Cysharp.Threading.Tasks, TMPro, UnityEditor, UnityEditor.SceneManagement, UnityEngine, UnityEngine.UI |
+| [ResourceIconVerifierEditor](../../Assets/Scripts/Resources/Editor/ResourceIconVerifierEditor.cs)<br>ResourceIconVerifierEditor | 資源アイコン・設定参照の既存検証 | RecipeDatabaseDefinition, RecipeReferenceViewAdapter, RecipeResourceRowAdapter, ResourceDefinition, ResourceTypeDomain, StorageElementDataApplication, StorageUIStatusRowAdapter | Cysharp.Threading.Tasks, TMPro, UnityEditor, UnityEditor.SceneManagement, UnityEngine, UnityEngine.UI |
 | [InlineSODrawerEditor](../../Assets/Scripts/Shared/Editor/InlineSODrawerEditor.cs)<br>InlineSODrawerEditor | SO属性のDrawer | InlineSOAttributeAdapter | UnityEditor, UnityEngine |
 | [InspectorReadOnlyDrawerEditor](../../Assets/Scripts/Shared/Editor/InspectorReadOnlyDrawerEditor.cs)<br>InspectorReadOnlyDrawerEditor | 読取専用属性のDrawer | InspectorReadOnlyAttributeAdapter | UnityEditor, UnityEngine |
 | [ResourceReservationVerifierEditor](../../Assets/Scripts/Transfers/Editor/ResourceReservationVerifierEditor.cs)<br>ResourceReservationVerifierEditor | 数量・予約・取消の既存検証 | CellBaseAdapter, ConveyorCellAdapter, CrafterCellAdapter, CrossingCellAdapter, IContainableApplication, ResourceReservationApplication, ResourceStorageRulesDomain, ResourceTransferOperationApplication, ResourceTypeDomain, StorageCellAdapter | UnityEditor, UnityEngine |
@@ -182,15 +179,23 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | [EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs) | 共有状態の配線・購読、直接タブ、配置・スキル操作、各Viewの寿命 | CurrencyWalletApplication, SkillTreeApplication, EquipmentUpgradeAdapter, CellStatusViewAdapter, uGUI |
 | [SingularityProviderDefinition](../../Assets/Scripts/UI/Definitions/SingularityProviderDefinition.cs) | 特異点の専用Readerへ渡すラベル | ProviderBaseDefinition |
 | [EconomyUIVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs) | MainSceneの経済表示・購入可否・購読寿命・レイアウト検証、既存UIと設置の検証入口 | EconomyPanelAdapter, UIStatusVerifierEditor, EquipmentPlacementVerifierEditor, UnityEditor, UniTask |
-| [OperationBarAdapter](../../Assets/Scripts/UI/Adapter/OperationBarAdapter.cs) | 下部の操作案内と回転・視点切替ボタン、生成Canvasとフォントの寿命 | PlayerCursorBehaviourAdapter, CameraControllerAdapter, uGUI |
+| [OperationBarAdapter](../../Assets/Scripts/UI/Adapter/OperationBarAdapter.cs) | 下部の操作案内と回転・視点切替ボタン、保存済みPrefabの参照と購入リスナーの寿命 | PlayerCursorBehaviourAdapter, CameraControllerAdapter, uGUI |
 
 ## サイドタブとセル情報（UIS-05）
 
 | ファイル | 責務と主な依存 |
 | --- | --- |
-| [PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs) | 残高項目の順、追加項目と並び、横並び・折返しと常時表示枠の高さ。WalletのスナップショットとHudUIAdapterを利用 |
+| [PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs) | 残高項目の順、追加項目と並び、横並び・折返しと常時表示枠の高さ。Walletのスナップショットと保存済みText行Prefabを利用 |
 | [RecipeReferenceViewAdapter](../../Assets/Scripts/UI/Adapter/RecipeReferenceViewAdapter.cs) | RecipeDatabaseDefinition・ResourceDefinitionを参照表示。加工操作を持たない |
-| [EquipmentDetailsViewAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsViewAdapter.cs) | 選択セルの見出しと強化比較・操作。CellBase派生とEquipmentUpgradeAdapterを利用 |
+| [EquipmentDetailsViewAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsViewAdapter.cs) | 保存済みの見出し・比較・結果・購入ボタンの表示。状態読取と購入はPresenterへ分離 |
 | [HudStatusProviderAdapter](../../Assets/Scripts/UI/Adapter/HudStatusProviderAdapter.cs) | 既存Providerの表示スナップショットから見出しとの重複を省き、用途ラベルを付ける |
 | [HudStatusRowAdapter](../../Assets/Scripts/UI/Adapter/HudStatusRowAdapter.cs) | UIStatusRowBaseAdapterを継承し、共通書体で在庫・文字・ゲージを描画。Viewのプールで管理 |
-| [HudUIAdapter](../../Assets/Scripts/UI/Adapter/HudUIAdapter.cs) | HUDの共通色と文字・ボタンの生成。ゲーム状態を保持しない |
+
+## HUDの保存参照（UIS-06）
+
+| ファイル | 責務と主な依存 |
+| --- | --- |
+| [HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs) | FactoryHud内の固定枠・3タブ・行Prefab参照と、保存した配置を基準にする幅・上余白の追従 |
+| [RecipeResourceRowAdapter](../../Assets/Scripts/UI/Adapter/RecipeResourceRowAdapter.cs) | Recipe.prefabの資源アイコン・名称・数量の表示 |
+| [EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs) | 選択設備の状態読取、強化見積り、購入とボタン購読の解除 |
+| [HudPrefabVerifierEditor](../../Assets/Scripts/UI/Editor/HudPrefabVerifierEditor.cs) | MainSceneとPrefabの保存参照、欠損、Editor編集保持、再構成時の固定部品保持を既存UI回帰へ追加 |
