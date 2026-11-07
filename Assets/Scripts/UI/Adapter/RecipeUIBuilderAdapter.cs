@@ -4,6 +4,15 @@ public class RecipeUIBuilderAdapter : MonoBehaviour
 {
     [SerializeField] private RecipeDatabaseDefinition recipeDatabase;
     [SerializeField] private RecipeElementUIAdapter recipeElementUI;
+    public RecipeDatabaseDefinition Database => recipeDatabase;
+    public ResourceDefinition Resources => recipeElementUI.Resources;
+
+    public void RetireLegacyPage()
+    {
+        // 定義だけを新しい参照ページへ渡し、旧ページの重複生成を止める。
+        enabled = false;
+        transform.parent.gameObject.SetActive(false);
+    }
 
     private void Start()
     {

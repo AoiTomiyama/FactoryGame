@@ -1856,7 +1856,7 @@
           ]
         },
         "View": {
-          "description": "選択ごとにProviderと表示行を構成し、選択セルの変更通知を購読します。SelectedCellとSelectionChangedで経済パネルへ対象を渡し、既存Providerを持たない成長対象設備も選択できます。非表示・無効化・削除で選択と購読を解除します。",
+          "description": "選択ごとのProviderと表示行を構成し、選択セルの変更通知を購読する。統合HUDでは状態行と強化欄を同じ右側スクロールへ配置する。閉じる・無効化・削除で選択と購読を解放し、HUD解放時は借用フォントを使う行を破棄して元の配置とプールへ戻す。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs",
@@ -1983,7 +1983,7 @@
           ]
         },
         "SelectedDisplay": {
-          "description": "選択セルの通知購読、表示値の取得・変換と行の描画をまとめた囲みです。共有ラベル設定から表示項目を選び、通知時に値を読み直す関係を示します。Providerと表示行はセルの在庫を読み取り専用で扱います。",
+          "description": "選択セルの通知、表示値の取得・変換・描画、経済操作をまとめる範囲である。上部の常時表示、左の参照・操作ページ、右の状態行と設備強化へ責務を分け、共有Applicationとセルの読み取り値を各Viewへ渡す。",
           "references": [
             {
               "path": "docs/design/architecture-ui-events.md"
@@ -1991,7 +1991,7 @@
           ]
         },
         "EconomyPanel": {
-          "description": "既存配置ボタンを持つページと設備強化・スキルのページを切り替え、共有残高・予約・換金通知を同じUIへ表示します。購入はApplicationへ渡します。ページ切替では購読を保ち、閉じる・無効化・破棄で全購読を解除し、再表示時に最新値を読み直します。",
+          "description": "共有残高・スキル・選択セルの通知を購読し、左の直接タブと配置・スキル操作を管理する。常時表示、レシピ参照、設備強化の表示は各Viewへ渡す。左ページの開閉では購読を保ち、無効化・破棄時に解除する。",
           "references": [
             {
               "path": "Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs",
@@ -2034,6 +2034,73 @@
               "symbol": "GetDataProvider"
             }
           ]
+        },
+        "SummaryView": {
+          "description": "共有残高のスナップショットと追加項目を表示する。残高項目の順序と追加項目の順序を設定でき、内容が増えると枠内をスクロールする。枠の高さを制限し、左右パネルと下部操作帯の領域を残す。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs",
+              "symbol": "PersistentSummaryViewAdapter"
+            }
+          ]
+        },
+        "RecipeView": {
+          "description": "既存のレシピと資源定義から、材料名・必要数・成果物・数量・加工時間とアイコンを一覧表示する。表示内容の再構築だけを担い、レシピの選択や加工の開始、材料の消費は行わない。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/RecipeReferenceViewAdapter.cs",
+              "symbol": "RecipeReferenceViewAdapter"
+            }
+          ]
+        },
+        "RecipeDefinitions": {
+          "description": "加工とレシピ参照が読む既存の設定データである。レシピ定義は材料・成果物・加工時間を、資源定義は資源名とアイコンを供給する。参照ページは設定を読み取り、実行中の加工状態を保存しない。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Crafting/Definitions/RecipeDatabaseDefinition.cs",
+              "symbol": "RecipeDatabaseDefinition"
+            },
+            {
+              "path": "Assets/Scripts/Resources/Definitions/ResourceDefinition.cs",
+              "symbol": "ResourceDefinition"
+            }
+          ]
+        },
+        "EquipmentView": {
+          "description": "同じ選択セルの名前・稼働状態、現在と強化後の能力、費用、購入可否を右側に表示する。能力比較はセルの読み取りメソッドを使い、購入はEquipmentUpgradeAdapterへ渡す。生成した見出しと強化欄は所有者の破棄時に解放する。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Economy/Adapter/EquipmentDetailsViewAdapter.cs",
+              "symbol": "EquipmentDetailsViewAdapter"
+            }
+          ]
+        },
+        "HudProvider": {
+          "description": "既存Providerが返す表示スナップショットをHUD向けに整える。見出しと重複するセル名・座標を除き、在庫と進捗へ用途ラベルを付ける。セルの状態やProviderの設定アセットは変更しない。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/HudStatusProviderAdapter.cs",
+              "symbol": "HudStatusProviderAdapter"
+            }
+          ]
+        },
+        "HudRows": {
+          "description": "Providerの文字・在庫・ゲージを共通HUDの行として描画する。既存のUIStatusRowBaseAdapterを継承し、Viewがプールから貸し出して返却する。資源名とアイコンは既存の資源定義を使う。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/HudStatusRowAdapter.cs",
+              "symbol": "HudStatusRowAdapter"
+            }
+          ]
+        },
+        "HudStyle": {
+          "description": "HUDの用途別共通色と文字・ボタンの生成をまとめる。呼出元から書体と親Transformを受け取り、表示用のUnityオブジェクトを作る。残高・選択セル・購入状態は保持せず、生成物の寿命は各表示の所有者が管理する。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/HudUIAdapter.cs",
+              "symbol": "HudUIAdapter"
+            }
+          ]
         }
       },
       "presentation": {
@@ -2064,7 +2131,14 @@
           "Wallet": "middle",
           "Skills": "middle",
           "Upgrade": "middle",
-          "SingularityReader": "middle"
+          "SingularityReader": "middle",
+          "SummaryView": "middle",
+          "RecipeView": "middle",
+          "RecipeDefinitions": "surface",
+          "EquipmentView": "middle",
+          "HudProvider": "middle",
+          "HudRows": "surface",
+          "HudStyle": "surface"
         }
       },
       "number": "6"

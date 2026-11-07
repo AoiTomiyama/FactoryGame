@@ -27,8 +27,8 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
         if (oldTab != null) oldTab.gameObject.SetActive(false);
         gameObject.SetActive(true);
         _font = font;
-        defaultBackgroundColor = new Color(0.18f, 0.28f, 0.35f);
-        openedSubMenuColor = new Color(0.24f, 0.43f, 0.53f);
+        defaultBackgroundColor = HudUIAdapter.Idle;
+        openedSubMenuColor = HudUIAdapter.Selected;
         subMenuInfos = new[] { CellTypeDomain.ExtractorWood };
         subMenuUIBuilder = GetComponent<SubMenuUIBuilderAdapter>() ?? gameObject.AddComponent<SubMenuUIBuilderAdapter>();
         if (_started)

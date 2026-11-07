@@ -52,7 +52,10 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
     internal void NotifyEquipmentStatsChanged() => OnStatsChanged();
 
     protected int EffectiveStat(int baseValue, StatBranchDomain branch)
-        => EffectiveStatsRulesDomain.Calculate(baseValue, EquipmentLevel, _statEffects?.GetBonus(branch) ?? 0);
+        => EffectiveStatAtLevel(baseValue, branch, EquipmentLevel);
+    // 強化前の比較表示も同じ規則で読み、実レベルや在庫は変更しない。
+    protected int EffectiveStatAtLevel(int baseValue, StatBranchDomain branch, int level)
+        => EffectiveStatsRulesDomain.Calculate(baseValue, level, _statEffects?.GetBonus(branch) ?? 0);
     protected virtual void ValidateBaseStats() { }
     protected virtual void OnStatsChanged() { }
     protected virtual void OnDestroy()

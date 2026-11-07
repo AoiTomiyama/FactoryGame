@@ -17,14 +17,23 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     private bool _bound;
     private bool _expanded = true;
     private bool _selectedActive;
-    private int _quotedLevel;
     private Font _font;
     private GameObject _canvas;
     private GameObject _body;
     private RectTransform _header;
+    private PersistentSummaryViewAdapter _summaryView;
+    private RectTransform _navigation;
+    private EquipmentDetailsViewAdapter _equipmentView;
+    public EquipmentDetailsViewAdapter EquipmentView => _equipmentView;
+    public PersistentSummaryViewAdapter SummaryView => _summaryView;
+    public RectTransform SummaryRect => _summaryView.Rect;
+    public Transform RecipeContent => _pages[1].transform;
+    public RecipeReferenceViewAdapter RecipeView { get; private set; }
+    public void SetSummaryItems(params string[] items) => _summaryView.SetItems(items);
     private readonly GameObject[] _pages = new GameObject[3];
     private readonly Button[] _tabs = new Button[3];
     public int SelectedPage { get; private set; }
+    public bool IsExpanded => _expanded;
     public Button PageButton(int index) => _tabs[index];
     public Transform PlacementButtons => _pages[0].transform;
     public string PlacementText => _placement != null ? _placement.text : "";
@@ -33,24 +42,23 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         if (index < 0 || index >= _pages.Length) throw new ArgumentOutOfRangeException(nameof(index));
         SelectedPage = index;
+        SetExpanded(true);
         _body.GetComponent<ScrollRect>().verticalNormalizedPosition = 1;
         for (var i = 0; i < _pages.Length; i++)
         {
             _pages[i].SetActive(i == index);
             _tabs[i].GetComponent<Image>().color = i == index
-                ? new Color(0.24f, 0.43f, 0.53f) : new Color(0.14f, 0.21f, 0.27f);
+                ? HudUIAdapter.Selected : HudUIAdapter.Idle;
         }
     }
     private Text _balance;
     private Text _placement;
-    private Text _equipment;
     private Text _feedback;
-    private Button _upgrade;
     private readonly Dictionary<string, Button> _nodes = new();
     public string BalanceText => _balance != null ? _balance.text : "";
-    public string EquipmentText => _equipment != null ? _equipment.text : "";
+    public string EquipmentText => _equipmentView != null ? _equipmentView.EquipmentText : "";
     public string FeedbackText => _feedback != null ? _feedback.text : "";
-    public bool UpgradeInteractable => _upgrade != null && _upgrade.interactable;
+    public bool UpgradeInteractable => _equipmentView != null && _equipmentView.Interactable;
     public bool IsSubscribed => _bound;
     public Button SkillButton(string uid) => _nodes[uid];
 
@@ -64,7 +72,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         _view = view;
         _placer = placer;
         if (_canvas == null) Build();
-        if (isActiveAndEnabled && _expanded) Bind();
+        if (isActiveAndEnabled) Bind();
     }
 
     private void Bind()
@@ -111,13 +119,13 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         _expanded = expanded;
         _body.SetActive(expanded);
-        if (expanded && isActiveAndEnabled) Bind(); else Unbind();
+        _header.gameObject.SetActive(expanded);
+        // 常時表示の残高と右側の強化欄は、左ページを閉じても更新する。
     }
 
     public EquipmentUpgradeResultApplication PurchaseUpgrade()
     {
-        var result = _upgrades.Purchase(_selected, _quotedLevel);
-        _feedback.text = result == EquipmentUpgradeResultApplication.Success ? "設備を強化しました" : UpgradeReason(result);
+        var result = _equipmentView.Purchase();
         Refresh();
         return result;
     }
@@ -134,14 +142,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         if (_balance == null || _wallet == null) return;
         var current = _wallet.Current;
-        _balance.text = $"残高 {current.Balance}　使用可能 {current.AvailableBalance}\n支出予約 {current.ReservedExpense}　換金待ち {current.ReservedIncome}";
-        var level = _selected != null ? _selected.EquipmentLevel : 0;
-        _quotedLevel = level;
-        var result = _upgrades.CanPurchase(_selected, level, out var cost);
-        _equipment.text = _selected != null && _selected.SupportsProgression
-            ? $"設備 ({_selected.XIndex}, {_selected.ZIndex})　Lv.{level}/3\n{Stats(_selected)}\n強化費 {(cost > 0 ? cost.ToString() : "—")}　{UpgradeReason(result)}"
-            : "設備を右クリックして強化対象を選択";
-        _upgrade.interactable = result == EquipmentUpgradeResultApplication.Success;
+        _summaryView.RenderWallet(current);
+        _equipmentView.Refresh(_selected);
         foreach (var node in _skills.Catalog.Nodes)
         {
             var button = _nodes[node.Uid];
@@ -159,25 +161,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         StatBranchDomain.Extraction => "抽出量", StatBranchDomain.Transfer => "搬送量", _ => "在庫容量"
     };
-    private static string Stats(CellBaseAdapter cell) => cell switch
-    {
-        ExtractorCellAdapter extractor => $"抽出量 {extractor.ExtractionAmount}　容量 {extractor.StorageCapacity}",
-        ConveyorCellAdapter conveyor => $"搬送量 {conveyor.TransferAmount}",
-        StorageCellAdapter storage => $"容量 {storage.Capacity}",
-        CrafterCellAdapter crafter => $"入力容量 {crafter.IngredientCapacity}　出力容量 {crafter.ExporterCapacity}",
-        CrossingCellAdapter => "接続元の搬送量を使用", _ => ""
-    };
-    public static string UpgradeReason(EquipmentUpgradeResultApplication result) => result switch
-    {
-        EquipmentUpgradeResultApplication.Success => "強化できます",
-        EquipmentUpgradeResultApplication.Busy => "購入処理中",
-        EquipmentUpgradeResultApplication.InvalidTarget => "対象設備がありません",
-        EquipmentUpgradeResultApplication.LevelChanged => "レベルが変わりました。選択し直してください",
-        EquipmentUpgradeResultApplication.MaxLevel => "最大レベル",
-        EquipmentUpgradeResultApplication.InvalidPrice => "価格が無効です",
-        EquipmentUpgradeResultApplication.InsufficientFunds => "残高不足",
-        _ => "強化に失敗しました"
-    };
+    public static string UpgradeReason(EquipmentUpgradeResultApplication result)
+        => EquipmentDetailsViewAdapter.UpgradeReason(result);
     public static string SkillReason(SkillPurchaseResultApplication result) => result switch
     {
         SkillPurchaseResultApplication.Success => "取得できます",
@@ -198,7 +183,15 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         if (_canvas != null)
         {
-            var width = Mathf.Min(400, Mathf.Max(120, _canvas.GetComponent<RectTransform>().rect.width - 24));
+            _summaryView.UpdateLayout();
+            var top = _summaryView.Rect.rect.height + 20;
+            _navigation.anchoredPosition = new Vector2(12, -top);
+            _header.anchoredPosition = new Vector2(100, -top);
+            var bodyRect = _body.GetComponent<RectTransform>();
+            bodyRect.anchoredPosition = new Vector2(100, -(top + 44));
+            bodyRect.sizeDelta = new Vector2(bodyRect.sizeDelta.x, -(top + 44 + 108));
+            _view.TopInset = top;
+            var width = Mathf.Min(400, Mathf.Max(120, _canvas.GetComponent<RectTransform>().rect.width - 524));
             _header.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
             _body.GetComponent<RectTransform>().SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
         }
@@ -207,16 +200,19 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         var active = _selected != null && _selected.isActiveAndEnabled;
         if (active != _selectedActive) { _selectedActive = active; Refresh(); }
         RefreshPlacement();
+        _equipmentView.UpdateLayout();
         foreach (var button in _nodes.Values)
             button.GetComponent<LayoutElement>().preferredHeight = Mathf.Max(88, button.GetComponentInChildren<Text>(true).preferredHeight + 12);
-        foreach (var text in new[] { _balance, _feedback, _placement, _equipment })
+        foreach (var text in new[] { _balance, _feedback, _placement })
             text.GetComponent<LayoutElement>().preferredHeight = Mathf.Max(text.GetComponent<LayoutElement>().minHeight, text.preferredHeight);
     }
-    private void OnEnable() { if (_canvas != null) _canvas.SetActive(true); if (_expanded) Bind(); }
-    private void OnDisable() { Unbind(); if (_canvas != null) _canvas.SetActive(false); }
+    private void OnEnable() { if (_canvas != null) _canvas.SetActive(true); Bind(); }
+    private void OnDisable() { Unbind(); _equipmentView?.SetActive(false); if (_canvas != null) _canvas.SetActive(false); }
     private void OnDestroy()
     {
         Unbind();
+        _equipmentView?.Dispose();
+        if (_view != null) _view.ReleaseHud();
         if (_canvas != null) Destroy(_canvas);
         if (_font != null) Destroy(_font);
     }
@@ -233,16 +229,16 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1280, 720);
         scaler.matchWidthOrHeight = 1;
-        var header = MakeButton(_canvas.transform, "配置・成長　表示 / 非表示", () => SetExpanded(!_expanded), 36);
+        var header = MakeButton(_canvas.transform, "閉じる", () => SetExpanded(!_expanded), 36);
         header.GetComponentInChildren<Text>().fontSize = 18;
         header.GetComponentInChildren<Text>().fontStyle = FontStyle.Bold;
         _header = header.GetComponent<RectTransform>();
-        Anchor(header.GetComponent<RectTransform>(), new Vector2(0, 1), new Vector2(0, 1), new Vector2(12, -12), new Vector2(400, 36));
+        Anchor(header.GetComponent<RectTransform>(), new Vector2(0, 1), new Vector2(0, 1), new Vector2(100, -88), new Vector2(400, 36));
         _body = new GameObject("EconomyScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
         _body.transform.SetParent(_canvas.transform, false);
         // 下部の操作帯へスクロール内容が重ならない余白を確保する。
-        Anchor(_body.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 1), new Vector2(12, -52), new Vector2(400, -160));
-        _body.GetComponent<Image>().color = new Color(0.07f, 0.09f, 0.12f, 0.96f);
+        Anchor(_body.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 1), new Vector2(100, -132), new Vector2(400, -240));
+        _body.GetComponent<Image>().color = HudUIAdapter.Background;
         var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
         viewport.transform.SetParent(_body.transform, false);
         Stretch(viewport.GetComponent<RectTransform>());
@@ -257,18 +253,20 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         var scroll = _body.GetComponent<ScrollRect>();
         scroll.viewport = viewport.GetComponent<RectTransform>(); scroll.content = rect; scroll.horizontal = false;
         scroll.movementType = ScrollRect.MovementType.Clamped; scroll.scrollSensitivity = 25;
-        _balance = MakeText(content.transform, "", 16, 48);
-        _balance.fontStyle = FontStyle.Bold;
+        _summaryView = new PersistentSummaryViewAdapter(_canvas.transform, _font);
+        _balance = _summaryView.Balance;
         _feedback = MakeText(content.transform, "換金するとここに入金額を表示します", 14, 40);
-        var navigation = new GameObject("Pages", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(LayoutElement));
-        navigation.transform.SetParent(content.transform, false);
-        navigation.GetComponent<LayoutElement>().preferredHeight = 36;
-        navigation.GetComponent<HorizontalLayoutGroup>().spacing = 6;
-        var names = new[] { "配置", "設備強化", "スキル" };
+        var navigation = new GameObject("Pages", typeof(RectTransform), typeof(VerticalLayoutGroup));
+        navigation.transform.SetParent(_canvas.transform, false);
+        _navigation = navigation.GetComponent<RectTransform>();
+        Anchor(navigation.GetComponent<RectTransform>(), Vector2.up, Vector2.up, new Vector2(12, -88), new Vector2(80, 136));
+        var navigationLayout = navigation.GetComponent<VerticalLayoutGroup>();
+        navigationLayout.spacing = 8; navigationLayout.childControlHeight = true; navigationLayout.childForceExpandHeight = false;
+        var names = new[] { "配置", "レシピ", "スキル" };
         for (var i = 0; i < names.Length; i++)
         {
             var page = i;
-            _tabs[i] = MakeButton(navigation.transform, names[i], () => ShowPage(page), 36);
+            _tabs[i] = MakeButton(navigation.transform, names[i], () => { if (_expanded && SelectedPage == page) SetExpanded(false); else ShowPage(page); }, 36);
             _pages[i] = new GameObject(names[i], typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
             _pages[i].transform.SetParent(content.transform, false);
             var pageLayout = _pages[i].GetComponent<VerticalLayoutGroup>();
@@ -279,8 +277,15 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         // シーンの既存Builderとボタン定義を使い、旧タブの表示を統合UIへ移す。
         foreach (var builder in FindObjectsByType<SelectButtonBuilderAdapter>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             builder.AttachTo(_pages[0].transform, _font);
-        _equipment = MakeText(_pages[1].transform, "", 16, 104);
-        _upgrade = MakeButton(_pages[1].transform, "選択設備を強化", () => PurchaseUpgrade(), 36);
+        RecipeView = new RecipeReferenceViewAdapter(_pages[1].transform, _font);
+        var recipeBuilder = FindAnyObjectByType<RecipeUIBuilderAdapter>(FindObjectsInactive.Include);
+        if (recipeBuilder != null && recipeBuilder.Database != null)
+        {
+            RecipeView.Render(recipeBuilder.Database, recipeBuilder.Resources);
+            recipeBuilder.RetireLegacyPage();
+        }
+        _view.AttachToHud(_canvas.transform, _font, recipeBuilder != null ? recipeBuilder.Resources : null);
+        _equipmentView = new EquipmentDetailsViewAdapter(_view.StatusContent, _font, _upgrades);
         foreach (var node in _skills.Catalog.Nodes)
         {
             var uid = node.Uid;
@@ -290,33 +295,10 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     }
 
     private Text MakeText(Transform parent, string value, int size, int height)
-    {
-        var go = new GameObject("Text", typeof(RectTransform), typeof(Text), typeof(LayoutElement));
-        go.transform.SetParent(parent, false);
-        var text = go.GetComponent<Text>();
-        text.font = _font; text.fontSize = size; text.text = value; text.color = Color.white;
-        text.fontStyle = size >= 19 ? FontStyle.Bold : FontStyle.Normal;
-        text.alignment = TextAnchor.MiddleLeft; text.raycastTarget = false;
-        go.GetComponent<LayoutElement>().minHeight = height;
-        return text;
-    }
+        => HudUIAdapter.MakeText(_font, parent, value, size, height);
     private Button MakeButton(Transform parent, string label, Action click, int height)
-    {
-        var go = new GameObject("Button", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
-        go.transform.SetParent(parent, false);
-        go.GetComponent<Image>().color = new Color(0.22f, 0.34f, 0.43f);
-        go.GetComponent<LayoutElement>().preferredHeight = height;
-        var button = go.GetComponent<Button>(); button.onClick.AddListener(() => click());
-        var text = MakeText(go.transform, label, 16, height);
-        Stretch(text.rectTransform); text.rectTransform.offsetMin = new Vector2(8, 2); text.rectTransform.offsetMax = new Vector2(-8, -2);
-        return button;
-    }
-    private static void Stretch(RectTransform rect)
-    {
-        rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = rect.offsetMax = Vector2.zero;
-    }
+        => HudUIAdapter.MakeButton(_font, parent, label, click, height);
+    private static void Stretch(RectTransform rect) => HudUIAdapter.Stretch(rect);
     private static void Anchor(RectTransform rect, Vector2 min, Vector2 max, Vector2 position, Vector2 size)
-    {
-        rect.anchorMin = min; rect.anchorMax = max; rect.pivot = new Vector2(0, 1); rect.anchoredPosition = position; rect.sizeDelta = size;
-    }
+        => HudUIAdapter.Anchor(rect, min, max, position, size);
 }

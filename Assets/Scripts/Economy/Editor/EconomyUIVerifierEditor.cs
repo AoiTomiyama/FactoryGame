@@ -27,6 +27,11 @@ public static class EconomyUIVerifierEditor
         SessionState.SetBool(Key, true);
         EditorApplication.isPlaying = true;
     }
+    public static void RunRendered()
+    {
+        SessionState.SetBool(Key + ".Render", true);
+        Run();
+    }
     public static void RunLegacyUI()
     {
         EditorUtility.audioMasterMute = true;
@@ -102,10 +107,10 @@ public static class EconomyUIVerifierEditor
             Require(Subscribers(storage, "StatusChanged") == 0 && !panel.UpgradeInteractable, "hide selection releases subscriptions");
             view.UpdateUIStatusWindow(storage);
             panel.SetExpanded(false);
-            Require(!panel.IsSubscribed && Subscribers(wallet, "Changed") == 1, "collapsed panel releases wallet subscription; singularity remains active");
+            Require(panel.IsSubscribed && Subscribers(wallet, "Changed") == 2, "collapsed left page keeps persistent balance subscription");
             var hiddenText = panel.BalanceText;
             wallet.TryReserveIncome(1, out income); income.TryCommit();
-            Require(panel.BalanceText == hiddenText, "hidden panel does not receive wallet updates");
+            Require(panel.BalanceText != hiddenText, "closed page still updates persistent balance");
             panel.SetExpanded(true);
             Require(panel.IsSubscribed && panel.EquipmentText.Contains("最大レベル") && panel.BalanceText.Contains($"残高 {wallet.Current.Balance}"), "reopen reads latest selected state");
             panel.enabled = false;
@@ -122,7 +127,7 @@ public static class EconomyUIVerifierEditor
             Require(buttons.Length >= generator.Skills.Catalog.Nodes.Count + 5, "placement, navigation, skill and upgrade buttons exist");
             Require(canvas.GetComponentsInChildren<Text>(true).First().font.HasCharacter('換'), "Japanese glyph available");
             var raycaster = UnityEngine.Object.FindAnyObjectByType<UIRaycasterAdapter>();
-            var header = buttons.First(b => b.GetComponentInChildren<Text>(true).text.Contains("表示 / 非表示"));
+            var header = buttons.First(b => b.GetComponentInChildren<Text>(true).text.Contains("閉じる"));
             var point = RectTransformUtility.WorldToScreenPoint(null, header.transform.position + new Vector3(20, -15));
             Require(raycaster.IsPointerOverUI(point), "integrated canvas blocks field input");
             var placer = UnityEngine.Object.FindAnyObjectByType<CellPlacerAdapter>();
@@ -173,16 +178,194 @@ public static class EconomyUIVerifierEditor
                     }
                 }
             }
+            await VerifySideTabs(panel, view, canvas, wallet, grid);
+            if (SessionState.GetBool(Key + ".Render", false))
+            {
+                SessionState.EraseBool(Key + ".Render");
+                await CaptureHud(panel, view, canvas);
+            }
             Require(wallet.LastNotificationException == null && generator.Skills.LastNotificationException == null, "notification handlers succeed");
             UnityEngine.Object.Destroy(panel);
             await UniTask.DelayFrame(2);
-            Require(canvas == null && Subscribers(wallet, "Changed") == 1 && Subscribers(view, "SelectionChanged") == 0,
+            Require(canvas == null && view != null && Subscribers(wallet, "Changed") == 1 && Subscribers(view, "SelectionChanged") == 0,
                 "destroying panel releases generated canvas and subscriptions");
+            view.UpdateUIStatusWindow(singularity);
+            Require(view.SelectedCell == singularity && view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>(true).Length == 0 &&
+                ((RectTransform)view.StatusContent).anchorMin == Vector2.zero && ((RectTransform)view.StatusContent).anchorMax == Vector2.one,
+                "destroying HUD restores legacy view layout and rows without borrowed font");
+            view.SetStatusWindowActive(false);
             Debug.Log($"Economy UI checks passed: {_checks} assertions; MainScene balance, conversion, quotes, buttons, prerequisites and subscription lifetime.");
             EditorApplication.Exit(0);
         }
         catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
     }
+    private static async UniTask VerifySideTabs(EconomyPanelAdapter panel, CellStatusViewAdapter view,
+        Canvas canvas, CurrencyWalletApplication wallet, GridFieldDatabaseAdapter grid)
+    {
+        var cursor = UnityEngine.Object.FindAnyObjectByType<PlayerCursorBehaviourAdapter>();
+        var placer = UnityEngine.Object.FindAnyObjectByType<CellPlacerAdapter>();
+        var raycaster = UnityEngine.Object.FindAnyObjectByType<UIRaycasterAdapter>();
+        placer.SetSelectedCellType(CellTypeDomain.Crafter);
+        cursor.RotatePlacement();
+        var direction = cursor.transform.rotation;
+        var storage = (StorageCellAdapter)Install(grid, "Storage", 25, 25);
+        Require(storage.AllocateStorage(Vector3Int.left, 3, ResourceTypeDomain.Wood), "prepare selected inventory");
+        storage.StoreResource(Vector3Int.left, 3);
+        view.UpdateUIStatusWindow(storage);
+        var balance = wallet.Current.Balance;
+        var capacity = storage.Capacity;
+        Require(panel.EquipmentText.Contains("強化後: 容量 " + storage.CapacityAtLevel(2)), "preview uses same next-level stat rule");
+        for (var page = 0; page < 3; page++)
+        {
+            panel.SetExpanded(false);
+            panel.PageButton(page).onClick.Invoke();
+            Require(panel.IsExpanded && panel.SelectedPage == page, "side tab opens target directly");
+            panel.PageButton(page).onClick.Invoke();
+            Require(!panel.IsExpanded && panel.SelectedPage == page, "same side tab closes and retains page");
+            panel.SetExpanded(true);
+            Require(view.SelectedCell == storage && placer.SelectedType == CellTypeDomain.Crafter &&
+                Quaternion.Angle(direction, cursor.transform.rotation) < 0.01f, "tabs preserve equipment selection and placement direction");
+        }
+        Require(storage.EquipmentLevel == 1 && storage.CurrentLoad == 3 && storage.Capacity == capacity && wallet.Current.Balance == balance,
+            "preview and navigation preserve level inventory and money");
+        panel.EquipmentView.UpgradeButton.onClick.Invoke();
+        Require(storage.EquipmentLevel == 2 && storage.Capacity == storage.CapacityAtLevel(2) && storage.CurrentLoad == 3,
+            "right-hand button upgrades same selected cell and preserves inventory");
+        var recipes = AssetDatabase.LoadAssetAtPath<RecipeDatabaseDefinition>("Assets/Scripts/ScriptableObject/Recipes/RecipeDB.asset");
+        var resources = AssetDatabase.LoadAssetAtPath<ResourceDefinition>("Assets/Scripts/ScriptableObject/ResourceDB.asset");
+        panel.ShowPage(1);
+        var originalLabels = panel.RecipeContent.GetComponentsInChildren<Text>(true).Select(t => t.text).ToArray();
+        foreach (var recipe in recipes.recipes)
+        {
+            Require(originalLabels.Any(t => t.Contains(recipe.RecipeName) && t.Contains($"{recipe.CraftSecond} 秒")), "recipe name and craft time from definition");
+            foreach (var ingredient in recipe.Ingredients)
+                Require(originalLabels.Contains($"材料: {resources.GetResourceByType(ingredient.resourceType).ResourceName} ×{ingredient.requiredAmount}"), "ingredient name and required amount");
+            Require(originalLabels.Contains($"成果物: {resources.GetResourceByType(recipe.Result).ResourceName} ×{recipe.ResultAmount}"), "output name and quantity");
+        }
+        var expanded = ScriptableObject.CreateInstance<RecipeDatabaseDefinition>();
+        expanded.recipes = Enumerable.Range(0, 24).Select(i => JsonUtility.FromJson<RecipeDataDefinition>(
+            "{\"recipeName\":\"収容確認" + i + "\",\"ingredients\":[{\"resourceType\":2,\"requiredAmount\":3},{\"resourceType\":1,\"requiredAmount\":4},{\"resourceType\":2,\"requiredAmount\":5},{\"resourceType\":1,\"requiredAmount\":6},{\"resourceType\":2,\"requiredAmount\":7},{\"resourceType\":1,\"requiredAmount\":8}],\"craftSecond\":12.5,\"result\":2,\"resultAmount\":9}"
+        )).ToArray();
+        panel.RecipeView.Render(expanded, resources);
+        var extras = Enumerable.Range(0, 12).Select(i => "追加項目 " + i + "：12345").ToArray();
+        panel.SetSummaryItems(extras);
+        var root = canvas.GetComponent<RectTransform>();
+        foreach (var resolution in new[] { new Vector2(1600, 900), new Vector2(1366, 768) })
+        {
+            root.sizeDelta = new Vector2(resolution.x * 720 / resolution.y, 720);
+            panel.ShowPage(1);
+            view.UpdateUIStatusWindow(storage);
+            await UniTask.DelayFrame(5);
+            Canvas.ForceUpdateCanvases();
+            VerifyLayout(canvas, resolution, 1);
+            var summaryBounds = BoundsIn(root, panel.SummaryRect);
+            var leftScroll = panel.RecipeContent.GetComponentInParent<ScrollRect>();
+            var leftBounds = BoundsIn(root, leftScroll.GetComponent<RectTransform>());
+            var rightBounds = BoundsIn(root, (RectTransform)view.transform);
+            Require(summaryBounds.yMin >= leftBounds.yMax + 7 && summaryBounds.yMin >= rightBounds.yMax + 7,
+                "expanded summary clears both side panels " + resolution);
+            Require(leftBounds.xMax < rightBounds.xMin, "left recipe and right cell information do not overlap " + resolution);
+            Require(panel.EquipmentView.Heading.transform.GetSiblingIndex() == 0 &&
+                panel.EquipmentView.UpgradeRoot.GetSiblingIndex() == view.StatusContent.childCount - 1,
+                "cell heading then inventory then upgrade");
+            foreach (var scroll in new[] { leftScroll, panel.SummaryView.Scroll, view.StatusScroll })
+            {
+                scroll.verticalNormalizedPosition = 0;
+                await UniTask.DelayFrame(3);
+                Canvas.ForceUpdateCanvases();
+            }
+            var lastRecipe = (RectTransform)panel.RecipeContent.GetChild(panel.RecipeContent.childCount - 1);
+            Require(Inside(root, lastRecipe, leftScroll.viewport), "last of 24 recipes with six ingredients reachable " + resolution);
+            Require(Inside(root, panel.SummaryView.Items.Last().rectTransform, panel.SummaryView.Scroll.viewport), "last additional summary item reachable " + resolution);
+            Require(Inside(root, panel.EquipmentView.UpgradeButton.GetComponent<RectTransform>(), view.StatusScroll.viewport), "upgrade button reachable " + resolution);
+            foreach (var text in panel.RecipeContent.GetComponentsInChildren<Text>())
+                Require(text.preferredHeight <= text.rectTransform.rect.height + 1, "expanded recipe text height " + resolution);
+            foreach (var icon in panel.RecipeContent.GetComponentsInChildren<Image>())
+                Require(icon.sprite != null && icon.rectTransform.rect.width >= 31 && icon.rectTransform.rect.height >= 31, "resource icon retained " + resolution);
+        }
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.GetComponent<CanvasScaler>().enabled = true;
+        panel.SummaryView.SetWalletOrder(PersistentSummaryViewAdapter.WalletField.Income, PersistentSummaryViewAdapter.WalletField.Expense,
+            PersistentSummaryViewAdapter.WalletField.Available, PersistentSummaryViewAdapter.WalletField.Balance);
+        Require(panel.BalanceText.StartsWith("換金待ち") && panel.BalanceText.EndsWith($"残高 {wallet.Current.Balance}"), "currency field order can change");
+        panel.SummaryView.SetWalletOrder(PersistentSummaryViewAdapter.WalletField.Balance, PersistentSummaryViewAdapter.WalletField.Available,
+            PersistentSummaryViewAdapter.WalletField.Expense, PersistentSummaryViewAdapter.WalletField.Income);
+        panel.SetSummaryItems(extras.Reverse().ToArray());
+        Require(panel.SummaryView.Items.First().text == extras.Last(), "summary order follows caller order");
+        panel.SetSummaryItems();
+        panel.RecipeView.Render(recipes, resources);
+        UnityEngine.Object.Destroy(expanded);
+        panel.ShowPage(1);
+        view.UpdateUIStatusWindow(storage);
+        await UniTask.DelayFrame(5);
+        Canvas.ForceUpdateCanvases();
+        view.StatusScroll.verticalNormalizedPosition = 0;
+        await UniTask.DelayFrame(2);
+        foreach (var target in new[] { panel.PageButton(1).GetComponent<RectTransform>(), panel.SummaryRect,
+            panel.EquipmentView.UpgradeButton.GetComponent<RectTransform>() })
+        {
+            var point = RectTransformUtility.WorldToScreenPoint(null, target.TransformPoint(target.rect.center));
+            Require(raycaster.IsPointerOverUI(point), "new HUD controls intercept field input");
+            VerifyInputCancellation(placer, raycaster, point, wallet, grid);
+        }
+        var singularity = (SingularityCellAdapter)grid.GetCell(50, 50);
+        view.UpdateUIStatusWindow(singularity);
+        Require(!panel.EquipmentView.UpgradeRoot.gameObject.activeSelf && view.SelectedCell == singularity,
+            "non-upgrade cell shows status without upgrade controls");
+        view.CloseButton.onClick.Invoke();
+        Require(view.SelectedCell == null && !panel.UpgradeInteractable, "right close button releases selection");
+        var crafter = (CrafterCellAdapter)Install(grid, "Crafter", 26, 25);
+        view.UpdateUIStatusWindow(crafter);
+        Require(panel.EquipmentView.Heading.text.Contains("加工設備") && panel.EquipmentView.Heading.text.Contains("待機") &&
+            panel.EquipmentText.Contains("強化後: 入力容量 " + crafter.IngredientCapacityAtLevel(2)), "crafter name operating state and next capacity");
+    }
+    private static async UniTask CaptureHud(EconomyPanelAdapter panel, CellStatusViewAdapter view, Canvas canvas)
+    {
+        // GUI操作を使わず、実際のHUDを専用カメラから画像へ書き出す。
+        var canvases = new[] { canvas, UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>().GetComponentInChildren<Canvas>() };
+        var objects = canvases.SelectMany(c => c.GetComponentsInChildren<Transform>(true)).Distinct().ToArray();
+        var layers = objects.Select(t => t.gameObject.layer).ToArray();
+        var cameraObject = new GameObject("HudVerificationCamera", typeof(Camera));
+        var camera = cameraObject.GetComponent<Camera>();
+        camera.clearFlags = CameraClearFlags.SolidColor; camera.backgroundColor = new Color(0.15f, 0.16f, 0.17f);
+        camera.cullingMask = 1 << 31; camera.orthographic = true; camera.nearClipPlane = 0.1f; camera.farClipPlane = 100;
+        camera.enabled = false;
+        for (var i = 0; i < objects.Length; i++) objects[i].gameObject.layer = 31;
+        foreach (var c in canvases) { c.renderMode = RenderMode.ScreenSpaceCamera; c.worldCamera = camera; c.planeDistance = 10; }
+        foreach (var resolution in new[] { new Vector2Int(1600, 900), new Vector2Int(1366, 768) })
+        {
+            var target = new RenderTexture(resolution.x, resolution.y, 24);
+            camera.targetTexture = target;
+            foreach (var c in canvases) c.GetComponent<CanvasScaler>().enabled = true;
+            panel.ShowPage(1);
+            view.StatusScroll.verticalNormalizedPosition = 1;
+            await UniTask.DelayFrame(5);
+            Canvas.ForceUpdateCanvases();
+            foreach (var mask in canvas.GetComponentsInChildren<RectMask2D>()) mask.PerformClipping();
+            camera.Render();
+            foreach (var icon in panel.RecipeContent.GetComponentsInChildren<Image>())
+                Require(!icon.canvasRenderer.cull, "visible recipe icon rendered " + resolution);
+            var previous = RenderTexture.active;
+            RenderTexture.active = target;
+            var texture = new Texture2D(resolution.x, resolution.y, TextureFormat.RGB24, false);
+            texture.ReadPixels(new Rect(0, 0, resolution.x, resolution.y), 0, 0); texture.Apply();
+            var path = $"docs/verification/uis05/hud-{resolution.x}x{resolution.y}.png";
+            System.IO.File.WriteAllBytes(path, texture.EncodeToPNG());
+            Require(System.IO.File.Exists(path), "HUD rendering exported " + resolution);
+            RenderTexture.active = previous;
+            UnityEngine.Object.Destroy(texture); camera.targetTexture = null; target.Release(); UnityEngine.Object.Destroy(target);
+        }
+        foreach (var c in canvases) { c.renderMode = RenderMode.ScreenSpaceOverlay; c.worldCamera = null; }
+        for (var i = 0; i < objects.Length; i++) if (objects[i] != null) objects[i].gameObject.layer = layers[i];
+        UnityEngine.Object.Destroy(cameraObject);
+    }
+
+    private static bool Inside(RectTransform root, RectTransform child, RectTransform viewport)
+    {
+        var a = BoundsIn(root, child); var b = BoundsIn(root, viewport);
+        return a.xMin >= b.xMin - 1 && a.xMax <= b.xMax + 1 && a.yMin >= b.yMin - 1 && a.yMax <= b.yMax + 1;
+    }
+
     private static void VerifyInputCancellation(CellPlacerAdapter placer, UIRaycasterAdapter raycaster,
         Vector2 point, CurrencyWalletApplication wallet, GridFieldDatabaseAdapter grid)
     {

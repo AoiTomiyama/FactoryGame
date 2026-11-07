@@ -7,7 +7,8 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
     [SerializeField] private int capacity;
     [SerializeField] private StorageProviderDefinition dataProvider;
 
-    public int Capacity => EffectiveStat(capacity, StatBranchDomain.Storage);
+    public int Capacity => CapacityAtLevel(EquipmentLevel);
+    public int CapacityAtLevel(int level) => EffectiveStatAtLevel(capacity, StatBranchDomain.Storage, level);
     public override bool SupportsProgression => true;
     protected override void ValidateBaseStats() => EffectiveStatsRulesDomain.ValidateBase(capacity);
     protected override void OnStatsChanged() => UpdateUI();

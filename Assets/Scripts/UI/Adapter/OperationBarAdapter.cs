@@ -24,7 +24,7 @@ public sealed class OperationBarAdapter : MonoBehaviour
         scaler.matchWidthOrHeight = 1;
         var panel = new GameObject("OperationBar", typeof(RectTransform), typeof(Image));
         panel.transform.SetParent(_canvas.transform, false);
-        panel.GetComponent<Image>().color = new Color(0.07f, 0.09f, 0.12f, 0.96f);
+        panel.GetComponent<Image>().color = HudUIAdapter.Background;
         Bar = panel.GetComponent<RectTransform>();
         Bar.anchorMin = Vector2.zero; Bar.anchorMax = Vector2.right;
         Bar.pivot = new Vector2(0.5f, 0);
@@ -40,7 +40,7 @@ public sealed class OperationBarAdapter : MonoBehaviour
     {
         var go = new GameObject(title, typeof(RectTransform), typeof(Image), typeof(Button));
         go.transform.SetParent(parent, false);
-        go.GetComponent<Image>().color = new Color(0.22f, 0.34f, 0.43f);
+        go.GetComponent<Image>().color = HudUIAdapter.ButtonColor;
         Place(go.GetComponent<RectTransform>(), new Vector2(x, 8), new Vector2(x + 168, 44), false);
         var button = go.GetComponent<Button>();
         button.onClick.AddListener(action);

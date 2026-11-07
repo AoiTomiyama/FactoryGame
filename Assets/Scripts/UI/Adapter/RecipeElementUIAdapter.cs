@@ -16,6 +16,7 @@ public class RecipeElementUIAdapter : MonoBehaviour
     [SerializeField] private TextMeshProUGUI craftTimeTextBox;
     
     [SerializeField] private ResourceDefinition resourceDatabase;
+    public ResourceDefinition Resources => resourceDatabase;
     
     /// <summary>
     /// レシピ情報に基づいてUIを生成する

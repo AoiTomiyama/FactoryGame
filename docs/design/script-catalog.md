@@ -4,7 +4,7 @@
 
 対象版・未コミット反映条件は [現行設計索引](current-architecture.md)。全 `Assets/Scripts/**/*.cs` を収録する。主な自作依存はコメントを除いた型参照を照合し、同ファイル内の補助型は型欄に示す。メソッドの全呼出一覧ではなく、設計図から実装を辿るための索引である。外部はusingに現れる名前空間であり、実使用の代表は図式の説明を参照する。入れ子型の名前は所属ファイルで識別する。
 
-確認ファイル数: 105（ECO-04の追加3件、PRG-02の追加4件、ECO-01の追加6件、ECO-02の追加5件、ECO-03の追加3件、PRG-01の追加4件、未コミットServiceLocatorを1件含む）。
+確認ファイル数: 116（UIS-05の表示支援6件、未コミットServiceLocatorを1件含む）。
 
 ## 個別強化（ECO-04）
 
@@ -179,7 +179,18 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 
 | ファイル | 役割 | 主な依存 |
 | --- | --- | --- |
-| [EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs) | 配置ボタンと残高・換金表示の統合、強化・スキルのページ切替と購入操作、購読寿命 | CurrencyWalletApplication, SkillTreeApplication, EquipmentUpgradeAdapter, CellStatusViewAdapter, uGUI |
+| [EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs) | 共有状態の配線・購読、直接タブ、配置・スキル操作、各Viewの寿命 | CurrencyWalletApplication, SkillTreeApplication, EquipmentUpgradeAdapter, CellStatusViewAdapter, uGUI |
 | [SingularityProviderDefinition](../../Assets/Scripts/UI/Definitions/SingularityProviderDefinition.cs) | 特異点の専用Readerへ渡すラベル | ProviderBaseDefinition |
 | [EconomyUIVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs) | MainSceneの経済表示・購入可否・購読寿命・レイアウト検証、既存UIと設置の検証入口 | EconomyPanelAdapter, UIStatusVerifierEditor, EquipmentPlacementVerifierEditor, UnityEditor, UniTask |
 | [OperationBarAdapter](../../Assets/Scripts/UI/Adapter/OperationBarAdapter.cs) | 下部の操作案内と回転・視点切替ボタン、生成Canvasとフォントの寿命 | PlayerCursorBehaviourAdapter, CameraControllerAdapter, uGUI |
+
+## サイドタブとセル情報（UIS-05）
+
+| ファイル | 責務と主な依存 |
+| --- | --- |
+| [PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs) | 残高項目の順、追加項目と並び、常時表示枠の高さとスクロール。WalletのスナップショットとHudUIAdapterを利用 |
+| [RecipeReferenceViewAdapter](../../Assets/Scripts/UI/Adapter/RecipeReferenceViewAdapter.cs) | RecipeDatabaseDefinition・ResourceDefinitionを参照表示。加工操作を持たない |
+| [EquipmentDetailsViewAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsViewAdapter.cs) | 選択セルの見出しと強化比較・操作。CellBase派生とEquipmentUpgradeAdapterを利用 |
+| [HudStatusProviderAdapter](../../Assets/Scripts/UI/Adapter/HudStatusProviderAdapter.cs) | 既存Providerの表示スナップショットから見出しとの重複を省き、用途ラベルを付ける |
+| [HudStatusRowAdapter](../../Assets/Scripts/UI/Adapter/HudStatusRowAdapter.cs) | UIStatusRowBaseAdapterを継承し、共通書体で在庫・文字・ゲージを描画。Viewのプールで管理 |
+| [HudUIAdapter](../../Assets/Scripts/UI/Adapter/HudUIAdapter.cs) | HUDの共通色と文字・ボタンの生成。ゲーム状態を保持しない |

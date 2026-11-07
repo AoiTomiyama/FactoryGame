@@ -110,7 +110,14 @@ flowchart LR
  end
  subgraph SelectedDisplay["選択状態の読み取りと表示"]
   View["CellStatusViewAdapter 選択中のみ購読"]
-  EconomyPanel["EconomyPanelAdapter 経済表示と購入"]
+  EconomyPanel["EconomyPanelAdapter 配線・購読・タブとスキル操作"]
+  SummaryView["PersistentSummaryViewAdapter 常時表示と項目順"]
+  RecipeView["RecipeReferenceViewAdapter 参照専用一覧"]
+  RecipeDefinitions["RecipeDatabaseDefinition / ResourceDefinition"]
+  EquipmentView["EquipmentDetailsViewAdapter 選択設備と強化比較"]
+  HudProvider["HudStatusProviderAdapter 状態行の用途ラベル"]
+  HudRows["HudStatusRowAdapter 在庫・進捗の描画"]
+  HudStyle["HudUIAdapter 書体・色・UI生成"]
   Wallet["CurrencyWalletApplication 共有残高"]
   Skills["SkillTreeApplication 取得状態と前提"]
   Upgrade["EquipmentUpgradeAdapter 強化対象と取引"]
@@ -151,7 +158,20 @@ flowchart LR
  Skills -. "Changed" .-> EconomyPanel
  EconomyPanel --> Wallet
  EconomyPanel --> Skills
- EconomyPanel --> Upgrade
+ EconomyPanel --> EquipmentView
+ EquipmentView --> Upgrade
+ EquipmentView --> Cells
+ EconomyPanel --> SummaryView
+ EconomyPanel --> RecipeView
+ RecipeView --> RecipeDefinitions
+ Renderer --> HudProvider
+ HudProvider --> Provider
+ View --> HudRows
+ Renderer --> HudRows
+ SummaryView --> HudStyle
+ RecipeView --> HudStyle
+ EquipmentView --> HudStyle
+ HudRows --> HudStyle
  EconomyPanel --> Placer
  EconomyPanel --> Builder
  Provider --> SingularityReader
@@ -162,6 +182,8 @@ flowchart LR
 
 ## 配置・成長の統合UIと特異点表示（ECO-05・ECO-07）
 
-GeneratorがEconomyPanelAdapterを構成し、共有残高・スキル・設備強化を渡す。パネルは既存の配置Builderを配置ページへ移し、設備強化・スキルのページを同じUI内で切り替える。CanPurchaseの結果で購入ボタンを制御し、命令を同じApplicationへ渡す。ViewのSelectedCellとSelectionChangedから対象を読み、Providerを持たない成長対象設備も強化対象として選択できる。
+GeneratorがEconomyPanelAdapterを構成し、共有残高・スキル・設備強化を渡す。UIS-05では左側の直接タブを配置・レシピ・スキルへ切り替え、常時表示をPersistentSummaryViewAdapter、レシピ参照をRecipeReferenceViewAdapter、右側の強化表示をEquipmentDetailsViewAdapterへ委譲する。購入可否は既存のCanPurchaseを表示し、購入命令を既存Applicationへ渡す。設備の能力比較はセルのレベル指定読み取りを使い、実レベルと在庫を保つ。
 
-特異点は専用ReaderとSingularityProviderDefinitionをCreateCustomへ渡す。残高と換金待ちを取得し、残高通知をStatusChangedへつなぐ。経済パネルは選択切替で前のセル、非表示・無効化・破棄で全購読を解除する。UIRaycasterはEventSystemの全Canvasを照合し、追加パネル上の操作をフィールドから遮る。表示項目・操作・検証入口は[経済UI仕様](../spec/currency-loop-ui.md)を参照する。
+CellStatusViewAdapterは選択・Provider・行プールを管理する。統合HUDではHudStatusProviderAdapterが見出しとの重複を省き、在庫・進捗の用途ラベルを付け、HudStatusRowAdapterが共通書体で描画する。行と強化欄は同じ右側スクロール内に置く。生成物は各表示が所有する。EconomyPanelAdapterの破棄時には生成した表示と借用フォントを解放し、CellStatusViewAdapterを元の配置と行プールへ戻す。共通色とUI生成はHudUIAdapterを使う。
+
+特異点は専用ReaderとSingularityProviderDefinitionをCreateCustomへ渡す。残高と換金待ちを取得し、残高通知をStatusChangedへつなぐ。経済UIは選択切替で前のセル、無効化・破棄で全購読を解除する。左ページの開閉では購読を保ち、残高と右側の状態を更新する。UIRaycasterはEventSystemの全Canvasを照合し、追加パネル上の操作をフィールドから遮る。表示項目・操作・検証入口は[経済UI仕様](../spec/currency-loop-ui.md)を参照する。

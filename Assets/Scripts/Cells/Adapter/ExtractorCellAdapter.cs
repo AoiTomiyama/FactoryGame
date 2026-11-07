@@ -29,8 +29,10 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     public ResourceTypeDomain ResourceTypeDomain => resourceType;
     public event Action StatusChanged;
 
-    public int StorageCapacity => EffectiveStat(storageCapacity, StatBranchDomain.Storage);
-    public int ExtractionAmount => EffectiveStat(extractionAmount, StatBranchDomain.Extraction);
+    public int StorageCapacity => StorageCapacityAtLevel(EquipmentLevel);
+    public int StorageCapacityAtLevel(int level) => EffectiveStatAtLevel(storageCapacity, StatBranchDomain.Storage, level);
+    public int ExtractionAmount => ExtractionAmountAtLevel(EquipmentLevel);
+    public int ExtractionAmountAtLevel(int level) => EffectiveStatAtLevel(extractionAmount, StatBranchDomain.Extraction, level);
     public override bool SupportsProgression => true;
     protected override void ValidateBaseStats()
     {

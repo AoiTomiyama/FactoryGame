@@ -10,6 +10,8 @@ PRG-01の能力合成は[設備の有効能力](../spec/effective-stats.md)を�
 
 ## 読み方と対象範囲
 
+UIS-05は上部の常時表示、左の配置・レシピ・スキル、右のセル情報と設備強化へ表示を分ける。EconomyPanelAdapterが配線と購読を、各Viewが表示を所有し、購入判定は既存Applicationへ渡す。責務・依存と検証は[経済UI仕様](../spec/currency-loop-ui.md#uis-05の責務と検証)と[UI・イベント](architecture-ui-events.md)を参照する。
+
 UIS-04の[下部操作帯](../spec/currency-loop-ui.md#画面下の操作帯uis-04)は、カーソルが生成する`OperationBarAdapter`からカーソルの配置方向とカメラの視点切替へ接続する。既存のUI入力遮断を使い、左右HUDは下部操作帯の余白を確保する。
 
 原本は各Markdownの `mermaid` ブロック。概要から機能別へ読む。[セル・配置](architecture-cells-grid.md)、[搬送・加工](architecture-transfers-crafting.md)、[UI・イベント](architecture-ui-events.md)、[起動と操作シーケンス](architecture-sequences.md)、[全スクリプト対応表](script-catalog.md)で実ファイルに遡れる。既存閲覧用SVGと説明更新・検証手順は [図の検証記録](architecture-diagram-verification.md)を参照する。
@@ -192,4 +194,4 @@ MainSceneの共有残高と初回経路、実際の換金収益による個別�
 
 [経済UI仕様](../spec/currency-loop-ui.md)に従い、Generatorが共有残高・スキル・強化処理をEconomyPanelAdapterへ渡す。パネルは残高と予約、換金通知、設置見積りと結果、選択設備の有効能力・強化費、スキルの前提・効果・可否を表示する。選択変更はViewのSelectionChanged、特異点の専用ReaderはCreateCustomへ接続する。パネルと選択の寿命に合わせて購読を解除する。
 
-ECO-07では既存のSelectButtonBuilderを配置ページへ移し、元のUITabを非表示にした。残高と通知を共有し、配置・設備強化・スキルを同じUI内で切り替える。採取設備のサブメニューは同じセル定義とPlacerを使う。UI上で離した配置ドラッグは取消し、選択・表示切替では支払を行わない。
+UIS-05では既存のSelectButtonBuilderを左の配置ページへ移し、レシピ・スキルと直接タブで切り替える。残高は上部に常時表示し、設備強化は右側のセル情報へ統合する。採取設備のサブメニューは同じセル定義とPlacerを使う。UI上で離した配置ドラッグは取消し、選択・表示切替では支払を行わない。
