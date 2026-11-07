@@ -10,6 +10,8 @@ PRG-01の能力合成は[設備の有効能力](../spec/effective-stats.md)を�
 
 ## 読み方と対象範囲
 
+UIS-04の[下部操作帯](../spec/currency-loop-ui.md#画面下の操作帯uis-04)は、カーソルが生成する`OperationBarAdapter`からカーソルの配置方向とカメラの視点切替へ接続する。既存のUI入力遮断を使い、左右HUDは下部操作帯の余白を確保する。
+
 原本は各Markdownの `mermaid` ブロック。概要から機能別へ読む。[セル・配置](architecture-cells-grid.md)、[搬送・加工](architecture-transfers-crafting.md)、[UI・イベント](architecture-ui-events.md)、[起動と操作シーケンス](architecture-sequences.md)、[全スクリプト対応表](script-catalog.md)で実ファイルに遡れる。既存閲覧用SVGと説明更新・検証手順は [図の検証記録](architecture-diagram-verification.md)を参照する。
 
 自作C#の `Assets/Scripts/` を対象とする。Domainは数量・レシピ規則、Applicationは処理進行・読み取り契約、AdapterはUnity接続、Definitionsは設定、Editorは編集支援と検証入口。フォルダーは責務の整理であり、asmdefによる境界強制はない。C++/Pythonの製品モジュールはこの範囲にない。外部パッケージの内部型・生成コード・素材シェーダーは展開しない。

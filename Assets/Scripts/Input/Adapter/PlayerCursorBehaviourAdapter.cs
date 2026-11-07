@@ -23,6 +23,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
         }
 
         _camera = Camera.main;
+        gameObject.AddComponent<OperationBarAdapter>().Configure(this, FindAnyObjectByType<CameraControllerAdapter>());
     }
 
     private void Update()
@@ -108,6 +109,9 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
         if (!context.performed) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
 
-        transform.Rotate(Vector3.up, 90f);
+        RotatePlacement();
     }
+
+    // ボタンとショートカットで同じ配置方向を更新する。
+    public void RotatePlacement() => transform.Rotate(Vector3.up, 90f);
 }

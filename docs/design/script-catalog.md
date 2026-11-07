@@ -182,3 +182,4 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | [EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs) | 配置ボタンと残高・換金表示の統合、強化・スキルのページ切替と購入操作、購読寿命 | CurrencyWalletApplication, SkillTreeApplication, EquipmentUpgradeAdapter, CellStatusViewAdapter, uGUI |
 | [SingularityProviderDefinition](../../Assets/Scripts/UI/Definitions/SingularityProviderDefinition.cs) | 特異点の専用Readerへ渡すラベル | ProviderBaseDefinition |
 | [EconomyUIVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs) | MainSceneの経済表示・購入可否・購読寿命・レイアウト検証、既存UIと設置の検証入口 | EconomyPanelAdapter, UIStatusVerifierEditor, EquipmentPlacementVerifierEditor, UnityEditor, UniTask |
+| [OperationBarAdapter](../../Assets/Scripts/UI/Adapter/OperationBarAdapter.cs) | 下部の操作案内と回転・視点切替ボタン、生成Canvasとフォントの寿命 | PlayerCursorBehaviourAdapter, CameraControllerAdapter, uGUI |

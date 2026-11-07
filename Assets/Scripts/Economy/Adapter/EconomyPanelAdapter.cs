@@ -240,7 +240,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         Anchor(header.GetComponent<RectTransform>(), new Vector2(0, 1), new Vector2(0, 1), new Vector2(12, -12), new Vector2(400, 36));
         _body = new GameObject("EconomyScroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
         _body.transform.SetParent(_canvas.transform, false);
-        Anchor(_body.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 1), new Vector2(12, -52), new Vector2(400, -64));
+        // 下部の操作帯へスクロール内容が重ならない余白を確保する。
+        Anchor(_body.GetComponent<RectTransform>(), new Vector2(0, 0), new Vector2(0, 1), new Vector2(12, -52), new Vector2(400, -160));
         _body.GetComponent<Image>().color = new Color(0.07f, 0.09f, 0.12f, 0.96f);
         var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(RectMask2D));
         viewport.transform.SetParent(_body.transform, false);

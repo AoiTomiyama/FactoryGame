@@ -73,8 +73,10 @@ public class CameraControllerAdapter : MonoBehaviour
     private void OnSwitchCameraAngle(InputAction.CallbackContext ctx)
     {
         if (!ctx.performed) return;
-        _isCameraAngleSwitched = !_isCameraAngleSwitched;
+        SwitchCameraAngle();
     }
+
+    public void SwitchCameraAngle() => _isCameraAngleSwitched = !_isCameraAngleSwitched;
 
     private void OnPanStart(InputAction.CallbackContext ctx)
     {

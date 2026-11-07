@@ -121,6 +121,15 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
 
     private void LateUpdate()
     {
+        // 既存Canvasの倍率へ換算し、セル情報を下部操作帯より上に収める。
+        if (transform is RectTransform window && window.parent is RectTransform parent)
+        {
+            window.anchorMin = Vector2.right;
+            window.anchorMax = Vector2.one;
+            window.pivot = Vector2.one;
+            window.offsetMin = new Vector2(-562.25f, parent.rect.height * 108f / 720f);
+            window.offsetMax = new Vector2(-12, -12);
+        }
         if (!ReferenceEquals(_selectedCell, null) && _selectedCell == null)
             SetStatusWindowActive(false);
     }

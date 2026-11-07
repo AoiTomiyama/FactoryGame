@@ -140,6 +140,7 @@ public static class EconomyUIVerifierEditor
             Require(panel.PlacementText.Contains("石材採取 単価"), "submenu selects placement type");
             Require(wallet.Current.Balance == before, "selection and menu changes do not pay");
             VerifyInputCancellation(placer, raycaster, point, wallet, grid);
+            VerifyOperationBar(placer, raycaster, wallet, grid);
             for (var page = 0; page < 3; page++)
             {
                 var subscribers = Subscribers(wallet, "Changed");
@@ -201,12 +202,74 @@ public static class EconomyUIVerifierEditor
         Require(placer.PreviewCount == 0 && wallet.Current.Balance == before && ReferenceEquals(grid.GetCell(30, 30), cell), "drag release over UI cancels without payment");
     }
 
+    private static void VerifyOperationBar(CellPlacerAdapter placer, UIRaycasterAdapter raycaster,
+        CurrencyWalletApplication wallet, GridFieldDatabaseAdapter grid)
+    {
+        var bar = UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>();
+        var cursor = UnityEngine.Object.FindAnyObjectByType<PlayerCursorBehaviourAdapter>();
+        var camera = UnityEngine.Object.FindAnyObjectByType<CameraControllerAdapter>();
+        var flags = BindingFlags.Instance | BindingFlags.NonPublic;
+        Require(bar != null && bar.RotateButton.interactable && bar.ViewButton.interactable, "operation buttons reachable");
+        var rotation = cursor.transform.rotation;
+        bar.RotateButton.onClick.Invoke();
+        Require(Quaternion.Angle(cursor.transform.rotation, rotation * Quaternion.Euler(0, 90, 0)) < 0.01f, "button rotates placement 90 degrees");
+        for (var i = 0; i < 3; i++) bar.RotateButton.onClick.Invoke();
+        Require(Quaternion.Angle(cursor.transform.rotation, rotation) < 0.01f, "four rotations restore placement direction");
+        var switched = typeof(CameraControllerAdapter).GetField("_isCameraAngleSwitched", flags);
+        var initial = (bool)switched.GetValue(camera);
+        bar.ViewButton.onClick.Invoke();
+        Require((bool)switched.GetValue(camera) != initial, "button switches view");
+        bar.ViewButton.onClick.Invoke();
+        Require((bool)switched.GetValue(camera) == initial, "second click restores view");
+        foreach (var binding in new[] { (owner: (object)cursor, field: "rotateAction", key: "<Keyboard>/r"),
+            (owner: (object)camera, field: "switchCameraAngleAction", key: "<Keyboard>/l") })
+        {
+            var action = (UnityEngine.InputSystem.InputAction)binding.owner.GetType().GetField(binding.field, flags).GetValue(binding.owner);
+            Require(action.enabled && action.bindings.Any(b => string.Equals(b.path, binding.key, StringComparison.OrdinalIgnoreCase)), "keyboard shortcut retained: " + binding.key);
+        }
+        foreach (var button in new[] { bar.RotateButton, bar.ViewButton })
+        {
+            var position = RectTransformUtility.WorldToScreenPoint(null, button.transform.position);
+            Require(raycaster.IsPointerOverUI(position), "operation button blocks field input");
+            VerifyInputCancellation(placer, raycaster, position, wallet, grid);
+        }
+        var canvas = bar.GetComponentInChildren<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.GetComponent<CanvasScaler>().enabled = false;
+        foreach (var resolution in new[] { new Vector2(1600, 900), new Vector2(1366, 768) })
+        {
+            var root = canvas.GetComponent<RectTransform>();
+            root.sizeDelta = new Vector2(resolution.x * 720 / resolution.y, 720);
+            Canvas.ForceUpdateCanvases();
+            foreach (var text in canvas.GetComponentsInChildren<Text>())
+            {
+                Require(text.preferredHeight <= text.rectTransform.rect.height + 1, "operation text fits " + resolution);
+                Require(text.preferredWidth <= text.rectTransform.rect.width + 1, "operation label width fits " + resolution);
+            }
+            foreach (var button in new[] { bar.RotateButton, bar.ViewButton })
+            {
+                var bounds = BoundsIn(root, button.GetComponent<RectTransform>());
+                Require(root.rect.Contains(bounds.min) && root.rect.Contains(bounds.max), "operation button inside screen " + resolution);
+            }
+            Require(BoundsIn(root, bar.Bar).yMax <= root.rect.yMin + 96.1f, "bottom HUD reservation " + resolution);
+            var view = UnityEngine.Object.FindAnyObjectByType<CellStatusViewAdapter>();
+            var window = (RectTransform)view.transform;
+            var parent = (RectTransform)window.parent;
+            Require(BoundsIn(parent, window).yMin >= parent.rect.yMin + parent.rect.height * 108f / 720f - 1,
+                "cell information clears operation bar");
+        }
+        canvas.GetComponent<CanvasScaler>().enabled = true;
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+    }
+
     private static void VerifyLayout(Canvas canvas, Vector2 resolution, int page)
     {
         var canvasRect = canvas.GetComponent<RectTransform>();
         var corners = new Vector3[4];
         foreach (var scroll in canvas.GetComponentsInChildren<ScrollRect>())
         {
+            Require(BoundsIn(canvasRect, scroll.GetComponent<RectTransform>()).yMin >= canvasRect.rect.yMin + 108 - 1,
+                "economy viewport clears operation bar");
             scroll.GetComponent<RectTransform>().GetWorldCorners(corners);
             foreach (var corner in corners)
                 Require(canvasRect.rect.Contains(canvasRect.InverseTransformPoint(corner)), $"{resolution} page {page}: viewport inside canvas");
