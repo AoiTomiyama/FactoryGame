@@ -13,7 +13,10 @@ public static class HudPrefabVerifierEditor
     {
         var hud = UnityEngine.Object.FindAnyObjectByType<HudLayoutAdapter>(FindObjectsInactive.Include);
         var bar = UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>(FindObjectsInactive.Include);
-        Require(hud != null && bar != null, "scene contains both saved HUD roots");
+        Require(hud != null && bar != null, "scene contains both saved HUD roots; hud=" + (hud != null) + "; bar=" + (bar != null) +
+            "; roots=" + string.Join(",", UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects().Select(root => root.name)) +
+            "; HUD asset=" + (AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/FactoryHud.prefab").GetComponent<HudLayoutAdapter>() != null) +
+            "; HUD script=" + (AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs").GetClass()?.FullName ?? "unresolved"));
         Require(PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(hud) == "Assets/Prefabs/UI/FactoryHud.prefab", "scene uses HUD prefab");
         Require(PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(bar) == "Assets/Prefabs/UI/OperationBar.prefab", "scene uses operation prefab");
         Require(UnityEngine.Object.FindObjectsByType<SelectButtonBuilderAdapter>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length == 1, "one placement builder");
@@ -35,8 +38,10 @@ public static class HudPrefabVerifierEditor
         // 保存済み参照に対する編集を再生前に加え、起動・再設定で保持されることを確認する。
         ((RectTransform)hud.Close.transform).anchoredPosition += new Vector2(3, 0);
         hud.Close.GetComponentInChildren<Text>().fontSize = 19;
-        hud.SelectedTabColor = new Color(.3f, .5f, .6f);
-        hud.IdleTabColor = new Color(.12f, .22f, .32f);
+        var palette = new SerializedObject(hud);
+        palette.FindProperty("SelectedTabColor").colorValue = new Color(.3f, .5f, .6f);
+        palette.FindProperty("IdleTabColor").colorValue = new Color(.12f, .22f, .32f);
+        palette.ApplyModifiedProperties();
         ((RectTransform)bar.RotateButton.transform).anchoredPosition += new Vector2(2, 0);
         foreach (var edited in new Component[] { (RectTransform)hud.Close.transform, hud.Close.GetComponentInChildren<Text>(),
             hud, (RectTransform)bar.RotateButton.transform })
@@ -56,6 +61,18 @@ public static class HudPrefabVerifierEditor
                 Require(property.objectReferenceValue != null || property.objectReferenceInstanceIDValue == 0,
                     "resolved reference " + component.name + "." + property.propertyPath);
     }
+    public static void VerifyEditModeColors()
+    {
+        var hud = UnityEngine.Object.FindAnyObjectByType<HudLayoutAdapter>(FindObjectsInactive.Include);
+        var bar = UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>(FindObjectsInactive.Include);
+        Require(!EditorApplication.isPlaying, "palette preview runs before play");
+        Require(hud.Tabs[0].colors.normalColor == hud.SelectedTabColor && hud.Tabs[1].colors.normalColor == hud.IdleTabColor &&
+            bar.RotateButton.colors.normalColor == hud.IdleTabColor && bar.ViewButton.colors.selectedColor == hud.SelectedTabColor,
+            "standard Inspector colors preview in Edit Mode across tabs and operation buttons");
+        Require(hud.Body.GetComponent<Image>().color == new Color(.07f, .09f, .12f, .96f) &&
+            bar.Bar.GetComponent<Image>().color == new Color(.07f, .09f, .12f, .96f), "Edit Mode preview preserves black backgrounds");
+        Debug.Log("HUD Edit Mode palette preview and black background checks passed.");
+    }
     public static void VerifyRuntime(EconomyPanelAdapter panel)
     {
         Require(SessionState.GetBool("UIS06.Edits", false), "Editor edits prepared");
@@ -66,9 +83,13 @@ public static class HudPrefabVerifierEditor
         Require(Mathf.Abs(header.anchoredPosition.x - 103) < .01f, "edited fixed frame position retained");
         Require(hud.Close.GetComponentInChildren<Text>().fontSize == 19, "edited font size retained");
         Require(hud.SelectedTabColor == new Color(.3f, .5f, .6f) && hud.IdleTabColor == new Color(.12f, .22f, .32f), "edited shared palette retained");
-        Require(hud.Summary.GetComponent<Image>().color == hud.IdleTabColor && hud.Body.GetComponent<Image>().color == hud.IdleTabColor &&
-            hud.GetComponentInChildren<CellStatusViewAdapter>(true).StatusScroll.GetComponent<Image>().color == hud.IdleTabColor &&
-            bar.Bar.GetComponent<Image>().color == hud.IdleTabColor, "fixed panels and separate operation bar share normal color");
+        var savedHud = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/FactoryHud.prefab").GetComponent<HudLayoutAdapter>();
+        var savedBar = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/OperationBar.prefab").GetComponent<OperationBarAdapter>();
+        Require(hud.Summary.GetComponent<Image>().color == savedHud.Summary.GetComponent<Image>().color &&
+            hud.Body.GetComponent<Image>().color == savedHud.Body.GetComponent<Image>().color &&
+            hud.GetComponentInChildren<CellStatusViewAdapter>(true).StatusScroll.GetComponent<Image>().color ==
+                savedHud.GetComponentInChildren<CellStatusViewAdapter>(true).StatusScroll.GetComponent<Image>().color &&
+            bar.Bar.GetComponent<Image>().color == savedBar.Bar.GetComponent<Image>().color, "black panel backgrounds retain saved colors");
         foreach (var button in hud.GetComponentsInChildren<Button>(true).Concat(bar.GetComponentsInChildren<Button>(true)))
         {
             Require(button.targetGraphic.color == Color.white, "no double color multiplication");

@@ -23,10 +23,13 @@ public sealed class OperationBarAdapter : MonoBehaviour
         {
             var hud = root.GetComponentInChildren<HudLayoutAdapter>(true);
             if (hud == null) continue;
-            bar.GetComponent<Image>().color = hud.IdleTabColor;
-            hud.StyleButton(rotateButton); hud.StyleButton(viewButton);
+            ApplyColors(hud);
             break;
         }
+    }
+    public void ApplyColors(HudLayoutAdapter hud)
+    {
+        hud.StyleButton(rotateButton); hud.StyleButton(viewButton);
     }
     private void Rotate() => _cursor.RotatePlacement();
     private void SwitchView() => _cameraController?.SwitchCameraAngle();

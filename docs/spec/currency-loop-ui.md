@@ -11,7 +11,7 @@
 
 [RecipeReferenceViewAdapter](../../Assets/Scripts/UI/Adapter/RecipeReferenceViewAdapter.cs)は既存RecipeDatabaseDefinitionとResourceDefinitionから、レシピ名・加工時間・材料名と必要数・成果物名と数量・資源アイコンを表示する。参照ページの表示は加工処理と独立しており、現行の自動判定を保つ。
 
-[PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs)は残高・使用可能額・支出予約・換金待ちを表示する。SetWalletOrderで4項目の順を、SetItemsで追加項目と順を指定する。残高4項目と追加項目を指定順に横へ並べ、画面幅を超えると折り返して枠の高さを増やす。常時表示枠にはスクロールや切り抜きを付けず、全項目を表示する。左右パネルはその下へ追従し、下端108以上を保つ。固定枠と行Prefabの参照は[HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs)へ集約する。通常のパネル背景・ボタン・生成行のボタン・操作帯は同AdapterのIdleTabColor、選択・強調・押下はSelectedTabColorを使う。文字・資源アイコン・進捗ゲージ・無効状態の色は各部品の設定を保つ。
+[PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs)は残高・使用可能額・支出予約・換金待ちを表示する。SetWalletOrderで4項目の順を、SetItemsで追加項目と順を指定する。残高4項目と追加項目を指定順に横へ並べ、画面幅を超えると折り返して枠の高さを増やす。常時表示枠にはスクロールや切り抜きを付けず、全項目を表示する。左右パネルはその下へ追従し、下端108以上を保つ。固定枠と行Prefabの参照は[HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs)へ集約する。ボタン・タブ・生成行のボタン・操作帯のボタンは同AdapterのIdleTabColor、選択・強調・押下はSelectedTabColorを使う。黒背景パネルと操作帯の背景はPrefabで保存した色を保つ。文字・資源アイコン・進捗ゲージ・無効状態の色は各部品の設定を保つ。
 
 UI上で始めたクリックは配置確定へ進めず、フィールドからの配置ドラッグをUI上で離した場合はプレビューを取り消す。[PlayerCursorBehaviourAdapter](../../Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs)が既存Raycasterの結果で判定する。
 
@@ -78,7 +78,7 @@ EconomyUIVerifierEditor.Runは、既存の購入・配置・入力遮断に加�
 
 MainSceneは[FactoryHud.prefab](../../Assets/Prefabs/UI/FactoryHud.prefab)と[OperationBar.prefab](../../Assets/Prefabs/UI/OperationBar.prefab)を直接参照する。上部の常時表示、左3タブと閉じるボタン、右のセル情報・設備強化、下部操作帯はEditorで配置・文字・色を編集できる。GeneratorとCursorには接続先のシーン参照を保存し、起動時は共有状態と操作を接続する。固定枠を生成・移動する移行処理は実行経路に置かない。
 
-左右のパネルは保存した位置・寸法を基準に、常時表示の折返しで増えた高さと画面幅の差分だけを反映する。レイアウトグループによる子要素の整列と、表示文の高さへの追従は継続する。通常色と選択色はHudLayoutAdapterの既存IdleTabColor・SelectedTabColorを固定HUD・配置/スキルの生成ボタン・採取サブメニュー・操作帯で共用する。ButtonはColorTintで反映し、色の二重乗算を避ける。各Textの書体・サイズと背景ImageはPrefabの値を使う。HudFont.fontsettingsは従来のOSフォント名と描画用Material・Textureを保存し、Editorと再生で同じ参照を使う。
+左右のパネルは保存した位置・寸法を基準に、常時表示の折返しで増えた高さと画面幅の差分だけを反映する。レイアウトグループによる子要素の整列と、表示文の高さへの追従は継続する。通常色と選択色はHudLayoutAdapterの既存IdleTabColor・SelectedTabColorを固定HUDのボタン/タブ・配置/スキルの生成ボタン・採取サブメニュー・操作帯のボタンで共用する。標準Inspectorで2色を変えると、開いているSceneまたはPrefab Modeのボタンとタブに反映する。同じSceneにある操作帯のボタンも追従する。共有行Prefabのアセットは変更せず、生成時に2色を使う。ButtonはColorTintで反映し、色の二重乗算を避ける。各Textの書体・サイズと背景ImageはPrefabの値を使う。HudFont.fontsettingsは従来のOSフォント名と描画用Material・Textureを保存し、Editorと再生で同じ参照を使う。
 
 | アセット | 再利用・変更内容 |
 | --- | --- |

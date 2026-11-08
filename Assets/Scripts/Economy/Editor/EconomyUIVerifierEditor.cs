@@ -21,8 +21,17 @@ public static class EconomyUIVerifierEditor
     };
     public static void Run()
     {
+        // 保存済みのSceneとHUDアセットを検証対象にする。
+        AssetDatabase.ImportAsset("Assets/Prefabs/UI", ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
+        AssetDatabase.ImportAsset("Assets/Scenes/MainScene.unity", ImportAssetOptions.ForceUpdate);
         EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity");
         HudPrefabVerifierEditor.Prepare();
+        EditorApplication.delayCall += StartPreparedPlayMode;
+    }
+    private static void StartPreparedPlayMode()
+    {
+        try { HudPrefabVerifierEditor.VerifyEditModeColors(); }
+        catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); return; }
         EditorUtility.audioMasterMute = true;
         Require(EditorUtility.audioMasterMute, "mute before play");
         SessionState.SetBool(Key, true);

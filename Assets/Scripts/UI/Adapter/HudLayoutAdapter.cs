@@ -29,13 +29,52 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     private void Awake() => InitializeLayout();
     public void ApplyColors()
     {
-        // 背景と操作だけを共通色へ揃え、資源アイコンや進捗ゲージの意味を保つ。
-        Summary.GetComponent<Image>().color = IdleTabColor;
-        Body.GetComponent<Image>().color = IdleTabColor;
-        var status = GetComponentInChildren<CellStatusViewAdapter>(true);
-        if (status != null) status.StatusScroll.GetComponent<Image>().color = IdleTabColor;
+        // 操作部品だけを共通色へ揃え、パネル背景と状態表示の固有色を保つ。
         foreach (var button in GetComponentsInChildren<Button>(true)) StyleButton(button);
     }
+#if UNITY_EDITOR
+    private Color _previewIdle, _previewSelected;
+    private bool _previewReady;
+    private void OnValidate()
+    {
+        if (UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode) return;
+        if (!_previewReady)
+        {
+            _previewIdle = IdleTabColor; _previewSelected = SelectedTabColor; _previewReady = true;
+            return;
+        }
+        if (_previewIdle == IdleTabColor && _previewSelected == SelectedTabColor) return;
+        _previewIdle = IdleTabColor; _previewSelected = SelectedTabColor;
+        UnityEditor.EditorApplication.delayCall -= PreviewColors;
+        UnityEditor.EditorApplication.delayCall += PreviewColors;
+    }
+    private void PreviewColors()
+    {
+        if (this == null || UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode || UnityEditor.EditorUtility.IsPersistent(this)) return;
+        ApplyColors();
+        if (Tabs.Length > 0 && Tabs[0] != null) StyleButton(Tabs[0], true);
+        foreach (var root in gameObject.scene.GetRootGameObjects())
+        {
+            var operation = root.GetComponentInChildren<OperationBarAdapter>(true);
+            if (operation != null)
+            {
+                operation.ApplyColors(this);
+                RecordPreviewOverrides(operation.GetComponentsInChildren<Button>(true));
+            }
+        }
+        RecordPreviewOverrides(GetComponentsInChildren<Button>(true));
+        UnityEditor.SceneView.RepaintAll();
+    }
+    private static void RecordPreviewOverrides(Button[] buttons)
+    {
+        foreach (var button in buttons)
+        {
+            if (!UnityEditor.PrefabUtility.IsPartOfPrefabInstance(button)) continue;
+            UnityEditor.PrefabUtility.RecordPrefabInstancePropertyModifications(button);
+            UnityEditor.PrefabUtility.RecordPrefabInstancePropertyModifications(button.targetGraphic);
+        }
+    }
+#endif
     public void StyleButton(Button button, bool selected = false)
     {
         // ColorTintへ色を渡し、背景との二重乗算を避ける。

@@ -2089,7 +2089,7 @@
           ]
         },
         "HudStyle": {
-          "description": "固定枠・タブ・行Prefabの保存参照と、画面幅・折返しへの追従を担います。既存IdleTabColorを背景と通常ボタン、SelectedTabColorを選択・強調・押下へ使い、配置Builderと操作帯も同じ色を読みます。アイコン・ゲージ・文字の固有色と保存配置は保持します。",
+          "description": "固定枠・タブ・行Prefabの保存参照と、画面幅・折返しへの追従を担います。IdleTabColorをボタンの通常色、SelectedTabColorを選択・強調・押下へ使います。標準Inspectorで2色を変えると編集画面のボタンにも反映し、黒背景パネル・アイコン・ゲージ・文字の固有色と配置は保持します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs",
@@ -2116,7 +2116,7 @@
           ]
         },
         "Operation": {
-          "description": "保存済み操作帯のボタンをカーソルの配置回転とカメラの視点切替へ接続します。同じSceneのHudLayoutAdapterから既存2色を読み、操作帯背景とボタンへ適用します。R・Lのキー操作とボタンは既存入力を共用します。",
+          "description": "保存済み操作帯のボタンを配置回転と視点切替へ接続します。同じSceneのHudLayoutAdapterから既存2色を読み、操作帯のボタンへ適用します。背景は保存色を保ち、Editorでの色変更もボタンだけに反映します。R・Lとボタンは既存入力を共用します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/OperationBarAdapter.cs",
