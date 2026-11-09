@@ -251,14 +251,21 @@ public static class EconomyUIVerifierEditor
                         await UniTask.DelayFrame(2);
                         Canvas.ForceUpdateCanvases();
                         var treeScroll = tree.GetComponentInParent<ScrollRect>();
-                        Require(treeScroll.horizontal && !treeScroll.vertical && treeScroll.content.rect.width >= 5 * 128, "type branches retain readable width " + resolution);
-                        Require(treeScroll.horizontalScrollbar != null && treeScroll.horizontalScrollbar.gameObject.activeInHierarchy, "wide tree exposes horizontal scrollbar " + resolution);
+                        Require(treeScroll.horizontal && !treeScroll.vertical && treeScroll.content.rect.width >= 5 * 64, "compact type branches retain spacing " + resolution);
+                        Require(treeScroll.horizontalScrollbar != null && !treeScroll.horizontalScrollbar.gameObject.activeInHierarchy, "compact tree fits without horizontal scrolling " + resolution);
+                        foreach (var node in generator.Skills.Catalog.Nodes)
+                        {
+                            var button = panel.SkillButton(node.Uid);
+                            var size = ((RectTransform)button.transform).rect.size;
+                            Require(size == new Vector2(40, 40) && !button.GetComponentsInChildren<Text>().Any(text => text.text == node.Label), "small nodes omit skill names " + node.Uid + resolution);
+                        }
                         treeScroll.horizontalScrollbar.value = 1;
                         await UniTask.DelayFrame(2);
                         var last = panel.SkillButton(generator.Skills.Catalog.Nodes.Last().Uid).GetComponent<RectTransform>();
                         var lastBounds = BoundsIn(canvas.GetComponent<RectTransform>(), last);
                         var viewportBounds = BoundsIn(canvas.GetComponent<RectTransform>(), scroll.viewport);
-                        Require(lastBounds.yMin >= viewportBounds.yMin - 1 && lastBounds.yMax <= viewportBounds.yMax + 1,
+                        Require(lastBounds.yMin >= viewportBounds.yMin - 1 && lastBounds.yMax <= viewportBounds.yMax + 1 &&
+                            lastBounds.xMin >= viewportBounds.xMin - 1 && lastBounds.xMax <= viewportBounds.xMax + 1,
                             $"{resolution}: final skill reachable by scrolling");
                     }
                 }

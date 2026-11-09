@@ -68,7 +68,7 @@ UI上で始めたクリックは配置確定へ進めず、フィールドから
 
 EconomyPanelAdapterは共有状態の配線・購読、タブ切替、配置・スキル操作を管理する。レシピ参照・常時表示・設備強化の表示はそれぞれのViewへ委譲する。購入と支払の判定は既存ApplicationとEquipmentUpgradeAdapterを使う。
 
-[EquipmentDetailsViewAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsViewAdapter.cs)は保存済みの右側詳細枠を保持する。[EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs)はセルの種類名・共有レベルと加工や停止の状態を読み取り専用で表示する。セル選択時は購入欄を隠し、スキル選択時だけ同じ欄で種類別レベルと倍率・適用ボタンを表示する。個別購入経路は通常UIから外す。スキルの効果・価格と検証は[種類別スキル仕様](skill-tree.md)に従う。樹形図の枝は読みやすい幅を保ち、樹形図内の横ドラッグとスクロールバーで移動する。
+[EquipmentDetailsViewAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsViewAdapter.cs)は保存済みの右側詳細枠を保持する。[EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs)はセルの種類名・共有レベルと加工や停止の状態を読み取り専用で表示する。セル選択時は購入欄を隠し、スキル選択時だけ同じ欄で種類別レベルと倍率・適用ボタンを表示する。個別購入経路は通常UIから外す。スキルの効果・価格と検証は[種類別スキル仕様](skill-tree.md)に従う。ノードは40×40へ縮小し、名前は右側詳細へ集約する。PC2寸法で全5種類を表示し、狭い画面で収まらない場合は横移動する。
 
 CellStatusViewAdapterは既存の選択・Provider・行プールを保ち、HudStatusProviderAdapterとHudStatusRowAdapterで在庫と進捗を表示する。内部予約値、座標、重複説明、待機中の残り時間0秒を省く。右側の「閉じる」は選択と購読を解除する。
 

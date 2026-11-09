@@ -27,7 +27,7 @@ public sealed class SkillTreeViewAdapter : IDisposable
     public SkillTreeViewAdapter(Transform parent, HudLayoutAdapter hud, SkillTreeApplication skills, Action<string> select)
     {
         _hud = hud; _skills = skills;
-        // 種類別の枝が増えても文字幅を縮めず、既存の縦スクロール内で樹形図だけ横へ移動できるようにする。
+        // 名前は右側詳細へ集約し、ノードを小さく保つ。枝が収まらない画面では樹形図だけ横へ移動できる。
         _viewport = new GameObject("SkillTreeViewport", typeof(RectTransform), typeof(LayoutElement), typeof(CanvasRenderer), typeof(Image), typeof(RectMask2D), typeof(ScrollRect)).GetComponent<RectTransform>();
         _viewport.SetParent(parent, false); _viewport.GetComponent<Image>().color = Color.clear;
         _size = _viewport.GetComponent<LayoutElement>();
@@ -53,12 +53,14 @@ public sealed class SkillTreeViewAdapter : IDisposable
             var uid = node.Uid;
             var button = UnityEngine.Object.Instantiate(hud.SkillRow, _root);
             button.name = "SkillNode_" + uid;
+            var label = button.GetComponentInChildren<Text>(true);
+            label.text = ""; label.gameObject.SetActive(false);
             button.gameObject.AddComponent<CanvasGroup>();
             var mark = new GameObject("Applied", typeof(RectTransform), typeof(CanvasRenderer), typeof(Text)).GetComponent<Text>();
             mark.transform.SetParent(button.transform, false); mark.font = hud.Font; mark.fontSize = 14; mark.color = Color.white;
             mark.text = hud.Font.HasCharacter('✓') ? "✓" : "●"; mark.alignment = TextAnchor.MiddleCenter; mark.raycastTarget = false;
-            var markRect = mark.rectTransform; markRect.anchorMin = markRect.anchorMax = Vector2.one; markRect.pivot = Vector2.one;
-            markRect.anchoredPosition = new Vector2(-4, -4); markRect.sizeDelta = new Vector2(20, 20);
+            var markRect = mark.rectTransform; markRect.anchorMin = markRect.anchorMax = new Vector2(.5f, .5f); markRect.pivot = new Vector2(.5f, .5f);
+            markRect.anchoredPosition = Vector2.zero; markRect.sizeDelta = new Vector2(20, 20);
             _marks.Add(uid, mark);
             button.onClick.AddListener(() => select(uid));
             _buttons.Add(uid, button);
@@ -120,7 +122,6 @@ public sealed class SkillTreeViewAdapter : IDisposable
             else _hud.StyleButton(button, owned || chosen);
             button.GetComponent<CanvasGroup>().alpha = 1;
             _marks[node.Uid].gameObject.SetActive(owned);
-            button.GetComponentInChildren<Text>(true).text = node.Label;
         }
         foreach (var link in _links) link.image.color = _skills.IsOwned(link.parent) ? _hud.SelectedTabColor : _hud.IdleTabColor;
         UpdateLayout();
@@ -130,21 +131,20 @@ public sealed class SkillTreeViewAdapter : IDisposable
         if (!_root.gameObject.activeInHierarchy) return;
         var viewportWidth = _viewport.rect.width;
         if (viewportWidth <= 1) return;
-        var width = Mathf.Max(viewportWidth, _leaves * 128);
+        var width = Mathf.Max(viewportWidth, _leaves * 64);
         _root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
         var slot = width / Mathf.Max(1, _leaves);
-        var nodeWidth = Mathf.Max(1, slot - 8);
+        const float nodeWidth = 40;
         var heights = new float[_depths.Values.Max() + 1];
         foreach (var pair in _buttons)
         {
             var rect = (RectTransform)pair.Value.transform;
             rect.anchorMin = rect.anchorMax = Vector2.up; rect.pivot = new Vector2(.5f, 1);
             rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, nodeWidth);
-            var text = pair.Value.GetComponentInChildren<Text>(true);
-            heights[_depths[pair.Key]] = Mathf.Max(heights[_depths[pair.Key]], Mathf.Max(88, text.preferredHeight + 16));
+            heights[_depths[pair.Key]] = 40;
         }
         var tops = new float[heights.Length];
-        for (var i = 1; i < tops.Length; i++) tops[i] = tops[i - 1] + heights[i - 1] + 40;
+        for (var i = 1; i < tops.Length; i++) tops[i] = tops[i - 1] + heights[i - 1] + 32;
         var treeHeight = tops[tops.Length - 1] + heights[heights.Length - 1];
         _size.preferredHeight = treeHeight + 16;
         _root.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, treeHeight);
