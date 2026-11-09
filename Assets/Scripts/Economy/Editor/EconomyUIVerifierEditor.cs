@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
@@ -168,8 +168,8 @@ public static class EconomyUIVerifierEditor
             Require(buttons.Length >= generator.Skills.Catalog.Nodes.Count + 5, "placement, navigation, skill and upgrade buttons exist");
             Require(canvas.GetComponentsInChildren<Text>(true).First().font.HasCharacter('換'), "Japanese glyph available");
             var raycaster = UnityEngine.Object.FindAnyObjectByType<UIRaycasterAdapter>();
-            var header = buttons.First(b => b.GetComponentInChildren<Text>(true).text.Contains("閉じる"));
-            var point = RectTransformUtility.WorldToScreenPoint(null, header.transform.position + new Vector3(20, -15));
+            var header = panel.GetComponentInChildren<HudLayoutAdapter>().Close;
+            var point = RectTransformUtility.WorldToScreenPoint(null, header.GetComponent<RectTransform>().TransformPoint(header.GetComponent<RectTransform>().rect.center));
             Require(raycaster.IsPointerOverUI(point), "integrated canvas blocks field input");
             var placer = UnityEngine.Object.FindAnyObjectByType<CellPlacerAdapter>();
             var before = wallet.Current.Balance;
@@ -320,7 +320,8 @@ public static class EconomyUIVerifierEditor
             Time.timeScale = 0;
             EventSystem.current.SetSelectedGameObject(hud.Tabs[page].gameObject);
             var started = Time.unscaledTime;
-            panel.SetExpanded(false);
+            hud.Close.onClick.Invoke();
+            Require(!panel.IsExpanded, "left arrow requests closing");
             Require(hud.Tabs.All(tab => tab.colors.normalColor == hud.IdleTabColor) && EventSystem.current.currentSelectedGameObject == null,
                 "closing clears active tab color and selection focus");
             Require(body.gameObject.activeSelf && group.blocksRaycasts && !group.interactable, "closing keeps visible frame and blocks purchases");
@@ -506,6 +507,19 @@ public static class EconomyUIVerifierEditor
                 Require(Mathf.Min(a.xMax, b.xMax) - Mathf.Max(a.xMin, b.xMin) < 1 || Mathf.Min(a.yMax, b.yMax) - Mathf.Max(a.yMin, b.yMin) < 1,
                     "summary items do not overlap " + resolution);
             }
+        var hud = panel.GetComponentInChildren<HudLayoutAdapter>();
+        var close = (RectTransform)hud.Close.transform;
+        var body = BoundsIn(root, (RectTransform)hud.Body.transform);
+        var arrow = BoundsIn(root, close);
+        var arrowText = hud.Close.GetComponentInChildren<Text>();
+        Require(arrowText.text == "←" && arrowText.font.HasCharacter('←') &&
+            arrowText.preferredWidth <= arrowText.rectTransform.rect.width + 1 &&
+            arrowText.preferredHeight <= arrowText.rectTransform.rect.height + 1,
+            "left arrow glyph fits close control " + resolution);
+        Require(Mathf.Abs(arrow.xMin - body.xMax) < 1 && Mathf.Abs(arrow.center.y - body.center.y) < 1,
+            "close arrow follows right edge and vertical center " + resolution);
+        Require(Inside(root, close, root) && close.rect.width >= 32 && close.rect.height >= 44,
+            "close arrow remains visible and clickable " + resolution);
         var bottom = BoundsIn(root, panel.SummaryRect).yMin;
         Require(bottom > root.rect.yMin + 108, "summary clears bottom operation bar " + resolution);
     }

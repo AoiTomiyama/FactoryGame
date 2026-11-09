@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>保存済みHUDの参照と画面幅への追従。状態の読取と購入は担当しない。</summary>
@@ -23,7 +23,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     public RecipeResourceRowAdapter ResourceRow;
     private bool _initialized;
     private Vector2 _navigationPosition, _headerPosition, _bodyPosition, _bodySize;
-    private float _width, _summaryHeight;
+    private float _width, _bodyHeight, _summaryHeight;
     private float _slide, _slideTarget, _slideFrom, _slideElapsed;
     private CanvasGroup _bodyInput, _headerInput;
     public bool IsSliding => _slide != _slideTarget;
@@ -94,7 +94,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
         _headerPosition = ((RectTransform)Close.transform).anchoredPosition;
         var body = (RectTransform)Body.transform;
         _bodyPosition = body.anchoredPosition; _bodySize = body.sizeDelta;
-        _width = body.rect.width; _summaryHeight = Summary.rect.height;
+        _width = body.rect.width; _bodyHeight = body.rect.height; _summaryHeight = Summary.rect.height;
         _bodyInput = Body.GetComponent<CanvasGroup>();
         _headerInput = Close.GetComponent<CanvasGroup>();
         // 移動する内容より手前にタブを置き、途中でも開き直せるようにする。
@@ -129,13 +129,14 @@ public sealed class HudLayoutAdapter : MonoBehaviour
         var delta = Summary.rect.height - _summaryHeight;
         Navigation.anchoredPosition = _navigationPosition - new Vector2(0, delta);
         var header = (RectTransform)Close.transform;
-        header.anchoredPosition = _headerPosition - new Vector2(0, delta);
         var body = (RectTransform)Body.transform;
         body.anchoredPosition = _bodyPosition - new Vector2(0, delta);
         body.sizeDelta = _bodySize - new Vector2(0, delta);
         var width = Mathf.Min(_width, Mathf.Max(120, ((RectTransform)transform).rect.width - _bodyPosition.x - 424));
         body.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
-        header.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+        // 右端の矢印をパネル中央へ追従させ、保存済みの大きさと個別位置の調整を保つ。
+        header.anchoredPosition = _headerPosition + new Vector2(width - _width,
+            body.anchoredPosition.y - _bodyPosition.y - (body.rect.height - _bodyHeight) * .5f);
         // 保存位置と画面幅から毎回求め、折返しや解像度変更と開閉の移動を合成する。
         _slideElapsed += Time.unscaledDeltaTime;
         var progress = Mathf.Clamp01(_slideElapsed / .2f);

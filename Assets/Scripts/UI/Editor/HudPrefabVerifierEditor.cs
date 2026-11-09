@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -80,7 +80,7 @@ public static class HudPrefabVerifierEditor
         var hud = panel.GetComponentInChildren<HudLayoutAdapter>();
         var bar = UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>();
         var header = (RectTransform)hud.Close.transform;
-        Require(Mathf.Abs(header.anchoredPosition.x - 103) < .01f, "edited fixed frame position retained");
+        Require(Mathf.Abs(header.anchoredPosition.x - 503) < .01f, "edited fixed frame position retained");
         Require(hud.Close.GetComponentInChildren<Text>().fontSize == 19, "edited font size retained");
         Require(hud.SelectedTabColor == new Color(.3f, .5f, .6f) && hud.IdleTabColor == new Color(.12f, .22f, .32f), "edited shared palette retained");
         var savedHud = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/FactoryHud.prefab").GetComponent<HudLayoutAdapter>();
@@ -119,7 +119,7 @@ public static class HudPrefabVerifierEditor
         header.anchoredPosition -= new Vector2(3, 0);
         typeof(HudLayoutAdapter).GetField("_headerPosition", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
             .SetValue(hud, header.anchoredPosition);
-        hud.Close.GetComponentInChildren<Text>().fontSize = 18;
+        hud.Close.GetComponentInChildren<Text>().fontSize = 26;
         hud.SelectedTabColor = new Color(.24f, .43f, .53f); hud.IdleTabColor = new Color(.14f, .21f, .27f);
         hud.ApplyColors(); hud.PlacementBuilder.Configure(hud.Font);
         foreach (var cell in hud.GetComponentsInChildren<CellSelectButtonUIAdapter>(true)) cell.SetColor(hud.IdleTabColor);

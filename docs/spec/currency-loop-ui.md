@@ -95,3 +95,7 @@ MainSceneは[FactoryHud.prefab](../../Assets/Prefabs/UI/FactoryHud.prefab)と[Op
 配置タブ枠とレシピ1行を旧Prefabと比較してから全体へ展開した。代表比較と変更理由、対象差分、実行結果はローカルの`docs/verification/uis06-ui.json`に集約する。EconomyUIVerifierEditorはHudPrefabVerifierEditorの保存参照・Editor編集保持・再設定時の同一部品保持を加え、既存のPC2寸法、24レシピ・6材料、常時表示の追加12項目、購入、入力遮断、購読寿命を検証する。最終画像は既存固定名`docs/verification/uis05/hud-1600x900.png`と`hud-1366x768.png`を更新する。
 
 左ページのスライドはHudLayoutAdapterが保存位置と表示割合から計算し、常時表示の折返しと画面幅の調整を合成する。EconomyPanelAdapterは開閉の目標を渡す。内容と閉じるボタンのCanvasGroupは既存FactoryHud.prefabへ保存する。移動・途中反転・一時停止・閉じた後の入力・無効化後の復帰を既存EconomyUIVerifierEditorで検証し、実行記録はローカルの`docs/verification/side-panel-slide.json`へ保存する。
+
+### サイドパネルの閉じる操作
+
+左パネルの右端中央に「←」を置き、左へ退避する操作を示す。既存のClosePageボタンを32×64へ変更し、上部の「閉じる」表示を置き換える。空いた上部はページ内容へ戻す。画面幅と常時表示の折返しで枠の寸法が変わっても、矢印は右端中央へ追従する。閉じる際は既存のスライド・入力遮断・選択色解除を使い、左のタブから開き直せる。右側のセル情報を閉じる操作は同欄のボタンを使う。
