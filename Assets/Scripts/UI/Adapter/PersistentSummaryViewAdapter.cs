@@ -1,5 +1,4 @@
-using System;
-using System.Linq;
+﻿using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -7,14 +6,11 @@ using UnityEngine.UI;
 /// <summary>常時表示項目を指定順で横に並べ、画面幅に応じて折り返す。</summary>
 public sealed class PersistentSummaryViewAdapter
 {
-    public enum WalletField { Balance, Available, Expense, Income }
-    private WalletField[] _walletOrder = { WalletField.Balance, WalletField.Available, WalletField.Expense, WalletField.Income };
-    private CurrencyWalletApplication.Snapshot _wallet;
     private readonly Font _font;
     private readonly List<Text> _items = new();
-    private readonly Text[] _walletItems = new Text[4];
+    private readonly Text[] _walletItems;
     public RectTransform Rect { get; }
-    public string BalanceText => string.Join("　", _walletItems.Select(text => text.text));
+    public string BalanceText => _walletItems[0].text;
     public IReadOnlyList<Text> WalletItems => _walletItems;
     public IReadOnlyList<Text> Items => _items;
     private readonly Text _rowPrefab;
@@ -27,21 +23,9 @@ public sealed class PersistentSummaryViewAdapter
     }
     public void RenderWallet(CurrencyWalletApplication.Snapshot wallet)
     {
-        _wallet = wallet;
-        var entries = _walletOrder.Select(field => field switch
-        {
-            WalletField.Balance => $"残高 {wallet.Balance}", WalletField.Available => $"使用可能 {wallet.AvailableBalance}",
-            WalletField.Expense => $"支出予約 {wallet.ReservedExpense}", _ => $"換金待ち {wallet.ReservedIncome}"
-        }).ToArray();
-        for (var i = 0; i < entries.Length; i++) _walletItems[i].text = entries[i];
+        // 通貨の予約値は取引内部で保持し、プレイヤーには確定した残高を表示する。
+        _walletItems[0].text = $"残高 {wallet.Balance}";
         UpdateLayout();
-    }
-    public void SetWalletOrder(params WalletField[] order)
-    {
-        if (order == null || order.Length != 4 || order.Distinct().Count() != 4 || order.Any(f => !Enum.IsDefined(typeof(WalletField), f)))
-            throw new ArgumentException("All wallet fields must occur once.", nameof(order));
-        _walletOrder = (WalletField[])order.Clone();
-        RenderWallet(_wallet);
     }
     public void SetItems(params string[] items)
     {

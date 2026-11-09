@@ -2031,7 +2031,7 @@
           ]
         },
         "SummaryView": {
-          "description": "共有残高のスナップショットと追加項目を常時表示する。残高4項目と追加項目はそれぞれ指定順に横へ並べ、画面幅を超えると折り返して枠の高さを増やす。全項目を表示し、左右パネルはその下へ追従する。",
+          "description": "確定した残高と追加された項目を横並び・折返しで常時表示します。内部の使用可能額・支出予約・換金待ちは表示せず、予約処理と購入判定は既存Applicationへ残します。追加項目の順と画面幅に応じて枠の高さを調整します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs",
@@ -2071,7 +2071,7 @@
           ]
         },
         "HudProvider": {
-          "description": "既存Providerが返す表示スナップショットをHUD向けに整える。見出しと重複するセル名・座標を除き、在庫と進捗へ用途ラベルを付ける。セルの状態やProviderの設定アセットは変更しない。",
+          "description": "セルの読み取り結果からHUD用の行を構成します。施設名・座標と内部の搬入・換金予約値を省き、在庫・進捗へ用途の分かるラベルを付けます。元Readerと予約処理の契約は保持します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/HudStatusProviderAdapter.cs",
@@ -2080,7 +2080,7 @@
           ]
         },
         "HudRows": {
-          "description": "Providerの文字・在庫・ゲージを保存済み行Prefabへ描画します。既存UIStatusRowBaseAdapterを継承し、Viewがプールから借り出して返却します。フォントと資源アイコンは保存した参照を使用します。",
+          "description": "保存済み行Prefabで在庫と進捗を描画します。在庫の0は表示し、残り時間が0の進捗行は非表示にします。加工開始の更新では同じ行を再表示します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/HudStatusRowAdapter.cs",
@@ -2098,7 +2098,7 @@
           ]
         },
         "EquipmentPresenter": {
-          "description": "選択設備から現在と次レベルの能力を読み、強化費と購入可否を取得して表示へ渡します。購入ボタンは同じUpgradesへ接続し、終了時にリスナーを解除します。",
+          "description": "選択設備の種類・加工や停止の状態、レベル、能力比較、費用を表示し、購入を既存Adapterへ渡します。座標・レベルの重複と成功通知を省きます。残高不足はUIへ、対象の消失などシステム上の失敗はConsoleへ記録します。",
           "references": [
             {
               "path": "Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs",
@@ -2116,7 +2116,7 @@
           ]
         },
         "Operation": {
-          "description": "保存済み下部操作帯の配置情報と回転・視点切替ボタンを保持します。EconomyPanelから配置タブの開閉に連動する表示状態と配置情報を受け、ボタンを既存入力へ接続します。",
+          "description": "保存済み下部操作帯で、左列の操作説明・ボタンと右列の選択セル・単価・ドラッグ中の予定個数と費用を表示します。配置タブと表示を同期し、残高不足と既存セルとの重なりだけをプレイヤー向けの通知として追加します。システム上の失敗はConsoleへ分けます。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/OperationBarAdapter.cs",

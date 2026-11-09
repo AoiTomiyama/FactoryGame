@@ -16,7 +16,9 @@ public class CellPlacerAdapter : MonoBehaviour
     private EquipmentPlacementApplication _placement;
     private CurrencyPriceCatalogDomain _prices;
     private bool _placing;
-    private bool _placementEnabled, _dragging;
+    private bool _placementEnabled, _dragging, _overlap;
+    private string _placementNotice = "";
+    public string PlacementNotice => _overlap ? "既存セルと重なっています" : _placementNotice;
     public bool PlacementEnabled => _placementEnabled;
     public void SetPlacementEnabled(bool enabled)
     {
@@ -47,6 +49,7 @@ public class CellPlacerAdapter : MonoBehaviour
     public void PointerBegin()
     {
         if (!_placementEnabled || _placing || _selectedCell == null) return;
+        _placementNotice = "";
         _dragging = true;
         _dragBeginPos = Vector3Int.RoundToInt(_selectedCell.transform.position);
         _dragEndPos = _dragBeginPos;
@@ -59,10 +62,11 @@ public class CellPlacerAdapter : MonoBehaviour
         FindRangedGrid(_dragBeginPos, _dragEndPos);
     }
 
-    public void CancelPlacementPreview() { _dragging = false; if (!_placing) ClearRange(); }
+    public void CancelPlacementPreview() { _dragging = false; _placementNotice = ""; if (!_placing) ClearRange(); }
     public void PointerEnd()
     {
         if (!_placementEnabled || !_dragging) return;
+        _placementNotice = _overlap ? "既存セルと重なっています" : "";
         _dragging = false; ReplaceRangedCells();
     }
     public void TransferDataToUI() => CellStatusViewAdapter.Instance.UpdateUIStatusWindow(_selectedCell);
@@ -93,6 +97,7 @@ public class CellPlacerAdapter : MonoBehaviour
 
     private void FindRangedGrid(Vector3Int from, Vector3Int to)
     {
+        _overlap = false;
         var newSelection = new HashSet<CellBaseAdapter>();
         var dir = to - from;
 
@@ -114,6 +119,7 @@ public class CellPlacerAdapter : MonoBehaviour
             if (!GridFieldDatabaseAdapter.Instance.IsWithinBounds(x, z)) continue;
             var cell = GridFieldDatabaseAdapter.Instance.GetCell(x, z);
             if (cell == null) continue;
+            if (_cachedCell is not EmptyCellAdapter && cell is not EmptyCellAdapter) _overlap = true;
             // 撤去は設備だけ、設置は空セルだけを対象にする。
             if (cell is not ResourceCellAdapter && cell is not SingularityCellAdapter &&
                 (_cachedCell is EmptyCellAdapter && cell is not EmptyCellAdapter ||
@@ -188,6 +194,9 @@ public class CellPlacerAdapter : MonoBehaviour
             }
         }
         finally { ClearRange(); _placing = false; }
+        // プレイヤーが修正できる不足と重なりはHUDへ、処理上の失敗はConsoleへ分ける。
+        if (LastPlacementResult == EquipmentPlacementApplication.Result.InsufficientFunds) _placementNotice = "残高不足";
+        else if (LastPlacementResult != EquipmentPlacementApplication.Result.Success) Debug.LogWarning($"配置失敗：{FailureText}", this);
     }
 
     private void ClearRange()
@@ -198,6 +207,7 @@ public class CellPlacerAdapter : MonoBehaviour
             if (placeholder != null) Destroy(placeholder);
         }
         _selectedRangeCells.Clear();
+        _overlap = false;
     }
 
     // 既存の直接呼出しも同じ取引を通す。
@@ -280,6 +290,7 @@ public class CellPlacerAdapter : MonoBehaviour
         {
             if (!database.TryGetCellInfo(cellType, out var cellInfo)) continue;
             ClearRange();
+            _placementNotice = "";
             _selectedType = cellType;
 
             // _selectedCellType = cellInfo.CellTypeDomain;
@@ -307,15 +318,21 @@ public class CellPlacerAdapter : MonoBehaviour
     {
         get
         {
-            if (_selectedType == CellTypeDomain.Empty) return $"撤去予定 {PreviewCount}個 / 無料・返金なし";
+            if (_selectedType == CellTypeDomain.Empty) return PreviewCount > 0 ? $"撤去予定 {PreviewCount}個 / 無料・返金なし" : "撤去 / 無料・返金なし";
             if (_prices == null || !_prices.TryGetPlacementAmount(_selectedType, 1, out var unit)) return "設置価格が無効です";
+            if (PreviewCount == 0) return $"{_selectedType} 単価 {unit}";
             return $"{_selectedType} 単価 {unit}\n設置予定 {PreviewCount}個 / 費用 {PreviewCost}" +
                 (PreviewCost > (_wallet?.Current.AvailableBalance ?? 0) ? " / 残高不足で途中停止" : "");
         }
     }
+    public string FailureText => LastPlacementResult switch
+    {
+        EquipmentPlacementApplication.Result.InsufficientFunds => "残高不足",
+        EquipmentPlacementApplication.Result.InvalidTarget => "設置先または価格が無効です",
+        EquipmentPlacementApplication.Result.Busy => "設置処理中",
+        EquipmentPlacementApplication.Result.Failed => "設置に失敗しました",
+        _ => ""
+    };
     public string ResultText => $"確定 {LastPlacedCount}個 / 支出 {LastPlacementCost}" +
-        (LastPlacementResult == EquipmentPlacementApplication.Result.InsufficientFunds ? " / 残高不足" :
-         LastPlacementResult == EquipmentPlacementApplication.Result.Success ? "" :
-         LastPlacementResult == EquipmentPlacementApplication.Result.InvalidTarget ? " / 設置先または価格が無効です" :
-         LastPlacementResult == EquipmentPlacementApplication.Result.Busy ? " / 設置処理中" : " / 設置に失敗しました");
+        (string.IsNullOrEmpty(FailureText) ? "" : " / " + FailureText);
 }

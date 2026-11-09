@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>既存Providerの表示値を、共通HUDの書体・色・寸法で描画する。</summary>
@@ -15,6 +15,8 @@ public sealed class HudStatusRowAdapter : UIStatusRowBaseAdapter
     }
     public override void RenderUIByData(UIElementDataBaseApplication data)
     {
+        // 空の進捗ゲージは隠し、在庫の0は残す。非表示の行も次の描画で再表示できる。
+        gameObject.SetActive(data is not GaugeElementDataApplication gaugeValue || data is StorageElementDataApplication || gaugeValue.Current > 0);
         _label.text = data.StatusName;
         _icon.gameObject.SetActive(false); _gauge.gameObject.SetActive(false);
         switch (data)

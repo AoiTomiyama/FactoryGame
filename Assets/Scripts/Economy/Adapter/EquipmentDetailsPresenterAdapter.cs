@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
@@ -24,12 +24,12 @@ public sealed class EquipmentDetailsPresenterAdapter : IDisposable
         _selected = selected;
         _view.Heading.gameObject.SetActive(selected != null);
 
-        _view.Heading.text = selected == null ? "" : $"{CellName(selected)} ({selected.XIndex}, {selected.ZIndex})　Lv.{selected.EquipmentLevel}\n{(!selected.isActiveAndEnabled ? "停止中" : selected is CrafterCellAdapter crafter ? (crafter.ProcessTime > 0 ? "加工中" : "材料・空き容量を待機") : "稼働中")}";
+        _view.Heading.text = selected == null ? "" : $"{CellName(selected)}\n{(!selected.isActiveAndEnabled ? "停止中" : selected is CrafterCellAdapter crafter ? (crafter.ProcessTime > 0 ? "加工中" : "材料・空き容量を待機") : "")}".TrimEnd();
         _quotedLevel = selected != null ? selected.EquipmentLevel : 0;
         var result = _upgrades.CanPurchase(selected, _quotedLevel, out var cost);
         _view.UpgradeRoot.gameObject.SetActive(selected != null && selected.SupportsProgression);
         _view.EquipmentText = selected != null && selected.SupportsProgression
-            ? $"設備 ({selected.XIndex}, {selected.ZIndex})　Lv.{_quotedLevel}/3\n現在: {Stats(selected, _quotedLevel)}\n{(_quotedLevel < EffectiveStatsRulesDomain.MaxLevel ? "強化後: " + Stats(selected, _quotedLevel + 1) : "最大レベル")}\n強化費 {(cost > 0 ? cost.ToString() : "—")}　{UpgradeReason(result)}"
+            ? $"Lv.{_quotedLevel}/3\n現在: {Stats(selected, _quotedLevel)}\n{(_quotedLevel < EffectiveStatsRulesDomain.MaxLevel ? "強化後: " + Stats(selected, _quotedLevel + 1) : "最大レベル")}{(cost > 0 ? "\n強化費 " + cost : "")}{(result == EquipmentUpgradeResultApplication.Success || result == EquipmentUpgradeResultApplication.MaxLevel ? "" : "　" + UpgradeReason(result))}"
             : "";
         _view.UpgradeButton.interactable = result == EquipmentUpgradeResultApplication.Success;
         UpdateLayout();
@@ -37,7 +37,9 @@ public sealed class EquipmentDetailsPresenterAdapter : IDisposable
     public EquipmentUpgradeResultApplication Purchase()
     {
         var result = _upgrades.Purchase(_selected, _quotedLevel);
-        _view.Feedback = result == EquipmentUpgradeResultApplication.Success ? "設備を強化しました" : UpgradeReason(result);
+        _view.Feedback = "";
+        if (result != EquipmentUpgradeResultApplication.Success && result != EquipmentUpgradeResultApplication.InsufficientFunds &&
+            result != EquipmentUpgradeResultApplication.MaxLevel) Debug.LogWarning($"設備強化失敗：{UpgradeReason(result)}", _selected);
         Refresh(_selected);
         return result;
     }

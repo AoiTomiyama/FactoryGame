@@ -67,24 +67,27 @@ public static class EconomyUIVerifierEditor
             Require(panel.IsSubscribed && panel.BalanceText.Contains("残高 100"), "initial shared balance");
             Require(!panel.UpgradeInteractable, "no selected equipment");
             wallet.TryReserveExpense(90, out var expense);
-            Require(panel.BalanceText.Contains("支出予約 90") && panel.BalanceText.Contains("使用可能 10"), "expense and available balance");
+            Require(panel.BalanceText == "残高 100" && wallet.Current.ReservedExpense == 90 && panel.SummaryView.WalletItems.Count == 1, "expense and available balance");
             expense.TryCancel();
-            Require(panel.BalanceText.Contains("支出予約 0"), "cancel refresh");
+            Require(panel.BalanceText == "残高 100" && wallet.Current.ReservedExpense == 0, "cancel refresh");
             var singularity = (SingularityCellAdapter)grid.GetCell(50, 50);
             view.UpdateUIStatusWindow(singularity);
             Require(singularity.GetDataProvider().ReadData().Count == 4, "custom singularity provider");
+            Require(new HudStatusProviderAdapter(singularity.GetDataProvider()).ReadData().Keys.SequenceEqual(new[] { LabelEnumApplication.Amount }), "HUD hides income reservation without changing source contract");
             Require(singularity.AllocateStorage(Vector3Int.left, 7, ResourceTypeDomain.Wood), "income reserve");
-            Require(panel.BalanceText.Contains("換金待ち 7"), "pending income");
+            Require(panel.BalanceText == "残高 100" && wallet.Current.ReservedIncome == 7, "pending income");
             singularity.CancelStorage(Vector3Int.left, 7, ResourceTypeDomain.Wood);
-            Require(!panel.FeedbackText.Contains("+7"), "cancel is not conversion");
+            Require(panel.BalanceText == "残高 100", "cancel is not conversion");
             singularity.AllocateStorage(Vector3Int.left, 7, ResourceTypeDomain.Wood);
             singularity.StoreResource(Vector3Int.left, 7);
-            Require(panel.FeedbackText == "換金 +7" && panel.BalanceText.Contains("残高 107"), "conversion notification");
+            Require(panel.BalanceText == "残高 107", "conversion notification");
             var snapshot = singularity.GetDataProvider().ReadData();
             Require(((TextElementDataApplication)snapshot[LabelEnumApplication.Amount]).Text == "107", "custom reader current balance");
             var storage = Install(grid, "Storage", 20, 20);
             view.UpdateUIStatusWindow(storage);
+            Require(!panel.EquipmentView.Heading.text.Contains("("), "equipment heading omits coordinates");
             Require(panel.UpgradeInteractable && panel.EquipmentText.Contains("強化費 15") && panel.EquipmentText.Contains("Lv.1/3"), "upgrade quote");
+            Require(!panel.EquipmentText.Contains("強化できます") && !panel.EquipmentText.Contains("設備 ("), "upgrade detail omits redundant availability and repeated coordinates");
             Require(Subscribers(singularity, "StatusChanged") == 0, "selection releases singularity UI subscriptions");
             Require(panel.PurchaseUpgrade() == EquipmentUpgradeResultApplication.Success && storage.EquipmentLevel == 2 &&
                 panel.EquipmentText.Contains("強化費 30") && panel.EquipmentText.Contains("Lv.2/3"), "upgrade updates level and next cost");
@@ -179,6 +182,7 @@ public static class EconomyUIVerifierEditor
             var storageButton = canvas.GetComponentsInChildren<CellSelectButtonUIAdapter>(true).Single(b => b.name == "StorageButton");
             storageButton.GetComponentInChildren<Button>(true).onClick.Invoke();
             await UniTask.DelayFrame(2);
+            Require(!panel.PlacementText.Contains("確定") && !panel.PlacementText.Contains("設置予定 0"), "idle placement omits last payment and zero-count text");
             Require(panel.PlacementText.Contains("保管庫 単価 15"), "existing placement button updates quote");
             var submenu = canvas.GetComponentsInChildren<CellSelectButtonUIAdapter>(true).Single(b => b.name == "ExtractorWoodSubMenuButton");
             submenu.GetComponentInChildren<Button>(true).onClick.Invoke();
@@ -210,7 +214,7 @@ public static class EconomyUIVerifierEditor
             Require(grid.GetCell(30, 31).CellModel.activeSelf, "hover outside placement mode keeps cell visible");
             panel.ShowPage(0);
             Require(placer.PlacementEnabled && operation.Bar.gameObject.activeInHierarchy && operation.PlacementInfo.transform.IsChildOf(operation.Bar), "placement information belongs to lower window");
-            Require(!panel.GetComponentInChildren<HudLayoutAdapter>().Feedback.gameObject.activeSelf && !panel.PlacementButtons.GetComponentsInChildren<Text>().Any(text => text == operation.PlacementInfo), "placement tab contains selection without placement information");
+            Require(!panel.PlacementButtons.GetComponentsInChildren<Text>().Any(text => text == operation.PlacementInfo), "placement tab contains selection without placement information");
             VerifyOperationBar(placer, raycaster, wallet, grid);
             await VerifySlide(panel, raycaster);
             for (var page = 0; page < 3; page++)
@@ -440,11 +444,7 @@ public static class EconomyUIVerifierEditor
         }
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.GetComponent<CanvasScaler>().enabled = true;
-        panel.SummaryView.SetWalletOrder(PersistentSummaryViewAdapter.WalletField.Income, PersistentSummaryViewAdapter.WalletField.Expense,
-            PersistentSummaryViewAdapter.WalletField.Available, PersistentSummaryViewAdapter.WalletField.Balance);
-        Require(panel.BalanceText.StartsWith("換金待ち") && panel.BalanceText.EndsWith($"残高 {wallet.Current.Balance}"), "currency field order can change");
-        panel.SummaryView.SetWalletOrder(PersistentSummaryViewAdapter.WalletField.Balance, PersistentSummaryViewAdapter.WalletField.Available,
-            PersistentSummaryViewAdapter.WalletField.Expense, PersistentSummaryViewAdapter.WalletField.Income);
+        Require(panel.SummaryView.WalletItems.Count == 1 && panel.BalanceText == $"残高 {wallet.Current.Balance}", "HUD currency shows only committed balance");
         panel.SetSummaryItems(extras.Reverse().ToArray());
         Require(panel.SummaryView.Items.First().text == extras.Last(), "summary order follows caller order");
         panel.SetSummaryItems();
@@ -473,13 +473,19 @@ public static class EconomyUIVerifierEditor
         view.UpdateUIStatusWindow(crafter);
         Require(panel.EquipmentView.Heading.text.Contains("加工設備") && panel.EquipmentView.Heading.text.Contains("待機") &&
             panel.EquipmentText.Contains("強化後: 入力容量 " + crafter.IngredientCapacityAtLevel(2)), "crafter name operating state and next capacity");
+        var progressRow = view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>(true).Single(row => row.GetComponentsInChildren<Text>(true).Any(text => text.text == "残り時間"));
+        Require(!progressRow.gameObject.activeSelf, "idle progress omits zero-second row");
+        progressRow.RenderUIByData(new GaugeElementDataApplication("残り時間", 2) { Current = 1, GaugeText = "1 秒" });
+        Require(progressRow.gameObject.activeSelf, "progress row returns when work starts");
+        progressRow.RenderUIByData(new GaugeElementDataApplication("残り時間", 2) { Current = 0, GaugeText = "0 秒" });
+        Require(!progressRow.gameObject.activeSelf, "completed progress hides zero-second row");
     }
     private static void VerifyFixedSummary(EconomyPanelAdapter panel, RectTransform root, Vector2 resolution)
     {
         Require(panel.SummaryRect.GetComponentsInChildren<ScrollRect>(true).Length == 0 &&
             panel.SummaryRect.GetComponentsInChildren<RectMask2D>(true).Length == 0, "persistent summary has no scrolling or clipping " + resolution);
         var texts = panel.SummaryView.WalletItems.Concat(panel.SummaryView.Items).Where(t => t.gameObject.activeSelf).ToArray();
-        Require(texts.Length == 16, "all four wallet and twelve extra items visible " + resolution);
+        Require(texts.Length == 13, "balance and twelve extra items visible " + resolution);
         foreach (var text in texts)
         {
             Require(Inside(root, text.rectTransform, panel.SummaryRect) && Inside(root, text.rectTransform, root), "every summary item inside visible frame " + resolution);

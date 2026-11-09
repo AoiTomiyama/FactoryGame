@@ -12,7 +12,6 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     public RectTransform[] Pages;
     public RectTransform Summary;
     public Text[] WalletItems;
-    public Text Feedback;
     public Text EquipmentHeading, EquipmentText, EquipmentFeedback;
     public GameObject EquipmentGroup;
     public Button Upgrade;

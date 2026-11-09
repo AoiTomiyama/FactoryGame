@@ -8,7 +8,11 @@ public sealed class OperationBarAdapter : MonoBehaviour
     [SerializeField] private RectTransform bar;
     [SerializeField] private Text placementInfo;
     public Text PlacementInfo => placementInfo;
-    public void SetPlacementActive(bool active) => bar.gameObject.SetActive(active);
+    public void SetPlacementActive(bool active)
+    {
+        // シーン終了時は操作帯が先に破棄される場合もある。
+        if (bar != null) bar.gameObject.SetActive(active);
+    }
     private PlayerCursorBehaviourAdapter _cursor;
     private CameraControllerAdapter _cameraController;
     public Button RotateButton => rotateButton;
@@ -38,7 +42,7 @@ public sealed class OperationBarAdapter : MonoBehaviour
     private void SwitchView() => _cameraController?.SwitchCameraAngle();
     private void OnDestroy()
     {
-        rotateButton.onClick.RemoveListener(Rotate);
-        viewButton.onClick.RemoveListener(SwitchView);
+        if (rotateButton != null) rotateButton.onClick.RemoveListener(Rotate);
+        if (viewButton != null) viewButton.onClick.RemoveListener(SwitchView);
     }
 }

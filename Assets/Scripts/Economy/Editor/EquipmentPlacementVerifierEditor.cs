@@ -127,9 +127,14 @@ public static class EquipmentPlacementVerifierEditor
             placer.SelectGrid(grid.GetCell(50, 47).gameObject); placer.PointerDrag();
             await UniTask.DelayFrame(2);
             Require(panel.PlacementText.Contains("費用 15") && panel.PlacementText.Contains("残高不足"), "integrated range quote reports insufficient funds");
-            placer.PointerEnd(); placer.PointerEnd();
+            var placementWarnings = 0;
+            Application.LogCallback countWarning = (message, stack, type) => { if (type == LogType.Warning && message.Contains("配置失敗：残高不足")) placementWarnings++; };
+            Application.logMessageReceived += countWarning;
+            try { placer.PointerEnd(); placer.PointerEnd(); }
+            finally { Application.logMessageReceived -= countWarning; }
+            Require(placementWarnings == 0, "insufficient funds uses UI instead of system warning");
             await UniTask.DelayFrame(2);
-            Require(panel.PlacementText.Contains("確定 2個 / 支出 10") && panel.PlacementText.Contains("残高不足"), "integrated result matches partial placement expense");
+            Require(!panel.PlacementText.Contains("確定") && !panel.PlacementText.Contains("支出") && panel.PlacementText.Contains("残高不足"), "integrated result matches partial placement expense");
             // 反復PointerEnd後も残高と配置を変えない。
             Require(grid.GetCell(50, 49) is ConveyorCellAdapter && grid.GetCell(50, 48) is ConveyorCellAdapter &&
                 grid.GetCell(50, 47) is EmptyCellAdapter && wallet.Current.Balance == 0, "reverse range stops on third cell");
@@ -161,7 +166,13 @@ public static class EquipmentPlacementVerifierEditor
             var failing = template.AddComponent<FailingPlacementCellAdapter>();
             Set(placer, "_cachedCell", failing);
             var original = grid.GetCell(50, 49);
-            placer.SelectGrid(original.gameObject); placer.PointerBegin(); placer.PointerDrag(); placer.PointerEnd();
+            var systemWarnings = 0;
+            Application.LogCallback countSystemWarning = (message, stack, type) => { if (type == LogType.Warning && message.Contains("配置失敗：設置に失敗しました")) systemWarnings++; };
+            Application.logMessageReceived += countSystemWarning;
+            try { placer.SelectGrid(original.gameObject); placer.PointerBegin(); placer.PointerDrag(); placer.PointerEnd(); }
+            finally { Application.logMessageReceived -= countSystemWarning; }
+            await UniTask.DelayFrame(2);
+            Require(systemWarnings == 1 && !panel.PlacementText.Contains("失敗"), "system failure uses Console without HUD error");
             Require(grid.GetCell(50, 49) == original && original.gameObject.activeSelf && original.CellModel.activeSelf &&
                 wallet.Current.Balance == 20 && wallet.Current.ReservedExpense == 0 && placer.LastPlacedCount == 0 &&
                 placer.LastPlacementResult == EquipmentPlacementApplication.Result.Failed, "real initialization rollback");
@@ -177,6 +188,14 @@ public static class EquipmentPlacementVerifierEditor
             UnityEngine.Object.Destroy(template);
             Place(placer, original, CellTypeDomain.Storage, 90);
             Require(wallet.Current.Balance == 5 && grid.GetCell(50, 49) is StorageCellAdapter, "placement works after rollback");
+            var occupied = grid.GetCell(50, 49);
+            var occupiedBalance = wallet.Current.Balance;
+            placer.SetSelectedCellType(CellTypeDomain.Conveyor);
+            placer.SelectGrid(occupied.gameObject); placer.PointerBegin(); placer.PointerDrag();
+            Require(placer.PlacementNotice.Contains("既存セル") && placer.PreviewCount == 0, "occupied target has dedicated UI reason");
+            placer.PointerEnd();
+            await UniTask.DelayFrame(2);
+            Require(panel.PlacementText.Contains("既存セル") && grid.GetCell(50, 49) == occupied && wallet.Current.Balance == occupiedBalance, "overlap stays visible without replacement or expense");
             Debug.Log($"Equipment placement PLAY checks passed: {_checks} assertions; paid starter route, range order, partial funds, rollback, protection, selection, rotation and removal.");
             EditorApplication.Exit(0);
         }

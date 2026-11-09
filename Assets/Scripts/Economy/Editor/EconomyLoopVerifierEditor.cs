@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using UnityEditor;
@@ -77,7 +77,7 @@ public static class EconomyLoopVerifierEditor
             var conveyor = grid.GetCell(50, 49) as ConveyorCellAdapter;
             Require(extractor != null && conveyor != null, "route installed through pointer commands");
             await Funds(71);
-            Require(earned > 0 && panel.FeedbackText.StartsWith("換金 +"), "first real extraction transfer and conversion");
+            Require(earned > 0 && panel.BalanceText.Contains(wallet.Current.Balance.ToString()), "first real extraction transfer and conversion");
             Debug.Log($"Economy loop first sale: balance={wallet.Current.Balance}, earned={earned}, spent={spent}");
 
             // 初回は通常速度で確認し、以後は同じ周期・搬送処理を時間倍率で短縮する。
