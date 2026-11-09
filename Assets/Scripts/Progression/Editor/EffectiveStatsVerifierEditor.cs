@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
 using UnityEditor;
@@ -204,7 +204,7 @@ public static class EffectiveStatsVerifierEditor
         if (!SessionState.GetBool(UpgradeKey, false)) return cell.TrySetEquipmentLevel(level);
         var generator = UnityEngine.Object.FindAnyObjectByType<GridFieldGeneratorAdapter>();
         while (cell.EquipmentLevel < level)
-            if (generator.Upgrades.Purchase(cell, cell.EquipmentLevel) != EquipmentUpgradeResultApplication.Success) return false;
+            if (new EquipmentUpgradeAdapter(GridFieldDatabaseAdapter.Instance, generator.Wallet, generator.Prices).Purchase(cell, cell.EquipmentLevel) != EquipmentUpgradeResultApplication.Success) return false;
         return cell.EquipmentLevel == level;
     }
 

@@ -1,8 +1,23 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 
 /// <summary>一プレイの共有効果。増加だけを許可し、成立済み予約の容量を維持する。</summary>
 public sealed class SharedStatEffectsApplication
 {
+    private readonly Dictionary<CellTypeDomain, int> _typeLevels = new();
+    public int GetTypeLevel(CellTypeDomain type) => _typeLevels.TryGetValue(type, out var level) ? level : 1;
+    public bool TrySetTypeLevel(CellTypeDomain type, int level)
+    {
+        if (!SkillTreeCatalogDomain.SupportsType(type) || level < GetTypeLevel(type) || level > EffectiveStatsRulesDomain.MaxLevel) return false;
+        if (level == GetTypeLevel(type)) return true;
+        SetTypeLevelWithoutNotification(type, level); NotifyChanged(); return true;
+    }
+    internal void SetTypeLevelWithoutNotification(CellTypeDomain type, int level)
+    {
+        if (!SkillTreeCatalogDomain.SupportsType(type) || level < GetTypeLevel(type) || level > EffectiveStatsRulesDomain.MaxLevel)
+            throw new ArgumentOutOfRangeException(nameof(level));
+        _typeLevels[type] = level;
+    }
     private readonly int[] _bonuses = new int[3];
     public event Action Changed;
     public Exception LastNotificationException { get; private set; }

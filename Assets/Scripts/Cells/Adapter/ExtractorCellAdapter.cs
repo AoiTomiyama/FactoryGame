@@ -1,4 +1,4 @@
-using System.Threading;
+﻿using System.Threading;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using UnityEngine;
@@ -33,6 +33,7 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     public int StorageCapacityAtLevel(int level) => EffectiveStatAtLevel(storageCapacity, StatBranchDomain.Storage, level);
     public int ExtractionAmount => ExtractionAmountAtLevel(EquipmentLevel);
     public int ExtractionAmountAtLevel(int level) => EffectiveStatAtLevel(extractionAmount, StatBranchDomain.Extraction, level);
+    public override CellTypeDomain ProgressionType => resourceType == ResourceTypeDomain.Wood ? CellTypeDomain.ExtractorWood : CellTypeDomain.ExtractorStone;
     public override bool SupportsProgression => true;
     protected override void ValidateBaseStats()
     {

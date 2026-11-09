@@ -110,7 +110,7 @@ public static class HudPrefabVerifierEditor
             hud.Tabs[0].gameObject, hud.Tabs[1].gameObject, hud.Tabs[2].gameObject, bar.RotateButton.gameObject, bar.ViewButton.gameObject };
         var ids = fixedObjects.Select(o => o.GetInstanceID()).ToArray();
         var generator = panel.GetComponent<GridFieldGeneratorAdapter>();
-        panel.Configure(generator.Wallet, generator.Skills, generator.Upgrades,
+        panel.Configure(generator.Wallet, generator.Skills,
             UnityEngine.Object.FindAnyObjectByType<CellStatusViewAdapter>(), UnityEngine.Object.FindAnyObjectByType<CellPlacerAdapter>());
         Require(ids.SequenceEqual(fixedObjects.Select(o => o.GetInstanceID())), "reconfigure preserves static instances");
         Require(UnityEngine.Object.FindObjectsByType<HudLayoutAdapter>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length == 1,

@@ -9,7 +9,9 @@ public sealed class SkillTreeViewAdapter : IDisposable
 {
     private readonly HudLayoutAdapter _hud;
     private readonly SkillTreeApplication _skills;
-    private readonly RectTransform _root;
+    private readonly RectTransform _root, _viewport;
+    private readonly ScrollRect _scroll;
+    private bool _focusSelection, _centered;
     private readonly LayoutElement _size;
     private readonly Dictionary<string, Button> _buttons = new();
     private readonly Dictionary<string, float> _lanes = new();
@@ -25,8 +27,23 @@ public sealed class SkillTreeViewAdapter : IDisposable
     public SkillTreeViewAdapter(Transform parent, HudLayoutAdapter hud, SkillTreeApplication skills, Action<string> select)
     {
         _hud = hud; _skills = skills;
-        _root = new GameObject("SkillTree", typeof(RectTransform), typeof(LayoutElement)).GetComponent<RectTransform>();
-        _root.SetParent(parent, false); _size = _root.GetComponent<LayoutElement>();
+        // 種類別の枝が増えても文字幅を縮めず、既存の縦スクロール内で樹形図だけ横へ移動できるようにする。
+        _viewport = new GameObject("SkillTreeViewport", typeof(RectTransform), typeof(LayoutElement), typeof(CanvasRenderer), typeof(Image), typeof(RectMask2D), typeof(ScrollRect)).GetComponent<RectTransform>();
+        _viewport.SetParent(parent, false); _viewport.GetComponent<Image>().color = Color.clear;
+        _size = _viewport.GetComponent<LayoutElement>();
+        _root = new GameObject("SkillTree", typeof(RectTransform)).GetComponent<RectTransform>();
+        _root.SetParent(_viewport, false); _root.anchorMin = _root.anchorMax = Vector2.up; _root.pivot = Vector2.up;
+        _scroll = _viewport.GetComponent<ScrollRect>(); _scroll.viewport = _viewport; _scroll.content = _root;
+        _scroll.horizontal = true; _scroll.vertical = false; _scroll.movementType = ScrollRect.MovementType.Clamped;
+        var track = new GameObject("HorizontalScrollbar", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Scrollbar)).GetComponent<Scrollbar>();
+        track.transform.SetParent(_viewport, false); track.GetComponent<Image>().color = hud.IdleTabColor;
+        var trackRect = (RectTransform)track.transform; trackRect.anchorMin = Vector2.zero; trackRect.anchorMax = Vector2.right;
+        trackRect.pivot = new Vector2(.5f, 0); trackRect.sizeDelta = new Vector2(-16, 8); trackRect.anchoredPosition = new Vector2(0, 2);
+        var handle = new GameObject("Handle", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image)).GetComponent<Image>();
+        handle.transform.SetParent(track.transform, false); handle.color = hud.SelectedTabColor;
+        handle.rectTransform.anchorMin = Vector2.zero; handle.rectTransform.anchorMax = Vector2.one; handle.rectTransform.sizeDelta = Vector2.zero;
+        track.handleRect = handle.rectTransform; track.targetGraphic = handle; track.direction = Scrollbar.Direction.LeftToRight;
+        _scroll.horizontalScrollbar = track; _scroll.horizontalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
         foreach (var node in skills.Catalog.Nodes) _children.Add(node.Uid, new List<SkillNodeDomain>());
         foreach (var node in skills.Catalog.Nodes)
             if (node.Prerequisite != null) _children[node.Prerequisite].Add(node);
@@ -81,6 +98,7 @@ public sealed class SkillTreeViewAdapter : IDisposable
     }
     public void Refresh(string selected)
     {
+        _focusSelection |= selected != null && selected != _selected;
         _selected = selected;
         _selection.gameObject.SetActive(selected != null);
         foreach (var node in _skills.Catalog.Nodes)
@@ -110,7 +128,10 @@ public sealed class SkillTreeViewAdapter : IDisposable
     public void UpdateLayout()
     {
         if (!_root.gameObject.activeInHierarchy) return;
-        var width = Mathf.Max(1, _root.rect.width);
+        var viewportWidth = _viewport.rect.width;
+        if (viewportWidth <= 1) return;
+        var width = Mathf.Max(viewportWidth, _leaves * 128);
+        _root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
         var slot = width / Mathf.Max(1, _leaves);
         var nodeWidth = Mathf.Max(1, slot - 8);
         var heights = new float[_depths.Values.Max() + 1];
@@ -124,7 +145,9 @@ public sealed class SkillTreeViewAdapter : IDisposable
         }
         var tops = new float[heights.Length];
         for (var i = 1; i < tops.Length; i++) tops[i] = tops[i - 1] + heights[i - 1] + 40;
-        _size.preferredHeight = tops[tops.Length - 1] + heights[heights.Length - 1];
+        var treeHeight = tops[tops.Length - 1] + heights[heights.Length - 1];
+        _size.preferredHeight = treeHeight + 16;
+        _root.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, treeHeight);
         foreach (var pair in _buttons)
         {
             var rect = (RectTransform)pair.Value.transform; var depth = _depths[pair.Key];
@@ -136,6 +159,13 @@ public sealed class SkillTreeViewAdapter : IDisposable
             var selected = (RectTransform)_buttons[_selected].transform;
             _selection.anchorMin = _selection.anchorMax = Vector2.up; _selection.pivot = selected.pivot;
             _selection.anchoredPosition = selected.anchoredPosition; _selection.sizeDelta = selected.rect.size;
+        }
+        if (!_centered) { _scroll.horizontalNormalizedPosition = .5f; _centered = true; }
+        if (_focusSelection && _selected != null)
+        {
+            var center = ((RectTransform)_buttons[_selected].transform).anchoredPosition.x;
+            _scroll.horizontalNormalizedPosition = width <= viewportWidth ? 0 : Mathf.Clamp01((center - viewportWidth / 2) / (width - viewportWidth));
+            _focusSelection = false;
         }
         foreach (var link in _links)
         {
@@ -153,6 +183,6 @@ public sealed class SkillTreeViewAdapter : IDisposable
     {
         foreach (var button in _buttons.Values) if (button != null) button.onClick.RemoveAllListeners();
         _buttons.Clear();
-        if (_root != null) { _root.gameObject.SetActive(false); UnityEngine.Object.Destroy(_root.gameObject); }
+        if (_viewport != null) { _viewport.gameObject.SetActive(false); UnityEngine.Object.Destroy(_viewport.gameObject); }
     }
 }

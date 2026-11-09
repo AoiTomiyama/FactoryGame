@@ -86,23 +86,18 @@ public static class EconomyUIVerifierEditor
             var storage = Install(grid, "Storage", 20, 20);
             view.UpdateUIStatusWindow(storage);
             Require(!panel.EquipmentView.Heading.text.Contains("("), "equipment heading omits coordinates");
-            Require(panel.UpgradeInteractable && panel.EquipmentText.Contains("強化費 15") && panel.EquipmentText.Contains("Lv.1/3"), "upgrade quote");
-            Require(!panel.EquipmentText.Contains("強化できます") && !panel.EquipmentText.Contains("設備 ("), "upgrade detail omits redundant availability and repeated coordinates");
+            Require(!panel.UpgradeInteractable && !panel.EquipmentView.UpgradeRoot.gameObject.activeSelf && panel.EquipmentView.Heading.text.Contains("Lv.1/3"), "cell status is read-only and shows shared type level");
             Require(Subscribers(singularity, "StatusChanged") == 0, "selection releases singularity UI subscriptions");
-            Require(panel.PurchaseUpgrade() == EquipmentUpgradeResultApplication.Success && storage.EquipmentLevel == 2 &&
-                panel.EquipmentText.Contains("強化費 30") && panel.EquipmentText.Contains("Lv.2/3"), "upgrade updates level and next cost");
-            Require(panel.PurchaseUpgrade() == EquipmentUpgradeResultApplication.Success && !panel.UpgradeInteractable &&
-                panel.EquipmentText.Contains("最大レベル"), "maximum disables action");
             var conveyor = Install(grid, "Conveyor", 21, 20);
             view.UpdateUIStatusWindow(conveyor);
-            Require(ReferenceEquals(view.SelectedCell, conveyor) && panel.UpgradeInteractable && panel.EquipmentText.Contains("搬送量"), "equipment without legacy provider is selectable");
+            Require(ReferenceEquals(view.SelectedCell, conveyor) && !panel.UpgradeInteractable && panel.EquipmentView.Heading.text.Contains("搬送路"), "equipment without legacy provider is selectable");
             Require(Subscribers(storage, "StatusChanged") == 0, "switch releases storage subscriptions");
             conveyor.gameObject.SetActive(false);
             await UniTask.DelayFrame(2);
             Require(ReferenceEquals(view.SelectedCell, conveyor) && !panel.UpgradeInteractable, "disabled equipment keeps selection and rejects purchase");
             conveyor.gameObject.SetActive(true);
             await UniTask.DelayFrame(2);
-            Require(panel.UpgradeInteractable, "reactivated equipment refreshes purchase state");
+            Require(!panel.UpgradeInteractable, "reactivated equipment has no individual purchase");
             panel.ShowPage(2);
             await UniTask.DelayFrame(4);
             var root = generator.Skills.Catalog.Nodes.Single(n => n.Prerequisite == null);
@@ -158,7 +153,7 @@ public static class EconomyUIVerifierEditor
             wallet.TryReserveIncome(1, out income); income.TryCommit();
             Require(panel.BalanceText != hiddenText, "closed page still updates persistent balance");
             panel.SetExpanded(true);
-            Require(panel.IsSubscribed && panel.EquipmentText.Contains("最大レベル") && panel.BalanceText.Contains($"残高 {wallet.Current.Balance}"), "reopen reads latest selected state");
+            Require(panel.IsSubscribed && panel.EquipmentView.Heading.text.Contains("保管庫") && panel.BalanceText.Contains($"残高 {wallet.Current.Balance}"), "reopen reads latest selected state");
             panel.enabled = false;
             Require(!panel.IsSubscribed, "disabled panel unsubscribes");
             panel.enabled = true;
@@ -255,6 +250,11 @@ public static class EconomyUIVerifierEditor
                         scroll.verticalNormalizedPosition = 0;
                         await UniTask.DelayFrame(2);
                         Canvas.ForceUpdateCanvases();
+                        var treeScroll = tree.GetComponentInParent<ScrollRect>();
+                        Require(treeScroll.horizontal && !treeScroll.vertical && treeScroll.content.rect.width >= 5 * 128, "type branches retain readable width " + resolution);
+                        Require(treeScroll.horizontalScrollbar != null && treeScroll.horizontalScrollbar.gameObject.activeInHierarchy, "wide tree exposes horizontal scrollbar " + resolution);
+                        treeScroll.horizontalScrollbar.value = 1;
+                        await UniTask.DelayFrame(2);
                         var last = panel.SkillButton(generator.Skills.Catalog.Nodes.Last().Uid).GetComponent<RectTransform>();
                         var lastBounds = BoundsIn(canvas.GetComponent<RectTransform>(), last);
                         var viewportBounds = BoundsIn(canvas.GetComponent<RectTransform>(), scroll.viewport);
@@ -367,7 +367,7 @@ public static class EconomyUIVerifierEditor
         view.UpdateUIStatusWindow(storage);
         var balance = wallet.Current.Balance;
         var capacity = storage.Capacity;
-        Require(panel.EquipmentText.Contains("強化後: 容量 " + storage.CapacityAtLevel(2)), "preview uses same next-level stat rule");
+        Require(panel.EquipmentView.Heading.text.Contains("Lv.1/3") && !panel.EquipmentView.UpgradeRoot.gameObject.activeSelf, "cell status shows type level without individual purchase");
         for (var page = 0; page < 3; page++)
         {
             panel.SetExpanded(false);
@@ -381,7 +381,9 @@ public static class EconomyUIVerifierEditor
         }
         Require(storage.EquipmentLevel == 1 && storage.CurrentLoad == 3 && storage.Capacity == capacity && wallet.Current.Balance == balance,
             "preview and navigation preserve level inventory and money");
+        panel.SelectSkill("storage-1");
         panel.EquipmentView.UpgradeButton.onClick.Invoke();
+        view.UpdateUIStatusWindow(storage);
         Require(storage.EquipmentLevel == 2 && storage.Capacity == storage.CapacityAtLevel(2) && storage.CurrentLoad == 3,
             "right-hand button upgrades same selected cell and preserves inventory");
         var recipes = AssetDatabase.LoadAssetAtPath<RecipeDatabaseDefinition>("Assets/Scripts/ScriptableObject/Recipes/RecipeDB.asset");
@@ -436,7 +438,7 @@ public static class EconomyUIVerifierEditor
             VerifyFixedSummary(panel, root, resolution);
             Require(fixedPositions.SequenceEqual(panel.SummaryView.WalletItems.Concat(panel.SummaryView.Items).Select(t => t.rectTransform.anchoredPosition)),
                 "wheel input does not move persistent summary " + resolution);
-            Require(Inside(root, panel.EquipmentView.UpgradeButton.GetComponent<RectTransform>(), view.StatusScroll.viewport), "upgrade button reachable " + resolution);
+            Require(!panel.EquipmentView.UpgradeRoot.gameObject.activeSelf, "cell status omits individual upgrade controls " + resolution);
             foreach (var text in panel.RecipeContent.GetComponentsInChildren<Text>())
                 Require(text.preferredHeight <= text.rectTransform.rect.height + 1, "expanded recipe text height " + resolution);
             foreach (var icon in panel.RecipeContent.GetComponentsInChildren<Image>())
@@ -457,7 +459,7 @@ public static class EconomyUIVerifierEditor
         view.StatusScroll.verticalNormalizedPosition = 0;
         await UniTask.DelayFrame(2);
         foreach (var target in new[] { panel.PageButton(1).GetComponent<RectTransform>(), panel.SummaryRect,
-            panel.EquipmentView.UpgradeButton.GetComponent<RectTransform>() })
+            panel.EquipmentView.Heading.GetComponent<RectTransform>() })
         {
             var point = RectTransformUtility.WorldToScreenPoint(null, target.TransformPoint(target.rect.center));
             Require(raycaster.IsPointerOverUI(point), "new HUD controls intercept field input");
@@ -472,7 +474,7 @@ public static class EconomyUIVerifierEditor
         var crafter = (CrafterCellAdapter)Install(grid, "Crafter", 26, 25);
         view.UpdateUIStatusWindow(crafter);
         Require(panel.EquipmentView.Heading.text.Contains("加工設備") && panel.EquipmentView.Heading.text.Contains("待機") &&
-            panel.EquipmentText.Contains("強化後: 入力容量 " + crafter.IngredientCapacityAtLevel(2)), "crafter name operating state and next capacity");
+            panel.EquipmentView.Heading.text.Contains("Lv.1/3"), "crafter name operating state and next capacity");
         var progressRow = view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>(true).Single(row => row.GetComponentsInChildren<Text>(true).Any(text => text.text == "残り時間"));
         Require(!progressRow.gameObject.activeSelf, "idle progress omits zero-second row");
         progressRow.RenderUIByData(new GaugeElementDataApplication("残り時間", 2) { Current = 1, GaugeText = "1 秒" });

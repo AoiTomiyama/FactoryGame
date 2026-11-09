@@ -1,4 +1,4 @@
-# FactoryGame 現行設計図式
+﻿# FactoryGame 現行設計図式
 
 タグ: `現行設計` `クラス図` `スクリプト相関` `設計パターン` `Unity` `再開情報`
 
@@ -30,11 +30,11 @@ ECO-03では同じ残高をCellPlacerへ渡し、[設備設置の支出取引](.
 
 ## 共有スキルと設備能力（PRG-01/02）
 
-能力合成とセル登録時の共有状態接続は [有効能力仕様](../spec/effective-stats.md)、ツリー定義・取得前提・購入取引は [共有スキルツリー仕様](../spec/skill-tree.md) を参照する。GeneratorはMainSceneのSkillTree定義からカタログを作り、共有残高とグリッドの共有効果を `SkillTreeApplication` へ渡す。取得状態と効果を更新して支出を確定し、能力とツリーの変更を通知する。全セルは同じ共有効果を読み、設備ごとのレベルと合成する。
+能力合成とセル登録時の共有状態接続は [有効能力仕様](../spec/effective-stats.md)、ツリー定義・取得前提・購入取引は [共有スキルツリー仕様](../spec/skill-tree.md) を参照する。GeneratorはMainSceneのSkillTree定義からカタログを作り、共有残高とグリッドの共有効果を `SkillTreeApplication` へ渡す。取得状態と効果を更新して支出を確定し、能力とツリーの変更を通知する。PRG-03では既存3系統を5種類のI/IIへ統合し、同種の既設・新設・再有効化セルが共有レベルを読む。
 
 ## 全体構成
 
-ECO-04の[個別強化](../spec/currency-equipment-upgrade.md)では、Generatorが共有残高と価格から`EquipmentUpgradeAdapter`を構成する。Adapterが対象セルの登録・寿命を確認し、Applicationが期待レベルと支出予約を照合する。同じセルのレベルと支出を確定してから能力変更を通知し、在庫・接続・予約・稼働中の数量を保持する。
+PRG-03の[種類別強化](../spec/currency-equipment-upgrade.md)では、通常の購入入口をSkillTreeApplicationへ集約する。Generatorは旧個別購入Adapterを生成せず、セル選択欄は読み取り専用とする。旧個別購入と加算率の入口は取引・能力のEditor回帰用に保持する。取得後も在庫・接続・予約・稼働中の数量を保持する。
 
 <!-- diagram-id: current-architecture-1 -->
 ```mermaid
@@ -46,7 +46,6 @@ flowchart LR
  subgraph Adapter["Adapter: Unityとの接続"]
   Input["Input: PlayerCursor / CameraController"]
   Grid["Grid: Generator / Database / Placer"]
-  Upgrade["Economy: 設備強化のセル接続"]
   Cells["Cells: 保管・採取・搬送・交差 / Crafter / 特異点"]
   Presentation["Transfers: ObjectPool / Animation"]
   UI["UI: View / Provider変換 / Renderer / 行 / 経済パネル"]
@@ -55,7 +54,7 @@ flowchart LR
   Transfer["搬送Coordinator・Operation・Reservation・TransitStore"]
   Craft["CraftingOperation"]
   Read["UI読み取りProvider・データ値"]
-  Progression["Progression: 取得状態・共有能力・設備レベル"]
+  Progression["Progression: スキル取得・種類別共有レベル"]
   Economy["Economy: 共有残高・設置・強化取引・換金予約"]
  end
  subgraph Domain["Domain: Unity非依存の規則"]
@@ -72,9 +71,6 @@ flowchart LR
  SO -. "定義を読む" .-> Cells
  SO -. "アイコン・表示項目" .-> UI
  Input --> Grid
- Grid --> Upgrade
- Upgrade --> Cells
- Upgrade --> Economy
  Grid --> Cells
  Grid --> UI
  Cells --> Economy
@@ -104,7 +100,6 @@ flowchart LR
  end
  UI --> Economy
  UI --> Progression
- UI --> Upgrade
 ```
 
 搬送Applicationは接点の契約を使い、セルの識別・Unity破棄判定はAdapter側が提供する。搬送契約はUnity座標型、演出契約はUniTaskも使う。UI/ApplicationとCrafting Domain/ApplicationはUnity非依存。Unity 6000.3.8f1、Input System 1.18.0、Cinemachine 3.1.4、uGUI 2.0.0、URP 17.3.0は [ProjectVersion](../../ProjectSettings/ProjectVersion.txt) と [manifest](../../Packages/manifest.json)で確認。UniTaskはGit依存、DOTweenはAssets内の既存プラグイン。Test Frameworkは検証境界で、ゲーム実行の入口ではない。
@@ -181,7 +176,7 @@ flowchart LR
 
 ## 基礎ゲームループの統合（ECO-06）
 
-MainSceneの共有残高と初回経路、実際の換金収益による個別強化・全枝I/II取得・新設設備への再投資は[統合仕様](../spec/currency-game-loop.md)を参照する。[EconomyLoopVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyLoopVerifierEditor.cs)がPointer操作入口と経済パネルを通して能力と収支を確認し、既存の搬送・数量・抽出・加工・UI検証とWindowsビルドへ接続する。
+MainSceneの共有残高と初回経路、実際の換金収益による全5種類のI/II取得・新設設備への再投資は[統合仕様](../spec/currency-game-loop.md)を参照する。[EconomyLoopVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyLoopVerifierEditor.cs)がPointer操作入口と経済パネルを通して能力と収支を確認し、既存の搬送・数量・抽出・加工・UI検証とWindowsビルドへ接続する。
 
 ## 図と説明の正本
 
@@ -197,4 +192,4 @@ MainSceneの共有残高と初回経路、実際の換金収益による個別�
 
 UIS-05では既存のSelectButtonBuilderを左の配置ページへ移し、レシピ・スキルと直接タブで切り替える。残高は上部に常時表示し、設備強化は右側のセル情報へ統合する。採取設備のサブメニューは同じセル定義とPlacerを使う。UI上で離した配置ドラッグは取消し、選択・表示切替では支払を行わない。
 
-UIS-06ではMainSceneのHUDと操作帯を保存済みPrefabへ移し、固定枠・タブ・操作ボタンは起動時に生成しない。動的一覧は行Prefabを複製し、設備強化の読取と購入はEquipmentDetailsPresenterAdapter、表示はEquipmentDetailsViewAdapterが担当する。旧Canvas・UITab資産と移設・復元経路の整理、Editor編集範囲と検証は[HUDのPrefab仕様](../spec/currency-loop-ui.md#hudのprefabと編集範囲uis-06)を参照する。
+UIS-06ではMainSceneのHUDと操作帯を保存済みPrefabへ移し、固定枠・タブ・操作ボタンは起動時に生成しない。動的一覧は行Prefabを複製し、セル状態の読み取り専用表示はEquipmentDetailsPresenterAdapter、共用詳細枠はEquipmentDetailsViewAdapterが担当する。種類別強化はスキルノードから購入する。旧Canvas・UITab資産と移設・復元経路の整理、Editor編集範囲と検証は[HUDのPrefab仕様](../spec/currency-loop-ui.md#hudのprefabと編集範囲uis-06)を参照する。

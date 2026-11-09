@@ -5,7 +5,7 @@
 
 ## 表示と操作
 
-[GridFieldGeneratorAdapter](../../Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs)が一プレイの共有残高・スキル・設備強化を[EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs)へ渡す。上部に残高などの常時表示枠、左側に「配置」「レシピ」「スキル」の直接タブ、右側に選択セルの状態と設備強化、または選択スキルの詳細と適用操作、下部にUIS-04の操作帯を置く。同じタブの再押下または内容の「閉じる」で左ページを閉じる。他のタブは1回で対象ページを開く。開閉後も表示ページ・選択設備・配置方向を保持する。
+[GridFieldGeneratorAdapter](../../Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs)が一プレイの共有残高・スキル・設備強化を[EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs)へ渡す。上部に残高などの常時表示枠、左側に「配置」「レシピ」「スキル」の直接タブ、右側に選択セルの状態、または選択スキルの詳細と適用操作、下部にUIS-04の操作帯を置く。同じタブの再押下または内容の「閉じる」で左ページを閉じる。他のタブは1回で対象ページを開く。開閉後も表示ページ・選択設備・配置方向を保持する。
 
 配置ページは[SelectButtonBuilderAdapter](../../Assets/Scripts/UI/Adapter/SelectButtonBuilderAdapter.cs)が既存Prefabとセル定義から生成する。撤去・保管・加工・搬送を直接選択し、採取設備は既存サブメニューから木材・石材を選ぶ。固定資源と特異点は候補に含めない。単価・範囲費用・確定結果を表示し、選択・タブ切替では支払を行わない。各ページはスクロールでき、書体は日本語を含む同じOSフォント、本文・操作は16、主な見出しは18、通知は14を使う。
 
@@ -19,10 +19,10 @@ UI上で始めたクリックは配置確定へ進めず、フィールドから
 | --- | --- |
 | 通貨 | 確定した残高を表示する。使用可能額・支出予約・換金待ちと直前の換金通知は内部管理とし、HUDへ表示しない。 |
 | 設置・撤去 | 配置タブはセル選択専用とし、選択設備と単価を下部へ表示し、ドラッグ中は範囲個数・総費用、残高不足と既存セルとの重なりはUIへ表示し、それ以外のシステム上の失敗はConsoleへ記録する。残高不足では途中停止を予告する。撤去は無料・返金なしを表示する。 |
-| 個別強化 | 設備を右クリックして選択し、右側のセル情報に設備名、レベル、在庫・加工や停止の状態を表示し、その下に現在と強化後の能力、費用と可否を置く。ボタンから共有Upgradesへ購入を渡す。最大レベルでは費用を「—」と表示する。 |
+| 種類別強化 | セル状態欄は種類名と共有レベル・在庫・稼働状態の読み取り専用とする。強化はスキルの種類別I/IIから適用し、同じ種類の既設・新設セルすべてへ反映する。 |
 | スキル | 前提関係を樹形図で示す。ノードには名称を置き、未解放は暗いグレー、解放済みの残高不足は通常色、選択中は白枠、適用済みは記号で示す。押すと右側へ効果と価格付きの「適用する」ボタンを表示する。 |
 
-強化とスキルの適用ボタンは、それぞれApplicationのCanPurchaseがSuccessの場合に有効になる。スキルのノードは全状態で選択でき、選択だけでは支払わない。前提不足・残高不足は右側へ理由を表示し、適用済みは操作ボタンの状態とノードの記号で示す。購入時はApplicationが対象と状態を再確認し、残高不足と配置の重なりはプレイヤーが修正できる条件としてUIに表示する。生成・初期化のエラーや対象の消失など、システム上の失敗はUnity Consoleへ日本語の警告として記録する。前提不足や残高不足などの事前の操作条件は、選択欄とボタンの状態へ反映する。支出予約中の使用可能額も判定へ反映される。能力の値はセルの有効値を読み、計算をUIへ複製しない。交差設備は上流からの搬送量を中継する。
+スキルの適用ボタンは、それぞれApplicationのCanPurchaseがSuccessの場合に有効になる。スキルのノードは全状態で選択でき、選択だけでは支払わない。前提不足・残高不足は右側へ理由を表示し、適用済みは操作ボタンの状態とノードの記号で示す。購入時はApplicationが対象と状態を再確認し、残高不足と配置の重なりはプレイヤーが修正できる条件としてUIに表示する。生成・初期化のエラーや対象の消失など、システム上の失敗はUnity Consoleへ日本語の警告として記録する。前提不足や残高不足などの事前の操作条件は、選択欄とボタンの状態へ反映する。支出予約中の使用可能額も判定へ反映される。能力の値はセルの有効値を読み、計算をUIへ複製しない。交差設備は上流からの搬送量を中継する。
 
 既存の設置見積り用OnGUIは配置ページへ統合した。UIRaycasterはEventSystemの全Canvasを調べ、追加したパネル上の操作をフィールド入力から遮る。
 
@@ -36,7 +36,7 @@ UI上で始めたクリックは配置確定へ進めず、フィールドから
 
 ## 検証
 
-[EconomyUIVerifierEditor.Run](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs)がMainSceneで、残高と予約額、換金の予約・取消・確定、専用Reader、設備選択・強化・上限、支出予約による購入不可、実Buttonのスキル取得と前提解除、選択・非表示・無効化・削除時の購読解除、UIの入力遮断を検証する。ECO-07では既存配置ボタンと採取サブメニューによる選択、ページ切替時の購読数、スキル連打時の支払一回性、UIクリックとドラッグ終了による誤配置防止も確認する。1600×900・1366×768はCanvasScalerの高さ基準720に換算した論理サイズで、各ページの文字高さ・ボタン幅・操作領域・スクロール領域の画面内配置を検査する。描画の目視確認とは区別する。再生前にEditorの音声を消音する。
+[EconomyUIVerifierEditor.Run](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs)がMainSceneで、残高と予約額、換金の予約・取消・確定、専用Reader、設備選択・種類別I/II・上限、支出予約による購入不可、実Buttonのスキル取得と前提解除、選択・非表示・無効化・削除時の購読解除、UIの入力遮断を検証する。ECO-07では既存配置ボタンと採取サブメニューによる選択、ページ切替時の購読数、スキル連打時の支払一回性、UIクリックとドラッグ終了による誤配置防止も確認する。1600×900・1366×768はCanvasScalerの高さ基準720に換算した論理サイズで、各ページの文字高さ・ボタン幅・操作領域・スクロール領域の画面内配置を検査する。描画の目視確認とは区別する。再生前にEditorの音声を消音する。
 
 実行条件・対象コード・結果・ログはローカルの`docs/verification/eco05-ui.json`、統合UIへの変更分は`docs/verification/eco07-ui.json`へ集約する。既存UIと設置の回帰を直接依存する検証として実行する。Windowsビルドとゲームループ全体の統合検証はECO-06の記録を参照する。
 
@@ -68,9 +68,11 @@ UI上で始めたクリックは配置確定へ進めず、フィールドから
 
 EconomyPanelAdapterは共有状態の配線・購読、タブ切替、配置・スキル操作を管理する。レシピ参照・常時表示・設備強化の表示はそれぞれのViewへ委譲する。購入と支払の判定は既存ApplicationとEquipmentUpgradeAdapterを使う。
 
-[EquipmentDetailsViewAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsViewAdapter.cs)はPrefab内の見出し・比較・結果・購入ボタンを表示する。[EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs)が選択セルの読取と購入を担当する。セルの能力はレベルを指定する読み取りメソッドを通じて同じEffectiveStatsRulesDomainから計算する。比較表示でセルの実レベルや在庫を書き換えない。強化対象外のセルでは強化欄を隠す。CellStatusViewAdapterは既存の選択・Provider・行プールを保ち、[HudStatusProviderAdapter](../../Assets/Scripts/UI/Adapter/HudStatusProviderAdapter.cs)と[HudStatusRowAdapter](../../Assets/Scripts/UI/Adapter/HudStatusRowAdapter.cs)で在庫と進捗を共通書体の行へ変換する。セル名は見出し、レベルは強化欄へ一度ずつ表示する。座標は選択マーカーで示す。レベルと能力比較、費用、適用できない理由を表示する。「強化できます」と成功通知はボタン・レベル・能力の更新へまとめる。予約数と常時の「稼働中」表示は省き、現在の在庫と加工・停止状態を示す。待機中の残り時間0秒と最大レベル時の空の費用欄を省き、進捗行は加工開始時に再表示する。右側の「閉じる」は選択と購読を解除する。
+[EquipmentDetailsViewAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsViewAdapter.cs)は保存済みの右側詳細枠を保持する。[EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs)はセルの種類名・共有レベルと加工や停止の状態を読み取り専用で表示する。セル選択時は購入欄を隠し、スキル選択時だけ同じ欄で種類別レベルと倍率・適用ボタンを表示する。個別購入経路は通常UIから外す。スキルの効果・価格と検証は[種類別スキル仕様](skill-tree.md)に従う。樹形図の枝は読みやすい幅を保ち、樹形図内の横ドラッグとスクロールバーで移動する。
 
-EconomyUIVerifierEditor.Runは、既存の購入・配置・入力遮断に加え、直接タブ、開閉後の設備・配置方向の保持、強化前後の能力、右側の実ボタンによる購入、在庫保持、対象外セルの状態表示を検査する。24レシピ・各6材料、常時表示への12項目追加と順序変更を代表例とし、1600×900・1366×768に相当する論理サイズで文字の収容・左右の非重複・レシピ末尾と強化ボタンへの到達を確認する。常時表示は残高と追加12項目を全て枠内に収め、項目間の非重複とホイール操作前後の位置保持を検査する。RunRenderedは同じ検査に加えて実HUDを画像へ書き出す。実行条件・結果・画像・対象差分はローカルの`docs/verification/uis05-ui.json`へ集約する。
+CellStatusViewAdapterは既存の選択・Provider・行プールを保ち、HudStatusProviderAdapterとHudStatusRowAdapterで在庫と進捗を表示する。内部予約値、座標、重複説明、待機中の残り時間0秒を省く。右側の「閉じる」は選択と購読を解除する。
+
+EconomyUIVerifierEditor.Runは、既存の購入・配置・入力遮断に加え、直接タブ、開閉後の設備・配置方向の保持、種類別レベル、スキル詳細の実ボタンによる購入、在庫保持、対象外セルの状態表示を検査する。24レシピ・各6材料、常時表示への12項目追加と順序変更を代表例とし、1600×900・1366×768に相当する論理サイズで文字の収容・左右の非重複・レシピ末尾と強化ボタンへの到達を確認する。常時表示は残高と追加12項目を全て枠内に収め、項目間の非重複とホイール操作前後の位置保持を検査する。RunRenderedは同じ検査に加えて実HUDを画像へ書き出す。実行条件・結果・画像・対象差分はローカルの`docs/verification/uis05-ui.json`へ集約する。
 
 ## HUDのPrefabと編集範囲（UIS-06）
 

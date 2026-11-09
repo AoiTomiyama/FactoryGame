@@ -117,7 +117,7 @@ flowchart LR
   SummaryView["PersistentSummaryViewAdapter 常時表示と項目順"]
   RecipeView["RecipeReferenceViewAdapter 参照専用一覧"]
   RecipeDefinitions["RecipeDatabaseDefinition / ResourceDefinition"]
-  EquipmentPresenter["EquipmentDetailsPresenterAdapter 状態読取と購入"]
+  EquipmentPresenter["EquipmentDetailsPresenterAdapter セル状態の読取"]
   RecipeRow["RecipeResourceRowAdapter / Recipe.prefab"]
   EquipmentView["EquipmentDetailsViewAdapter 保存済み表示部品"]
   HudProvider["HudStatusProviderAdapter 状態行の用途ラベル"]
@@ -125,8 +125,8 @@ flowchart LR
   HudStyle["HudLayoutAdapter 固定枠・行参照と既存2色"]
   Wallet["CurrencyWalletApplication 共有残高"]
   SkillTreeView["SkillTreeViewAdapter 樹形図と選択"]
-  Skills["SkillTreeApplication 取得状態と前提"]
-  Upgrade["EquipmentUpgradeAdapter 強化対象と取引"]
+  TypeLevels["SharedStatEffectsApplication 種類別レベル"]
+  Skills["SkillTreeApplication 種類別I/IIの取得"]
   SingularityReader["特異点専用Reader / CreateCustom"]
   Renderer["UIElementRendererAdapter"]
   Provider["CellStatusDataProviderApplication.ReadData"]
@@ -166,7 +166,6 @@ flowchart LR
  EconomyPanel --> Skills
  EconomyPanel --> EquipmentPresenter
  EquipmentPresenter --> EquipmentView
- EquipmentPresenter --> Upgrade
  EquipmentPresenter --> Cells
  EconomyPanel --> SummaryView
  EconomyPanel --> RecipeView
@@ -195,15 +194,19 @@ flowchart LR
  SkillTreeView --> HudStyle
  EconomyPanel --> EquipmentView
  EconomyPanel --> Operation
+ Skills --> TypeLevels
+ Grid --> TypeLevels
+ Cells --> TypeLevels
+ TypeLevels -. "Changed" .-> Cells
 ```
 
 点線は左から右へのイベント／値の授受、実線は利用側→依存先。InputActionはOnEnableで有効化・購読、OnDisableで解除。左ボタン開始→PointerBegin、保持中Update→PointerDrag、終了→UI外ならPointerEnd、UI上ならプレビュー取消、右操作→TransferDataToUI。回転操作はPlacerの向きを変える。選択ボタンはBuilderがDBから生成し通常ボタンにSetSelectedCellTypeを渡す。SubMenuUIBuilderは同じセル定義から採取設備の候補を生成し、選択をPlacerへ渡す。接続イベントは隣接参照を更新してから通知し、UIのStatusChangedとは別系統である。
 
 ## 配置・成長の統合UIと特異点表示（ECO-05・ECO-07）
 
-GeneratorがEconomyPanelAdapterを構成し、共有残高・スキル・設備強化を渡す。UIS-05では左側の直接タブを配置・レシピ・スキルへ切り替え、常時表示をPersistentSummaryViewAdapter、レシピ参照をRecipeReferenceViewAdapter、右側の強化表示をEquipmentDetailsViewAdapter、状態読取と購入をEquipmentDetailsPresenterAdapterへ委譲する。購入可否は既存のCanPurchaseを表示し、購入命令を既存Applicationへ渡す。設備の能力比較はセルのレベル指定読み取りを使い、実レベルと在庫を保つ。常時表示は残高と追加項目を横並び・折返しで全て表示し、左右パネルが枠の高さへ追従する。
+GeneratorがEconomyPanelAdapterを構成し、共有残高と種類別スキルを渡す。UIS-05では左側の直接タブを配置・レシピ・スキルへ切り替え、常時表示をPersistentSummaryViewAdapter、レシピ参照をRecipeReferenceViewAdapter、右側の共用詳細枠をEquipmentDetailsViewAdapter、セル状態の読取をEquipmentDetailsPresenterAdapterへ委譲する。購入可否は既存のCanPurchaseを表示し、購入命令を既存Applicationへ渡す。セル状態は種類名と共有レベル・在庫を表示し、種類別強化の購入はスキル選択時だけ行う。常時表示は残高と追加項目を横並び・折返しで全て表示し、左右パネルが枠の高さへ追従する。
 
-スキルはSkillTreeViewAdapterが既存行Prefabを樹形図へ並べ、前提を接続線、状態を明暗・選択枠・適用済み記号で示す。ノード選択を受けたEconomyPanelAdapterは設備選択を解除し、保存済み右側詳細枠へ効果と適用ボタンを表示する。適用はSkillTreeApplicationへ渡し、ノード選択と支払を分離する。
+スキルはSkillTreeViewAdapterが既存行Prefabを種類別の樹形図へ並べ、横ドラッグとスクロールバーで枝へ到達できるようにする。前提を接続線、状態を明暗・選択枠・適用済み記号で示す。ノード選択を受けたEconomyPanelAdapterは設備選択を解除し、保存済み右側詳細枠へ効果と適用ボタンを表示する。適用はSkillTreeApplicationへ渡し、ノード選択と支払を分離する。
 
 CellStatusViewAdapterは選択・Provider・行プールを管理する。統合HUDではHudStatusProviderAdapterが見出しとの重複を省き、在庫・進捗の用途ラベルを付け、HudStatusRowAdapterが共通書体で描画する。行と強化欄は同じ右側スクロール内に置く。UIS-06ではFactoryHudとOperationBarのPrefabへ固定枠を保存し、変動する一覧だけを行Prefabから生成する。EconomyPanelAdapterの破棄時は購読と購入リスナーを解除して保存済みHUDを非表示にする。配置の基準と参照はHudLayoutAdapterが保持する。
 

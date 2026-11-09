@@ -1,10 +1,11 @@
-using System.Threading;
+﻿using System.Threading;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
 
 public class ExportConveyorCellAdapter : ConveyorCellAdapter
 {
+    public override CellTypeDomain ProgressionType => CellTypeDomain.ExportConveyor;
     private IExportableApplication _backwardCell;
     private CellBaseAdapter _backwardCellBase;
     private bool _takeLoopStarted;

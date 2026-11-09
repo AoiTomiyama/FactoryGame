@@ -6,19 +6,19 @@
 
 確認ファイル数: 116（UIS-05の表示支援6件、未コミットServiceLocatorを1件含む）。
 
-## 個別強化（ECO-04）
+## 旧個別取引の回帰用基盤（ECO-04）
 
 | ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
 | --- | --- | --- | --- |
-| [EquipmentUpgradeApplication](../../Assets/Scripts/Economy/Application/EquipmentUpgradeApplication.cs)<br>EquipmentUpgradeApplication, IEquipmentUpgradeTargetApplication, EquipmentUpgradeResultApplication | 期待レベル・価格・対象を照合し、レベルと支出の確定後に通知 | CurrencyWalletApplication, CurrencyPriceCatalogDomain, EffectiveStatsRulesDomain | 標準C# |
-| [EquipmentUpgradeAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentUpgradeAdapter.cs) | セルの実種別・生存・登録参照と固定座標を購入契約へ接続 | GridFieldDatabaseAdapter, CellBaseAdapter, EquipmentUpgradeApplication | Unityセル参照 |
+| [EquipmentUpgradeApplication](../../Assets/Scripts/Economy/Application/EquipmentUpgradeApplication.cs)<br>EquipmentUpgradeApplication, IEquipmentUpgradeTargetApplication, EquipmentUpgradeResultApplication | 旧個別購入の取引境界を検証する低水準入口。通常UIは種類別スキルへ統合 | CurrencyWalletApplication, CurrencyPriceCatalogDomain, EffectiveStatsRulesDomain | 標準C# |
+| [EquipmentUpgradeAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentUpgradeAdapter.cs) | 旧個別購入のEditor回帰でセルを取引契約へ接続 | GridFieldDatabaseAdapter, CellBaseAdapter, EquipmentUpgradeApplication | Unityセル参照 |
 | [EquipmentUpgradeVerifierEditor](../../Assets/Scripts/Economy/Editor/EquipmentUpgradeVerifierEditor.cs) | 取引境界・再入・削除競合、全7種と交差予約、購入経由の稼働中状態維持の検証 | Economy, EffectiveStatsVerifierEditor, Grid, Cells | UnityEditor, UnityEngine |
 
 ## 共有スキル（PRG-02）
 
 | ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
 | --- | --- | --- | --- |
-| [SkillTreeCatalogDomain](../../Assets/Scripts/Progression/Domain/SkillTreeCatalogDomain.cs)<br>SkillTreeCatalogDomain, SkillNodeDomain | 不変ノード、固定uidと前提・価格・効果上限の定義検証 | EffectiveStatsRulesDomain, StatBranchDomain | 標準C# |
+| [SkillTreeCatalogDomain](../../Assets/Scripts/Progression/Domain/SkillTreeCatalogDomain.cs)<br>SkillTreeCatalogDomain, SkillNodeDomain | 不変ノード、固定uidと前提・価格・種類別段階・効果上限の定義検証 | EffectiveStatsRulesDomain, StatBranchDomain | 標準C# |
 | [SkillTreeApplication](../../Assets/Scripts/Progression/Application/SkillTreeApplication.cs)<br>SkillTreeApplication, SkillPurchaseResultApplication | 取得状態、購入可否、支出と共有効果の確定・通知 | SkillTreeCatalogDomain, CurrencyWalletApplication, CurrencyTransactionApplication, SharedStatEffectsApplication | 標準C# |
 | [SkillTreeDefinition](../../Assets/Scripts/Progression/Definitions/SkillTreeDefinition.cs) | 編集設定から不変カタログを生成 | SkillTreeCatalogDomain, SkillNodeDomain, StatBranchDomain | UnityEngine |
 | [SkillTreeVerifierEditor](../../Assets/Scripts/Progression/Editor/SkillTreeVerifierEditor.cs) | 定義・取引・再入と全設備の既設・再有効化・新設のI/II効果検証 | Progression, Economy, Grid, EffectiveStatsVerifierEditor | UnityEditor, UnityEngine, UniTask |
@@ -29,14 +29,14 @@
 | --- | --- | --- | --- |
 | [EffectiveStatsRulesDomain](../../Assets/Scripts/Progression/Domain/EffectiveStatsRulesDomain.cs)<br>EffectiveStatsRulesDomain, StatBranchDomain | 能力合成、切り捨て、範囲と最大値検証 | 標準C# | 標準C# |
 | [EquipmentLevelApplication](../../Assets/Scripts/Progression/Application/EquipmentLevelApplication.cs) | 設備ごとのレベルと増加制約 | EffectiveStatsRulesDomain | 標準C# |
-| [SharedStatEffectsApplication](../../Assets/Scripts/Progression/Application/SharedStatEffectsApplication.cs) | 一プレイの枝別加算率と変更通知 | EffectiveStatsRulesDomain, StatBranchDomain | 標準C# |
+| [SharedStatEffectsApplication](../../Assets/Scripts/Progression/Application/SharedStatEffectsApplication.cs) | 一プレイの種類別共有レベルと変更通知、旧計算回帰用の加算率 | EffectiveStatsRulesDomain, StatBranchDomain | 標準C# |
 | [EffectiveStatsVerifierEditor](../../Assets/Scripts/Progression/Editor/EffectiveStatsVerifierEditor.cs) | 基礎設定一致、計算境界、稼働中変更、予約維持と新設への適用検証 | Progression, Cells, Crafting, Grid, ResourceReservationVerifierEditor | UnityEditor, UnityEngine, UniTask |
 
 ## ランタイム・定義
 
 | ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
 | --- | --- | --- | --- |
-| [CellBaseAdapter](../../Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs)<br>CellBaseAdapter | 座標・モデル・初期化入口、搬送接点、個別レベルと共有能力の接続 | IResourceTransferEndpointApplication, EquipmentLevelApplication, SharedStatEffectsApplication, EffectiveStatsRulesDomain | UnityEngine |
+| [CellBaseAdapter](../../Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs)<br>CellBaseAdapter | 座標・モデル・初期化入口、搬送接点、種類別共有レベルの読取と能力の接続 | IResourceTransferEndpointApplication, EquipmentLevelApplication, SharedStatEffectsApplication, EffectiveStatsRulesDomain | UnityEngine |
 | [ConnectableCellBaseAdapter](../../Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs)<br>ConnectableCellBaseAdapter | 4方向の隣接参照と接続通知 | CellBaseAdapter, DirectionsDomain, EmptyCellAdapter, GridFieldDatabaseAdapter | UnityEngine |
 | [ConveyorCellAdapter](../../Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs)<br>ConveyorCellAdapter, TransferStatus | 一件のID受付・前方搬送・取消と終了 | CellBaseAdapter, ConnectableCellBaseAdapter, DirectionsDomain, IContainableApplication, IResourceReusableApplication, ResourceAnimationResultApplication, ResourceItemObjectPoolAdapter, ResourceTransferCoordinatorApplication, ResourceTransferOperationApplication, ResourceTypeDomain | Cysharp.Threading.Tasks, UnityEngine |
 | [CrossingCellAdapter](../../Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs)<br>CrossingCellAdapter, PendingTransfer | 方向別の下流予約・ID引継ぎ・保留搬送 | CellBaseAdapter, ConnectableCellBaseAdapter, IContainableApplication, IResourceReusableApplication, ResourceAnimationResultApplication, ResourceItemObjectPoolAdapter, ResourceReservationApplication, ResourceTransferCoordinatorApplication, ResourceTransferOperationApplication, ResourceTypeDomain | Cysharp.Threading.Tasks, UnityEngine |
@@ -176,8 +176,8 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 
 | ファイル | 役割 | 主な依存 |
 | --- | --- | --- |
-| [SkillTreeViewAdapter](../../Assets/Scripts/UI/Adapter/SkillTreeViewAdapter.cs) | 既存行Prefabを使った樹形図、前提の接続線、選択・適用済み表示 | HudLayoutAdapter, SkillTreeApplication, uGUI |
-| [EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs) | 共有状態の配線・購読、直接タブ、配置・スキル操作、各Viewの寿命 | CurrencyWalletApplication, SkillTreeApplication, EquipmentUpgradeAdapter, CellStatusViewAdapter, uGUI |
+| [SkillTreeViewAdapter](../../Assets/Scripts/UI/Adapter/SkillTreeViewAdapter.cs) | 既存行Prefabを使った横移動可能な種類別樹形図、前提の接続線、選択・適用済み表示 | HudLayoutAdapter, SkillTreeApplication, uGUI |
+| [EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs) | 共有状態の配線・購読、直接タブ、配置・スキル操作、各Viewの寿命 | CurrencyWalletApplication, SkillTreeApplication, CellStatusViewAdapter, uGUI |
 | [SingularityProviderDefinition](../../Assets/Scripts/UI/Definitions/SingularityProviderDefinition.cs) | 特異点の専用Readerへ渡すラベル | ProviderBaseDefinition |
 | [EconomyUIVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs) | MainSceneの経済表示・購入可否・購読寿命・レイアウト検証、既存UIと設置の検証入口 | EconomyPanelAdapter, UIStatusVerifierEditor, EquipmentPlacementVerifierEditor, UnityEditor, UniTask |
 | [OperationBarAdapter](../../Assets/Scripts/UI/Adapter/OperationBarAdapter.cs) | 下部の操作案内と回転・視点切替ボタン、保存済みPrefabの参照と購入リスナーの寿命 | PlayerCursorBehaviourAdapter, CameraControllerAdapter, uGUI |
@@ -198,5 +198,5 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | --- | --- |
 | [HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs) | FactoryHud内の固定枠・3タブ・行Prefab参照、既存の通常色・選択色の共用、左ページのスライドと入力状態、保存した配置を基準にする幅・上余白の追従 |
 | [RecipeResourceRowAdapter](../../Assets/Scripts/UI/Adapter/RecipeResourceRowAdapter.cs) | Recipe.prefabの資源アイコン・名称・数量の表示 |
-| [EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs) | 選択設備の状態読取、強化見積り、購入とボタン購読の解除 |
+| [EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs) | 選択設備の読み取り専用表示、スキル共用詳細の適用リスナー解除 |
 | [HudPrefabVerifierEditor](../../Assets/Scripts/UI/Editor/HudPrefabVerifierEditor.cs) | MainSceneとPrefabの保存参照、欠損、Editor編集保持、再構成時の固定部品保持を既存UI回帰へ追加 |

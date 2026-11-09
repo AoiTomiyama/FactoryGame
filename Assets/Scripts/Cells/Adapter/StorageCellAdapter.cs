@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System;
 
 public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainableApplication, IExportableApplication, IDataProvidableApplication
@@ -9,6 +9,7 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
 
     public int Capacity => CapacityAtLevel(EquipmentLevel);
     public int CapacityAtLevel(int level) => EffectiveStatAtLevel(capacity, StatBranchDomain.Storage, level);
+    public override CellTypeDomain ProgressionType => CellTypeDomain.Storage;
     public override bool SupportsProgression => true;
     protected override void ValidateBaseStats() => EffectiveStatsRulesDomain.ValidateBase(capacity);
     protected override void OnStatsChanged() => UpdateUI();

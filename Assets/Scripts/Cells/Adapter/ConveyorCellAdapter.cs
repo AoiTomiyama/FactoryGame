@@ -1,4 +1,4 @@
-using System.Threading;
+﻿using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -19,6 +19,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     private ResourceTypeDomain _incomingReservationType;
     public int TransferAmount => TransferAmountAtLevel(EquipmentLevel);
     public int TransferAmountAtLevel(int level) => EffectiveStatAtLevel(transferAmount, StatBranchDomain.Transfer, level);
+    public override CellTypeDomain ProgressionType => CellTypeDomain.Conveyor;
     public override bool SupportsProgression => true;
     protected override void ValidateBaseStats() => EffectiveStatsRulesDomain.ValidateBase(transferAmount);
     protected bool HasResource { get; set; }

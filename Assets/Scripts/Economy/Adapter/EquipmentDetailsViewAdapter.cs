@@ -22,6 +22,4 @@ public sealed class EquipmentDetailsViewAdapter
         foreach (var text in new[] { Heading, _equipment, _feedback })
             text.GetComponent<LayoutElement>().preferredHeight = Mathf.Max(text.GetComponent<LayoutElement>().minHeight, text.preferredHeight);
     }
-    public static string UpgradeReason(EquipmentUpgradeResultApplication result)
-        => EquipmentDetailsPresenterAdapter.UpgradeReason(result);
 }

@@ -1,10 +1,10 @@
-# セルと配置のクラス関係
+﻿# セルと配置のクラス関係
 
 タグ: `現行設計` `クラス図` `セル` `配置` `Unity配線`
 
 対象版・凡例は [現行設計索引](current-architecture.md)。ここでは管理対象状態と借用参照を区別する。GameObjectの寿命はUnity、配置時の生成・破棄はCellPlacerが制御する。
 
-設備の能力は[有効能力の契約](../spec/effective-stats.md)に従う。`GridFieldDatabaseAdapter.StatEffects` が共有効果を所有し、`SaveCell` が `CellBaseAdapter.ConfigureProgression` へ渡す。抽出・コンベア・保管・加工セルは `EffectiveStatsRulesDomain` の計算値を読み、個別レベル変更と共有通知で表示を更新する。交差セルは受領した固定数量を中継する。
+設備の能力は[有効能力の契約](../spec/effective-stats.md)に従う。`GridFieldDatabaseAdapter.StatEffects` が共有効果を所有し、`SaveCell` が `CellBaseAdapter.ConfigureProgression` へ渡す。抽出・コンベア・保管・加工セルは `EffectiveStatsRulesDomain` の計算値を読み、ProgressionTypeで種類別の共有レベルを読み、取得後の共有通知で表示を更新する。交差セルは受領した固定数量を中継する。
 
 ## セル型と能力契約
 

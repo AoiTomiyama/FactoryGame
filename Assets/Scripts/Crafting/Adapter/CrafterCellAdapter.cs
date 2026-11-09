@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -37,6 +37,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
 
     public int ExporterCapacity => ExporterCapacityAtLevel(EquipmentLevel);
     public int ExporterCapacityAtLevel(int level) => EffectiveStatAtLevel(exporterCapacity, StatBranchDomain.Storage, level);
+    public override CellTypeDomain ProgressionType => CellTypeDomain.Crafter;
     public override bool SupportsProgression => true;
     protected override void ValidateBaseStats()
     {

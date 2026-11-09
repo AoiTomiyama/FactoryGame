@@ -333,7 +333,7 @@
           ]
         },
         "Progression": {
-          "description": "一プレイの取得状態と枝別の共有能力、設備ごとのレベルを保持します。スキル購入では通貨の支出を予約し、取得と効果を更新して支出を確定します。全セルは共通の能力状態を参照し、新設セルにも現在の効果が及びます。",
+          "description": "スキル取得と種類別の共有レベルを保持します。5種類のI/IIで既設・新設・再有効化した同種セルをまとめて強化し、既存の在庫・予約と実行中の数量を保持します。通常プレイの購入入口をSkillTreeApplicationへ集約します。",
           "references": [
             {
               "path": "Assets/Scripts/Progression/Application/SkillTreeApplication.cs"
@@ -354,17 +354,6 @@
             },
             {
               "path": "Assets/Scripts/Progression/Domain/SkillTreeCatalogDomain.cs"
-            }
-          ]
-        },
-        "Upgrade": {
-          "description": "Generatorが共有残高と価格から生成する個別強化の接続入口です。セルの実種別、生存と有効状態、固定座標と登録参照を購入処理へ渡し、レベル更新と支出の確定後に能力変更を通知します。",
-          "references": [
-            {
-              "path": "Assets/Scripts/Economy/Adapter/EquipmentUpgradeAdapter.cs"
-            },
-            {
-              "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs"
             }
           ]
         }
@@ -390,8 +379,7 @@
           "Editor": "external",
           "Economy": "middle",
           "Progression": "middle",
-          "Stats": "foundation",
-          "Upgrade": "surface"
+          "Stats": "foundation"
         }
       },
       "number": "1"
@@ -1986,7 +1974,7 @@
           ]
         },
         "EconomyPanel": {
-          "description": "共有状態の購読、タブ切替、各Viewの寿命と操作を配線します。配置タブの開閉からCellPlacerの設置許可と下部操作帯の表示を同期し、選択セル・予定費用・確定結果を下部へ渡します。スキル選択は右側詳細へ表示し、適用を既存Applicationへ渡します。",
+          "description": "共有残高・種類別スキル・選択セルと各Viewの寿命を接続します。セル選択は読み取り専用、スキル選択は対象種類のレベルと倍率・価格・適用ボタンを表示します。",
           "references": [
             {
               "path": "Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs",
@@ -2004,20 +1992,11 @@
           ]
         },
         "Skills": {
-          "description": "固定uidの前提条件と取得状態、共有能力の加算率を管理します。経済パネルはCanPurchaseの結果から取得可否と理由を表示し、ボタン操作を同じApplicationのPurchaseへ渡します。",
+          "description": "基礎研究と5種類のI/IIの取得状態・前提・購入を管理します。旧3系統の共有率を種類別レベルへ統合し、同種全体のレベルと支出を確定してから能力とツリーを通知します。",
           "references": [
             {
               "path": "Assets/Scripts/Progression/Application/SkillTreeApplication.cs",
               "symbol": "SkillTreeApplication"
-            }
-          ]
-        },
-        "Upgrade": {
-          "description": "選択セルの生存、登録、座標と設備種別を購入Applicationへ接続します。経済パネルは現在レベルと次の強化費、購入可否を読み、操作時に再確認を伴う購入を要求します。",
-          "references": [
-            {
-              "path": "Assets/Scripts/Economy/Adapter/EquipmentUpgradeAdapter.cs",
-              "symbol": "EquipmentUpgradeAdapter"
             }
           ]
         },
@@ -2098,7 +2077,7 @@
           ]
         },
         "EquipmentPresenter": {
-          "description": "選択設備の種類・加工や停止の状態、レベル、能力比較、費用を表示し、購入を既存Adapterへ渡します。座標・レベルの重複と成功通知を省きます。残高不足はUIへ、対象の消失などシステム上の失敗はConsoleへ記録します。",
+          "description": "選択セルの種類名・共有レベル・加工や停止状態を読み取り専用で表示します。セル選択時の個別購入を外し、保存済みの詳細欄と適用リスナーをスキル表示へ共用します。",
           "references": [
             {
               "path": "Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs",
@@ -2125,11 +2104,24 @@
           ]
         },
         "SkillTreeView": {
-          "description": "既存のスキル行Prefabを前提関係の樹形図へ配置し、接続線・明暗・選択枠・適用済み記号を描画します。ノード選択をEconomyPanelへ渡し、右側詳細の適用操作が既存Applicationへ購入を要求します。",
+          "description": "既存行Prefabで種類別の樹形図を描き、横ドラッグとスクロールバーで枝へ到達させます。ノード選択を通知し、未解放のグレー、選択枠、適用済み記号を描画します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/SkillTreeViewAdapter.cs",
               "symbol": "SkillTreeViewAdapter"
+            }
+          ]
+        },
+        "TypeLevels": {
+          "description": "グリッドが一プレイの種類別レベルを所有し、セル登録時に既設・新設セルへ同じ参照を渡します。スキル取得は種類別レベルと支出を確定した後に通知し、在庫・予約・処理中の固定数量を保ちます。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Progression/Application/SharedStatEffectsApplication.cs",
+              "symbol": "GetTypeLevel"
+            },
+            {
+              "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
+              "symbol": "EquipmentLevel"
             }
           ]
         }
@@ -2161,7 +2153,6 @@
           "EconomyPanel": "middle",
           "Wallet": "middle",
           "Skills": "middle",
-          "Upgrade": "middle",
           "SingularityReader": "middle",
           "SummaryView": "middle",
           "RecipeView": "middle",
@@ -2173,7 +2164,8 @@
           "EquipmentPresenter": "middle",
           "RecipeRow": "surface",
           "Operation": "surface",
-          "SkillTreeView": "middle"
+          "SkillTreeView": "middle",
+          "TypeLevels": "middle"
         }
       },
       "number": "6"

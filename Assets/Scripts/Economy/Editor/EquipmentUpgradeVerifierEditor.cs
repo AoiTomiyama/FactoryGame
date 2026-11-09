@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
@@ -119,7 +119,7 @@ public static class EquipmentUpgradeVerifierEditor
         _checks = 0;
         var grid = GridFieldDatabaseAdapter.Instance;
         var generator = UnityEngine.Object.FindAnyObjectByType<GridFieldGeneratorAdapter>();
-        var upgrades = generator.Upgrades;
+        var upgrades = new EquipmentUpgradeAdapter(grid, generator.Wallet, generator.Prices);
         var wallet = generator.Wallet;
         wallet.TryReserveIncome(10000, out var income); income.TryCommit();
         Require(upgrades != null && EditorUtility.audioMasterMute, "session service and muted audio");

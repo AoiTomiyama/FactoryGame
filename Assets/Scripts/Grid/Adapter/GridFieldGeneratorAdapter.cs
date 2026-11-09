@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 #if UNITY_EDITOR
 using System.Security.Cryptography;
 using UnityEditor;
@@ -12,7 +12,6 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     [SerializeField] private SkillTreeDefinition skillTree;
     [SerializeField] private EconomyPanelAdapter economyPanel;
     public SkillTreeApplication Skills { get; private set; }
-    public EquipmentUpgradeAdapter Upgrades { get; private set; }
     public CurrencyWalletApplication Wallet { get; private set; }
     public CurrencyPriceCatalogDomain Prices { get; private set; }
 
@@ -74,7 +73,6 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
                 throw new InvalidOperationException("Initial starter route must be empty.");
         Prices = initialLayout.CreateCatalog();
         Wallet = new CurrencyWalletApplication(Prices.InitialBalance);
-        Upgrades = new EquipmentUpgradeAdapter(grid, Wallet, Prices);
         if (skillTree == null) throw new InvalidOperationException("Skill tree definition must be assigned.");
         Skills = new SkillTreeApplication(skillTree.CreateCatalog(), Wallet, grid.StatEffects);
         FindAnyObjectByType<CellPlacerAdapter>()?.Configure(Wallet, Prices);
@@ -93,7 +91,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         singularity.Configure(Wallet, Prices);
         // 登録と共有残高の構成後に接続を開始する。
         singularity.InitializeSystem();
-        economyPanel.Configure(Wallet, Skills, Upgrades, FindAnyObjectByType<CellStatusViewAdapter>(), FindAnyObjectByType<CellPlacerAdapter>());
+        economyPanel.Configure(Wallet, Skills, FindAnyObjectByType<CellStatusViewAdapter>(), FindAnyObjectByType<CellPlacerAdapter>());
     }
 
 #if UNITY_EDITOR

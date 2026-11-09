@@ -9,7 +9,6 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
 {
     private CurrencyWalletApplication _wallet;
     private SkillTreeApplication _skills;
-    private EquipmentUpgradeAdapter _upgrades;
     private CellStatusViewAdapter _view;
     private CellPlacerAdapter _placer;
     private CellBaseAdapter _selected;
@@ -65,12 +64,11 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     public Button SkillButton(string uid) => _skillView.Buttons[uid];
 
     public void Configure(CurrencyWalletApplication wallet, SkillTreeApplication skills,
-        EquipmentUpgradeAdapter upgrades, CellStatusViewAdapter view, CellPlacerAdapter placer)
+        CellStatusViewAdapter view, CellPlacerAdapter placer)
     {
         Unbind();
         _wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
         _skills = skills ?? throw new ArgumentNullException(nameof(skills));
-        _upgrades = upgrades ?? throw new ArgumentNullException(nameof(upgrades));
         _view = view;
         _placer = placer;
         if (_canvas == null) BindLayout();
@@ -125,13 +123,6 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         // 常時表示の残高と右側の強化欄は、左ページを閉じても更新する。
     }
 
-    public EquipmentUpgradeResultApplication PurchaseUpgrade()
-    {
-        var result = _equipmentPresenter.Purchase();
-        Refresh();
-        return result;
-    }
-
     public SkillPurchaseResultApplication PurchaseSkill(string uid)
     {
         var result = _skills.Purchase(uid);
@@ -151,7 +142,6 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     private void ApplyDetails()
     {
         if (_selectedSkill != null) PurchaseSkill(_selectedSkill);
-        else PurchaseUpgrade();
     }
 
     private void Refresh()
@@ -164,7 +154,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
             var state = _skills.CanPurchase(node.Uid);
             var prerequisite = node.Prerequisite != null && _skills.Catalog.TryGet(node.Prerequisite, out var parent)
                 ? parent.Label : "なし";
-            var effect = node.Branch.HasValue ? $"<size=24>+{node.BonusPercent}%</size>　{BranchName(node.Branch.Value)}" : "効率スキルを解放";
+            var effect = node.CellType.HasValue ? $"同種セルすべて\nLv.{node.TargetLevel - 1} → {node.TargetLevel}　基本性能 ×{node.TargetLevel}" : "種類別の強化を解放";
             _equipmentView.Heading.gameObject.SetActive(true); _equipmentView.UpgradeRoot.gameObject.SetActive(true);
             _equipmentView.Heading.text = node.Label;
             layout.EquipmentText.GetComponent<LayoutElement>().minHeight = 64;
@@ -186,12 +176,6 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         RefreshPlacement();
     }
 
-    private static string BranchName(StatBranchDomain branch) => branch switch
-    {
-        StatBranchDomain.Extraction => "抽出量", StatBranchDomain.Transfer => "搬送量", _ => "在庫容量"
-    };
-    public static string UpgradeReason(EquipmentUpgradeResultApplication result)
-        => EquipmentDetailsViewAdapter.UpgradeReason(result);
     public static string SkillReason(SkillPurchaseResultApplication result) => result switch
     {
         SkillPurchaseResultApplication.Success => "取得できます",
@@ -275,7 +259,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
             layout.EquipmentText, layout.Upgrade, layout.EquipmentFeedback);
         _equipmentActionLabel = layout.Upgrade.GetComponentInChildren<Text>(true).text;
         _equipmentTextMinHeight = layout.EquipmentText.GetComponent<LayoutElement>().minHeight;
-        _equipmentPresenter = new EquipmentDetailsPresenterAdapter(_equipmentView, _upgrades, ApplyDetails);
+        _equipmentPresenter = new EquipmentDetailsPresenterAdapter(_equipmentView, ApplyDetails);
         _skillView = new SkillTreeViewAdapter(_pages[2].transform, layout, _skills, SelectSkill);
         ShowPage(0);
     }

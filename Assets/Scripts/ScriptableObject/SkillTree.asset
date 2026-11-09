@@ -20,45 +20,103 @@ MonoBehaviour:
     hasEffect: 0
     branch: 0
     bonusPercent: 0
-  - uid: extraction-1
-    label: 採取効率 I
+  - uid: wood-1
+    label: 木材採取 I
     price: 50
     prerequisite: basic-research
-    hasEffect: 1
+    hasEffect: 0
     branch: 0
-    bonusPercent: 25
-  - uid: extraction-2
-    label: 採取効率 II
+    bonusPercent: 0
+    hasCellTypeEffect: 1
+    cellType: 6
+    targetLevel: 2
+  - uid: wood-2
+    label: 木材採取 II
     price: 100
-    prerequisite: extraction-1
-    hasEffect: 1
+    prerequisite: wood-1
+    hasEffect: 0
     branch: 0
-    bonusPercent: 25
-  - uid: transfer-1
-    label: 搬送効率 I
+    bonusPercent: 0
+    hasCellTypeEffect: 1
+    cellType: 6
+    targetLevel: 3
+  - uid: stone-1
+    label: 石材採取 I
     price: 50
     prerequisite: basic-research
-    hasEffect: 1
-    branch: 1
-    bonusPercent: 25
-  - uid: transfer-2
-    label: 搬送効率 II
+    hasEffect: 0
+    branch: 0
+    bonusPercent: 0
+    hasCellTypeEffect: 1
+    cellType: 5
+    targetLevel: 2
+  - uid: stone-2
+    label: 石材採取 II
     price: 100
-    prerequisite: transfer-1
-    hasEffect: 1
-    branch: 1
-    bonusPercent: 25
+    prerequisite: stone-1
+    hasEffect: 0
+    branch: 0
+    bonusPercent: 0
+    hasCellTypeEffect: 1
+    cellType: 5
+    targetLevel: 3
   - uid: storage-1
-    label: 保管効率 I
+    label: 保管庫 I
     price: 50
     prerequisite: basic-research
-    hasEffect: 1
-    branch: 2
-    bonusPercent: 25
+    hasEffect: 0
+    branch: 0
+    bonusPercent: 0
+    hasCellTypeEffect: 1
+    cellType: 7
+    targetLevel: 2
   - uid: storage-2
-    label: 保管効率 II
+    label: 保管庫 II
     price: 100
     prerequisite: storage-1
-    hasEffect: 1
-    branch: 2
-    bonusPercent: 25
+    hasEffect: 0
+    branch: 0
+    bonusPercent: 0
+    hasCellTypeEffect: 1
+    cellType: 7
+    targetLevel: 3
+  - uid: crafter-1
+    label: 加工設備 I
+    price: 50
+    prerequisite: basic-research
+    hasEffect: 0
+    branch: 0
+    bonusPercent: 0
+    hasCellTypeEffect: 1
+    cellType: 8
+    targetLevel: 2
+  - uid: crafter-2
+    label: 加工設備 II
+    price: 100
+    prerequisite: crafter-1
+    hasEffect: 0
+    branch: 0
+    bonusPercent: 0
+    hasCellTypeEffect: 1
+    cellType: 8
+    targetLevel: 3
+  - uid: export-1
+    label: 搬出路 I
+    price: 50
+    prerequisite: basic-research
+    hasEffect: 0
+    branch: 0
+    bonusPercent: 0
+    hasCellTypeEffect: 1
+    cellType: 10
+    targetLevel: 2
+  - uid: export-2
+    label: 搬出路 II
+    price: 100
+    prerequisite: export-1
+    hasEffect: 0
+    branch: 0
+    bonusPercent: 0
+    hasCellTypeEffect: 1
+    cellType: 10
+    targetLevel: 3

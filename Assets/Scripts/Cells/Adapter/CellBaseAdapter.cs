@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpointApplication
@@ -11,7 +11,8 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
     public GameObject CellModel { get; private set; }
     private SharedStatEffectsApplication _statEffects;
     private readonly EquipmentLevelApplication _equipmentLevel = new();
-    public int EquipmentLevel => _equipmentLevel.Level;
+    public virtual CellTypeDomain ProgressionType => CellTypeDomain.None;
+    public int EquipmentLevel => Math.Max(_equipmentLevel.Level, _statEffects?.GetTypeLevel(ProgressionType) ?? 1);
     public virtual bool SupportsProgression => false;
 
     public void ConfigureProgression(SharedStatEffectsApplication effects)
@@ -25,6 +26,8 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
             foreach (StatBranchDomain branch in Enum.GetValues(typeof(StatBranchDomain)))
                 if (effects.GetBonus(branch) < _statEffects.GetBonus(branch))
                     throw new InvalidOperationException("Cannot reduce equipment effects.");
+        if (_statEffects != null && effects.GetTypeLevel(ProgressionType) < _statEffects.GetTypeLevel(ProgressionType))
+            throw new InvalidOperationException("Cannot reduce type level.");
         if (_statEffects != null) _statEffects.Changed -= OnStatsChanged;
         _statEffects = effects;
         _statEffects.Changed += OnStatsChanged;

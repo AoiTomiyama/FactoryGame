@@ -87,41 +87,33 @@ public static class EconomyLoopVerifierEditor
             var baseCapacity = extractor.StorageCapacity;
             var baseTransfer = conveyor.TransferAmount;
             view.UpdateUIStatusWindow(extractor);
-            for (var level = 1; level < 3; level++)
-            {
-                await Funds(20 * level);
-                Require(panel.PurchaseUpgrade() == EquipmentUpgradeResultApplication.Success, "upgrade through UI");
-                spent += 20 * level;
-            }
-            Require(extractor.EquipmentLevel == 3 && ReferenceEquals(identity, extractor.Identity) &&
-                ReferenceEquals(grid.GetCell(50, 47), extractor), "upgrade preserves instance and identity");
             await Funds(50);
             Require(panel.PurchaseSkill("basic-research") == SkillPurchaseResultApplication.Success, "root purchased from earnings");
             spent += 50;
             foreach (var tier in new[] { 1, 2 })
             {
-                foreach (var branch in new[] { "extraction", "transfer", "storage" })
+                foreach (var branch in new[] { "wood", "stone", "storage", "crafter", "export" })
                 {
                     var uid = branch + "-" + tier;
                     var node = generator.Skills.Catalog.Nodes.Single(n => n.Uid == uid);
                     await Funds(node.Price);
                     Require(panel.SkillButton(uid).interactable, "earned funds enable skill button");
                     panel.SkillButton(uid).onClick.Invoke();
-                    Require(generator.Skills.IsOwned(uid) && !panel.SkillButton(uid).interactable, "button owns skill once");
+                    panel.EquipmentView.UpgradeButton.onClick.Invoke();
+                    Require(generator.Skills.IsOwned(uid) && !panel.UpgradeInteractable, "detail action applies type skill once");
                     spent += node.Price;
                 }
-                var percent = 100 + tier * 25;
-                Require(extractor.ExtractionAmount == baseExtraction * 3 * percent / 100 &&
-                    extractor.StorageCapacity == baseCapacity * 3 * percent / 100 &&
-                    conveyor.TransferAmount == baseTransfer * percent / 100, "I/II apply to existing equipment");
+                Require(extractor.ExtractionAmount == baseExtraction * (tier + 1) &&
+                    extractor.StorageCapacity == baseCapacity * (tier + 1) &&
+                    conveyor.TransferAmount == baseTransfer, "I/II apply shared type levels to existing equipment");
             }
             // 空セルへ課金して新設し、既設・新設で同じ共有効果になることを確認する。
             var empty = UnityEngine.Object.FindObjectsByType<EmptyCellAdapter>(FindObjectsSortMode.None)
                 .First(c => c.XIndex > 5 && c.ZIndex > 5 && c.XIndex < 45 && c.ZIndex < 45);
             await Funds(5);
-            Place(empty.XIndex, empty.ZIndex, CellTypeDomain.Conveyor);
-            var added = (ConveyorCellAdapter)grid.GetCell(empty.XIndex, empty.ZIndex);
-            Require(added.TransferAmount == conveyor.TransferAmount, "reinvested new equipment inherits global effects");
+            Place(empty.XIndex, empty.ZIndex, CellTypeDomain.ExportConveyor);
+            var added = (ExportConveyorCellAdapter)grid.GetCell(empty.XIndex, empty.ZIndex);
+            Require(added.TransferAmount == ((ExportConveyorCellAdapter)grid.GetCell(50, 48)).TransferAmount, "reinvested new equipment inherits global effects");
             var before = wallet.Current.Balance;
             await Funds(before + 1);
             Require(wallet.Current.Balance == 100 + earned - spent && wallet.Current.ReservedExpense == 0,
