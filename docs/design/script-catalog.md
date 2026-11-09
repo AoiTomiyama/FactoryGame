@@ -1,4 +1,4 @@
-# クラス・スクリプト対応表
+﻿# クラス・スクリプト対応表
 
 タグ: `現行設計` `スクリプト一覧` `責務` `依存` `Editor境界`
 
@@ -176,6 +176,7 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 
 | ファイル | 役割 | 主な依存 |
 | --- | --- | --- |
+| [SkillTreeViewAdapter](../../Assets/Scripts/UI/Adapter/SkillTreeViewAdapter.cs) | 既存行Prefabを使った樹形図、前提の接続線、選択・適用済み表示 | HudLayoutAdapter, SkillTreeApplication, uGUI |
 | [EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs) | 共有状態の配線・購読、直接タブ、配置・スキル操作、各Viewの寿命 | CurrencyWalletApplication, SkillTreeApplication, EquipmentUpgradeAdapter, CellStatusViewAdapter, uGUI |
 | [SingularityProviderDefinition](../../Assets/Scripts/UI/Definitions/SingularityProviderDefinition.cs) | 特異点の専用Readerへ渡すラベル | ProviderBaseDefinition |
 | [EconomyUIVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs) | MainSceneの経済表示・購入可否・購読寿命・レイアウト検証、既存UIと設置の検証入口 | EconomyPanelAdapter, UIStatusVerifierEditor, EquipmentPlacementVerifierEditor, UnityEditor, UniTask |

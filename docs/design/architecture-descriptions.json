@@ -2123,6 +2123,15 @@
               "symbol": "Configure"
             }
           ]
+        },
+        "SkillTreeView": {
+          "description": "既存のスキル行Prefabを前提関係の樹形図へ配置し、接続線・明暗・選択枠・適用済み記号を描画します。ノード選択をEconomyPanelへ渡し、右側詳細の適用操作が既存Applicationへ購入を要求します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/UI/Adapter/SkillTreeViewAdapter.cs",
+              "symbol": "SkillTreeViewAdapter"
+            }
+          ]
         }
       },
       "presentation": {
@@ -2163,7 +2172,8 @@
           "HudStyle": "surface",
           "EquipmentPresenter": "middle",
           "RecipeRow": "surface",
-          "Operation": "surface"
+          "Operation": "surface",
+          "SkillTreeView": "middle"
         }
       },
       "number": "6"

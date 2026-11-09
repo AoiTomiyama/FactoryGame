@@ -109,6 +109,13 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
             selectionMarker.gameObject.SetActive(isActive);
         }
     }
+    public void ShowDetails()
+    {
+        // セルの購読と状態行を返してから、同じ右側枠を別の詳細へ貸し出す。
+        DeactivateCurrentStatus();
+        elementWindowTransform.gameObject.SetActive(true);
+        if (selectionMarker != null) selectionMarker.gameObject.SetActive(false);
+    }
 
     public UIStatusRowBaseAdapter CreateStatusRow(UIElementDataBaseApplication data)
     {

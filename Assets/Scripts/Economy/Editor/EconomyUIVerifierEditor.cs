@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
@@ -102,18 +102,28 @@ public static class EconomyUIVerifierEditor
             Require(panel.UpgradeInteractable, "reactivated equipment refreshes purchase state");
             var root = generator.Skills.Catalog.Nodes.Single(n => n.Prerequisite == null);
             var branch = generator.Skills.Catalog.Nodes.First(n => n.Prerequisite == root.Uid);
-            Require(!panel.SkillButton(branch.Uid).interactable && panel.SkillButton(branch.Uid).GetComponentInChildren<Text>(true).text.Contains("前提スキルが必要"), "tree prerequisites and reason");
+            var beforeSkill = wallet.Current.Balance;
+            panel.SkillButton(branch.Uid).onClick.Invoke();
+            Require(panel.SelectedSkill == branch.Uid && !panel.UpgradeInteractable && panel.EquipmentView.Feedback.Contains(root.Label), "locked node opens prerequisite detail");
+            Require(view.SelectedCell == null && view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>().Length == 0 && wallet.Current.Balance == beforeSkill, "skill selection releases equipment without purchase");
+            panel.SkillButton(root.Uid).onClick.Invoke();
+            Require(!generator.Skills.IsOwned(root.Uid) && wallet.Current.Balance == beforeSkill, "node selection never purchases");
             wallet.TryReserveExpense(wallet.Current.AvailableBalance, out expense);
-            Require(!panel.UpgradeInteractable && panel.EquipmentText.Contains("残高不足") && !panel.SkillButton(root.Uid).interactable, "reservations disable unaffordable actions");
+            Require(!panel.UpgradeInteractable && panel.EquipmentView.Feedback.Contains("残高不足") && panel.SkillButton(root.Uid).interactable, "unaffordable node remains readable and apply disabled");
             expense.TryCancel();
             wallet.TryReserveIncome(1000, out var income); income.TryCommit();
-            panel.SkillButton(root.Uid).onClick.Invoke();
-            Require(generator.Skills.IsOwned(root.Uid) && !panel.SkillButton(root.Uid).interactable && panel.SkillButton(branch.Uid).interactable, "real button purchases root and unlocks branch");
+            Require(panel.UpgradeInteractable, "balance change enables selected skill action");
+            panel.EquipmentView.UpgradeButton.onClick.Invoke();
+            Require(generator.Skills.IsOwned(root.Uid) && !panel.UpgradeInteractable && panel.SkillButton(root.Uid).transform.Find("Applied").gameObject.activeSelf, "detail action applies root and marks owned node");
             var paidBalance = wallet.Current.Balance;
-            panel.SkillButton(root.Uid).onClick.Invoke();
-            Require(wallet.Current.Balance == paidBalance, "repeat root click never pays twice");
+            panel.EquipmentView.UpgradeButton.onClick.Invoke();
+            Require(wallet.Current.Balance == paidBalance, "repeat apply never pays twice");
             panel.SkillButton(branch.Uid).onClick.Invoke();
-            Require(generator.Skills.IsOwned(branch.Uid) && panel.SkillButton(branch.Uid).GetComponentInChildren<Text>(true).text.Contains("取得済み"), "branch state and effect label");
+            Require(panel.UpgradeInteractable && !generator.Skills.IsOwned(branch.Uid), "unlocked branch waits for detail action");
+            panel.EquipmentView.UpgradeButton.onClick.Invoke();
+            Require(generator.Skills.IsOwned(branch.Uid) && panel.EquipmentView.Heading.text == branch.Label, "branch applies from right details");
+            view.CloseButton.onClick.Invoke();
+            Require(panel.SelectedSkill == null, "right close clears skill selection");
             view.UpdateUIStatusWindow(storage);
             view.SetStatusWindowActive(false);
             Require(Subscribers(storage, "StatusChanged") == 0 && !panel.UpgradeInteractable, "hide selection releases subscriptions");
@@ -179,6 +189,20 @@ public static class EconomyUIVerifierEditor
                     VerifyLayout(canvas, resolution, page);
                     if (page == 2)
                     {
+                        var tree = panel.SkillButton(root.Uid).transform.parent;
+                        Require(tree.GetComponentsInChildren<Image>().Count(image => image.name.StartsWith("Prerequisite_")) == generator.Skills.Catalog.Nodes.Count - 1, "tree connects every prerequisite " + resolution);
+                        foreach (var node in generator.Skills.Catalog.Nodes.Where(node => node.Prerequisite != null))
+                        {
+                            var childRect = (RectTransform)panel.SkillButton(node.Uid).transform;
+                            var parentRect = (RectTransform)panel.SkillButton(node.Prerequisite).transform;
+                            Require(childRect.anchoredPosition.y < parentRect.anchoredPosition.y - parentRect.rect.height, "tree child below parent " + node.Uid + resolution);
+                        }
+                        panel.SelectSkill(branch.Uid);
+                        await UniTask.DelayFrame(4);
+                        Canvas.ForceUpdateCanvases();
+                        Require(tree.Find("SelectionFrame").gameObject.activeSelf && panel.EquipmentView.Heading.text == branch.Label, "selection matches right detail " + resolution);
+                        Require(Inside(canvas.GetComponent<RectTransform>(), panel.EquipmentView.UpgradeButton.GetComponent<RectTransform>(), view.StatusScroll.viewport), "skill apply fits right viewport " + resolution);
+                        view.CloseButton.onClick.Invoke();
                         var scroll = canvas.GetComponentInChildren<ScrollRect>();
                         scroll.verticalNormalizedPosition = 0;
                         await UniTask.DelayFrame(2);
@@ -196,6 +220,8 @@ public static class EconomyUIVerifierEditor
             {
                 SessionState.EraseBool(Key + ".Render");
                 await CaptureHud(panel, view, canvas);
+                panel.SelectSkill(branch.Uid);
+                await CaptureHud(panel, view, canvas, 2, "skill-tree");
             }
             Require(wallet.LastNotificationException == null && generator.Skills.LastNotificationException == null, "notification handlers succeed");
             UnityEngine.Object.Destroy(panel);
@@ -426,7 +452,7 @@ public static class EconomyUIVerifierEditor
         Require(bottom > root.rect.yMin + 108, "summary clears bottom operation bar " + resolution);
     }
 
-    private static async UniTask CaptureHud(EconomyPanelAdapter panel, CellStatusViewAdapter view, Canvas canvas)
+    private static async UniTask CaptureHud(EconomyPanelAdapter panel, CellStatusViewAdapter view, Canvas canvas, int page = 1, string prefix = "hud")
     {
         panel.SetSummaryItems(Enumerable.Range(0, 12).Select(i => "追加項目 " + i + "：12345").ToArray());
         // GUI操作を使わず、実際のHUDを専用カメラから画像へ書き出す。
@@ -445,7 +471,7 @@ public static class EconomyUIVerifierEditor
             var target = new RenderTexture(resolution.x, resolution.y, 24);
             camera.targetTexture = target;
             foreach (var c in canvases) c.GetComponent<CanvasScaler>().enabled = true;
-            panel.ShowPage(1);
+            panel.ShowPage(page);
             view.StatusScroll.verticalNormalizedPosition = 1;
             await UniTask.DelayFrame(5);
             Canvas.ForceUpdateCanvases();
@@ -457,7 +483,7 @@ public static class EconomyUIVerifierEditor
             RenderTexture.active = target;
             var texture = new Texture2D(resolution.x, resolution.y, TextureFormat.RGB24, false);
             texture.ReadPixels(new Rect(0, 0, resolution.x, resolution.y), 0, 0); texture.Apply();
-            var path = $"docs/verification/uis05/hud-{resolution.x}x{resolution.y}.png";
+            var path = $"docs/verification/uis05/{prefix}-{resolution.x}x{resolution.y}.png";
             System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(path));
             System.IO.File.WriteAllBytes(path, texture.EncodeToPNG());
             Require(System.IO.File.Exists(path), "HUD rendering exported " + resolution);

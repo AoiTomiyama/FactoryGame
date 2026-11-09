@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.Events;
 
 /// <summary>選択セルの情報と強化見積りを表示し、購入は既存Adapterへ渡す。</summary>
 public sealed class EquipmentDetailsPresenterAdapter : IDisposable
@@ -9,10 +10,12 @@ public sealed class EquipmentDetailsPresenterAdapter : IDisposable
     private readonly EquipmentDetailsViewAdapter _view;
     private CellBaseAdapter _selected;
     private int _quotedLevel;
-    public EquipmentDetailsPresenterAdapter(EquipmentDetailsViewAdapter view, EquipmentUpgradeAdapter upgrades)
+    private readonly UnityAction _purchaseAction;
+    public EquipmentDetailsPresenterAdapter(EquipmentDetailsViewAdapter view, EquipmentUpgradeAdapter upgrades, UnityAction purchaseAction = null)
     {
         _upgrades = upgrades; _view = view;
-        _view.UpgradeButton.onClick.AddListener(OnPurchase);
+        _purchaseAction = purchaseAction ?? OnPurchase;
+        _view.UpgradeButton.onClick.AddListener(_purchaseAction);
     }
     private void OnPurchase() => Purchase();
     public void Refresh(CellBaseAdapter selected)
@@ -40,7 +43,7 @@ public sealed class EquipmentDetailsPresenterAdapter : IDisposable
     }
     public void UpdateLayout() => _view.UpdateLayout();
     public void SetActive(bool active) { _view.Heading.gameObject.SetActive(active); _view.UpgradeRoot.gameObject.SetActive(active && _selected != null && _selected.SupportsProgression); }
-    public void Dispose() { if (_view.UpgradeButton != null) _view.UpgradeButton.onClick.RemoveListener(OnPurchase); }
+    public void Dispose() { if (_view.UpgradeButton != null) _view.UpgradeButton.onClick.RemoveListener(_purchaseAction); }
     private static string CellName(CellBaseAdapter cell) => cell switch
     {
         ExtractorCellAdapter => "採取設備", StorageCellAdapter => "保管庫", CrafterCellAdapter => "加工設備",
