@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-public enum SkillPurchaseResultApplication { Success, Busy, UnknownNode, AlreadyOwned, PrerequisiteMissing, InsufficientFunds, EffectsChanged }
+public enum SkillPurchaseResultApplication { Success, Busy, UnknownNode, AlreadyOwned, PrerequisiteMissing, InsufficientFunds, EffectsChanged, InvalidEffect }
 
 /// <summary>一プレイの取得状態と共有残高の支出をまとめて確定する。</summary>
 public sealed class SkillTreeApplication
@@ -9,8 +9,7 @@ public sealed class SkillTreeApplication
     private readonly CurrencyWalletApplication _wallet;
     private readonly SharedStatEffectsApplication _effects;
     private readonly HashSet<string> _owned = new(StringComparer.Ordinal);
-    private readonly int[] _bonuses = new int[3];
-    private readonly Dictionary<CellTypeDomain, int> _typeLevels = new();
+    private readonly Dictionary<(CellTypeDomain, EquipmentStatDomain), StatModifierDomain> _modifiers = new();
     private bool _purchasing;
     public SkillTreeCatalogDomain Catalog { get; }
     public event Action Changed;
@@ -35,6 +34,7 @@ public sealed class SkillTreeApplication
         if (IsOwned(uid)) return SkillPurchaseResultApplication.AlreadyOwned;
         if (node.Prerequisite != null && !IsOwned(node.Prerequisite)) return SkillPurchaseResultApplication.PrerequisiteMissing;
         if (!EffectsMatch()) return SkillPurchaseResultApplication.EffectsChanged;
+        if (node.CellType.HasValue && !_effects.CanApply(node.CellType.Value, node.Stat, node.Modifier)) return SkillPurchaseResultApplication.InvalidEffect;
         return _wallet.Current.AvailableBalance < node.Price
             ? SkillPurchaseResultApplication.InsufficientFunds : SkillPurchaseResultApplication.Success;
     }
@@ -54,21 +54,16 @@ public sealed class SkillTreeApplication
             if (IsOwned(uid)) return SkillPurchaseResultApplication.AlreadyOwned;
             if (node.Prerequisite != null && !IsOwned(node.Prerequisite)) return SkillPurchaseResultApplication.PrerequisiteMissing;
             if (!EffectsMatch()) return SkillPurchaseResultApplication.EffectsChanged;
-            _owned.Add(uid);
-            if (node.Branch.HasValue)
-            {
-                var branch = node.Branch.Value;
-                _bonuses[(int)branch] += node.BonusPercent;
-                _effects.SetBonusWithoutNotification(branch, _bonuses[(int)branch]);
-            }
             if (node.CellType.HasValue)
             {
-                _typeLevels[node.CellType.Value] = node.TargetLevel;
-                _effects.SetTypeLevelWithoutNotification(node.CellType.Value, node.TargetLevel);
+                if (!_effects.CanApply(node.CellType.Value, node.Stat, node.Modifier)) return SkillPurchaseResultApplication.InvalidEffect;
+                _effects.ApplyWithoutNotification(node.CellType.Value, node.Stat, node.Modifier);
+                _modifiers[(node.CellType.Value, node.Stat)] = node.Modifier;
             }
+            _owned.Add(uid);
             // 残高の確定通知でも取得状態と能力が揃う。全通知が終わるまで購入の再入を拒否する。
             expense.TryCommit();
-            if (node.Branch.HasValue || node.CellType.HasValue) _effects.NotifyChanged();
+            if (node.CellType.HasValue) _effects.NotifyChanged();
             var handlers = Changed;
             if (handlers != null)
                 foreach (Action handler in handlers.GetInvocationList())
@@ -84,10 +79,13 @@ public sealed class SkillTreeApplication
 
     private bool EffectsMatch()
     {
-        for (var index = 0; index < _bonuses.Length; index++)
-            if (_effects.GetBonus((StatBranchDomain)index) != _bonuses[index]) return false;
         foreach (CellTypeDomain type in Enum.GetValues(typeof(CellTypeDomain)))
-            if (_effects.GetTypeLevel(type) != (_typeLevels.TryGetValue(type, out var level) ? level : 1)) return false;
+        foreach (EquipmentStatDomain stat in Enum.GetValues(typeof(EquipmentStatDomain)))
+        {
+            var expected = _modifiers.TryGetValue((type, stat), out var value) ? value : StatModifierDomain.Default;
+            var actual = _effects.GetModifier(type, stat);
+            if (actual.Multiplier != expected.Multiplier || actual.Addition != expected.Addition) return false;
+        }
         return true;
     }
 }

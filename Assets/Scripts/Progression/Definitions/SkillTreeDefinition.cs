@@ -11,12 +11,10 @@ public sealed class SkillTreeDefinition : ScriptableObject
         public string label;
         public long price;
         public string prerequisite;
-        public bool hasEffect;
-        public StatBranchDomain branch;
-        public int bonusPercent;
-        public bool hasCellTypeEffect;
         public CellTypeDomain cellType;
-        public int targetLevel;
+        public EquipmentStatDomain stat;
+        public float multiplier;
+        public int addition;
     }
 
     [SerializeField] private Node[] nodes;
@@ -28,10 +26,10 @@ public sealed class SkillTreeDefinition : ScriptableObject
         for (var index = 0; index < nodes.Length; index++)
         {
             var node = nodes[index];
+            if (float.IsNaN(node.multiplier) || float.IsInfinity(node.multiplier)) throw new InvalidOperationException("Skill multiplier must be finite.");
             snapshot[index] = new SkillNodeDomain(node.uid, node.label, node.price,
                 string.IsNullOrEmpty(node.prerequisite) ? null : node.prerequisite,
-                node.hasEffect ? node.branch : null, node.bonusPercent,
-                node.hasCellTypeEffect ? node.cellType : null, node.targetLevel);
+                node.cellType == CellTypeDomain.None ? null : node.cellType, node.stat, (decimal)node.multiplier, node.addition);
         }
         return new SkillTreeCatalogDomain(snapshot);
     }

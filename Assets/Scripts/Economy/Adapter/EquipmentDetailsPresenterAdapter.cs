@@ -16,11 +16,9 @@ public sealed class EquipmentDetailsPresenterAdapter : IDisposable
     {
         _view.Feedback = "";
         _view.Heading.gameObject.SetActive(selected != null);
-        var level = selected != null && SkillTreeCatalogDomain.SupportsType(selected.ProgressionType)
-            ? $"　Lv.{selected.EquipmentLevel}/{EffectiveStatsRulesDomain.MaxLevel}" : "";
         var state = selected == null ? "" : !selected.isActiveAndEnabled ? "停止中" :
             selected is CrafterCellAdapter crafter ? crafter.ProcessTime > 0 ? "加工中" : "材料・空き容量を待機" : "";
-        _view.Heading.text = selected == null ? "" : $"{CellName(selected)}{level}\n{state}".TrimEnd();
+        _view.Heading.text = selected == null ? "" : $"{CellName(selected)}\n{state}".TrimEnd();
         // セル選択は読み取り専用。購入ボタンはスキルを選択したときだけ表示する。
         _view.UpgradeRoot.gameObject.SetActive(false);
         _view.EquipmentText = "";

@@ -1,4 +1,4 @@
-﻿# FactoryGame 現行設計図式
+# FactoryGame 現行設計図式
 
 タグ: `現行設計` `クラス図` `スクリプト相関` `設計パターン` `Unity` `再開情報`
 
@@ -6,7 +6,7 @@
 
 この文書は現在動く仕組みの静的説明である。[設計方針](architecture-guidelines.md)の到達像と区別する。
 
-PRG-01の能力合成は[設備の有効能力](../spec/effective-stats.md)を参照する。グリッドが共有効果を所有し、登録時に各設備へ渡す。セルは個別レベルと基礎設定から有効値を読み、稼働中の数量・予約・加工計画を保持する。
+PRG-01の能力合成は[設備の有効能力](../spec/effective-stats.md)を参照する。グリッドが共有効果を所有し、登録時に各設備へ渡す。セルは種類・能力別の倍率と加算値、基礎設定から有効値を読み、稼働中の数量・予約・加工計画を保持する。
 
 ## 読み方と対象範囲
 
@@ -30,11 +30,11 @@ ECO-03では同じ残高をCellPlacerへ渡し、[設備設置の支出取引](.
 
 ## 共有スキルと設備能力（PRG-01/02）
 
-能力合成とセル登録時の共有状態接続は [有効能力仕様](../spec/effective-stats.md)、ツリー定義・取得前提・購入取引は [共有スキルツリー仕様](../spec/skill-tree.md) を参照する。GeneratorはMainSceneのSkillTree定義からカタログを作り、共有残高とグリッドの共有効果を `SkillTreeApplication` へ渡す。取得状態と効果を更新して支出を確定し、能力とツリーの変更を通知する。PRG-03では既存3系統を5種類のI/IIへ統合し、同種の既設・新設・再有効化セルが共有レベルを読む。
+能力合成とセル登録時の共有状態接続は [有効能力仕様](../spec/effective-stats.md)、ツリー定義・取得前提・購入取引は [共有スキルツリー仕様](../spec/skill-tree.md) を参照する。GeneratorはMainSceneのSkillTree定義からカタログを作り、共有残高とグリッドの共有効果を `SkillTreeApplication` へ渡す。取得状態と効果を更新して支出を確定し、能力とツリーの変更を通知する。PRG-03では既存3系統を5種類・8能力系統のI/IIへ統合し、同種の既設・新設・再有効化セルが共有能力設定を読む。
 
 ## 全体構成
 
-PRG-03の[種類別強化](../spec/currency-equipment-upgrade.md)では、通常の購入入口をSkillTreeApplicationへ集約する。Generatorは旧個別購入Adapterを生成せず、セル選択欄は読み取り専用とする。旧個別購入と加算率の入口は取引・能力のEditor回帰用に保持する。取得後も在庫・接続・予約・稼働中の数量を保持する。
+PRG-03の[種類別強化](../spec/currency-equipment-upgrade.md)では、通常の購入入口をSkillTreeApplicationへ集約する。Generatorは旧個別購入Adapterを生成せず、セル選択欄は読み取り専用とする。旧個別購入と加算率の設定・処理・専用検証は撤去し、種類別強化だけを検証する。取得後も在庫・接続・予約・稼働中の数量を保持する。
 
 <!-- diagram-id: current-architecture-1 -->
 ```mermaid
@@ -54,7 +54,7 @@ flowchart LR
   Transfer["搬送Coordinator・Operation・Reservation・TransitStore"]
   Craft["CraftingOperation"]
   Read["UI読み取りProvider・データ値"]
-  Progression["Progression: スキル取得・種類別共有レベル"]
+  Progression["Progression: スキル取得・種類と能力別の設定"]
   Economy["Economy: 共有残高・設置・強化取引・換金予約"]
  end
  subgraph Domain["Domain: Unity非依存の規則"]
@@ -176,7 +176,7 @@ flowchart LR
 
 ## 基礎ゲームループの統合（ECO-06）
 
-MainSceneの共有残高と初回経路、実際の換金収益による全5種類のI/II取得・新設設備への再投資は[統合仕様](../spec/currency-game-loop.md)を参照する。[EconomyLoopVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyLoopVerifierEditor.cs)がPointer操作入口と経済パネルを通して能力と収支を確認し、既存の搬送・数量・抽出・加工・UI検証とWindowsビルドへ接続する。
+MainSceneの共有残高と初回経路、実際の換金収益による全5種類・8能力系統のI/II取得・新設設備への再投資は[統合仕様](../spec/currency-game-loop.md)を参照する。[EconomyLoopVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyLoopVerifierEditor.cs)がPointer操作入口と経済パネルを通して能力と収支を確認し、既存の搬送・数量・抽出・加工・UI検証とWindowsビルドへ接続する。
 
 ## 図と説明の正本
 

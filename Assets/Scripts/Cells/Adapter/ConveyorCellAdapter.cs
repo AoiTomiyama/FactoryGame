@@ -17,11 +17,9 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     private bool _readyToSend;
     private int _incomingReservationAmount;
     private ResourceTypeDomain _incomingReservationType;
-    public int TransferAmount => TransferAmountAtLevel(EquipmentLevel);
-    public int TransferAmountAtLevel(int level) => EffectiveStatAtLevel(transferAmount, StatBranchDomain.Transfer, level);
+    public int TransferAmount => EffectiveStat(transferAmount, EquipmentStatDomain.TransferAmount);
     public override CellTypeDomain ProgressionType => CellTypeDomain.Conveyor;
-    public override bool SupportsProgression => true;
-    protected override void ValidateBaseStats() => EffectiveStatsRulesDomain.ValidateBase(transferAmount);
+    protected override void ValidateBaseStats() => ValidateStat(transferAmount, EquipmentStatDomain.TransferAmount);
     protected bool HasResource { get; set; }
 
     /// <summary>

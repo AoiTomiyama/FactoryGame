@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
@@ -146,7 +146,8 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
         DeactivateCurrentStatus();
         var renderingCell = selectedCell as IDataProvidableApplication;
         var provider = renderingCell?.GetDataProvider();
-        if (provider == null && !selectedCell.SupportsProgression) { SetStatusWindowActive(false); return; }
+        // セルの状態表示は強化対象かどうかと分け、空セル以外の選択を保持する。
+        if (provider == null && selectedCell is EmptyCellAdapter) { SetStatusWindowActive(false); return; }
         _selectedCell = selectedCell;
         _renderingCell = renderingCell;
         // 選択中の表示だけが通知を受ける。切替・非表示・削除で購読を解除する。

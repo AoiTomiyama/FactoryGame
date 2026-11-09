@@ -29,16 +29,13 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     public ResourceTypeDomain ResourceTypeDomain => resourceType;
     public event Action StatusChanged;
 
-    public int StorageCapacity => StorageCapacityAtLevel(EquipmentLevel);
-    public int StorageCapacityAtLevel(int level) => EffectiveStatAtLevel(storageCapacity, StatBranchDomain.Storage, level);
-    public int ExtractionAmount => ExtractionAmountAtLevel(EquipmentLevel);
-    public int ExtractionAmountAtLevel(int level) => EffectiveStatAtLevel(extractionAmount, StatBranchDomain.Extraction, level);
+    public int StorageCapacity => EffectiveStat(storageCapacity, EquipmentStatDomain.Capacity);
+    public int ExtractionAmount => EffectiveStat(extractionAmount, EquipmentStatDomain.ExtractionAmount);
     public override CellTypeDomain ProgressionType => resourceType == ResourceTypeDomain.Wood ? CellTypeDomain.ExtractorWood : CellTypeDomain.ExtractorStone;
-    public override bool SupportsProgression => true;
     protected override void ValidateBaseStats()
     {
-        EffectiveStatsRulesDomain.ValidateBase(storageCapacity);
-        EffectiveStatsRulesDomain.ValidateBase(extractionAmount);
+        ValidateStat(storageCapacity, EquipmentStatDomain.Capacity);
+        ValidateStat(extractionAmount, EquipmentStatDomain.ExtractionAmount);
     }
     protected override void OnStatsChanged() => UpdateUI();
 

@@ -10,55 +10,37 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
     public int ZIndex { get; set; }
     public GameObject CellModel { get; private set; }
     private SharedStatEffectsApplication _statEffects;
-    private readonly EquipmentLevelApplication _equipmentLevel = new();
     public virtual CellTypeDomain ProgressionType => CellTypeDomain.None;
-    public int EquipmentLevel => Math.Max(_equipmentLevel.Level, _statEffects?.GetTypeLevel(ProgressionType) ?? 1);
-    public virtual bool SupportsProgression => false;
+    public bool SupportsProgression => SkillTreeCatalogDomain.SupportsType(ProgressionType);
 
     public void ConfigureProgression(SharedStatEffectsApplication effects)
     {
         if (!SupportsProgression) return;
         if (effects == null) throw new ArgumentNullException(nameof(effects));
-        ValidateBaseStats();
         if (ReferenceEquals(_statEffects, effects)) return;
-        // 再構成による容量減少を防ぎ、既存の在庫・予約をそのまま保持する。
-        if (_statEffects != null)
-            foreach (StatBranchDomain branch in Enum.GetValues(typeof(StatBranchDomain)))
-                if (effects.GetBonus(branch) < _statEffects.GetBonus(branch))
-                    throw new InvalidOperationException("Cannot reduce equipment effects.");
-        if (_statEffects != null && effects.GetTypeLevel(ProgressionType) < _statEffects.GetTypeLevel(ProgressionType))
-            throw new InvalidOperationException("Cannot reduce type level.");
-        if (_statEffects != null) _statEffects.Changed -= OnStatsChanged;
+        // 構成を替える場合も現在の能力を減らさず、成立済みの在庫と予約を保つ。
+        foreach (EquipmentStatDomain stat in Enum.GetValues(typeof(EquipmentStatDomain)))
+        {
+            var previous = _statEffects?.GetModifier(ProgressionType, stat) ?? StatModifierDomain.Default;
+            var next = effects.GetModifier(ProgressionType, stat);
+            if (next.Multiplier < previous.Multiplier || next.Addition < previous.Addition)
+                throw new InvalidOperationException("Cannot reduce configured ability.");
+        }
+        var previousEffects = _statEffects;
         _statEffects = effects;
+        try { ValidateBaseStats(); } catch { _statEffects = previousEffects; throw; }
+        if (previousEffects != null) previousEffects.Changed -= OnStatsChanged;
         _statEffects.Changed += OnStatsChanged;
         OnStatsChanged();
     }
 
-    public bool TrySetEquipmentLevel(int level)
+    protected int EffectiveStat(int baseValue, EquipmentStatDomain stat)
+        => EffectiveStatsRulesDomain.Calculate(baseValue, _statEffects?.GetModifier(ProgressionType, stat) ?? StatModifierDomain.Default);
+    protected void ValidateStat(int baseValue, EquipmentStatDomain stat)
     {
-        var previous = EquipmentLevel;
-        if (!TrySetEquipmentLevelWithoutNotification(level)) return false;
-        if (previous != EquipmentLevel) OnStatsChanged();
-        return true;
+        EffectiveStatsRulesDomain.Calculate(baseValue, StatModifierDomain.Default);
+        _statEffects?.RegisterBase(ProgressionType, stat, baseValue);
     }
-
-    // 購入経路は残高の確定後に通知し、購読先が支出と能力を同時に読み取れるようにする。
-    internal bool TrySetEquipmentLevelWithoutNotification(int level)
-    {
-        if (!SupportsProgression || level < EquipmentLevel || level > EffectiveStatsRulesDomain.MaxLevel) return false;
-        ValidateBaseStats();
-        if (level == EquipmentLevel) return true;
-        _equipmentLevel.TrySet(level);
-        return true;
-    }
-
-    internal void NotifyEquipmentStatsChanged() => OnStatsChanged();
-
-    protected int EffectiveStat(int baseValue, StatBranchDomain branch)
-        => EffectiveStatAtLevel(baseValue, branch, EquipmentLevel);
-    // 強化前の比較表示も同じ規則で読み、実レベルや在庫は変更しない。
-    protected int EffectiveStatAtLevel(int baseValue, StatBranchDomain branch, int level)
-        => EffectiveStatsRulesDomain.Calculate(baseValue, level, _statEffects?.GetBonus(branch) ?? 0);
     protected virtual void ValidateBaseStats() { }
     protected virtual void OnStatsChanged() { }
     protected virtual void OnDestroy()

@@ -4,47 +4,36 @@ using System.Collections.Generic;
 /// <summary>一プレイの共有効果。増加だけを許可し、成立済み予約の容量を維持する。</summary>
 public sealed class SharedStatEffectsApplication
 {
-    private readonly Dictionary<CellTypeDomain, int> _typeLevels = new();
-    public int GetTypeLevel(CellTypeDomain type) => _typeLevels.TryGetValue(type, out var level) ? level : 1;
-    public bool TrySetTypeLevel(CellTypeDomain type, int level)
+    private readonly Dictionary<(CellTypeDomain, EquipmentStatDomain), StatModifierDomain> _modifiers = new();
+    private readonly Dictionary<(CellTypeDomain, EquipmentStatDomain), HashSet<int>> _bases = new();
+    public StatModifierDomain GetModifier(CellTypeDomain type, EquipmentStatDomain stat)
+        => _modifiers.TryGetValue((type, stat), out var modifier) ? modifier : StatModifierDomain.Default;
+    public void RegisterBase(CellTypeDomain type, EquipmentStatDomain stat, int value)
     {
-        if (!SkillTreeCatalogDomain.SupportsType(type) || level < GetTypeLevel(type) || level > EffectiveStatsRulesDomain.MaxLevel) return false;
-        if (level == GetTypeLevel(type)) return true;
-        SetTypeLevelWithoutNotification(type, level); NotifyChanged(); return true;
+        EffectiveStatsRulesDomain.Calculate(value, GetModifier(type, stat));
+        if (!_bases.TryGetValue((type, stat), out var values)) _bases[(type, stat)] = values = new HashSet<int>();
+        values.Add(value);
     }
-    internal void SetTypeLevelWithoutNotification(CellTypeDomain type, int level)
+    public bool CanApply(CellTypeDomain type, EquipmentStatDomain stat, StatModifierDomain modifier)
     {
-        if (!SkillTreeCatalogDomain.SupportsType(type) || level < GetTypeLevel(type) || level > EffectiveStatsRulesDomain.MaxLevel)
-            throw new ArgumentOutOfRangeException(nameof(level));
-        _typeLevels[type] = level;
+        if (!SkillTreeCatalogDomain.SupportsStat(type, stat)) return false;
+        var previous = GetModifier(type, stat);
+        try
+        {
+            if (!_bases.TryGetValue((type, stat), out var values)) return EffectiveStatsRulesDomain.Calculate(1, modifier) >= 1;
+            foreach (var value in values)
+                if (EffectiveStatsRulesDomain.Calculate(value, modifier) < EffectiveStatsRulesDomain.Calculate(value, previous)) return false;
+            return true;
+        }
+        catch (OverflowException) { return false; }
     }
-    private readonly int[] _bonuses = new int[3];
+    internal void ApplyWithoutNotification(CellTypeDomain type, EquipmentStatDomain stat, StatModifierDomain modifier)
+    {
+        if (!CanApply(type, stat, modifier)) throw new InvalidOperationException("Ability value would decrease or overflow.");
+        _modifiers[(type, stat)] = modifier;
+    }
     public event Action Changed;
     public Exception LastNotificationException { get; private set; }
-
-    public int GetBonus(StatBranchDomain branch)
-    {
-        var index = (int)branch;
-        if (index < 0 || index >= _bonuses.Length) throw new ArgumentOutOfRangeException(nameof(branch));
-        return _bonuses[index];
-    }
-
-    public bool TrySetBonus(StatBranchDomain branch, int percent)
-    {
-        var previous = GetBonus(branch);
-        if (percent < previous || percent > EffectiveStatsRulesDomain.MaxBonusPercent) return false;
-        if (percent == previous) return true;
-        SetBonusWithoutNotification(branch, percent);
-        NotifyChanged();
-        return true;
-    }
-
-    internal void SetBonusWithoutNotification(StatBranchDomain branch, int percent)
-    {
-        if (percent < GetBonus(branch) || percent > EffectiveStatsRulesDomain.MaxBonusPercent)
-            throw new ArgumentOutOfRangeException(nameof(percent));
-        _bonuses[(int)branch] = percent;
-    }
 
     internal void NotifyChanged()
     {

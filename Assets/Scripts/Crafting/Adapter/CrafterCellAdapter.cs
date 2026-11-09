@@ -32,17 +32,14 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
 
     public ResourceTypeDomain ExportResourceType { get; private set; }
 
-    public int IngredientCapacity => IngredientCapacityAtLevel(EquipmentLevel);
-    public int IngredientCapacityAtLevel(int level) => EffectiveStatAtLevel(ingredientCapacity, StatBranchDomain.Storage, level);
+    public int IngredientCapacity => EffectiveStat(ingredientCapacity, EquipmentStatDomain.InputCapacity);
 
-    public int ExporterCapacity => ExporterCapacityAtLevel(EquipmentLevel);
-    public int ExporterCapacityAtLevel(int level) => EffectiveStatAtLevel(exporterCapacity, StatBranchDomain.Storage, level);
+    public int ExporterCapacity => EffectiveStat(exporterCapacity, EquipmentStatDomain.OutputCapacity);
     public override CellTypeDomain ProgressionType => CellTypeDomain.Crafter;
-    public override bool SupportsProgression => true;
     protected override void ValidateBaseStats()
     {
-        EffectiveStatsRulesDomain.ValidateBase(ingredientCapacity);
-        EffectiveStatsRulesDomain.ValidateBase(exporterCapacity);
+        ValidateStat(ingredientCapacity, EquipmentStatDomain.InputCapacity);
+        ValidateStat(exporterCapacity, EquipmentStatDomain.OutputCapacity);
     }
     protected override void OnStatsChanged() => UpdateUI();
 

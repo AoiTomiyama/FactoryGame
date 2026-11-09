@@ -319,35 +319,29 @@
           ]
         },
         "Economy": {
-          "description": "一プレイの共有残高と予約取引を管理します。換金は方向別予約を成功時に入金し、設置は失敗時に登録と予約を戻します。個別強化では期待レベルと対象を再確認し、同じ設備のレベルと支出を通知前に確定します。",
+          "description": "一プレイの共有残高と予約取引を管理します。換金は方向別予約を成功時に入金し、設置は失敗時に登録と予約を戻します。種類別強化の支出はSkillTreeApplicationから同じ残高へ確定します。",
           "references": [
             {
               "path": "Assets/Scripts/Economy/Application/SingularityIntakeApplication.cs"
             },
             {
               "path": "Assets/Scripts/Economy/Application/EquipmentPlacementApplication.cs"
-            },
-            {
-              "path": "Assets/Scripts/Economy/Application/EquipmentUpgradeApplication.cs"
             }
           ]
         },
         "Progression": {
-          "description": "スキル取得と種類別の共有レベルを保持します。5種類のI/IIで既設・新設・再有効化した同種セルをまとめて強化し、既存の在庫・予約と実行中の数量を保持します。通常プレイの購入入口をSkillTreeApplicationへ集約します。",
+          "description": "スキル取得と種類・能力別の倍率と加算値を保持します。5種類・8系統のI/IIを既設・新設・再有効化セルへ適用し、在庫・予約と稼働中の数量を保持します。",
           "references": [
             {
               "path": "Assets/Scripts/Progression/Application/SkillTreeApplication.cs"
             },
             {
               "path": "Assets/Scripts/Progression/Application/SharedStatEffectsApplication.cs"
-            },
-            {
-              "path": "Assets/Scripts/Progression/Application/EquipmentLevelApplication.cs"
             }
           ]
         },
         "Stats": {
-          "description": "基礎値・個別レベル・枝の加算率から整数の能力値を計算し、最大合成値を検証します。スキル定義は固定uidで前提を参照し、重複・欠落・循環や効果上限の不正を購入前に拒否します。実行中の取得状態はApplicationが保持します。",
+          "description": "基礎値に倍率を掛け加算値を足し、小数部を切り捨てて有効値を1以上として計算します。対象種類と能力、前提関係、値の範囲と上限を検証します。",
           "references": [
             {
               "path": "Assets/Scripts/Progression/Domain/EffectiveStatsRulesDomain.cs"
@@ -1992,7 +1986,7 @@
           ]
         },
         "Skills": {
-          "description": "基礎研究と5種類のI/IIの取得状態・前提・購入を管理します。旧3系統の共有率を種類別レベルへ統合し、同種全体のレベルと支出を確定してから能力とツリーを通知します。",
+          "description": "基礎研究と8能力系統のI/IIの取得・前提・購入を管理します。対象能力の倍率と加算値、取得状態、支出を確定してから変更を通知します。",
           "references": [
             {
               "path": "Assets/Scripts/Progression/Application/SkillTreeApplication.cs",
@@ -2077,7 +2071,7 @@
           ]
         },
         "EquipmentPresenter": {
-          "description": "選択セルの種類名・共有レベル・加工や停止状態を読み取り専用で表示します。セル選択時の個別購入を外し、保存済みの詳細欄と適用リスナーをスキル表示へ共用します。",
+          "description": "選択セルの種類名・在庫・稼働状態を表示します。保存済みの詳細欄と適用ボタンを、スキル選択時の能力・倍率・加算値の表示と購入へ共用します。",
           "references": [
             {
               "path": "Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs",
@@ -2113,15 +2107,15 @@
           ]
         },
         "TypeLevels": {
-          "description": "グリッドが一プレイの種類別レベルを所有し、セル登録時に既設・新設セルへ同じ参照を渡します。スキル取得は種類別レベルと支出を確定した後に通知し、在庫・予約・処理中の固定数量を保ちます。",
+          "description": "グリッドが種類・能力別の倍率と加算値を所有し、セル登録時に同じ参照を渡します。各能力を独立して更新し、成立済みの在庫・予約と処理中の数量を維持します。",
           "references": [
             {
               "path": "Assets/Scripts/Progression/Application/SharedStatEffectsApplication.cs",
-              "symbol": "GetTypeLevel"
+              "symbol": "GetModifier"
             },
             {
               "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
-              "symbol": "EquipmentLevel"
+              "symbol": "EffectiveStat"
             }
           ]
         }

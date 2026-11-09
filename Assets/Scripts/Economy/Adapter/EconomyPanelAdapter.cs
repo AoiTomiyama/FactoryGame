@@ -154,13 +154,13 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
             var state = _skills.CanPurchase(node.Uid);
             var prerequisite = node.Prerequisite != null && _skills.Catalog.TryGet(node.Prerequisite, out var parent)
                 ? parent.Label : "なし";
-            var effect = node.CellType.HasValue ? $"同種セルすべて\nLv.{node.TargetLevel - 1} → {node.TargetLevel}　基本性能 ×{node.TargetLevel}" : "種類別の強化を解放";
+            var effect = node.CellType.HasValue ? $"同種セルすべて\n{StatName(node.Stat)} ×{node.Modifier.Multiplier:0.###}" + (node.Modifier.Addition == 0 ? "" : $" ＋{node.Modifier.Addition}") : "能力別の強化を解放";
             _equipmentView.Heading.gameObject.SetActive(true); _equipmentView.UpgradeRoot.gameObject.SetActive(true);
             _equipmentView.Heading.text = node.Label;
             layout.EquipmentText.GetComponent<LayoutElement>().minHeight = 64;
             _equipmentView.EquipmentText = effect;
             _equipmentView.Feedback = state == SkillPurchaseResultApplication.PrerequisiteMissing ? prerequisite + "が必要"
-                : state != SkillPurchaseResultApplication.Success && state != SkillPurchaseResultApplication.AlreadyOwned ? SkillReason(state) : "";
+                : state == SkillPurchaseResultApplication.InsufficientFunds ? SkillReason(state) : "";
             layout.EquipmentFeedback.gameObject.SetActive(!string.IsNullOrEmpty(_equipmentView.Feedback));
             _equipmentView.UpgradeButton.GetComponentInChildren<Text>(true).text = _skills.IsOwned(node.Uid) ? "適用済み" : $"適用する　{node.Price}";
             _equipmentView.UpgradeButton.interactable = state == SkillPurchaseResultApplication.Success;
@@ -176,6 +176,11 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         RefreshPlacement();
     }
 
+    public static string StatName(EquipmentStatDomain stat) => stat switch
+    {
+        EquipmentStatDomain.ExtractionAmount => "抽出量", EquipmentStatDomain.Capacity => "容量",
+        EquipmentStatDomain.InputCapacity => "入力容量", EquipmentStatDomain.OutputCapacity => "出力容量", _ => "搬出量"
+    };
     public static string SkillReason(SkillPurchaseResultApplication result) => result switch
     {
         SkillPurchaseResultApplication.Success => "取得できます",
@@ -184,6 +189,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         SkillPurchaseResultApplication.AlreadyOwned => "取得済み",
         SkillPurchaseResultApplication.PrerequisiteMissing => "前提スキルが必要です",
         SkillPurchaseResultApplication.InsufficientFunds => "残高不足",
+        SkillPurchaseResultApplication.InvalidEffect => "強化値が現在値を下回るか上限を超えています",
         _ => "共有効果が変わりました"
     };
 

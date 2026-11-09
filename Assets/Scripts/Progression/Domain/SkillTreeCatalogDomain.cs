@@ -8,24 +8,31 @@ public sealed class SkillNodeDomain
     public string Label { get; }
     public long Price { get; }
     public string Prerequisite { get; }
-    public StatBranchDomain? Branch { get; }
-    public int BonusPercent { get; }
     public CellTypeDomain? CellType { get; }
-    public int TargetLevel { get; }
+    public EquipmentStatDomain Stat { get; }
+    public StatModifierDomain Modifier { get; }
 
     public SkillNodeDomain(string uid, string label, long price, string prerequisite,
-        StatBranchDomain? branch, int bonusPercent, CellTypeDomain? cellType = null, int targetLevel = 0)
+        CellTypeDomain? cellType = null, EquipmentStatDomain stat = EquipmentStatDomain.ExtractionAmount, decimal multiplier = 1, int addition = 0)
     {
         Uid = uid; Label = label; Price = price; Prerequisite = prerequisite;
-        Branch = branch; BonusPercent = bonusPercent; CellType = cellType; TargetLevel = targetLevel;
+        CellType = cellType; Stat = stat; Modifier = new StatModifierDomain(multiplier, addition);
     }
 }
 
-/// <summary>購入前に全定義と最大合成率を検証し、設定から独立したカタログを保持する。</summary>
+/// <summary>購入前に種類別の定義と前提を検証し、設定から独立したカタログを保持する。</summary>
 public sealed class SkillTreeCatalogDomain
 {
     public static bool SupportsType(CellTypeDomain type) => type is CellTypeDomain.ExtractorWood or CellTypeDomain.ExtractorStone or
         CellTypeDomain.Storage or CellTypeDomain.Crafter or CellTypeDomain.ExportConveyor;
+    public static bool SupportsStat(CellTypeDomain type, EquipmentStatDomain stat) => type switch
+    {
+        CellTypeDomain.ExtractorWood or CellTypeDomain.ExtractorStone => stat is EquipmentStatDomain.ExtractionAmount or EquipmentStatDomain.Capacity,
+        CellTypeDomain.Storage => stat == EquipmentStatDomain.Capacity,
+        CellTypeDomain.Crafter => stat is EquipmentStatDomain.InputCapacity or EquipmentStatDomain.OutputCapacity,
+        CellTypeDomain.ExportConveyor => stat == EquipmentStatDomain.TransferAmount,
+        _ => false
+    };
     private readonly Dictionary<string, SkillNodeDomain> _nodes = new(StringComparer.Ordinal);
     public IReadOnlyList<SkillNodeDomain> Nodes { get; }
     public bool TryGet(string uid, out SkillNodeDomain node)
@@ -37,40 +44,21 @@ public sealed class SkillTreeCatalogDomain
     public SkillTreeCatalogDomain(IEnumerable<SkillNodeDomain> nodes)
     {
         if (nodes == null) throw new ArgumentNullException(nameof(nodes));
-        var totals = new long[3];
-        var typeTiers = new HashSet<(CellTypeDomain, int)>();
         var ordered = new List<SkillNodeDomain>();
         foreach (var node in nodes)
         {
             if (node == null || string.IsNullOrWhiteSpace(node.Uid) || string.IsNullOrWhiteSpace(node.Label) ||
                 node.Price <= 0 || !_nodes.TryAdd(node.Uid, node))
                 throw new ArgumentException("Invalid or duplicate skill node.");
-            if (node.CellType.HasValue)
-            {
-                if (!SupportsType(node.CellType.Value) || node.TargetLevel < 2 || node.TargetLevel > EffectiveStatsRulesDomain.MaxLevel ||
-                    node.Branch.HasValue || node.BonusPercent != 0 || !typeTiers.Add((node.CellType.Value, node.TargetLevel)))
-                    throw new ArgumentException("Invalid or duplicate cell-type skill.");
-            }
-            else if (node.TargetLevel != 0) throw new ArgumentException("Type level requires a cell type.");
-            if (node.Branch.HasValue)
-            {
-                var index = (int)node.Branch.Value;
-                if (index < 0 || index >= totals.Length || node.BonusPercent <= 0)
-                    throw new ArgumentException("Invalid skill effect.");
-                totals[index] += node.BonusPercent;
-                if (totals[index] > EffectiveStatsRulesDomain.MaxBonusPercent)
-                    throw new ArgumentException("Skill effects exceed the supported maximum.");
-            }
-            else if (node.BonusPercent != 0) throw new ArgumentException("Root cannot have an effect.");
+            if (node.CellType.HasValue && !SupportsStat(node.CellType.Value, node.Stat))
+                throw new ArgumentException("Unsupported ability for cell type.");
+            if (!node.CellType.HasValue && (node.Modifier.Multiplier != 1 || node.Modifier.Addition != 0))
+                throw new ArgumentException("Unlock node cannot modify an ability.");
             ordered.Add(node);
         }
         if (ordered.Count == 0) throw new ArgumentException("Skill tree is empty.");
         foreach (var node in ordered)
         {
-            if (node.CellType.HasValue && node.TargetLevel == 3 &&
-                (node.Prerequisite == null || !_nodes.TryGetValue(node.Prerequisite, out var previous) ||
-                 previous.CellType != node.CellType || previous.TargetLevel != 2))
-                throw new ArgumentException("Type level three requires level two of the same type.");
             var path = new HashSet<string>(StringComparer.Ordinal);
             var current = node;
             while (true)
@@ -81,6 +69,16 @@ public sealed class SkillTreeCatalogDomain
                     throw new ArgumentException("Missing skill prerequisite.");
             }
         }
+        // 同じ能力の取得順を前提関係で一意にし、別々の枝で設定値を上書きし合う定義を拒否する。
+        bool Ancestor(SkillNodeDomain ancestor, SkillNodeDomain child)
+        {
+            while (child.Prerequisite != null) { child = _nodes[child.Prerequisite]; if (child.Uid == ancestor.Uid) return true; }
+            return false;
+        }
+        for (var i = 0; i < ordered.Count; i++) for (var j = i + 1; j < ordered.Count; j++)
+            if (ordered[i].CellType.HasValue && ordered[i].CellType == ordered[j].CellType && ordered[i].Stat == ordered[j].Stat &&
+                !Ancestor(ordered[i], ordered[j]) && !Ancestor(ordered[j], ordered[i]))
+                throw new ArgumentException("Skills for the same ability must share a prerequisite chain.");
         Nodes = ordered.AsReadOnly();
     }
 }

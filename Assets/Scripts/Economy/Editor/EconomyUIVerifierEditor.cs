@@ -86,7 +86,7 @@ public static class EconomyUIVerifierEditor
             var storage = Install(grid, "Storage", 20, 20);
             view.UpdateUIStatusWindow(storage);
             Require(!panel.EquipmentView.Heading.text.Contains("("), "equipment heading omits coordinates");
-            Require(!panel.UpgradeInteractable && !panel.EquipmentView.UpgradeRoot.gameObject.activeSelf && panel.EquipmentView.Heading.text.Contains("Lv.1/3"), "cell status is read-only and shows shared type level");
+            Require(!panel.UpgradeInteractable && !panel.EquipmentView.UpgradeRoot.gameObject.activeSelf && panel.EquipmentView.Heading.text.Contains("保管庫"), "cell status is read-only and shows shared type level");
             Require(Subscribers(singularity, "StatusChanged") == 0, "selection releases singularity UI subscriptions");
             var conveyor = Install(grid, "Conveyor", 21, 20);
             view.UpdateUIStatusWindow(conveyor);
@@ -251,8 +251,8 @@ public static class EconomyUIVerifierEditor
                         await UniTask.DelayFrame(2);
                         Canvas.ForceUpdateCanvases();
                         var treeScroll = tree.GetComponentInParent<ScrollRect>();
-                        Require(treeScroll.horizontal && !treeScroll.vertical && treeScroll.content.rect.width >= 5 * 64, "compact type branches retain spacing " + resolution);
-                        Require(treeScroll.horizontalScrollbar != null && !treeScroll.horizontalScrollbar.gameObject.activeInHierarchy, "compact tree fits without horizontal scrolling " + resolution);
+                        Require(treeScroll.horizontal && !treeScroll.vertical && treeScroll.content.rect.width >= 8 * 64, "compact type branches retain spacing " + resolution);
+                        Require(treeScroll.horizontalScrollbar != null && treeScroll.horizontalScrollbar.gameObject.activeInHierarchy, "ability branches expose horizontal scrolling " + resolution);
                         foreach (var node in generator.Skills.Catalog.Nodes)
                         {
                             var button = panel.SkillButton(node.Uid);
@@ -264,8 +264,7 @@ public static class EconomyUIVerifierEditor
                         var last = panel.SkillButton(generator.Skills.Catalog.Nodes.Last().Uid).GetComponent<RectTransform>();
                         var lastBounds = BoundsIn(canvas.GetComponent<RectTransform>(), last);
                         var viewportBounds = BoundsIn(canvas.GetComponent<RectTransform>(), scroll.viewport);
-                        Require(lastBounds.yMin >= viewportBounds.yMin - 1 && lastBounds.yMax <= viewportBounds.yMax + 1 &&
-                            lastBounds.xMin >= viewportBounds.xMin - 1 && lastBounds.xMax <= viewportBounds.xMax + 1,
+                        Require(lastBounds.yMin >= viewportBounds.yMin - 1 && lastBounds.yMax <= viewportBounds.yMax + 1,
                             $"{resolution}: final skill reachable by scrolling");
                     }
                 }
@@ -374,7 +373,7 @@ public static class EconomyUIVerifierEditor
         view.UpdateUIStatusWindow(storage);
         var balance = wallet.Current.Balance;
         var capacity = storage.Capacity;
-        Require(panel.EquipmentView.Heading.text.Contains("Lv.1/3") && !panel.EquipmentView.UpgradeRoot.gameObject.activeSelf, "cell status shows type level without individual purchase");
+        Require(panel.EquipmentView.Heading.text.Contains("保管庫") && !panel.EquipmentView.UpgradeRoot.gameObject.activeSelf, "cell status shows type level without individual purchase");
         for (var page = 0; page < 3; page++)
         {
             panel.SetExpanded(false);
@@ -386,12 +385,12 @@ public static class EconomyUIVerifierEditor
             Require(view.SelectedCell == storage && placer.SelectedType == CellTypeDomain.Crafter &&
                 Quaternion.Angle(direction, cursor.transform.rotation) < 0.01f, "tabs preserve equipment selection and placement direction");
         }
-        Require(storage.EquipmentLevel == 1 && storage.CurrentLoad == 3 && storage.Capacity == capacity && wallet.Current.Balance == balance,
+        Require(storage.Capacity == capacity && storage.CurrentLoad == 3 && storage.Capacity == capacity && wallet.Current.Balance == balance,
             "preview and navigation preserve level inventory and money");
-        panel.SelectSkill("storage-1");
+        panel.SelectSkill("storage-capacity-1");
         panel.EquipmentView.UpgradeButton.onClick.Invoke();
         view.UpdateUIStatusWindow(storage);
-        Require(storage.EquipmentLevel == 2 && storage.Capacity == storage.CapacityAtLevel(2) && storage.CurrentLoad == 3,
+        Require(storage.Capacity == capacity * 2 && storage.CurrentLoad == 3,
             "right-hand button upgrades same selected cell and preserves inventory");
         var recipes = AssetDatabase.LoadAssetAtPath<RecipeDatabaseDefinition>("Assets/Scripts/ScriptableObject/Recipes/RecipeDB.asset");
         var resources = AssetDatabase.LoadAssetAtPath<ResourceDefinition>("Assets/Scripts/ScriptableObject/ResourceDB.asset");
@@ -480,8 +479,7 @@ public static class EconomyUIVerifierEditor
         Require(view.SelectedCell == null && !panel.UpgradeInteractable, "right close button releases selection");
         var crafter = (CrafterCellAdapter)Install(grid, "Crafter", 26, 25);
         view.UpdateUIStatusWindow(crafter);
-        Require(panel.EquipmentView.Heading.text.Contains("加工設備") && panel.EquipmentView.Heading.text.Contains("待機") &&
-            panel.EquipmentView.Heading.text.Contains("Lv.1/3"), "crafter name operating state and next capacity");
+        Require(panel.EquipmentView.Heading.text.Contains("加工設備") && panel.EquipmentView.Heading.text.Contains("待機"), "crafter name operating state and next capacity");
         var progressRow = view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>(true).Single(row => row.GetComponentsInChildren<Text>(true).Any(text => text.text == "残り時間"));
         Require(!progressRow.gameObject.activeSelf, "idle progress omits zero-second row");
         progressRow.RenderUIByData(new GaugeElementDataApplication("残り時間", 2) { Current = 1, GaugeText = "1 秒" });

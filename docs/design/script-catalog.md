@@ -1,4 +1,4 @@
-﻿# クラス・スクリプト対応表
+# クラス・スクリプト対応表
 
 タグ: `現行設計` `スクリプト一覧` `責務` `依存` `Editor境界`
 
@@ -6,37 +6,28 @@
 
 確認ファイル数: 116（UIS-05の表示支援6件、未コミットServiceLocatorを1件含む）。
 
-## 旧個別取引の回帰用基盤（ECO-04）
-
-| ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
-| --- | --- | --- | --- |
-| [EquipmentUpgradeApplication](../../Assets/Scripts/Economy/Application/EquipmentUpgradeApplication.cs)<br>EquipmentUpgradeApplication, IEquipmentUpgradeTargetApplication, EquipmentUpgradeResultApplication | 旧個別購入の取引境界を検証する低水準入口。通常UIは種類別スキルへ統合 | CurrencyWalletApplication, CurrencyPriceCatalogDomain, EffectiveStatsRulesDomain | 標準C# |
-| [EquipmentUpgradeAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentUpgradeAdapter.cs) | 旧個別購入のEditor回帰でセルを取引契約へ接続 | GridFieldDatabaseAdapter, CellBaseAdapter, EquipmentUpgradeApplication | Unityセル参照 |
-| [EquipmentUpgradeVerifierEditor](../../Assets/Scripts/Economy/Editor/EquipmentUpgradeVerifierEditor.cs) | 取引境界・再入・削除競合、全7種と交差予約、購入経由の稼働中状態維持の検証 | Economy, EffectiveStatsVerifierEditor, Grid, Cells | UnityEditor, UnityEngine |
-
 ## 共有スキル（PRG-02）
 
 | ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
 | --- | --- | --- | --- |
-| [SkillTreeCatalogDomain](../../Assets/Scripts/Progression/Domain/SkillTreeCatalogDomain.cs)<br>SkillTreeCatalogDomain, SkillNodeDomain | 不変ノード、固定uidと前提・価格・種類別段階・効果上限の定義検証 | EffectiveStatsRulesDomain, StatBranchDomain | 標準C# |
+| [SkillTreeCatalogDomain](../../Assets/Scripts/Progression/Domain/SkillTreeCatalogDomain.cs)<br>SkillTreeCatalogDomain, SkillNodeDomain | 不変ノード、固定uidと前提・価格・種類別段階・効果上限の定義検証 | EffectiveStatsRulesDomain | 標準C# |
 | [SkillTreeApplication](../../Assets/Scripts/Progression/Application/SkillTreeApplication.cs)<br>SkillTreeApplication, SkillPurchaseResultApplication | 取得状態、購入可否、支出と共有効果の確定・通知 | SkillTreeCatalogDomain, CurrencyWalletApplication, CurrencyTransactionApplication, SharedStatEffectsApplication | 標準C# |
-| [SkillTreeDefinition](../../Assets/Scripts/Progression/Definitions/SkillTreeDefinition.cs) | 編集設定から不変カタログを生成 | SkillTreeCatalogDomain, SkillNodeDomain, StatBranchDomain | UnityEngine |
+| [SkillTreeDefinition](../../Assets/Scripts/Progression/Definitions/SkillTreeDefinition.cs) | 編集設定から不変カタログを生成 | SkillTreeCatalogDomain, SkillNodeDomain | UnityEngine |
 | [SkillTreeVerifierEditor](../../Assets/Scripts/Progression/Editor/SkillTreeVerifierEditor.cs) | 定義・取引・再入と全設備の既設・再有効化・新設のI/II効果検証 | Progression, Economy, Grid, EffectiveStatsVerifierEditor | UnityEditor, UnityEngine, UniTask |
 
 ## 設備能力（PRG-01）
 
 | ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
 | --- | --- | --- | --- |
-| [EffectiveStatsRulesDomain](../../Assets/Scripts/Progression/Domain/EffectiveStatsRulesDomain.cs)<br>EffectiveStatsRulesDomain, StatBranchDomain | 能力合成、切り捨て、範囲と最大値検証 | 標準C# | 標準C# |
-| [EquipmentLevelApplication](../../Assets/Scripts/Progression/Application/EquipmentLevelApplication.cs) | 設備ごとのレベルと増加制約 | EffectiveStatsRulesDomain | 標準C# |
-| [SharedStatEffectsApplication](../../Assets/Scripts/Progression/Application/SharedStatEffectsApplication.cs) | 一プレイの種類別共有レベルと変更通知、旧計算回帰用の加算率 | EffectiveStatsRulesDomain, StatBranchDomain | 標準C# |
+| [EffectiveStatsRulesDomain](../../Assets/Scripts/Progression/Domain/EffectiveStatsRulesDomain.cs)<br>EffectiveStatsRulesDomain | 能力別の倍率・加算・切り捨て、範囲と最大値検証 | 標準C# | 標準C# |
+| [SharedStatEffectsApplication](../../Assets/Scripts/Progression/Application/SharedStatEffectsApplication.cs) | 一プレイの種類・能力別の共有倍率と加算値と変更通知 | EffectiveStatsRulesDomain | 標準C# |
 | [EffectiveStatsVerifierEditor](../../Assets/Scripts/Progression/Editor/EffectiveStatsVerifierEditor.cs) | 基礎設定一致、計算境界、稼働中変更、予約維持と新設への適用検証 | Progression, Cells, Crafting, Grid, ResourceReservationVerifierEditor | UnityEditor, UnityEngine, UniTask |
 
 ## ランタイム・定義
 
 | ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
 | --- | --- | --- | --- |
-| [CellBaseAdapter](../../Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs)<br>CellBaseAdapter | 座標・モデル・初期化入口、搬送接点、種類別共有レベルの読取と能力の接続 | IResourceTransferEndpointApplication, EquipmentLevelApplication, SharedStatEffectsApplication, EffectiveStatsRulesDomain | UnityEngine |
+| [CellBaseAdapter](../../Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs)<br>CellBaseAdapter | 座標・モデル・初期化入口、搬送接点、種類・能力別の共有倍率と加算値の読取と能力の接続 | IResourceTransferEndpointApplication, SharedStatEffectsApplication, EffectiveStatsRulesDomain | UnityEngine |
 | [ConnectableCellBaseAdapter](../../Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs)<br>ConnectableCellBaseAdapter | 4方向の隣接参照と接続通知 | CellBaseAdapter, DirectionsDomain, EmptyCellAdapter, GridFieldDatabaseAdapter | UnityEngine |
 | [ConveyorCellAdapter](../../Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs)<br>ConveyorCellAdapter, TransferStatus | 一件のID受付・前方搬送・取消と終了 | CellBaseAdapter, ConnectableCellBaseAdapter, DirectionsDomain, IContainableApplication, IResourceReusableApplication, ResourceAnimationResultApplication, ResourceItemObjectPoolAdapter, ResourceTransferCoordinatorApplication, ResourceTransferOperationApplication, ResourceTypeDomain | Cysharp.Threading.Tasks, UnityEngine |
 | [CrossingCellAdapter](../../Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs)<br>CrossingCellAdapter, PendingTransfer | 方向別の下流予約・ID引継ぎ・保留搬送 | CellBaseAdapter, ConnectableCellBaseAdapter, IContainableApplication, IResourceReusableApplication, ResourceAnimationResultApplication, ResourceItemObjectPoolAdapter, ResourceReservationApplication, ResourceTransferCoordinatorApplication, ResourceTransferOperationApplication, ResourceTypeDomain | Cysharp.Threading.Tasks, UnityEngine |

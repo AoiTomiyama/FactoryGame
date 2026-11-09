@@ -1,21 +1,26 @@
-using System;
+﻿using System;
 
-public enum StatBranchDomain { Extraction, Transfer, Storage }
+public enum EquipmentStatDomain { ExtractionAmount, Capacity, InputCapacity, OutputCapacity, TransferAmount }
+
+/// <summary>ノードに設定する取得後の倍率と加算値。型全体の同じ能力へ適用する。</summary>
+public readonly struct StatModifierDomain
+{
+    public decimal Multiplier { get; }
+    public int Addition { get; }
+    public StatModifierDomain(decimal multiplier, int addition)
+    {
+        if (multiplier < 0 || multiplier > int.MaxValue || addition < 0 || multiplier == 0 && addition == 0)
+            throw new ArgumentOutOfRangeException(nameof(multiplier));
+        Multiplier = multiplier; Addition = addition;
+    }
+    public static StatModifierDomain Default => new(1, 0);
+}
 
 public static class EffectiveStatsRulesDomain
 {
-    public const int MaxLevel = 3;
-    public const int MaxBonusPercent = 50;
-
-    public static int Calculate(int baseValue, int level, int bonusPercent)
+    public static int Calculate(int baseValue, StatModifierDomain modifier)
     {
         if (baseValue <= 0) throw new ArgumentOutOfRangeException(nameof(baseValue));
-        if (level < 1 || level > MaxLevel) throw new ArgumentOutOfRangeException(nameof(level));
-        if (bonusPercent < 0 || bonusPercent > MaxBonusPercent)
-            throw new ArgumentOutOfRangeException(nameof(bonusPercent));
-        // 中間値はlongで計算し、切り捨てた有効値がintに収まることを確認する。
-        return checked((int)Math.Max(1L, (long)baseValue * level * (100 + bonusPercent) / 100));
+        return checked((int)Math.Max(1, decimal.Floor(baseValue * modifier.Multiplier + modifier.Addition)));
     }
-
-    public static void ValidateBase(int baseValue) => Calculate(baseValue, MaxLevel, MaxBonusPercent);
 }

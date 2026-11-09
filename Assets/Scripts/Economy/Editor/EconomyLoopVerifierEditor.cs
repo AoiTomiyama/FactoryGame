@@ -92,7 +92,7 @@ public static class EconomyLoopVerifierEditor
             spent += 50;
             foreach (var tier in new[] { 1, 2 })
             {
-                foreach (var branch in new[] { "wood", "stone", "storage", "crafter", "export" })
+                foreach (var branch in new[] { "wood-extraction", "wood-capacity", "stone-extraction", "stone-capacity", "storage-capacity", "crafter-input", "crafter-output", "export-transfer" })
                 {
                     var uid = branch + "-" + tier;
                     var node = generator.Skills.Catalog.Nodes.Single(n => n.Uid == uid);

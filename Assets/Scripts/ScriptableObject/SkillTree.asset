@@ -17,106 +17,135 @@ MonoBehaviour:
     label: 基礎研究
     price: 50
     prerequisite:
-    hasEffect: 0
-    branch: 0
-    bonusPercent: 0
-  - uid: wood-1
-    label: 木材採取 I
+    cellType: 0
+    stat: 0
+    multiplier: 1
+    addition: 0
+  - uid: wood-extraction-1
+    label: 木材採取・抽出量 I
     price: 50
     prerequisite: basic-research
-    hasEffect: 0
-    branch: 0
-    bonusPercent: 0
-    hasCellTypeEffect: 1
     cellType: 6
-    targetLevel: 2
-  - uid: wood-2
-    label: 木材採取 II
+    stat: 0
+    multiplier: 2
+    addition: 0
+  - uid: wood-extraction-2
+    label: 木材採取・抽出量 II
     price: 100
-    prerequisite: wood-1
-    hasEffect: 0
-    branch: 0
-    bonusPercent: 0
-    hasCellTypeEffect: 1
+    prerequisite: wood-extraction-1
     cellType: 6
-    targetLevel: 3
-  - uid: stone-1
-    label: 石材採取 I
+    stat: 0
+    multiplier: 3
+    addition: 0
+  - uid: wood-capacity-1
+    label: 木材採取・在庫容量 I
     price: 50
     prerequisite: basic-research
-    hasEffect: 0
-    branch: 0
-    bonusPercent: 0
-    hasCellTypeEffect: 1
+    cellType: 6
+    stat: 1
+    multiplier: 2
+    addition: 0
+  - uid: wood-capacity-2
+    label: 木材採取・在庫容量 II
+    price: 100
+    prerequisite: wood-capacity-1
+    cellType: 6
+    stat: 1
+    multiplier: 3
+    addition: 0
+  - uid: stone-extraction-1
+    label: 石材採取・抽出量 I
+    price: 50
+    prerequisite: basic-research
     cellType: 5
-    targetLevel: 2
-  - uid: stone-2
-    label: 石材採取 II
+    stat: 0
+    multiplier: 2
+    addition: 0
+  - uid: stone-extraction-2
+    label: 石材採取・抽出量 II
     price: 100
-    prerequisite: stone-1
-    hasEffect: 0
-    branch: 0
-    bonusPercent: 0
-    hasCellTypeEffect: 1
+    prerequisite: stone-extraction-1
     cellType: 5
-    targetLevel: 3
-  - uid: storage-1
-    label: 保管庫 I
+    stat: 0
+    multiplier: 3
+    addition: 0
+  - uid: stone-capacity-1
+    label: 石材採取・在庫容量 I
     price: 50
     prerequisite: basic-research
-    hasEffect: 0
-    branch: 0
-    bonusPercent: 0
-    hasCellTypeEffect: 1
+    cellType: 5
+    stat: 1
+    multiplier: 2
+    addition: 0
+  - uid: stone-capacity-2
+    label: 石材採取・在庫容量 II
+    price: 100
+    prerequisite: stone-capacity-1
+    cellType: 5
+    stat: 1
+    multiplier: 3
+    addition: 0
+  - uid: storage-capacity-1
+    label: 保管庫・容量 I
+    price: 50
+    prerequisite: basic-research
     cellType: 7
-    targetLevel: 2
-  - uid: storage-2
-    label: 保管庫 II
+    stat: 1
+    multiplier: 2
+    addition: 0
+  - uid: storage-capacity-2
+    label: 保管庫・容量 II
     price: 100
-    prerequisite: storage-1
-    hasEffect: 0
-    branch: 0
-    bonusPercent: 0
-    hasCellTypeEffect: 1
+    prerequisite: storage-capacity-1
     cellType: 7
-    targetLevel: 3
-  - uid: crafter-1
-    label: 加工設備 I
+    stat: 1
+    multiplier: 3
+    addition: 0
+  - uid: crafter-input-1
+    label: 加工設備・入力容量 I
     price: 50
     prerequisite: basic-research
-    hasEffect: 0
-    branch: 0
-    bonusPercent: 0
-    hasCellTypeEffect: 1
     cellType: 8
-    targetLevel: 2
-  - uid: crafter-2
-    label: 加工設備 II
+    stat: 2
+    multiplier: 2
+    addition: 0
+  - uid: crafter-input-2
+    label: 加工設備・入力容量 II
     price: 100
-    prerequisite: crafter-1
-    hasEffect: 0
-    branch: 0
-    bonusPercent: 0
-    hasCellTypeEffect: 1
+    prerequisite: crafter-input-1
     cellType: 8
-    targetLevel: 3
-  - uid: export-1
-    label: 搬出路 I
+    stat: 2
+    multiplier: 3
+    addition: 0
+  - uid: crafter-output-1
+    label: 加工設備・出力容量 I
     price: 50
     prerequisite: basic-research
-    hasEffect: 0
-    branch: 0
-    bonusPercent: 0
-    hasCellTypeEffect: 1
-    cellType: 10
-    targetLevel: 2
-  - uid: export-2
-    label: 搬出路 II
+    cellType: 8
+    stat: 3
+    multiplier: 2
+    addition: 0
+  - uid: crafter-output-2
+    label: 加工設備・出力容量 II
     price: 100
-    prerequisite: export-1
-    hasEffect: 0
-    branch: 0
-    bonusPercent: 0
-    hasCellTypeEffect: 1
+    prerequisite: crafter-output-1
+    cellType: 8
+    stat: 3
+    multiplier: 3
+    addition: 0
+  - uid: export-transfer-1
+    label: 搬出路・搬出量 I
+    price: 50
+    prerequisite: basic-research
     cellType: 10
-    targetLevel: 3
+    stat: 4
+    multiplier: 2
+    addition: 0
+  - uid: export-transfer-2
+    label: 搬出路・搬出量 II
+    price: 100
+    prerequisite: export-transfer-1
+    cellType: 10
+    stat: 4
+    multiplier: 3
+    addition: 0
