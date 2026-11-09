@@ -21,3 +21,15 @@ MonoBehaviour:
     resourceType: 2
     prefab: {fileID: 8945298940271707279, guid: 2028cc990c9bd0a47b318f66ad41f3b5, type: 3}
     icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  - resourceName: 板材
+    resourceType: 5
+    prefab: {fileID: 8945298940271707279, guid: 223c548441e949768e1ef7e9674366e3, type: 3}
+    icon: {fileID: 21300000, guid: 8ca04415a5f54716a41a8d4938f4a9ed, type: 3}
+  - resourceName: 石レンガ
+    resourceType: 6
+    prefab: {fileID: 8945298940271707279, guid: 91cdd7d856c34fd3b19b35c9e4b42557, type: 3}
+    icon: {fileID: 21300000, guid: d7d71464da374fefbaced913970241d9, type: 3}
+  - resourceName: 建築部材
+    resourceType: 7
+    prefab: {fileID: 8945298940271707279, guid: da28c293a3334accb0c3f619eb3e5e12, type: 3}
+    icon: {fileID: 21300000, guid: 47a2cd4ab4e1451e8091a5949a5303e3, type: 3}

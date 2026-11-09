@@ -21,7 +21,10 @@ public enum ResourceTypeDomain
     Stone,
     Wood,
     Iron,
-    Gold
+    Gold,
+    Plank,
+    StoneBrick,
+    BuildingParts
 }
 
 /// <summary>

@@ -22,3 +22,26 @@ MonoBehaviour:
     craftSecond: 5
     result: 2
     resultAmount: 1
+  - recipeName: 板材加工
+    ingredients:
+    - resourceType: 2
+      requiredAmount: 2
+    craftSecond: 2
+    result: 5
+    resultAmount: 1
+  - recipeName: 石レンガ加工
+    ingredients:
+    - resourceType: 1
+      requiredAmount: 3
+    craftSecond: 3
+    result: 6
+    resultAmount: 1
+  - recipeName: 建築部材の組立
+    ingredients:
+    - resourceType: 5
+      requiredAmount: 2
+    - resourceType: 6
+      requiredAmount: 2
+    craftSecond: 5
+    result: 7
+    resultAmount: 1

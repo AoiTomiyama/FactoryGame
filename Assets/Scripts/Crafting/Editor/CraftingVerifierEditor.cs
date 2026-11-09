@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
@@ -120,6 +121,8 @@ public static class CraftingVerifierEditor
 
     public static void RunPlay()
     {
+        EditorUtility.audioMasterMute = true;
+        Require(EditorUtility.audioMasterMute, "mute before crafting play check");
         SessionState.SetBool(SessionKey, true);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         EditorApplication.isPlaying = true;
@@ -141,6 +144,7 @@ public static class CraftingVerifierEditor
             var grid = gridObject.AddComponent<GridFieldDatabaseAdapter>();
             var row = new GameObject("Row").transform;
             row.SetParent(gridObject.transform);
+            await VerifySavedProducts(grid, row);
             var cell = CreateCrafter(grid, row, 0.3f);
             await Wait(() => GetOperation(cell) != null);
             var operation = GetOperation(cell);
@@ -231,6 +235,62 @@ public static class CraftingVerifierEditor
             Debug.LogException(exception);
             EditorApplication.Exit(1);
         }
+    }
+
+    private static async UniTask VerifySavedProducts(GridFieldDatabaseAdapter grid, Transform row)
+    {
+        var database = AssetDatabase.LoadAssetAtPath<RecipeDatabaseDefinition>("Assets/Scripts/ScriptableObject/Recipes/RecipeDB.asset");
+        var resources = AssetDatabase.LoadAssetAtPath<ResourceDefinition>("Assets/Scripts/ScriptableObject/ResourceDB.asset");
+        var prices = AssetDatabase.LoadAssetAtPath<CurrencyEconomyDefinition>("Assets/Scripts/ScriptableObject/CurrencyEconomy.asset").CreateCatalog();
+        var wallet = new CurrencyWalletApplication(0);
+        var intake = new SingularityIntakeApplication(wallet, prices) { Accepting = true };
+        var poolRoot = new GameObject("CraftingCheck:ProductPool");
+        var pool = poolRoot.AddComponent<ResourceItemObjectPoolAdapter>();
+        SetField(pool, "resourceDatabase", resources);
+        var products = new[] { ResourceTypeDomain.Plank, ResourceTypeDomain.StoneBrick, ResourceTypeDomain.BuildingParts };
+        var recipes = database.recipes.Where(recipe => products.Contains(recipe.Result)).ToArray();
+        Require(recipes.Length == products.Length && recipes.Select(recipe => recipe.Result).Distinct().Count() == products.Length,
+            "saved definitions contain all three product recipes");
+        var previousScale = Time.timeScale;
+        Time.timeScale = 10;
+        try
+        {
+            foreach (var recipe in recipes)
+            {
+                var root = new GameObject("CraftingCheck:" + recipe.RecipeName);
+                root.transform.SetParent(row); new GameObject("Model").transform.SetParent(root.transform);
+                var cell = root.AddComponent<CrafterCellAdapter>();
+                SetField(cell, "recipeDatabase", database); SetField(cell, "ingredientCapacity", 50);
+                SetField(cell, "exporterCapacity", 50); SetField(cell, "importDirection", DirectionsDomain.Left | DirectionsDomain.Right);
+                SetField(cell, "exportDirection", DirectionsDomain.Forward);
+                grid.InitializeCells(1); cell.InitializeSystem();
+                for (var i = 0; i < recipe.Ingredients.Length; i++)
+                {
+                    var ingredient = recipe.Ingredients[i]; var direction = i == 0 ? Vector3Int.left : Vector3Int.right;
+                    Require(cell.AllocateStorage(direction, ingredient.requiredAmount, ingredient.resourceType), "product materials reserve");
+                    cell.StoreResource(direction, ingredient.requiredAmount);
+                }
+                await Wait(() => cell.ExportStorageAmount == recipe.ResultAmount);
+                Require(cell.ExportResourceType == recipe.Result && cell.GetInput(DirectionsDomain.Left).Amount == 0 &&
+                    (recipe.Ingredients.Length == 1 || cell.GetInput(DirectionsDomain.Right).Amount == 0),
+                    "saved recipe consumes exact materials and produces " + recipe.Result);
+                Require(cell.TryExport(Vector3.forward, recipe.ResultAmount, out var amount, out var type) && type == recipe.Result,
+                    "crafted product exports");
+                var id = pool.CreateIdFromResourceData(type, amount);
+                Require(pool.TryRestoreVisual(id) && pool.TakeResourceDataById(id).type == type,
+                    "crafted product rents its saved visual prefab");
+                var before = wallet.Current.Balance;
+                Require(prices.TryGetSaleAmount(type, amount, out var income) && intake.TryReserve(0, amount, type),
+                    "crafted product sale reserves");
+                intake.Commit(0, amount);
+                Require(wallet.Current.Balance == before + income && wallet.Current.ReservedIncome == 0,
+                    "crafted product sale commits once");
+                UnityEngine.Object.Destroy(root); await UniTask.Yield();
+            }
+            Require(wallet.Current.Balance == 23, "three crafted product sale prices match saved definitions");
+            Debug.Log("Saved product checks passed: plank, stone brick, building parts; crafting, export, pooled visuals and sale.");
+        }
+        finally { Time.timeScale = previousScale; UnityEngine.Object.Destroy(poolRoot); }
     }
 
     private static CrafterCellAdapter CreateCrafter(GridFieldDatabaseAdapter grid, Transform row, float seconds)

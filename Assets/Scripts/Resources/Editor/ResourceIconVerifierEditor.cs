@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Linq;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEditor;
@@ -72,6 +73,19 @@ public static class ResourceIconVerifierEditor
             Require(storageUI != null, "storage prefab has StorageUIStatusRowAdapter");
             VerifyStorage(storageUI, ResourceTypeDomain.Stone, stone.Icon, stone.Name);
             VerifyStorage(storageUI, ResourceTypeDomain.Wood, wood.Icon, wood.Name);
+            foreach (var resource in resources.GetAllResources())
+            {
+                Require(resource.Prefab != null && resource.Icon != null && !string.IsNullOrWhiteSpace(resource.ResourceName),
+                    "resource has saved visual, sprite and display name " + resource.ResourceTypeDomain);
+                Require(recipeObject.GetComponentsInChildren<RecipeResourceRowAdapter>(true).Any(row => GetField<Text>(row, "label").text.Contains(resource.ResourceName) &&
+                    GetField<Image>(row, "icon").sprite == resource.Icon), "recipe displays product icon " + resource.ResourceTypeDomain);
+                VerifyStorage(storageUI, resource.ResourceTypeDomain, resource.Icon, resource.ResourceName);
+                Require(resource.Prefab.GetComponentInChildren<TextMeshPro>() != null &&
+                    resource.Prefab.transform.localScale == new Vector3(.3f, .3f, .3f),
+                    "product model shape preserves quantity text scale " + resource.ResourceTypeDomain);
+            }
+            Require(resources.GetAllResources().Select(resource => resource.Icon).Distinct().Count() == resources.GetAllResources().Length,
+                "resource icons remain distinct");
             Debug.Log($"Resource icon checks passed: recipe and storage show stone={stone.Icon.name}, wood={wood.Icon.name}.");
             EditorApplication.Exit(0);
         }

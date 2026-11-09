@@ -23,7 +23,10 @@ public sealed class CurrencyEconomyDefinition : ScriptableObject
     [SerializeField] private SalePrice[] salePrices =
     {
         new() { resource = ResourceTypeDomain.Wood, price = 1 },
-        new() { resource = ResourceTypeDomain.Stone, price = 1 }
+        new() { resource = ResourceTypeDomain.Stone, price = 1 },
+        new() { resource = ResourceTypeDomain.Plank, price = 3 },
+        new() { resource = ResourceTypeDomain.StoneBrick, price = 4 },
+        new() { resource = ResourceTypeDomain.BuildingParts, price = 16 }
     };
     [SerializeField] private PlacementPrice[] placementPrices =
     {

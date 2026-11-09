@@ -18,6 +18,12 @@ MonoBehaviour:
     price: 1
   - resource: 1
     price: 1
+  - resource: 5
+    price: 3
+  - resource: 6
+    price: 4
+  - resource: 7
+    price: 16
   placementPrices:
   - cell: 6
     price: 20

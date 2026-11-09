@@ -28,3 +28,5 @@ MainSceneは共有残高100、中央の特異点1基、木材と初回経路を�
 | Windows 64-bit通常ビルド | GridFieldGeneratorVerifierEditor.RunPlayerBuild |
 
 実行条件、対象コードのハッシュ、終了結果とログはローカル管理の`docs/verification/eco06-loop.json`へ集約する。描画の目視と生成プレイヤーの手操作は別の確認範囲となる。
+
+板材・石レンガ・建築部材は[加工レシピ](crafting.md#追加した加工品とレシピ)で生産し、木材・石材と同じ特異点へ搬送して換金できる。売価は順に3・4・16で、既存の初期残高・採取経路・購入価格を保持する。

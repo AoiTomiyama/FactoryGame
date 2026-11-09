@@ -193,3 +193,5 @@ MainSceneの共有残高と初回経路、実際の換金収益による全5種�
 UIS-05では既存のSelectButtonBuilderを左の配置ページへ移し、レシピ・スキルと直接タブで切り替える。残高は上部に常時表示し、設備強化は右側のセル情報へ統合する。採取設備のサブメニューは同じセル定義とPlacerを使う。UI上で離した配置ドラッグは取消し、選択・表示切替では支払を行わない。
 
 UIS-06ではMainSceneのHUDと操作帯を保存済みPrefabへ移し、固定枠・タブ・操作ボタンは起動時に生成しない。動的一覧は行Prefabを複製し、セル状態の読み取り専用表示はEquipmentDetailsPresenterAdapter、共用詳細枠はEquipmentDetailsViewAdapterが担当する。種類別強化はスキルノードから購入する。旧Canvas・UITab資産と移設・復元経路の整理、Editor編集範囲と検証は[HUDのPrefab仕様](../spec/currency-loop-ui.md#hudのprefabと編集範囲uis-06)を参照する。
+
+加工品の板材・石レンガ・建築部材は、既存ResourceDB・RecipeDB・CurrencyEconomyの定義を追加して扱う。加工・搬送・保管・換金の実行経路は[加工仕様](../spec/crafting.md#追加した加工品とレシピ)を参照する。
