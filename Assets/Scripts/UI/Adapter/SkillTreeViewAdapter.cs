@@ -90,9 +90,17 @@ public sealed class SkillTreeViewAdapter : IDisposable
             button.interactable = true;
             var owned = _skills.IsOwned(node.Uid);
             var chosen = node.Uid == selected;
-            _hud.StyleButton(button, owned || chosen);
             var state = _skills.CanPurchase(node.Uid);
-            button.GetComponent<CanvasGroup>().alpha = chosen || owned || state == SkillPurchaseResultApplication.Success ? 1 : .45f;
+            // 前提不足は固有のグレーで示す。残高不足は通常色を保ち、選択は白枠で伝える。
+            if (state == SkillPurchaseResultApplication.PrerequisiteMissing)
+            {
+                button.targetGraphic.color = Color.white;
+                var colors = button.colors;
+                colors.normalColor = colors.highlightedColor = colors.pressedColor = colors.selectedColor = new Color(.18f, .18f, .18f);
+                button.colors = colors;
+            }
+            else _hud.StyleButton(button, owned || chosen);
+            button.GetComponent<CanvasGroup>().alpha = 1;
             _marks[node.Uid].gameObject.SetActive(owned);
             button.GetComponentInChildren<Text>(true).text = node.Label;
         }

@@ -11,7 +11,7 @@
 
 [RecipeReferenceViewAdapter](../../Assets/Scripts/UI/Adapter/RecipeReferenceViewAdapter.cs)は既存RecipeDatabaseDefinitionとResourceDefinitionから、レシピ名・加工時間・材料名と必要数・成果物名と数量・資源アイコンを表示する。参照ページの表示は加工処理と独立しており、現行の自動判定を保つ。
 
-[PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs)は残高・使用可能額・支出予約・換金待ちを表示する。SetWalletOrderで4項目の順を、SetItemsで追加項目と順を指定する。残高4項目と追加項目を指定順に横へ並べ、画面幅を超えると折り返して枠の高さを増やす。常時表示枠にはスクロールや切り抜きを付けず、全項目を表示する。左右パネルはその下へ追従し、下端108以上を保つ。固定枠と行Prefabの参照は[HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs)へ集約する。ボタン・タブ・生成行のボタン・操作帯のボタンは同AdapterのIdleTabColor、選択・強調・押下はSelectedTabColorを使う。黒背景パネルと操作帯の背景はPrefabで保存した色を保つ。文字・資源アイコン・進捗ゲージ・無効状態の色は各部品の設定を保つ。
+[PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs)は残高・使用可能額・支出予約・換金待ちを表示する。SetWalletOrderで4項目の順を、SetItemsで追加項目と順を指定する。残高4項目と追加項目を指定順に横へ並べ、画面幅を超えると折り返して枠の高さを増やす。常時表示枠にはスクロールや切り抜きを付けず、全項目を表示する。左右パネルはその下へ追従し、下端108以上を保つ。固定枠と行Prefabの参照は[HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs)へ集約する。ボタン・タブ・生成行のボタン・操作帯のボタンは同AdapterのIdleTabColor、選択・強調・押下はSelectedTabColorを使う。スキルの前提未解放は暗いグレーを使い、選択・ホバー中も保つ。黒背景パネルと操作帯の背景はPrefabで保存した色を保つ。文字・資源アイコン・進捗ゲージ・無効状態の色は各部品の設定を保つ。
 
 UI上で始めたクリックは配置確定へ進めず、フィールドからの配置ドラッグをUI上で離した場合はプレビューを取り消す。[PlayerCursorBehaviourAdapter](../../Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs)が既存Raycasterの結果で判定する。
 
@@ -20,7 +20,7 @@ UI上で始めたクリックは配置確定へ進めず、フィールドから
 | 通貨 | 残高、使用可能額、支出予約、換金待ち。残高の増加通知から直前の入金額を表示し、換金予約の取消では入金を表示しない。 |
 | 設置・撤去 | 配置タブはセル選択専用とし、選択設備の単価、範囲個数・総費用、確定した個数・支出と停止理由は下部の操作帯へ表示する。残高不足では途中停止を予告する。撤去は無料・返金なしを表示する。 |
 | 個別強化 | 設備を右クリックして選択し、右側のセル情報に設備名、座標、レベル、在庫・稼働状態を表示し、その下に現在と強化後の能力、費用と可否を置く。ボタンから共有Upgradesへ購入を渡す。最大レベルでは費用を「—」と表示する。 |
-| スキル | 前提関係を樹形図で示す。ノードには名称を置き、未解放は暗く、選択中は枠、適用済みは記号で示す。押すと右側へ効果と価格付きの「適用する」ボタンを表示する。 |
+| スキル | 前提関係を樹形図で示す。ノードには名称を置き、未解放は暗いグレー、解放済みの残高不足は通常色、選択中は白枠、適用済みは記号で示す。押すと右側へ効果と価格付きの「適用する」ボタンを表示する。 |
 
 強化とスキルの適用ボタンは、それぞれApplicationのCanPurchaseがSuccessの場合に有効になる。スキルのノードは全状態で選択でき、選択だけでは支払わない。前提不足・残高不足は右側へ理由を表示し、適用済みは操作ボタンの状態とノードの記号で示す。購入時はApplicationが対象と状態を再確認し、失敗結果を日本語で表示する。支出予約中の使用可能額も判定へ反映される。能力の値はセルの有効値を読み、計算をUIへ複製しない。交差設備は上流からの搬送量を中継する。
 

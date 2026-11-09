@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
@@ -93,8 +93,9 @@ public static class HudPrefabVerifierEditor
         foreach (var button in hud.GetComponentsInChildren<Button>(true).Concat(bar.GetComponentsInChildren<Button>(true)))
         {
             Require(button.targetGraphic.color == Color.white, "no double color multiplication");
-            Require(button.colors.normalColor == (button == hud.Tabs[0] ? hud.SelectedTabColor : hud.IdleTabColor) &&
-                button.colors.selectedColor == hud.SelectedTabColor, "static and generated buttons share both colors");
+            var locked = button.name.StartsWith("SkillNode_") && panel.GetComponent<GridFieldGeneratorAdapter>().Skills.CanPurchase(button.name.Substring("SkillNode_".Length)) == SkillPurchaseResultApplication.PrerequisiteMissing;
+            Require(button.colors.normalColor == (locked ? new Color(.18f, .18f, .18f) : button == hud.Tabs[0] ? hud.SelectedTabColor : hud.IdleTabColor) &&
+                button.colors.selectedColor == (locked ? new Color(.18f, .18f, .18f) : hud.SelectedTabColor), "buttons share palette with locked-skill gray exception");
         }
         foreach (var cell in hud.GetComponentsInChildren<CellSelectButtonUIAdapter>(true))
             Require(cell.GetComponent<Image>().color == hud.IdleTabColor, "placement and submenu outer backgrounds share normal color");

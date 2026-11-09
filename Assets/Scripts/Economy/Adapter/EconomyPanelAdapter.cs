@@ -154,7 +154,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     public void SelectSkill(string uid)
     {
         if (!_skills.Catalog.TryGet(uid, out _)) return;
-        _view.ShowDetails();
+        // スキル間の切替では右枠を閉じ直さず、ボタンの有効状態と色の瞬間的な初期化を避ける。
+        if (_selectedSkill == null) _view.ShowDetails();
         _selectedSkill = uid; _skillFeedback = "";
         Refresh();
     }
