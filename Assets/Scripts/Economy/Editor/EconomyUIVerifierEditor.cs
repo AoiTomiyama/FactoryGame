@@ -245,6 +245,10 @@ public static class EconomyUIVerifierEditor
                         Canvas.ForceUpdateCanvases();
                         Require(tree.Find("SelectionFrame").gameObject.activeSelf && panel.EquipmentView.Heading.text == branch.Label, "selection matches right detail " + resolution);
                         Require(Inside(canvas.GetComponent<RectTransform>(), panel.EquipmentView.UpgradeButton.GetComponent<RectTransform>(), view.StatusScroll.viewport), "skill apply fits right viewport " + resolution);
+                        var applyBounds = BoundsIn(canvas.GetComponent<RectTransform>(), panel.EquipmentView.UpgradeButton.GetComponent<RectTransform>());
+                        var detailsBounds = BoundsIn(canvas.GetComponent<RectTransform>(), view.StatusScroll.viewport);
+                        Require(Mathf.Abs(applyBounds.yMin - detailsBounds.yMin) < 2,
+                            "skill apply stays at bottom of detail viewport " + resolution);
                         view.CloseButton.onClick.Invoke();
                         var scroll = canvas.GetComponentInChildren<ScrollRect>();
                         scroll.verticalNormalizedPosition = 0;
