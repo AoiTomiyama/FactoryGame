@@ -213,7 +213,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         {
             _summaryView.UpdateLayout();
             layout.UpdateLayout();
-            _view.TopInset = _summaryView.Rect.rect.height + 20;
+            _view.TopInset = _summaryView.Rect.rect.height + 8;
         }
         if (!_bound) return;
         if (!ReferenceEquals(_selected, null) && _selected == null) Select(null);

@@ -132,7 +132,9 @@ public sealed class HudLayoutAdapter : MonoBehaviour
         var body = (RectTransform)Body.transform;
         body.anchoredPosition = _bodyPosition - new Vector2(0, delta);
         body.sizeDelta = _bodySize - new Vector2(0, delta);
-        var width = Mathf.Min(_width, Mathf.Max(120, ((RectTransform)transform).rect.width - _bodyPosition.x - 424));
+        // 左右の幅を揃えても、狭い画面では保存済みの右枠と外側余白を確保する。
+        var detailsWidth = ((RectTransform)EquipmentGroup.GetComponentInParent<CellStatusViewAdapter>(true).transform).rect.width;
+        var width = Mathf.Min(_width, Mathf.Max(120, ((RectTransform)transform).rect.width - _bodyPosition.x - detailsWidth - 8));
         body.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
         // 右端の矢印をパネル中央へ追従させ、保存済みの大きさと個別位置の調整を保つ。
         header.anchoredPosition = _headerPosition + new Vector2(width - _width,

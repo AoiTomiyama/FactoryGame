@@ -466,7 +466,7 @@ public static class EconomyUIVerifierEditor
             var leftScroll = panel.RecipeContent.GetComponentInParent<ScrollRect>();
             var leftBounds = BoundsIn(root, leftScroll.GetComponent<RectTransform>());
             var rightBounds = BoundsIn(root, (RectTransform)view.transform);
-            Require(summaryBounds.yMin >= leftBounds.yMax + 7 && summaryBounds.yMin >= rightBounds.yMax + 7,
+            Require(summaryBounds.yMin >= leftBounds.yMax + 3.9f && summaryBounds.yMin >= rightBounds.yMax + 3.9f,
                 "expanded summary clears both side panels " + resolution);
             Require(leftBounds.xMax < rightBounds.xMin, "left recipe and right cell information do not overlap " + resolution);
             Require(panel.EquipmentView.Heading.transform.GetSiblingIndex() == 0 &&
@@ -562,6 +562,11 @@ public static class EconomyUIVerifierEditor
             "close arrow follows right edge and vertical center " + resolution);
         Require(Inside(root, close, root) && close.rect.width >= 32 && close.rect.height >= 44,
             "close arrow remains visible and clickable " + resolution);
+        var summaryBounds = BoundsIn(root, panel.SummaryRect);
+        Require(Mathf.Abs(summaryBounds.xMin - root.rect.xMin - 4) < 1 &&
+            Mathf.Abs(root.rect.xMax - summaryBounds.xMax - 4) < 1 &&
+            Mathf.Abs(root.rect.yMax - summaryBounds.yMax - 4) < 1,
+            "summary outer margins stay compact " + resolution);
         var bottom = BoundsIn(root, panel.SummaryRect).yMin;
         Require(bottom > root.rect.yMin + 132, "summary clears bottom operation bar " + resolution);
     }
@@ -698,7 +703,10 @@ public static class EconomyUIVerifierEditor
             Require(info.xMin >= frame.xMin + 8 && info.xMax <= frame.xMax - 8 && info.yMin >= frame.yMin + 8 && info.yMax <= frame.yMax - 8, "placement text has inner padding " + resolution);
             foreach (var button in new[] { bar.RotateButton, bar.ViewButton })
                 Require(!info.Overlaps(BoundsIn(root, button.GetComponent<RectTransform>())), "placement text clears buttons " + resolution);
-            Require(BoundsIn(root, bar.Bar).yMax <= root.rect.yMin + 120.1f, "bottom HUD reservation " + resolution);
+            Require(Mathf.Abs(frame.yMin - root.rect.yMin - 4) < 1 &&
+                Mathf.Abs(frame.xMin - root.rect.xMin - 4) < 1 && Mathf.Abs(root.rect.xMax - frame.xMax - 4) < 1,
+                "operation bar outer margins stay compact " + resolution);
+            Require(BoundsIn(root, bar.Bar).yMax <= root.rect.yMin + 112.1f, "bottom HUD reservation " + resolution);
             var view = UnityEngine.Object.FindAnyObjectByType<CellStatusViewAdapter>();
             var window = (RectTransform)view.transform;
             var parent = (RectTransform)window.parent;
@@ -738,6 +746,20 @@ public static class EconomyUIVerifierEditor
                     "placement label fits without clipping " + label.text + resolution);
             }
         }
+        var hud = canvas.GetComponent<HudLayoutAdapter>();
+        var right = hud.EquipmentHeading.GetComponentInParent<CellStatusViewAdapter>(true);
+        var statusBounds = BoundsIn(canvasRect, (RectTransform)right.transform);
+        Require(Mathf.Abs(statusBounds.width - 280) < 1 && Mathf.Abs(canvasRect.rect.xMax - statusBounds.xMax - 4) < 1,
+            "narrow status frame hugs screen edge " + resolution);
+        foreach (var text in right.StatusContent.GetComponentsInChildren<Text>())
+        {
+            var bounds = BoundsIn(canvasRect, text.rectTransform);
+            Require(bounds.xMin >= statusBounds.xMin - 1 && bounds.xMax <= statusBounds.xMax + 1 &&
+                text.preferredWidth <= text.rectTransform.rect.width + 1,
+                "status text fits narrow frame " + text.text + resolution);
+        }
+        Require(Mathf.Abs(BoundsIn(canvasRect, hud.Navigation).xMin - canvasRect.rect.xMin - 4) < 1,
+            "side navigation hugs screen edge " + resolution);
         var buttons = canvas.GetComponentsInChildren<Button>();
         for (var i = 0; i < buttons.Length; i++)
         {

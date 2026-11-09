@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Pool;
@@ -25,7 +25,7 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
     [SerializeField] private Button closeButton;
     public ScrollRect StatusScroll => statusScroll;
     public Button CloseButton => closeButton;
-    public float TopInset { get; set; } = 88;
+    public float TopInset { get; set; } = 72;
     private Vector2 _baseMin, _baseMax;
 
     public void ConfigureHud(Font font, ResourceDefinition resources)
@@ -167,7 +167,7 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
         if (_integrated && transform is RectTransform window)
         {
             window.offsetMin = _baseMin;
-            window.offsetMax = _baseMax - new Vector2(0, TopInset - 88);
+            window.offsetMax = _baseMax - new Vector2(0, TopInset - 72);
         }
         if (!ReferenceEquals(_selectedCell, null) && _selectedCell == null)
             SetStatusWindowActive(false);
