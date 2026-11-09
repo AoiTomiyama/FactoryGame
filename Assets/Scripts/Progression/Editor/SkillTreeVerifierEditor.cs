@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -56,7 +56,7 @@ public static class SkillTreeVerifierEditor
         Require(snapshot.TryGet("a", out _) && !snapshot.TryGet("changed", out _), "definition snapshot");
         var rich = new CurrencyWalletApplication(long.MaxValue);
         Require(new SkillTreeApplication(snapshot, rich, new SharedStatEffectsApplication()).Purchase("a") == SkillPurchaseResultApplication.Success && rich.Current.Balance == 0, "long maximum price");
-        var wallet = new CurrencyWalletApplication(2000); var effects = new SharedStatEffectsApplication(); var tree = new SkillTreeApplication(catalog, wallet, effects);
+        var wallet = new CurrencyWalletApplication(catalog.Nodes.Sum(node => node.Price) + 750); var effects = new SharedStatEffectsApplication(); var tree = new SkillTreeApplication(catalog, wallet, effects);
         Require(tree.Purchase(null) == SkillPurchaseResultApplication.UnknownNode && tree.Purchase("missing") == SkillPurchaseResultApplication.UnknownNode, "unknown nodes");
         var notifications = 0; var effectNotifications = 0; var reentries = 0; var callbacksValid = true;
         wallet.Changed += state => { callbacksValid &= tree.Purchase("basic-research") == SkillPurchaseResultApplication.Busy; reentries++; };
@@ -65,7 +65,7 @@ public static class SkillTreeVerifierEditor
         effects.Changed += () => throw new InvalidOperationException("expected effect subscriber failure");
         effects.Changed += () => { effectNotifications++; callbacksValid &= wallet.Current.ReservedExpense == 0; };
         foreach (var node in catalog.Nodes) Require(tree.Purchase(node.Uid) == SkillPurchaseResultApplication.Success, "type transaction " + node.Uid);
-        Require(notifications == 17 && effectNotifications == 16 && reentries == 34 && wallet.Current.Balance == 750 && wallet.Current.ReservedExpense == 0, "type transaction total and notification isolation");
+        Require(notifications == catalog.Nodes.Count && effectNotifications == catalog.Nodes.Count(node => node.CellType.HasValue) && reentries == catalog.Nodes.Count * 2 && wallet.Current.Balance == 750 && wallet.Current.ReservedExpense == 0, "type transaction total and notification isolation");
         Require(callbacksValid && wallet.LastNotificationException == null && tree.LastNotificationException != null && effects.LastNotificationException != null, "callbacks and exceptions recorded");
         var poor = new CurrencyWalletApplication(49);
         Require(new SkillTreeApplication(catalog, poor, new SharedStatEffectsApplication()).Purchase("basic-research") == SkillPurchaseResultApplication.InsufficientFunds && poor.Current.Balance == 49, "insufficient funds");
@@ -77,10 +77,10 @@ public static class SkillTreeVerifierEditor
 
     private static void VerifyTypeRules(SkillTreeCatalogDomain catalog)
     {
-        Require(catalog.Nodes.Count == 17, "root and eight ability chains");
+        Require(catalog.Nodes.Count == 23, "root, eight ability chains and wood extraction through VIII");
         foreach (var node in catalog.Nodes)
         {
-            Require(node.Price == (node.Uid.EndsWith("-2") ? 100 : 50), "initial ability price");
+            Require(node.Price == (node.CellType.HasValue ? int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-') + 1)) * 50 : 50), "initial ability price");
             if (node.CellType.HasValue) Require(SkillTreeCatalogDomain.SupportsStat(node.CellType.Value, node.Stat), "ability belongs to target type");
         }
         SkillNodeDomain Effect(string uid, CellTypeDomain type, EquipmentStatDomain stat, decimal multiplier = 2, int addition = 0, string previous = null)
@@ -90,7 +90,7 @@ public static class SkillTreeVerifierEditor
         Invalid(() => new SkillTreeCatalogDomain(new[] { Effect("a", CellTypeDomain.Storage, EquipmentStatDomain.Capacity, -1) }));
         Invalid(() => new SkillTreeCatalogDomain(new[] { Effect("a", CellTypeDomain.Storage, EquipmentStatDomain.Capacity, 1, -1) }));
         Invalid(() => new SkillTreeCatalogDomain(new[] { Effect("a", CellTypeDomain.Storage, EquipmentStatDomain.Capacity), Effect("b", CellTypeDomain.Storage, EquipmentStatDomain.Capacity) }));
-        var wallet = new CurrencyWalletApplication(2000); var effects = new SharedStatEffectsApplication(); var tree = new SkillTreeApplication(catalog, wallet, effects);
+        var wallet = new CurrencyWalletApplication(catalog.Nodes.Sum(node => node.Price) + 750); var effects = new SharedStatEffectsApplication(); var tree = new SkillTreeApplication(catalog, wallet, effects);
         var changed = 0; var commits = 0;
         tree.Changed += () => { changed++; Require(tree.Purchase("wood-extraction-1") == SkillPurchaseResultApplication.Busy, "ability change reentry guarded"); };
         wallet.Changed += state => { if (state.ReservedExpense == 0) { commits++; foreach (var node in catalog.Nodes.Where(n => n.CellType.HasValue && tree.IsOwned(n.Uid)))
@@ -102,7 +102,7 @@ public static class SkillTreeVerifierEditor
             var paid = wallet.Current.Balance;
             Require(tree.Purchase(node.Uid) == SkillPurchaseResultApplication.AlreadyOwned && wallet.Current.Balance == paid, "ability purchase pays once");
         }
-        Require(changed == 17 && commits == 17 && wallet.Current.Balance == 750 && wallet.Current.ReservedExpense == 0, "ability totals and notifications");
+        Require(changed == catalog.Nodes.Count && commits == catalog.Nodes.Count && wallet.Current.Balance == 750 && wallet.Current.ReservedExpense == 0, "ability totals and notifications");
         Require(effects.GetModifier(CellTypeDomain.Conveyor, EquipmentStatDomain.TransferAmount).Multiplier == 1, "unrelated conveyor unchanged");
         var arbitrary = new SharedStatEffectsApplication();
         arbitrary.RegisterBase(CellTypeDomain.Storage, EquipmentStatDomain.Capacity, 50);
@@ -138,7 +138,7 @@ public static class SkillTreeVerifierEditor
             var generator = UnityEngine.Object.FindAnyObjectByType<GridFieldGeneratorAdapter>();
             var grid = GridFieldDatabaseAdapter.Instance;
             var tree = generator.Skills;
-            generator.Wallet.TryReserveIncome(1500, out var income); income.TryCommit();
+            generator.Wallet.TryReserveIncome(tree.Catalog.Nodes.Sum(node => node.Price) + 250, out var income); income.TryCommit();
             var names = new[] { "ExtractorWood", "ExtractorStone", "Storage", "Crafter", "ExportConveyor" };
             var existing = new List<CellBaseAdapter>(); var inactive = new List<CellBaseAdapter>();
             for (var index = 0; index < names.Length; index++)

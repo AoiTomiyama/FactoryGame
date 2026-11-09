@@ -37,6 +37,54 @@ MonoBehaviour:
     stat: 0
     multiplier: 3
     addition: 0
+  - uid: wood-extraction-3
+    label: 木材採取・抽出量 III
+    price: 150
+    prerequisite: wood-extraction-2
+    cellType: 6
+    stat: 0
+    multiplier: 4
+    addition: 0
+  - uid: wood-extraction-4
+    label: 木材採取・抽出量 IV
+    price: 200
+    prerequisite: wood-extraction-3
+    cellType: 6
+    stat: 0
+    multiplier: 5
+    addition: 0
+  - uid: wood-extraction-5
+    label: 木材採取・抽出量 V
+    price: 250
+    prerequisite: wood-extraction-4
+    cellType: 6
+    stat: 0
+    multiplier: 6
+    addition: 0
+  - uid: wood-extraction-6
+    label: 木材採取・抽出量 VI
+    price: 300
+    prerequisite: wood-extraction-5
+    cellType: 6
+    stat: 0
+    multiplier: 7
+    addition: 0
+  - uid: wood-extraction-7
+    label: 木材採取・抽出量 VII
+    price: 350
+    prerequisite: wood-extraction-6
+    cellType: 6
+    stat: 0
+    multiplier: 8
+    addition: 0
+  - uid: wood-extraction-8
+    label: 木材採取・抽出量 VIII
+    price: 400
+    prerequisite: wood-extraction-7
+    cellType: 6
+    stat: 0
+    multiplier: 9
+    addition: 0
   - uid: wood-capacity-1
     label: 木材採取・在庫容量 I
     price: 50
