@@ -11,7 +11,7 @@
 
 [RecipeReferenceViewAdapter](../../Assets/Scripts/UI/Adapter/RecipeReferenceViewAdapter.cs)は既存RecipeDatabaseDefinitionとResourceDefinitionから、レシピ名・加工時間・材料名と必要数・成果物名と数量・資源アイコンを表示する。参照ページの表示は加工処理と独立しており、現行の自動判定を保つ。
 
-[PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs)は確定した残高を表示する。SetItemsで追加項目と順を指定する。残高と追加項目を横へ並べ、画面幅を超えると折り返して枠の高さを増やす。常時表示枠にはスクロールや切り抜きを付けず、全項目を表示する。左右パネルはその下へ追従し、下端108以上を保つ。固定枠と行Prefabの参照は[HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs)へ集約する。ボタン・タブ・生成行のボタン・操作帯のボタンは同AdapterのIdleTabColor、選択・強調・押下はSelectedTabColorを使う。スキルの前提未解放は暗いグレーを使い、選択・ホバー中も保つ。黒背景パネルと操作帯の背景はPrefabで保存した色を保つ。文字・資源アイコン・進捗ゲージ・無効状態の色は各部品の設定を保つ。
+[PersistentSummaryViewAdapter](../../Assets/Scripts/UI/Adapter/PersistentSummaryViewAdapter.cs)は確定した残高を表示する。SetItemsで追加項目と順を指定する。残高と追加項目を横へ並べ、画面幅を超えると折り返して枠の高さを増やす。常時表示枠にはスクロールや切り抜きを付けず、全項目を表示する。左右パネルはその下へ追従し、下端132以上を保つ。固定枠と行Prefabの参照は[HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs)へ集約する。ボタン・タブ・生成行のボタン・操作帯のボタンは同AdapterのIdleTabColor、選択・強調・押下はSelectedTabColorを使う。スキルの前提未解放は暗いグレーを使い、選択・ホバー中も保つ。黒背景パネルと操作帯の背景はPrefabで保存した色を保つ。文字・資源アイコン・進捗ゲージ・無効状態の色は各部品の設定を保つ。
 
 UI上で始めたクリックは配置確定へ進めず、フィールドからの配置ドラッグをUI上で離した場合はプレビューを取り消す。[PlayerCursorBehaviourAdapter](../../Assets/Scripts/Input/Adapter/PlayerCursorBehaviourAdapter.cs)が既存Raycasterの結果で判定する。
 
@@ -46,7 +46,7 @@ UI上で始めたクリックは配置確定へ進めず、フィールドから
 
 [OperationBarAdapter](../../Assets/Scripts/UI/Adapter/OperationBarAdapter.cs)はシーンのOperationBar.prefabを参照し、画面下の「設備回転 [R]」「視点切替 [L]」へ既存入力を接続する。配置情報・枠・ボタンはPrefabに保存する。下部は左列に操作説明と回転・視点切替ボタン、右列に選択セルと単価、ドラッグ中の予定個数・費用をまとめる。配置タブが開いている間だけ操作帯を表示し、設置・撤去を有効にする。レシピ・スキルへの切替、左パネルを閉じる操作、HUDの無効化で設置を止め、ドラッグ範囲とプレビューを取り消し、カーソル位置のセル表示を戻す。配置タブへ戻った後は新しいドラッグから設置する。ボタンは既存カーソルの90度回転とカメラの視点切替を呼び、R・Lの入力設定を保持する。
 
-操作帯は高さ720の論理画面で下端12〜96に配置する。経済パネルと右側セル情報は下端108以上へ収める。セル情報は既存Canvasの高さへ換算して余白を確保する。操作帯の背景とボタンも既存UIRaycasterの判定対象となり、UI上のクリックとドラッグ終了は既存の配置取消規則に従う。サイドタブの再構成はUIS-05の採用方針を参照する。
+操作帯は高さ720の論理画面で下端12〜120に配置する。操作説明は文字サイズ14を保ち、行間1.15、上端8、ボタン行との間隔12を取る。左列を16広げ、右列の配置情報とは16以上離す。経済パネルと右側セル情報は下端132以上へ収める。セル情報は既存Canvasの高さへ換算して余白を確保する。操作帯の背景とボタンも既存UIRaycasterの判定対象となり、UI上のクリックとドラッグ終了は既存の配置取消規則に従う。サイドタブの再構成はUIS-05の採用方針を参照する。
 
 `EconomyUIVerifierEditor.Run`で、回転ボタンの90度回転と4回での復帰、視点の往復、R・Lの有効なバインド、各ボタン上の配置遮断・ドラッグ取消、PC2寸法の文字と操作領域、左右HUDの下余白を検査する。実行結果はローカルの`docs/verification/uis04-ui.json`へ集約する。
 

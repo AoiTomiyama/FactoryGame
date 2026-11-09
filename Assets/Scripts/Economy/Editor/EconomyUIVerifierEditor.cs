@@ -521,7 +521,7 @@ public static class EconomyUIVerifierEditor
         Require(Inside(root, close, root) && close.rect.width >= 32 && close.rect.height >= 44,
             "close arrow remains visible and clickable " + resolution);
         var bottom = BoundsIn(root, panel.SummaryRect).yMin;
-        Require(bottom > root.rect.yMin + 108, "summary clears bottom operation bar " + resolution);
+        Require(bottom > root.rect.yMin + 132, "summary clears bottom operation bar " + resolution);
     }
 
     private static async UniTask CaptureHud(EconomyPanelAdapter panel, CellStatusViewAdapter view, Canvas canvas, int page = 1, string prefix = "hud")
@@ -645,15 +645,22 @@ public static class EconomyUIVerifierEditor
             var info = BoundsIn(root, bar.PlacementInfo.rectTransform);
             var frame = BoundsIn(root, bar.Bar);
             var instructions = bar.Bar.Find("Hint").GetComponent<RectTransform>();
+            var guide = BoundsIn(root, instructions);
+            Require(guide.yMax <= frame.yMax - 7.9f && guide.xMin >= frame.xMin + 11.9f,
+                "operation guide has top and left inset " + resolution);
+            Require(instructions.GetComponent<Text>().lineSpacing >= 1.15f, "operation guide line spacing " + resolution);
+            foreach (var button in new[] { bar.RotateButton, bar.ViewButton })
+                Require(guide.yMin >= BoundsIn(root, button.GetComponent<RectTransform>()).yMax + 11.9f,
+                    "operation guide clears button row " + resolution);
             Require(BoundsIn(root, instructions).xMax < info.xMin, "operation guide and placement information form separate columns " + resolution);
             Require(info.xMin >= frame.xMin + 8 && info.xMax <= frame.xMax - 8 && info.yMin >= frame.yMin + 8 && info.yMax <= frame.yMax - 8, "placement text has inner padding " + resolution);
             foreach (var button in new[] { bar.RotateButton, bar.ViewButton })
                 Require(!info.Overlaps(BoundsIn(root, button.GetComponent<RectTransform>())), "placement text clears buttons " + resolution);
-            Require(BoundsIn(root, bar.Bar).yMax <= root.rect.yMin + 96.1f, "bottom HUD reservation " + resolution);
+            Require(BoundsIn(root, bar.Bar).yMax <= root.rect.yMin + 120.1f, "bottom HUD reservation " + resolution);
             var view = UnityEngine.Object.FindAnyObjectByType<CellStatusViewAdapter>();
             var window = (RectTransform)view.transform;
             var parent = (RectTransform)window.parent;
-            Require(BoundsIn(parent, window).yMin >= parent.rect.yMin + parent.rect.height * 108f / 720f - 1,
+            Require(BoundsIn(parent, window).yMin >= parent.rect.yMin + parent.rect.height * 132f / 720f - 1,
                 "cell information clears operation bar");
         }
         canvas.GetComponent<CanvasScaler>().enabled = true;
@@ -666,7 +673,7 @@ public static class EconomyUIVerifierEditor
         var corners = new Vector3[4];
         foreach (var scroll in canvas.GetComponentsInChildren<ScrollRect>())
         {
-            Require(BoundsIn(canvasRect, scroll.GetComponent<RectTransform>()).yMin >= canvasRect.rect.yMin + 108 - 1,
+            Require(BoundsIn(canvasRect, scroll.GetComponent<RectTransform>()).yMin >= canvasRect.rect.yMin + 132 - 1,
                 "economy viewport clears operation bar");
             scroll.GetComponent<RectTransform>().GetWorldCorners(corners);
             foreach (var corner in corners)
