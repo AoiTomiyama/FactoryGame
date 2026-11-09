@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -34,7 +34,7 @@ public sealed class SkillTreeViewAdapter : IDisposable
         _root = new GameObject("SkillTree", typeof(RectTransform)).GetComponent<RectTransform>();
         _root.SetParent(_viewport, false); _root.anchorMin = _root.anchorMax = Vector2.up; _root.pivot = Vector2.up;
         _scroll = _viewport.GetComponent<ScrollRect>(); _scroll.viewport = _viewport; _scroll.content = _root;
-        _scroll.horizontal = true; _scroll.vertical = false; _scroll.movementType = ScrollRect.MovementType.Clamped;
+        _scroll.horizontal = true; _scroll.vertical = true; _scroll.movementType = ScrollRect.MovementType.Clamped;
         var track = new GameObject("HorizontalScrollbar", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Scrollbar)).GetComponent<Scrollbar>();
         track.transform.SetParent(_viewport, false); track.GetComponent<Image>().color = hud.IdleTabColor;
         var trackRect = (RectTransform)track.transform; trackRect.anchorMin = Vector2.zero; trackRect.anchorMax = Vector2.right;
@@ -44,6 +44,20 @@ public sealed class SkillTreeViewAdapter : IDisposable
         handle.rectTransform.anchorMin = Vector2.zero; handle.rectTransform.anchorMax = Vector2.one; handle.rectTransform.sizeDelta = Vector2.zero;
         track.handleRect = handle.rectTransform; track.targetGraphic = handle; track.direction = Scrollbar.Direction.LeftToRight;
         _scroll.horizontalScrollbar = track; _scroll.horizontalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+        var vertical = new GameObject("VerticalScrollbar", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Scrollbar)).GetComponent<Scrollbar>();
+        vertical.transform.SetParent(_viewport, false); vertical.GetComponent<Image>().color = hud.IdleTabColor;
+        var verticalRect = (RectTransform)vertical.transform;
+        verticalRect.anchorMin = Vector2.right; verticalRect.anchorMax = Vector2.one;
+        verticalRect.pivot = new Vector2(1, .5f); verticalRect.sizeDelta = new Vector2(8, -20);
+        verticalRect.anchoredPosition = new Vector2(-2, 8);
+        var verticalHandle = new GameObject("Handle", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image)).GetComponent<Image>();
+        verticalHandle.transform.SetParent(vertical.transform, false); verticalHandle.color = hud.SelectedTabColor;
+        verticalHandle.rectTransform.anchorMin = Vector2.zero; verticalHandle.rectTransform.anchorMax = Vector2.one;
+        verticalHandle.rectTransform.sizeDelta = Vector2.zero;
+        vertical.handleRect = verticalHandle.rectTransform; vertical.targetGraphic = verticalHandle;
+        vertical.direction = Scrollbar.Direction.BottomToTop;
+        _scroll.verticalScrollbar = vertical; _scroll.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHide;
+
         foreach (var node in skills.Catalog.Nodes) _children.Add(node.Uid, new List<SkillNodeDomain>());
         foreach (var node in skills.Catalog.Nodes)
             if (node.Prerequisite != null) _children[node.Prerequisite].Add(node);
@@ -146,8 +160,10 @@ public sealed class SkillTreeViewAdapter : IDisposable
         var tops = new float[heights.Length];
         for (var i = 1; i < tops.Length; i++) tops[i] = tops[i - 1] + heights[i - 1] + 32;
         var treeHeight = tops[tops.Length - 1] + heights[heights.Length - 1];
-        _size.preferredHeight = treeHeight + 16;
-        _root.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, treeHeight);
+        // 樹形図の表示枠をページ内に収め、深い枝は同じ枠の中で縦へ移動する。
+        var padding = _hud.Body.content.GetComponent<VerticalLayoutGroup>().padding.vertical;
+        _size.preferredHeight = Mathf.Min(treeHeight + 16, Mathf.Max(80, _hud.Body.viewport.rect.height - padding));
+        _root.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, treeHeight + 16);
         foreach (var pair in _buttons)
         {
             var rect = (RectTransform)pair.Value.transform; var depth = _depths[pair.Key];
@@ -160,11 +176,16 @@ public sealed class SkillTreeViewAdapter : IDisposable
             _selection.anchorMin = _selection.anchorMax = Vector2.up; _selection.pivot = selected.pivot;
             _selection.anchoredPosition = selected.anchoredPosition; _selection.sizeDelta = selected.rect.size;
         }
-        if (!_centered) { _scroll.horizontalNormalizedPosition = .5f; _centered = true; }
+        if (!_centered) { _scroll.horizontalNormalizedPosition = .5f; _scroll.verticalNormalizedPosition = 1; _centered = true; }
         if (_focusSelection && _selected != null)
         {
             var center = ((RectTransform)_buttons[_selected].transform).anchoredPosition.x;
             _scroll.horizontalNormalizedPosition = width <= viewportWidth ? 0 : Mathf.Clamp01((center - viewportWidth / 2) / (width - viewportWidth));
+            var selectedRect = (RectTransform)_buttons[_selected].transform;
+            var centerY = -selectedRect.anchoredPosition.y + selectedRect.rect.height * .5f;
+            var contentHeight = treeHeight + 16;
+            _scroll.verticalNormalizedPosition = contentHeight <= _viewport.rect.height ? 1
+                : 1 - Mathf.Clamp01((centerY - _viewport.rect.height * .5f) / (contentHeight - _viewport.rect.height));
             _focusSelection = false;
         }
         foreach (var link in _links)

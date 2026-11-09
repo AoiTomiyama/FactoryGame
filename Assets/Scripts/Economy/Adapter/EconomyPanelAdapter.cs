@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
@@ -43,6 +43,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         if (index < 0 || index >= _pages.Length) throw new ArgumentOutOfRangeException(nameof(index));
         SelectedPage = index;
+        // スキルは樹形図自身が縦横の移動を扱い、親ページとの二重スクロールを避ける。
+        layout.Body.vertical = index != 2;
         SetExpanded(true);
         _body.GetComponent<ScrollRect>().verticalNormalizedPosition = 1;
         for (var i = 0; i < _pages.Length; i++)

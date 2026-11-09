@@ -255,7 +255,7 @@ public static class EconomyUIVerifierEditor
                         await UniTask.DelayFrame(2);
                         Canvas.ForceUpdateCanvases();
                         var treeScroll = tree.GetComponentInParent<ScrollRect>();
-                        Require(treeScroll.horizontal && !treeScroll.vertical && treeScroll.content.rect.width >= 8 * 64, "compact type branches retain spacing " + resolution);
+                        Require(treeScroll.horizontal && treeScroll.vertical && treeScroll.content.rect.width >= 8 * 64, "compact type branches retain spacing " + resolution);
                         Require(treeScroll.horizontalScrollbar != null && treeScroll.horizontalScrollbar.gameObject.activeInHierarchy, "ability branches expose horizontal scrolling " + resolution);
                         foreach (var node in generator.Skills.Catalog.Nodes)
                         {
@@ -263,13 +263,29 @@ public static class EconomyUIVerifierEditor
                             var size = ((RectTransform)button.transform).rect.size;
                             Require(size == new Vector2(40, 40) && !button.GetComponentsInChildren<Text>().Any(text => text.text == node.Label), "small nodes omit skill names " + node.Uid + resolution);
                         }
-                        treeScroll.horizontalScrollbar.value = 1;
+                        Require(treeScroll.verticalScrollbar != null && treeScroll.verticalScrollbar.gameObject.activeInHierarchy,
+                            "deep skill chain exposes vertical scrollbar " + resolution);
+                        Require(!panel.GetComponentInChildren<HudLayoutAdapter>().Body.vertical,
+                            "skill page avoids parent vertical scrolling " + resolution);
+                        treeScroll.verticalNormalizedPosition = 1;
+                        treeScroll.OnScroll(new PointerEventData(EventSystem.current) { scrollDelta = new Vector2(0, -3) });
                         await UniTask.DelayFrame(2);
-                        var last = panel.SkillButton(generator.Skills.Catalog.Nodes.Last().Uid).GetComponent<RectTransform>();
-                        var lastBounds = BoundsIn(canvas.GetComponent<RectTransform>(), last);
-                        var viewportBounds = BoundsIn(canvas.GetComponent<RectTransform>(), scroll.viewport);
-                        Require(lastBounds.yMin >= viewportBounds.yMin - 1 && lastBounds.yMax <= viewportBounds.yMax + 1,
-                            $"{resolution}: final skill reachable by scrolling");
+                        Require(treeScroll.verticalNormalizedPosition < 1, "wheel moves skill tree vertically " + resolution);
+                        panel.SelectSkill("wood-extraction-8");
+                        await UniTask.DelayFrame(4);
+                        Canvas.ForceUpdateCanvases();
+                        var deepest = panel.SkillButton("wood-extraction-8").GetComponent<RectTransform>();
+                        Require(Inside(canvas.GetComponent<RectTransform>(), deepest, treeScroll.viewport),
+                            "eighth skill node reachable inside tree viewport " + resolution);
+                        var kept = treeScroll.verticalNormalizedPosition;
+                        await UniTask.DelayFrame(2);
+                        Require(Mathf.Abs(treeScroll.verticalNormalizedPosition - kept) < .001f,
+                            "layout preserves vertical scroll position " + resolution);
+                        treeScroll.verticalScrollbar.value = 1;
+                        treeScroll.horizontalScrollbar.value = .5f;
+                        await UniTask.DelayFrame(2);
+                        Require(Inside(canvas.GetComponent<RectTransform>(), panel.SkillButton(root.Uid).GetComponent<RectTransform>(), treeScroll.viewport),
+                            "vertical scrollbar returns to root " + resolution);
                     }
                 }
             }
