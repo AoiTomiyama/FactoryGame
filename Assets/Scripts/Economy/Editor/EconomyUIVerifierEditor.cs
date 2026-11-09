@@ -167,6 +167,28 @@ public static class EconomyUIVerifierEditor
             Require(panel.PlacementText.Contains("石材採取 単価"), "submenu selects placement type");
             Require(wallet.Current.Balance == before, "selection and menu changes do not pay");
             VerifyInputCancellation(placer, raycaster, point, wallet, grid);
+            var operation = UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>();
+            var target = grid.GetCell(30, 30);
+            foreach (var page in new[] { 1, 2 })
+            {
+                panel.ShowPage(0);
+                placer.SelectGrid(target.gameObject); placer.PointerBegin(); placer.PointerDrag();
+                Require(placer.PreviewCount > 0, "placement tab enables preview");
+                panel.ShowPage(page);
+                Require(!placer.PlacementEnabled && !operation.Bar.gameObject.activeInHierarchy && placer.PreviewCount == 0, "other tab hides lower window and cancels preview");
+                Require(target.CellModel.activeSelf, "tab switch restores hovered cell model");
+                placer.PointerBegin(); placer.PointerDrag(); placer.PointerEnd();
+                panel.ShowPage(0); placer.PointerDrag(); placer.PointerEnd();
+                Require(ReferenceEquals(grid.GetCell(30, 30), target) && wallet.Current.Balance == before, "tab return cannot confirm old gesture");
+            }
+            panel.SetExpanded(false);
+            Require(!placer.PlacementEnabled && !operation.Bar.gameObject.activeInHierarchy, "closed placement tab disables placement and lower window");
+            Require(target.CellModel.activeSelf, "closing placement tab restores cursor cell");
+            placer.SelectGrid(grid.GetCell(30, 31).gameObject);
+            Require(grid.GetCell(30, 31).CellModel.activeSelf, "hover outside placement mode keeps cell visible");
+            panel.ShowPage(0);
+            Require(placer.PlacementEnabled && operation.Bar.gameObject.activeInHierarchy && operation.PlacementInfo.transform.IsChildOf(operation.Bar), "placement information belongs to lower window");
+            Require(!panel.GetComponentInChildren<HudLayoutAdapter>().Feedback.gameObject.activeSelf && !panel.PlacementButtons.GetComponentsInChildren<Text>().Any(text => text == operation.PlacementInfo), "placement tab contains selection without placement information");
             VerifyOperationBar(placer, raycaster, wallet, grid);
             await VerifySlide(panel, raycaster);
             for (var page = 0; page < 3; page++)
@@ -220,6 +242,7 @@ public static class EconomyUIVerifierEditor
             {
                 SessionState.EraseBool(Key + ".Render");
                 await CaptureHud(panel, view, canvas);
+                await CaptureHud(panel, view, canvas, 0, "placement-tab");
                 panel.SelectSkill(branch.Uid);
                 await CaptureHud(panel, view, canvas, 2, "skill-tree");
             }
@@ -562,7 +585,7 @@ public static class EconomyUIVerifierEditor
             Canvas.ForceUpdateCanvases();
             foreach (var text in canvas.GetComponentsInChildren<Text>())
             {
-                Require(text.preferredHeight <= text.rectTransform.rect.height + 1, "operation text fits " + resolution);
+                Require(text.preferredHeight <= text.rectTransform.rect.height + 1, "operation text fits " + text.name + " preferred=" + text.preferredHeight + " actual=" + text.rectTransform.rect.height + " " + resolution);
                 Require(text.preferredWidth <= text.rectTransform.rect.width + 1, "operation label width fits " + resolution);
             }
             foreach (var button in new[] { bar.RotateButton, bar.ViewButton })
@@ -570,6 +593,13 @@ public static class EconomyUIVerifierEditor
                 var bounds = BoundsIn(root, button.GetComponent<RectTransform>());
                 Require(root.rect.Contains(bounds.min) && root.rect.Contains(bounds.max), "operation button inside screen " + resolution);
             }
+            var info = BoundsIn(root, bar.PlacementInfo.rectTransform);
+            var frame = BoundsIn(root, bar.Bar);
+            var instructions = bar.Bar.Find("Hint").GetComponent<RectTransform>();
+            Require(BoundsIn(root, instructions).xMax < info.xMin, "operation guide and placement information form separate columns " + resolution);
+            Require(info.xMin >= frame.xMin + 8 && info.xMax <= frame.xMax - 8 && info.yMin >= frame.yMin + 8 && info.yMax <= frame.yMax - 8, "placement text has inner padding " + resolution);
+            foreach (var button in new[] { bar.RotateButton, bar.ViewButton })
+                Require(!info.Overlaps(BoundsIn(root, button.GetComponent<RectTransform>())), "placement text clears buttons " + resolution);
             Require(BoundsIn(root, bar.Bar).yMax <= root.rect.yMin + 96.1f, "bottom HUD reservation " + resolution);
             var view = UnityEngine.Object.FindAnyObjectByType<CellStatusViewAdapter>();
             var window = (RectTransform)view.transform;

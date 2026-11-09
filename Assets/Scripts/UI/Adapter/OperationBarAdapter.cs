@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>保存済み操作帯のボタンを既存入力へ接続する。</summary>
@@ -6,6 +6,9 @@ public sealed class OperationBarAdapter : MonoBehaviour
 {
     [SerializeField] private Button rotateButton, viewButton;
     [SerializeField] private RectTransform bar;
+    [SerializeField] private Text placementInfo;
+    public Text PlacementInfo => placementInfo;
+    public void SetPlacementActive(bool active) => bar.gameObject.SetActive(active);
     private PlayerCursorBehaviourAdapter _cursor;
     private CameraControllerAdapter _cameraController;
     public Button RotateButton => rotateButton;

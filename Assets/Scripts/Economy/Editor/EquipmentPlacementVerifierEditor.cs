@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Reflection;
 using System.IO;
 using Cysharp.Threading.Tasks;
@@ -121,8 +121,10 @@ public static class EquipmentPlacementVerifierEditor
             panel.ShowPage(1); panel.ShowPage(2); panel.ShowPage(0);
             panel.SetExpanded(false); panel.SetExpanded(true);
             panel.enabled = false; panel.enabled = true;
-            Require(wallet.Current.AvailableBalance == availableBeforeToggle && placer.PreviewCount == 3,
-                "UI page, visibility and enable changes preserve placement quote without payment");
+            Require(wallet.Current.AvailableBalance == availableBeforeToggle && placer.PreviewCount == 0,
+                "UI page, visibility and enable changes cancel placement without payment");
+            placer.SelectGrid(grid.GetCell(50, 49).gameObject); placer.PointerBegin();
+            placer.SelectGrid(grid.GetCell(50, 47).gameObject); placer.PointerDrag();
             await UniTask.DelayFrame(2);
             Require(panel.PlacementText.Contains("費用 15") && panel.PlacementText.Contains("残高不足"), "integrated range quote reports insufficient funds");
             placer.PointerEnd(); placer.PointerEnd();

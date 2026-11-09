@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>保存済みHUDの参照と画面幅への追従。状態の読取と購入は担当しない。</summary>
@@ -12,7 +12,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     public RectTransform[] Pages;
     public RectTransform Summary;
     public Text[] WalletItems;
-    public Text Feedback, Placement;
+    public Text Feedback;
     public Text EquipmentHeading, EquipmentText, EquipmentFeedback;
     public GameObject EquipmentGroup;
     public Button Upgrade;

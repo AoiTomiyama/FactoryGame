@@ -1733,7 +1733,7 @@
           ]
         },
         "Placer": {
-          "description": "配置するセル種別、選択セル、配置プレビューと非アクティブな複製キャッシュを管理します。入力からドラッグ範囲を決め、配置時は旧セルを切断・破棄して新セルを登録して初期化します。配置結果と右操作による選択情報は状態UIへ渡します。",
+          "description": "配置タブが開いている間だけドラッグ範囲をプレビューして既存の設置取引を確定します。タブを離れると範囲とドラッグを取り消し、選択セルの種類と方向は保持します。設備情報の右クリックは設置モードと独立して使えます。",
           "references": [
             {
               "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
@@ -1986,7 +1986,7 @@
           ]
         },
         "EconomyPanel": {
-          "description": "共有状態の配線と購読、配置・レシピ・スキルのページ選択と購入命令を担当します。左ページの開閉目標をHudLayoutAdapterへ渡し、閉じた後は全タブを通常色へ戻して残った選択フォーカスを解除します。常時表示と右側の設備情報は左ページの開閉中も更新します。",
+          "description": "共有状態の購読、タブ切替、各Viewの寿命と操作を配線します。配置タブの開閉からCellPlacerの設置許可と下部操作帯の表示を同期し、選択セル・予定費用・確定結果を下部へ渡します。スキル選択は右側詳細へ表示し、適用を既存Applicationへ渡します。",
           "references": [
             {
               "path": "Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs",
@@ -2116,7 +2116,7 @@
           ]
         },
         "Operation": {
-          "description": "保存済み操作帯のボタンを配置回転と視点切替へ接続します。同じSceneのHudLayoutAdapterから既存2色を読み、操作帯のボタンへ適用します。背景は保存色を保ち、Editorでの色変更もボタンだけに反映します。R・Lとボタンは既存入力を共用します。",
+          "description": "保存済み下部操作帯の配置情報と回転・視点切替ボタンを保持します。EconomyPanelから配置タブの開閉に連動する表示状態と配置情報を受け、ボタンを既存入力へ接続します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/OperationBarAdapter.cs",

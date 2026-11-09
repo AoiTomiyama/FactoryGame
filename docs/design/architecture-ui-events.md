@@ -194,6 +194,7 @@ flowchart LR
  SkillTreeView --> Skills
  SkillTreeView --> HudStyle
  EconomyPanel --> EquipmentView
+ EconomyPanel --> Operation
 ```
 
 点線は左から右へのイベント／値の授受、実線は利用側→依存先。InputActionはOnEnableで有効化・購読、OnDisableで解除。左ボタン開始→PointerBegin、保持中Update→PointerDrag、終了→UI外ならPointerEnd、UI上ならプレビュー取消、右操作→TransferDataToUI。回転操作はPlacerの向きを変える。選択ボタンはBuilderがDBから生成し通常ボタンにSetSelectedCellTypeを渡す。SubMenuUIBuilderは同じセル定義から採取設備の候補を生成し、選択をPlacerへ渡す。接続イベントは隣接参照を更新してから通知し、UIのStatusChangedとは別系統である。

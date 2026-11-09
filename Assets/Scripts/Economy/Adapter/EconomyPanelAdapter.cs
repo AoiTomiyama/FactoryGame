@@ -45,7 +45,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         if (index < 0 || index >= _pages.Length) throw new ArgumentOutOfRangeException(nameof(index));
         SelectedPage = index;
-        _feedback.gameObject.SetActive(index != 2);
+        _feedback.gameObject.SetActive(index == 1);
         SetExpanded(true);
         _body.GetComponent<ScrollRect>().verticalNormalizedPosition = 1;
         for (var i = 0; i < _pages.Length; i++)
@@ -54,6 +54,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
             layout.StyleButton(_tabs[i], i == index);
         }
     }
+    private OperationBarAdapter _operation;
     private Text _placement;
     private Text _feedback;
     private SkillTreeViewAdapter _skillView;
@@ -84,6 +85,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         if (_bound || _wallet == null) return;
         _bound = true;
+        UpdatePlacementMode();
         _previous = _wallet.Current;
         _wallet.Changed += WalletChanged;
         _skills.Changed += Refresh;
@@ -125,6 +127,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         _expanded = expanded;
         layout.SetLeftExpanded(expanded);
+        UpdatePlacementMode();
         for (var i = 0; i < _tabs.Length; i++) layout.StyleButton(_tabs[i], expanded && SelectedPage == i);
         // 閉じたタブに選択フォーカスが残り、選択色へ戻ることを防ぐ。
         if (!expanded && EventSystem.current != null)
@@ -211,10 +214,17 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         _ => "共有効果が変わりました"
     };
 
+    private void UpdatePlacementMode()
+    {
+        var active = isActiveAndEnabled && _expanded && SelectedPage == 0;
+        _placer?.SetPlacementEnabled(active);
+        _operation?.SetPlacementActive(active);
+    }
+
     private void RefreshPlacement()
     {
         if (_placer == null) return;
-        _placement.text = _placer.PreviewText.Replace(_placer.SelectedType.ToString(), SelectButtonBuilderAdapter.PlacementLabel(_placer.SelectedType)) + "\n" + _placer.ResultText;
+        _placement.text = _placer.PreviewText.Replace(_placer.SelectedType.ToString(), SelectButtonBuilderAdapter.PlacementLabel(_placer.SelectedType)).Replace("\n", "　") + "\n" + _placer.ResultText;
     }
     private void LateUpdate()
     {
@@ -231,13 +241,14 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         RefreshPlacement();
         _equipmentView.UpdateLayout();
         _skillView.UpdateLayout();
-        foreach (var text in new[] { _feedback, _placement })
+        foreach (var text in new[] { _feedback })
             text.GetComponent<LayoutElement>().preferredHeight = Mathf.Max(text.GetComponent<LayoutElement>().minHeight, text.preferredHeight);
     }
     private void OnEnable() { if (_canvas != null) _canvas.SetActive(true); Bind(); }
-    private void OnDisable() { Unbind(); _equipmentPresenter?.SetActive(false); if (_canvas != null) _canvas.SetActive(false); }
+    private void OnDisable() { UpdatePlacementMode(); Unbind(); _equipmentPresenter?.SetActive(false); if (_canvas != null) _canvas.SetActive(false); }
     private void OnDestroy()
     {
+        _placer?.SetPlacementEnabled(false); _operation?.SetPlacementActive(false);
         Unbind();
         _equipmentPresenter?.Dispose();
         for (var i = 0; i < _tabs.Length; i++)
@@ -257,7 +268,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         _canvas = layout.gameObject;
         _body = layout.Body.gameObject;
         _feedback = layout.Feedback;
-        _placement = layout.Placement;
+        _operation = FindAnyObjectByType<OperationBarAdapter>(FindObjectsInactive.Include);
+        _placement = _operation.PlacementInfo;
         for (var i = 0; i < 3; i++)
         {
             var page = i;

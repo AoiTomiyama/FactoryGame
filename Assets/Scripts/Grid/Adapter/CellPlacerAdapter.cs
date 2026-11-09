@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -16,6 +16,16 @@ public class CellPlacerAdapter : MonoBehaviour
     private EquipmentPlacementApplication _placement;
     private CurrencyPriceCatalogDomain _prices;
     private bool _placing;
+    private bool _placementEnabled, _dragging;
+    public bool PlacementEnabled => _placementEnabled;
+    public void SetPlacementEnabled(bool enabled)
+    {
+        _placementEnabled = enabled;
+        // タブを離れたドラッグは取消し、戻った後のマウス解放で確定させない。
+        if (!enabled) { _dragging = false; CancelPlacementPreview(); }
+        if (_placeholderCell != null) _placeholderCell.SetActive(enabled);
+        if (_selectedCell != null) _selectedCell.CellModel.SetActive(!enabled || _selectedCell is not EmptyCellAdapter);
+    }
     private CurrencyWalletApplication _wallet;
     public CellTypeDomain SelectedType => _selectedType;
     public int PreviewCount => _selectedRangeCells.Count(t => t.placeholder.activeSelf);
@@ -36,20 +46,25 @@ public class CellPlacerAdapter : MonoBehaviour
 
     public void PointerBegin()
     {
-        if (_placing || _selectedCell == null) return;
+        if (!_placementEnabled || _placing || _selectedCell == null) return;
+        _dragging = true;
         _dragBeginPos = Vector3Int.RoundToInt(_selectedCell.transform.position);
         _dragEndPos = _dragBeginPos;
     }
 
     public void PointerDrag()
     {
-        if (_placing || _selectedCell == null) return;
+        if (!_placementEnabled || !_dragging || _placing || _selectedCell == null) return;
         _dragEndPos = Vector3Int.RoundToInt(_selectedCell.transform.position);
         FindRangedGrid(_dragBeginPos, _dragEndPos);
     }
 
-    public void CancelPlacementPreview() { if (!_placing) ClearRange(); }
-    public void PointerEnd() => ReplaceRangedCells();
+    public void CancelPlacementPreview() { _dragging = false; if (!_placing) ClearRange(); }
+    public void PointerEnd()
+    {
+        if (!_placementEnabled || !_dragging) return;
+        _dragging = false; ReplaceRangedCells();
+    }
     public void TransferDataToUI() => CellStatusViewAdapter.Instance.UpdateUIStatusWindow(_selectedCell);
 
     /// <summary>
@@ -72,7 +87,7 @@ public class CellPlacerAdapter : MonoBehaviour
         _selectedCell = cellBase;
         transform.position = _selectedCell.transform.position;
 
-        if (cellBase is not EmptyCellAdapter) return;
+        if (!_placementEnabled || cellBase is not EmptyCellAdapter) return;
         _selectedCell.CellModel.SetActive(false);
     }
 
@@ -277,6 +292,7 @@ public class CellPlacerAdapter : MonoBehaviour
                 Destroy(_cachedCell.gameObject);
             }
 
+            _placeholderCell.SetActive(_placementEnabled);
             _cachedCell = Instantiate(cellInfo.FieldCellPrefab, transform.position, transform.rotation, transform);
             _cachedCell.gameObject.SetActive(false);
             return;
