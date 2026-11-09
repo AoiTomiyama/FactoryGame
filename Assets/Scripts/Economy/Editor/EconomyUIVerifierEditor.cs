@@ -240,6 +240,12 @@ public static class EconomyUIVerifierEditor
                 for (var page = 0; page < 3; page++)
                 {
                     panel.ShowPage(page);
+                    if (page == 0)
+                    {
+                        // 広い枠で保存された列幅を引き継いでも、現在の表示枠へ戻せることを確認する。
+                        var placementGrid = panel.GetComponentInChildren<HudLayoutAdapter>().PlacementBuilder.GetComponent<GridLayoutGroup>();
+                        placementGrid.cellSize = new Vector2(174, placementGrid.cellSize.y);
+                    }
                     await UniTask.DelayFrame(4);
                     Canvas.ForceUpdateCanvases();
                     VerifyLayout(canvas, resolution, page);
@@ -717,6 +723,21 @@ public static class EconomyUIVerifierEditor
         }
         foreach (var text in canvas.GetComponentsInChildren<Text>())
             Require(text.preferredHeight <= text.rectTransform.rect.height + 1, $"{resolution} page {page}: text fits: {text.text} preferred={text.preferredHeight} rect={text.rectTransform.rect}");
+        if (page == 0)
+        {
+            var panel = UnityEngine.Object.FindAnyObjectByType<EconomyPanelAdapter>();
+            var viewport = panel.GetComponentInChildren<HudLayoutAdapter>().Body.viewport;
+            var visible = BoundsIn(canvasRect, viewport);
+            foreach (var button in panel.PlacementButtons.GetComponentsInChildren<Button>())
+            {
+                var bounds = BoundsIn(canvasRect, (RectTransform)button.transform);
+                Require(bounds.xMin >= visible.xMin + 11 && bounds.xMax <= visible.xMax - 11,
+                    "placement buttons fit actual clipped viewport " + button.name + resolution);
+                var label = button.GetComponentInChildren<Text>();
+                Require(label.preferredWidth <= label.rectTransform.rect.width + 1,
+                    "placement label fits without clipping " + label.text + resolution);
+            }
+        }
         var buttons = canvas.GetComponentsInChildren<Button>();
         for (var i = 0; i < buttons.Length; i++)
         {

@@ -55,7 +55,20 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
         if (grid != null && grid.constraint == UnityEngine.UI.GridLayoutGroup.Constraint.FixedColumnCount)
         {
             var columns = Mathf.Max(1, grid.constraintCount);
-            grid.cellSize = new Vector2(Mathf.Max(1, (((RectTransform)transform).rect.width - grid.padding.horizontal - grid.spacing.x * (columns - 1)) / columns), grid.cellSize.y);
+            var width = ((RectTransform)transform).rect.width;
+            var hud = GetComponentInParent<HudLayoutAdapter>();
+            if (hud != null)
+            {
+                // Grid自身の最小幅を次の計算へ戻すと、狭めた枠より一覧が広いままになる。
+                // 表示枠から祖先の内側余白を引き、実際に使える幅を基準にする。
+                width = hud.Body.viewport.rect.width;
+                for (var parent = transform.parent; parent != null && parent != hud.Body.viewport; parent = parent.parent)
+                {
+                    var layout = parent.GetComponent<UnityEngine.UI.LayoutGroup>();
+                    if (layout != null) width -= layout.padding.horizontal;
+                }
+            }
+            grid.cellSize = new Vector2(Mathf.Max(1, (width - grid.padding.horizontal - grid.spacing.x * (columns - 1)) / columns), grid.cellSize.y);
         }
     }
 
