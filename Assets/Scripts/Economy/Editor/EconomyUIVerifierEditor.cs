@@ -61,6 +61,7 @@ public static class EconomyUIVerifierEditor
             var wallet = generator.Wallet;
             var panel = generator.GetComponent<EconomyPanelAdapter>();
             var view = UnityEngine.Object.FindAnyObjectByType<CellStatusViewAdapter>();
+            await WaitForSlide(panel);
             HudPrefabVerifierEditor.VerifyRuntime(panel);
             var grid = GridFieldDatabaseAdapter.Instance;
             Require(panel.IsSubscribed && panel.BalanceText.Contains("残高 100"), "initial shared balance");
@@ -157,6 +158,7 @@ public static class EconomyUIVerifierEditor
             Require(wallet.Current.Balance == before, "selection and menu changes do not pay");
             VerifyInputCancellation(placer, raycaster, point, wallet, grid);
             VerifyOperationBar(placer, raycaster, wallet, grid);
+            await VerifySlide(panel, raycaster);
             for (var page = 0; page < 3; page++)
             {
                 var subscribers = Subscribers(wallet, "Changed");
@@ -214,6 +216,66 @@ public static class EconomyUIVerifierEditor
             EditorApplication.Exit(0);
         }
         catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
+    }
+    private static async UniTask WaitForSlide(EconomyPanelAdapter panel)
+    {
+        var hud = panel.GetComponentInChildren<HudLayoutAdapter>(true);
+        var deadline = Time.realtimeSinceStartup + 2;
+        while (hud.IsSliding && Time.realtimeSinceStartup < deadline) await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate);
+        Require(!hud.IsSliding, "side panel slide completes within deadline");
+    }
+    private static async UniTask VerifySlide(EconomyPanelAdapter panel, UIRaycasterAdapter raycaster)
+    {
+        var hud = panel.GetComponentInChildren<HudLayoutAdapter>(true);
+        await WaitForSlide(panel);
+        var body = (RectTransform)hud.Body.transform;
+        var open = body.anchoredPosition;
+        var page = panel.SelectedPage;
+        var group = body.GetComponent<CanvasGroup>();
+        var timeScale = Time.timeScale;
+        var point = RectTransformUtility.WorldToScreenPoint(null, body.TransformPoint(body.rect.center));
+        try
+        {
+            Time.timeScale = 0;
+            EventSystem.current.SetSelectedGameObject(hud.Tabs[page].gameObject);
+            var started = Time.unscaledTime;
+            panel.SetExpanded(false);
+            Require(hud.Tabs.All(tab => tab.colors.normalColor == hud.IdleTabColor) && EventSystem.current.currentSelectedGameObject == null,
+                "closing clears active tab color and selection focus");
+            Require(body.gameObject.activeSelf && group.blocksRaycasts && !group.interactable, "closing keeps visible frame and blocks purchases");
+            do { await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate); }
+            while (hud.IsSliding && Time.unscaledTime - started < .08f);
+            Require(body.anchoredPosition.x < open.x, "closing slides left instead of disappearing");
+            var current = body.anchoredPosition.x;
+            var sampledTime = Time.unscaledTime - started;
+            panel.SetExpanded(true);
+            Require(body.anchoredPosition.x == current, "reversal starts from current position");
+            await WaitForSlide(panel);
+            Require(Vector2.Distance(body.anchoredPosition, open) < .01f && group.interactable, "opening returns to authored frame while paused");
+            panel.SetExpanded(false);
+            await WaitForSlide(panel);
+            var canvas = (RectTransform)hud.transform;
+            Require(canvas.InverseTransformPoint(body.TransformPoint(new Vector3(body.rect.xMax, 0))).x < canvas.rect.xMin,
+                "closed frame is entirely outside left edge");
+            if (sampledTime < .16f)
+                Require((open.x - current) / (open.x - body.anchoredPosition.x) > sampledTime / .2f + .1f,
+                    "Ease Out Cubic advances faster than a linear slide before decelerating");
+            Require(!body.gameObject.activeSelf && !group.blocksRaycasts && !raycaster.IsPointerOverUI(point), "closed frame releases field input");
+            Require(hud.Navigation.gameObject.activeInHierarchy && hud.Tabs[0].IsInteractable(), "tabs remain available outside moving frame");
+            panel.ShowPage(page);
+            await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate);
+            panel.SetExpanded(false);
+            panel.enabled = false;
+            await UniTask.DelayFrame(2);
+            Require(!hud.gameObject.activeSelf, "disabled controller cannot leave an animated frame visible");
+            panel.enabled = true;
+            await WaitForSlide(panel);
+            panel.ShowPage(page);
+            await WaitForSlide(panel);
+            Require(panel.SelectedPage == page && Vector2.Distance(body.anchoredPosition, open) < .01f, "enable and reopen retain page and saved position");
+            Debug.Log("HUD slide checks passed: movement, reversal, paused time, input, persistent tabs and disable/reopen.");
+        }
+        finally { Time.timeScale = timeScale; }
     }
     private static async UniTask VerifySideTabs(EconomyPanelAdapter panel, CellStatusViewAdapter view,
         Canvas canvas, CurrencyWalletApplication wallet, GridFieldDatabaseAdapter grid)

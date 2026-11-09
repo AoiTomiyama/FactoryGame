@@ -1986,7 +1986,7 @@
           ]
         },
         "EconomyPanel": {
-          "description": "共有残高・スキル・選択セルの通知を購読し、左の直接タブと配置・スキル操作を管理する。常時表示、レシピ参照、設備強化の表示は各Viewへ渡す。左ページの開閉では購読を保ち、無効化・破棄時に解除する。",
+          "description": "共有状態の配線と購読、配置・レシピ・スキルのページ選択と購入命令を担当します。左ページの開閉目標をHudLayoutAdapterへ渡し、閉じた後は全タブを通常色へ戻して残った選択フォーカスを解除します。常時表示と右側の設備情報は左ページの開閉中も更新します。",
           "references": [
             {
               "path": "Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs",
@@ -2089,7 +2089,7 @@
           ]
         },
         "HudStyle": {
-          "description": "固定枠・タブ・行Prefabの保存参照と、画面幅・折返しへの追従を担います。IdleTabColorをボタンの通常色、SelectedTabColorを選択・強調・押下へ使います。標準Inspectorで2色を変えると編集画面のボタンにも反映し、黒背景パネル・アイコン・ゲージ・文字の固有色と配置は保持します。",
+          "description": "固定枠・タブ・行Prefabの参照と既存2色を管理します。保存位置へ折返しと画面幅を反映し、左内容と閉じるを約0.2秒のEase Out Cubicで出し入れします。途中反転と移動中の入力をCanvasGroupで制御します。黒背景・アイコン・ゲージ・文字は保存値を保ち、Editorの色変更は操作部品へ反映します。",
           "references": [
             {
               "path": "Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs",

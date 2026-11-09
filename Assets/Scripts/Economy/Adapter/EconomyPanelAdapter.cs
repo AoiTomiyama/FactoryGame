@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
+using UnityEngine.EventSystems;
 
 /// <summary>共有Applicationの判定をそのまま表示し、購入命令を同じ所有者へ渡す。</summary>
 public sealed class EconomyPanelAdapter : MonoBehaviour
@@ -22,7 +23,6 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     private Font _font;
     private GameObject _canvas;
     private GameObject _body;
-    private RectTransform _header;
     private PersistentSummaryViewAdapter _summaryView;
     private EquipmentDetailsViewAdapter _equipmentView;
     private EquipmentDetailsPresenterAdapter _equipmentPresenter;
@@ -120,8 +120,12 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     public void SetExpanded(bool expanded)
     {
         _expanded = expanded;
-        _body.SetActive(expanded);
-        _header.gameObject.SetActive(expanded);
+        layout.SetLeftExpanded(expanded);
+        for (var i = 0; i < _tabs.Length; i++) layout.StyleButton(_tabs[i], expanded && SelectedPage == i);
+        // 閉じたタブに選択フォーカスが残り、選択色へ戻ることを防ぐ。
+        if (!expanded && EventSystem.current != null)
+            foreach (var tab in _tabs)
+                if (EventSystem.current.currentSelectedGameObject == tab.gameObject) EventSystem.current.SetSelectedGameObject(null);
         // 常時表示の残高と右側の強化欄は、左ページを閉じても更新する。
     }
 
@@ -223,7 +227,6 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         _font = layout.Font;
         _canvas = layout.gameObject;
         _body = layout.Body.gameObject;
-        _header = layout.Close.GetComponent<RectTransform>();
         _feedback = layout.Feedback;
         _placement = layout.Placement;
         for (var i = 0; i < 3; i++)

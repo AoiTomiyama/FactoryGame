@@ -195,7 +195,7 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 
 | ファイル | 責務と主な依存 |
 | --- | --- |
-| [HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs) | FactoryHud内の固定枠・3タブ・行Prefab参照、既存の通常色・選択色の共用と、保存した配置を基準にする幅・上余白の追従 |
+| [HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs) | FactoryHud内の固定枠・3タブ・行Prefab参照、既存の通常色・選択色の共用、左ページのスライドと入力状態、保存した配置を基準にする幅・上余白の追従 |
 | [RecipeResourceRowAdapter](../../Assets/Scripts/UI/Adapter/RecipeResourceRowAdapter.cs) | Recipe.prefabの資源アイコン・名称・数量の表示 |
 | [EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs) | 選択設備の状態読取、強化見積り、購入とボタン購読の解除 |
 | [HudPrefabVerifierEditor](../../Assets/Scripts/UI/Editor/HudPrefabVerifierEditor.cs) | MainSceneとPrefabの保存参照、欠損、Editor編集保持、再構成時の固定部品保持を既存UI回帰へ追加 |
