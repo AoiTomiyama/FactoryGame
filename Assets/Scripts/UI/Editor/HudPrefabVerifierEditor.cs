@@ -80,7 +80,7 @@ public static class HudPrefabVerifierEditor
         var hud = panel.GetComponentInChildren<HudLayoutAdapter>();
         var bar = UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>();
         var header = (RectTransform)hud.Close.transform;
-        Require(Mathf.Abs(header.anchoredPosition.x - 503) < .01f, "edited fixed frame position retained");
+        Require(Mathf.Abs(header.anchoredPosition.x - 383) < .01f, "edited fixed frame position retained");
         Require(hud.Close.GetComponentInChildren<Text>().fontSize == 19, "edited font size retained");
         Require(hud.SelectedTabColor == new Color(.3f, .5f, .6f) && hud.IdleTabColor == new Color(.12f, .22f, .32f), "edited shared palette retained");
         var savedHud = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/FactoryHud.prefab").GetComponent<HudLayoutAdapter>();

@@ -59,6 +59,19 @@ public static class EconomyUIVerifierEditor
             await UniTask.DelayFrame(3);
             var generator = UnityEngine.Object.FindAnyObjectByType<GridFieldGeneratorAdapter>();
             var wallet = generator.Wallet;
+            var cameraController = UnityEngine.Object.FindAnyObjectByType<CameraControllerAdapter>();
+            var followTarget = (Transform)typeof(CameraControllerAdapter).GetField("followTarget", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(cameraController);
+            var initialSingularity = UnityEngine.Object.FindAnyObjectByType<SingularityCellAdapter>();
+            Require(Vector3.Distance(followTarget.position, initialSingularity.transform.position) < .001f,
+                "initial camera target focuses singularity");
+            var screenFocus = Camera.main.WorldToViewportPoint(initialSingularity.transform.position);
+            Require(screenFocus.z > 0 && Vector2.Distance(new Vector2(screenFocus.x, screenFocus.y), new Vector2(.5f, .5f)) < .1f,
+                "singularity starts near camera center");
+            followTarget.position += Vector3.right;
+            await UniTask.DelayFrame(2);
+            Require(Vector3.Distance(followTarget.position, initialSingularity.transform.position + Vector3.right) < .001f,
+                "startup focus does not overwrite later camera movement");
+            cameraController.FocusOn(initialSingularity.transform.position);
             var panel = generator.GetComponent<EconomyPanelAdapter>();
             var view = UnityEngine.Object.FindAnyObjectByType<CellStatusViewAdapter>();
             await WaitForSlide(panel);
@@ -230,6 +243,9 @@ public static class EconomyUIVerifierEditor
                     await UniTask.DelayFrame(4);
                     Canvas.ForceUpdateCanvases();
                     VerifyLayout(canvas, resolution, page);
+                    var leftFrame = panel.GetComponentInChildren<HudLayoutAdapter>().Body.GetComponent<RectTransform>();
+                    Require(Mathf.Abs(leftFrame.rect.width - 280) < 1,
+                        "side panel is narrower without reducing text size " + resolution);
                     if (page == 2)
                     {
                         var tree = panel.SkillButton(root.Uid).transform.parent;

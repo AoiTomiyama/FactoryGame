@@ -38,6 +38,14 @@ public class CameraControllerAdapter : MonoBehaviour
         _defaultCameraAngle = transform.localRotation.eulerAngles;
     }
 
+    public void FocusOn(Vector3 position)
+    {
+        // 開始時だけ目標を合わせる。以後のパン操作を毎フレーム上書きしない。
+        followTarget.position = position;
+        // 初回の古い追従位置から移動せず、最初の表示から換金先を見せる。
+        virtualCamera.PreviousStateIsValid = false;
+    }
+
     private void Update()
     {
         HandlePan();

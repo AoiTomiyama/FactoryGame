@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 #if UNITY_EDITOR
 using System.Security.Cryptography;
 using UnityEditor;
@@ -91,6 +91,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         singularity.Configure(Wallet, Prices);
         // 登録と共有残高の構成後に接続を開始する。
         singularity.InitializeSystem();
+        FindAnyObjectByType<CameraControllerAdapter>()?.FocusOn(singularity.transform.position);
         economyPanel.Configure(Wallet, Skills, FindAnyObjectByType<CellStatusViewAdapter>(), FindAnyObjectByType<CellPlacerAdapter>());
     }
 
