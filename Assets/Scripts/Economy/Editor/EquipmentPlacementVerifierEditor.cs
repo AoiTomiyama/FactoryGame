@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Reflection;
 using System.IO;
 using System.Linq;
@@ -184,9 +184,7 @@ public static class EquipmentPlacementVerifierEditor
             Require(grid.GetCell(50, 49) == original && wallet.Current.Balance == 20 &&
                 wallet.Current.ReservedExpense == 0 && placer.LastPlacementResult == EquipmentPlacementApplication.Result.Failed,
                 "registration changed during initialization restores original");
-            var adjacent = (CellBaseAdapter[])typeof(ConnectableCellBaseAdapter)
-                .GetProperty("AdjacentCells", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(singularity);
-            Require(Array.TrueForAll(adjacent, cell => cell == null), "rollback removes neighbor references");
+            Require(((ConnectableCellBaseAdapter)singularity).Connections.Count == 0, "rollback removes neighbor references");
             Set(placer, "_cachedCell", cached);
             UnityEngine.Object.Destroy(template);
             Place(placer, original, CellTypeDomain.Storage, 90);
@@ -277,6 +275,10 @@ public static class EquipmentPlacementVerifierEditor
     {
         typeof(CellBaseAdapter).GetField("footprintWidth", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(cell, width);
         typeof(CellBaseAdapter).GetField("footprintDepth", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(cell, depth);
+        if (cell is ConnectableCellBaseAdapter connected)
+            CellConnectionVerifierEditor.SetPorts(connected, new CellPortDefinition(0, 0, 0, DirectionsDomain.Back, CellPortUseDomain.Input),
+                new CellPortDefinition(1, width - 1, 0, DirectionsDomain.Back, CellPortUseDomain.Input),
+                new CellPortDefinition(2, width / 2, depth - 1, DirectionsDomain.Forward, CellPortUseDomain.Output));
     }
 
     private static async UniTask Capture(string name)

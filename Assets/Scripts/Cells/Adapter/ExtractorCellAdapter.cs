@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
 using UnityEngine;
@@ -169,12 +169,13 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
         }
     }
 
-    public Vector3 GetPosition() => transform.position;
+    public Vector3 GetPosition(int portId) => PortPosition(portId);
 
-    public bool TryExport(Vector3 from, int requestedAmount, out int amount, out ResourceTypeDomain type)
+    public bool TryExport(int portId, int requestedAmount, out int amount, out ResourceTypeDomain type)
     {
         amount = 0;
         type = resourceType;
+        if (!HasPort(portId, CellPortUseDomain.Output)) return false;
         
         // 出力可能な量がない、または要求量がない場合はfalseを返す
         if (CurrentLoad <= 0 || requestedAmount <= 0) return false;

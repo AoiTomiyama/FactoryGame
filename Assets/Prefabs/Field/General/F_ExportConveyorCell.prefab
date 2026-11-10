@@ -143,7 +143,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3270a83af3c35ea479af189b5c023b01, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ExportConveyorCellAdapter
-  allowedDirections: -1
+  ports:
+  - Id: 0
+    Cell: {x: 0, y: 0}
+    Facing: 4
+    Use: 3
+  - Id: 1
+    Cell: {x: 0, y: 0}
+    Facing: 8
+    Use: 3
+  - Id: 2
+    Cell: {x: 0, y: 0}
+    Facing: 1
+    Use: 3
+  - Id: 3
+    Cell: {x: 0, y: 0}
+    Facing: 2
+    Use: 3
   transferSecond: 0.1
   transferAmount: 5
 --- !u!4 &7160944560747574814 stripped

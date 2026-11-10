@@ -60,7 +60,7 @@ public static class CellStatusProviderAdapter
                     return Stock(crafter.ExportResourceType, crafter.ExportStorageAmount, crafter.ExporterCapacity);
                 if (label == LabelEnumApplication.LeftStorage || label == LabelEnumApplication.RightStorage)
                 {
-                    var input = crafter.GetInput(label == LabelEnumApplication.LeftStorage ? DirectionsDomain.Left : DirectionsDomain.Right);
+                    var input = crafter.GetInputAt(label == LabelEnumApplication.LeftStorage ? 0 : 1);
                     return Stock(input.Type, input.Amount, crafter.IngredientCapacity);
                 }
                 throw Unsupported(label);

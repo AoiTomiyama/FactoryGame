@@ -149,16 +149,16 @@ public static class CraftingVerifierEditor
             await Wait(() => GetOperation(cell) != null);
             var operation = GetOperation(cell);
             ResourceReservationApplication pending = null;
-            Require(ResourceReservationApplication.TryCreate(cell, Vector3Int.left, 1, Stone, out var incoming) &&
-                    incoming.TryCommit() && ResourceReservationApplication.TryCreate(cell, Vector3Int.right, 2, Stone,
+            Require(ResourceReservationApplication.TryCreate(cell, 1, 1, Stone, out var incoming) &&
+                    incoming.TryCommit() && ResourceReservationApplication.TryCreate(cell, 0, 2, Stone,
                         out pending), "delivery and outstanding reservation during crafting");
             await Wait(() => cell.ExportStorageAmount == 2);
             Require(operation.CurrentStage == CraftingOperationApplication.Stage.Completed &&
-                    cell.GetInput(DirectionsDomain.Left).Amount == 1 &&
-                    cell.GetInput(DirectionsDomain.Right).Amount == 0 &&
-                    cell.GetInput(DirectionsDomain.Right).Allocated == 2 && pending.TryCommit() &&
-                    cell.GetInput(DirectionsDomain.Right).Amount == 2 &&
-                    cell.GetInput(DirectionsDomain.Right).Allocated == 0,
+                    cell.GetInput(1).Amount == 1 &&
+                    cell.GetInput(0).Amount == 0 &&
+                    cell.GetInput(0).Allocated == 2 && pending.TryCommit() &&
+                    cell.GetInput(0).Amount == 2 &&
+                    cell.GetInput(0).Allocated == 0,
                 "planned material is consumed once and pending delivery remains valid");
             UnityEngine.Object.Destroy(cell.gameObject);
             await UniTask.Yield();
@@ -169,8 +169,8 @@ public static class CraftingVerifierEditor
             cell.enabled = false;
             await UniTask.Delay(450);
             Require(operation.CurrentStage == CraftingOperationApplication.Stage.Cancelled &&
-                    cell.ExportStorageAmount == 0 && cell.GetInput(DirectionsDomain.Left).Amount == 3 &&
-                    cell.GetInput(DirectionsDomain.Right).Amount == 5 && cell.ProcessTime == 0,
+                    cell.ExportStorageAmount == 0 && cell.GetInput(1).Amount == 3 &&
+                    cell.GetInput(0).Amount == 5 && cell.ProcessTime == 0,
                 "disable cancels without consumption or output");
             cell.enabled = true;
             await Wait(() => cell.ExportStorageAmount == 2);
@@ -186,7 +186,7 @@ public static class CraftingVerifierEditor
             UnityEngine.Object.Destroy(cell.gameObject);
             await UniTask.Delay(450);
             Require(operation.CurrentStage == CraftingOperationApplication.Stage.Cancelled &&
-                    inputs[Vector3Int.left].Amount == 3 && inputs[Vector3Int.right].Amount == 5,
+                    inputs[1].Amount == 3 && inputs[0].Amount == 5,
                 "deletion cannot consume the selected input snapshot");
 
             cell = CreateCrafter(grid, row, 0.3f);
@@ -194,8 +194,8 @@ public static class CraftingVerifierEditor
             operation = GetOperation(cell);
             SetField(cell, "exporterCapacity", 1);
             await Wait(() => operation.CurrentStage == CraftingOperationApplication.Stage.Cancelled);
-            Require(cell.ExportStorageAmount == 0 && cell.GetInput(DirectionsDomain.Left).Amount == 3 &&
-                    cell.GetInput(DirectionsDomain.Right).Amount == 5, "capacity loss does not partially consume");
+            Require(cell.ExportStorageAmount == 0 && cell.GetInput(1).Amount == 3 &&
+                    cell.GetInput(0).Amount == 5, "capacity loss does not partially consume");
             UnityEngine.Object.Destroy(cell.gameObject);
             await UniTask.Yield();
 
@@ -203,9 +203,9 @@ public static class CraftingVerifierEditor
             await Wait(() => GetOperation(cell) != null);
             operation = GetOperation(cell);
             inputs = GetInputs(cell);
-            inputs[Vector3Int.left] = new CrafterCellAdapter.ResourceInputData { Type = Stone, Amount = 2 };
+            inputs[1] = new CrafterCellAdapter.ResourceInputData { Type = Stone, Amount = 2 };
             await Wait(() => operation.CurrentStage == CraftingOperationApplication.Stage.Cancelled);
-            Require(cell.ExportStorageAmount == 0 && inputs[Vector3Int.right].Amount == 5,
+            Require(cell.ExportStorageAmount == 0 && inputs[0].Amount == 5,
                 "material loss leaves the other input untouched");
             UnityEngine.Object.Destroy(cell.gameObject);
             await UniTask.Yield();
@@ -216,14 +216,14 @@ public static class CraftingVerifierEditor
             DOTween.KillAll();
             cell.enabled = false;
             Require(operation.CurrentStage == CraftingOperationApplication.Stage.Cancelled &&
-                    cell.ExportStorageAmount == 0 && cell.GetInput(DirectionsDomain.Left).Amount == 3,
+                    cell.ExportStorageAmount == 0 && cell.GetInput(1).Amount == 3,
                 "externally killed progress tween is not completion");
             UnityEngine.Object.Destroy(cell.gameObject);
             await UniTask.Yield();
 
             cell = CreateCrafter(grid, row, 0);
             await Wait(() => cell.ExportStorageAmount == 2);
-            Require(cell.GetInput(DirectionsDomain.Left).Amount == 0 && cell.GetInput(DirectionsDomain.Right).Amount == 0,
+            Require(cell.GetInput(1).Amount == 0 && cell.GetInput(0).Amount == 0,
                 "zero duration still consumes and produces exactly once");
             UnityEngine.Object.Destroy(cell.gameObject);
             UnityEngine.Object.Destroy(gridObject);
@@ -243,7 +243,7 @@ public static class CraftingVerifierEditor
         var resources = AssetDatabase.LoadAssetAtPath<ResourceDefinition>("Assets/Scripts/ScriptableObject/ResourceDB.asset");
         var prices = AssetDatabase.LoadAssetAtPath<CurrencyEconomyDefinition>("Assets/Scripts/ScriptableObject/CurrencyEconomy.asset").CreateCatalog();
         var wallet = new CurrencyWalletApplication(0);
-        var intake = new SingularityIntakeApplication(wallet, prices) { Accepting = true };
+        var intake = new SingularityIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
         var poolRoot = new GameObject("CraftingCheck:ProductPool");
         var pool = poolRoot.AddComponent<ResourceItemObjectPoolAdapter>();
         SetField(pool, "resourceDatabase", resources);
@@ -261,20 +261,20 @@ public static class CraftingVerifierEditor
                 root.transform.SetParent(row); new GameObject("Model").transform.SetParent(root.transform);
                 var cell = root.AddComponent<CrafterCellAdapter>();
                 SetField(cell, "recipeDatabase", database); SetField(cell, "ingredientCapacity", 50);
-                SetField(cell, "exporterCapacity", 50); SetField(cell, "importDirection", DirectionsDomain.Left | DirectionsDomain.Right);
-                SetField(cell, "exportDirection", DirectionsDomain.Forward);
+                SetField(cell, "exporterCapacity", 50); CellConnectionVerifierEditor.ConfigureCraftingPorts(cell, 1, 0);
+
                 grid.InitializeCells(1); cell.InitializeSystem();
                 for (var i = 0; i < recipe.Ingredients.Length; i++)
                 {
-                    var ingredient = recipe.Ingredients[i]; var direction = i == 0 ? Vector3Int.left : Vector3Int.right;
+                    var ingredient = recipe.Ingredients[i]; var direction = i == 0 ? 1 : 0;
                     Require(cell.AllocateStorage(direction, ingredient.requiredAmount, ingredient.resourceType), "product materials reserve");
                     cell.StoreResource(direction, ingredient.requiredAmount);
                 }
                 await Wait(() => cell.ExportStorageAmount == recipe.ResultAmount);
-                Require(cell.ExportResourceType == recipe.Result && cell.GetInput(DirectionsDomain.Left).Amount == 0 &&
-                    (recipe.Ingredients.Length == 1 || cell.GetInput(DirectionsDomain.Right).Amount == 0),
+                Require(cell.ExportResourceType == recipe.Result && cell.GetInput(1).Amount == 0 &&
+                    (recipe.Ingredients.Length == 1 || cell.GetInput(0).Amount == 0),
                     "saved recipe consumes exact materials and produces " + recipe.Result);
-                Require(cell.TryExport(Vector3.forward, recipe.ResultAmount, out var amount, out var type) && type == recipe.Result,
+                Require(cell.TryExport(2, recipe.ResultAmount, out var amount, out var type) && type == recipe.Result,
                     "crafted product exports");
                 var id = pool.CreateIdFromResourceData(type, amount);
                 Require(pool.TryRestoreVisual(id) && pool.TakeResourceDataById(id).type == type,
@@ -313,13 +313,13 @@ public static class CraftingVerifierEditor
         SetField(cell, "recipeDatabase", database);
         SetField(cell, "ingredientCapacity", 10);
         SetField(cell, "exporterCapacity", 2);
-        SetField(cell, "importDirection", DirectionsDomain.Left | DirectionsDomain.Right);
+        CellConnectionVerifierEditor.ConfigureCraftingPorts(cell, 1, 0);
         grid.InitializeCells(1);
         cell.InitializeSystem();
-        Require(cell.AllocateStorage(Vector3Int.left, 3, Stone) && cell.AllocateStorage(Vector3Int.right, 5, Stone),
+        Require(cell.AllocateStorage(1, 3, Stone) && cell.AllocateStorage(0, 5, Stone),
             "test materials reserve in configured inputs");
-        cell.StoreResource(Vector3Int.left, 3);
-        cell.StoreResource(Vector3Int.right, 5);
+        cell.StoreResource(1, 3);
+        cell.StoreResource(0, 5);
         return cell;
     }
 
@@ -335,8 +335,8 @@ public static class CraftingVerifierEditor
 
     private static CraftingOperationApplication GetOperation(CrafterCellAdapter cell)
         => (CraftingOperationApplication)typeof(CrafterCellAdapter).GetField("_operation", InstanceFields).GetValue(cell);
-    private static Dictionary<Vector3Int, CrafterCellAdapter.ResourceInputData> GetInputs(CrafterCellAdapter cell)
-        => (Dictionary<Vector3Int, CrafterCellAdapter.ResourceInputData>)typeof(CrafterCellAdapter)
+    private static Dictionary<int, CrafterCellAdapter.ResourceInputData> GetInputs(CrafterCellAdapter cell)
+        => (Dictionary<int, CrafterCellAdapter.ResourceInputData>)typeof(CrafterCellAdapter)
             .GetField("_resourceInputs", InstanceFields).GetValue(cell);
     private static void SetField(object target, string name, object value)
         => target.GetType().GetField(name, InstanceFields).SetValue(target, value);

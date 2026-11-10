@@ -36,7 +36,7 @@ public sealed class ResourceTransferCoordinatorApplication
         Reservation?.TryCancel();
     }
 
-    public async UniTask<ResourceAnimationResultApplication> RunAsync(Vector3Int direction, Vector3 from, Vector3 to,
+    public async UniTask<ResourceAnimationResultApplication> RunAsync(int portId, Vector3 from, Vector3 to,
         Func<IContainableApplication> getTarget, Func<IContainableApplication, bool> isCurrentTarget,
         ResourceTransitStoreApplication resources, IResourceTransferPresentationApplication presentation,
         CancellationToken token, Action onAnimating = null)
@@ -44,7 +44,7 @@ public sealed class ResourceTransferCoordinatorApplication
         try
         {
             if (Reservation == null)
-                await UniTask.WaitUntil(() => TryReserve(getTarget(), direction), cancellationToken: token);
+                await UniTask.WaitUntil(() => TryReserve(getTarget(), portId), cancellationToken: token);
 
             token.ThrowIfCancellationRequested();
             // 接続喪失で現在の予約が外れても、この試行が所有するTokenで終端を判定する。
@@ -72,7 +72,7 @@ public sealed class ResourceTransferCoordinatorApplication
                 throw new OperationCanceledException();
 
             // 次のコンベアや交差セルは、確定の前に表示用IDを引き継ぐ。
-            if (target is IResourceReusableApplication reusable) reusable.Reuse(direction, Operation.ResourceId);
+            if (target is IResourceReusableApplication reusable) reusable.Reuse(reservation.PortId, Operation.ResourceId);
             // 入金通知から切断・破棄されても、確定済み資源を再試行しない。
             // 予約と搬送記録を閉じてから受け取り側の確定通知へ進む。
             if (!reservation.TryCommit(Operation.TryComplete)) throw new OperationCanceledException();
@@ -92,9 +92,9 @@ public sealed class ResourceTransferCoordinatorApplication
         }
     }
 
-    private bool TryReserve(IContainableApplication target, Vector3Int direction)
+    private bool TryReserve(IContainableApplication target, int portId)
     {
-        if (!ResourceReservationApplication.TryCreate(target, direction, Operation.Amount, Operation.Type,
+        if (!ResourceReservationApplication.TryCreate(target, portId, Operation.Amount, Operation.Type,
                 out var reservation)) return false;
         if ((!ReferenceEquals(Operation.Target?.Identity, reservation.TargetIdentity) && !Operation.TrySetTarget(target)) ||
             !Operation.TryMarkReserved())

@@ -28,6 +28,7 @@ public static class ResourceTransferVerifierEditor
     {
         SessionState.SetBool(SessionKey, true);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        EditorUtility.audioMasterMute = true;
         EditorApplication.isPlaying = true;
     }
 
@@ -42,6 +43,7 @@ public static class ResourceTransferVerifierEditor
     {
         try
         {
+            AudioListener.volume = 0;
             var resourceDatabase = AssetDatabase.LoadAssetAtPath<ResourceDefinition>(
                 "Assets/Scripts/ScriptableObject/ResourceDB.asset");
             Require(resourceDatabase != null, "ResourceDB asset is available");
@@ -83,19 +85,19 @@ public static class ResourceTransferVerifierEditor
         public bool IsAlive { get; private set; } = true;
         public int Amount, Reserved, CommitCalls, CancelCalls;
         public Action OnCommit;
-        public bool AllocateStorage(Vector3Int dir, int amount, ResourceTypeDomain type)
+        public bool AllocateStorage(int dir, int amount, ResourceTypeDomain type)
         {
             if (!IsAlive || amount <= 0 || type == ResourceTypeDomain.None || Amount + Reserved + amount > 10) return false;
             Reserved += amount;
             return true;
         }
-        public void StoreResource(Vector3Int dir, int amount)
+        public void StoreResource(int dir, int amount)
         {
             Require(IsAlive && Reserved >= amount, "fixture commit has a live full reservation");
             CommitCalls++; Reserved -= amount; Amount += amount;
             OnCommit?.Invoke();
         }
-        public void CancelStorage(Vector3Int dir, int amount, ResourceTypeDomain type)
+        public void CancelStorage(int dir, int amount, ResourceTypeDomain type)
         {
             Require(IsAlive && Reserved >= amount, "fixture cancel has a live reservation");
             CancelCalls++; Reserved -= amount;
@@ -109,37 +111,37 @@ public static class ResourceTransferVerifierEditor
     private sealed class ReusableEndpointFixture : EndpointFixture, IResourceReusableApplication
     {
         public int Id, ReuseCalls;
-        public void Reuse(Vector3Int dir, int resourceId) { Id = resourceId; ReuseCalls++; }
+        public void Reuse(int dir, int resourceId) { Id = resourceId; ReuseCalls++; }
     }
 
     private static async UniTask VerifyNonCellEndpoints(ResourceItemObjectPoolAdapter pool)
     {
         var source = new EndpointFixture();
         var target = new EndpointFixture();
-        Require(!ResourceReservationApplication.TryCreate(null, Vector3Int.right, 2, ResourceTypeDomain.Stone, out _) &&
-                !ResourceReservationApplication.TryCreate(target, Vector3Int.right, 11, ResourceTypeDomain.Stone, out _) &&
+        Require(!ResourceReservationApplication.TryCreate(null, 0, 2, ResourceTypeDomain.Stone, out _) &&
+                !ResourceReservationApplication.TryCreate(target, 0, 11, ResourceTypeDomain.Stone, out _) &&
                 target.Reserved == 0, "non-cell null/capacity failures preserve state");
-        Require(ResourceReservationApplication.TryCreate(target, Vector3Int.right, 2, ResourceTypeDomain.Stone, out var ticket),
+        Require(ResourceReservationApplication.TryCreate(target, 0, 2, ResourceTypeDomain.Stone, out var ticket),
             "non-cell endpoint accepts a full reservation");
         target.OnCommit = () => Require(!ticket.TryCommit() && !ticket.TryCancel(), "reentrant reservation closes before callback");
         Require(ticket.TryCommit() && target.Amount == 2 && target.CommitCalls == 1 &&
                 !ticket.TryCommit() && !ticket.TryCancel(), "non-cell commit is one-shot");
         target.OnCommit = null;
-        Require(ResourceReservationApplication.TryCreate(target, Vector3Int.right, 3, ResourceTypeDomain.Stone, out var cancelled) &&
+        Require(ResourceReservationApplication.TryCreate(target, 0, 3, ResourceTypeDomain.Stone, out var cancelled) &&
                 cancelled.Id != ticket.Id && cancelled.TryCancel() && !cancelled.TryCancel() && !cancelled.TryCommit() &&
                 target.Reserved == 0 && target.CancelCalls == 1, "non-cell cancel is independent and one-shot");
-        Require(ResourceReservationApplication.TryCreate(target, Vector3Int.right, 2, ResourceTypeDomain.Stone, out var expired),
+        Require(ResourceReservationApplication.TryCreate(target, 0, 2, ResourceTypeDomain.Stone, out var expired),
             "reserve before non-cell lifetime ends");
         target.EndLifetime();
         Require(!expired.TryCommit() && expired.TryCancel() && target.CancelCalls == 1 &&
-                !ResourceReservationApplication.TryCreate(target, Vector3Int.right, 2, ResourceTypeDomain.Stone, out _),
+                !ResourceReservationApplication.TryCreate(target, 0, 2, ResourceTypeDomain.Stone, out _),
             "dead non-cell endpoint receives no commit/cancel callback or new reservation");
 
         target = new EndpointFixture();
         var id = pool.CreateIdFromResourceData(ResourceTypeDomain.Stone, 5);
         var coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, target, id,
             ResourceTypeDomain.Stone, 5));
-        Require(await coordinator.RunAsync(Vector3Int.right, Vector3.zero, Vector3.right, () => target,
+        Require(await coordinator.RunAsync(0, Vector3.zero, Vector3.right, () => target,
                     endpoint => ReferenceEquals(endpoint.Identity, target.Identity), pool.Resources, pool, CancellationToken.None) ==
                 ResourceAnimationResultApplication.Completed && target.Amount == 5 && target.Reserved == 0 &&
                 target.CommitCalls == 1 && !ContainsId(pool, id) && !pool.ReleaseVisual(id) &&
@@ -155,7 +157,7 @@ public static class ResourceTransferVerifierEditor
             coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, oldTarget, id,
                 ResourceTypeDomain.Stone, 5));
             using var cts = new CancellationTokenSource();
-            var transfer = coordinator.RunAsync(Vector3Int.right, Vector3.zero, Vector3.right, () => current,
+            var transfer = coordinator.RunAsync(0, Vector3.zero, Vector3.right, () => current,
                 endpoint => ReferenceEquals(endpoint.Identity, current.Identity), pool.Resources, pool, cts.Token);
             await UniTask.Delay(120);
             Require(oldTarget.Reserved == 5, "non-cell transfer enters reserved animation");
@@ -176,7 +178,7 @@ public static class ResourceTransferVerifierEditor
                     "endpoint identity uses reference equality independently of Equals");
                 coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, current, id,
                     ResourceTypeDomain.Stone, 5));
-                await coordinator.RunAsync(Vector3Int.right, Vector3.zero, Vector3.right, () => current,
+                await coordinator.RunAsync(0, Vector3.zero, Vector3.right, () => current,
                     endpoint => ReferenceEquals(endpoint.Identity, current.Identity), pool.Resources, pool, CancellationToken.None);
                 Require(((EndpointFixture)current).Amount == 5 && !ContainsId(pool, id), "retained ID delivers once to replacement");
             }
@@ -188,7 +190,7 @@ public static class ResourceTransferVerifierEditor
         reusable.OnCommit = () => Require(reusable.Id == id, "non-cell reuse precedes quantity commit");
         coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, reusable, id,
             ResourceTypeDomain.Stone, 5));
-        await coordinator.RunAsync(Vector3Int.right, Vector3.zero, Vector3.right, () => reusable,
+        await coordinator.RunAsync(0, Vector3.zero, Vector3.right, () => reusable,
             endpoint => ReferenceEquals(endpoint.Identity, reusable.Identity), pool.Resources, pool, CancellationToken.None);
         Require(reusable.Amount == 5 && reusable.ReuseCalls == 1 && ContainsId(pool, id),
             "reusable non-cell target retains the transferred ID and visual");
@@ -275,9 +277,9 @@ public static class ResourceTransferVerifierEditor
     {
         var storage = CreateCell<StorageCellAdapter>("TransferCheck:ExportStorage", Vector3.back);
         SetField(storage, "capacity", 10);
-        Require(storage.AllocateStorage(Vector3Int.forward, 5, ResourceTypeDomain.Stone),
+        Require(storage.AllocateStorage(2, 5, ResourceTypeDomain.Stone),
             "export fixture reserves its source data");
-        storage.StoreResource(Vector3Int.forward, 5);
+        storage.StoreResource(2, 5);
         var exporter = CreateCell<ExportConveyorCellAdapter>("TransferCheck:Exporter", Vector3.zero);
         SetField(exporter, "_backwardCell", storage);
         SetField(exporter, "_backwardCellBase", storage);
@@ -443,7 +445,7 @@ public static class ResourceTransferVerifierEditor
         var setup = CreateCrossingTransfer(pool);
         await UniTask.Delay(120);
         var operation = GetCrossingOperation(setup.crossing);
-        setup.crossing.CancelStorage(Vector3Int.right, 5, ResourceTypeDomain.Stone);
+        setup.crossing.CancelStorage(1, 5, ResourceTypeDomain.Stone);
         await UniTask.Delay(120);
         Require(setup.target.AllocatedAmount == 0 && setup.target.CurrentLoad == 0 &&
                 operation.CurrentStage == ResourceTransferOperationApplication.Stage.Cancelled &&
@@ -504,19 +506,17 @@ public static class ResourceTransferVerifierEditor
             GetField(crossing, "_adjacentContainers");
         adjacent[Vector3Int.right] = target;
         // +X 側の搬送先を切断したとき、交差セルへ実際の通知が届く関係を作る。
-        var links = typeof(ConnectableCellBaseAdapter).GetProperty("AdjacentCells", InstanceFields);
-        links?.SetValue(target, new CellBaseAdapter[] { null, crossing, null, null });
-        links?.SetValue(crossing, new CellBaseAdapter[] { target, null, null, null });
+        LinkFixture(crossing, 0, target, 1);
         var onLostMethod = typeof(CrossingCellAdapter).GetMethod("OnConnectionLost", InstanceFields);
         var onLost = Delegate.CreateDelegate(typeof(Action<CellBaseAdapter>), crossing, onLostMethod);
         typeof(ConnectableCellBaseAdapter).GetField("OnLostConnectedCell", InstanceFields)
             ?.SetValue(crossing, onLost);
 
-        Require(crossing.AllocateStorage(Vector3Int.right, 5, ResourceTypeDomain.Stone),
+        Require(crossing.AllocateStorage(1, 5, ResourceTypeDomain.Stone),
             "crossing reserves the downstream target");
         var id = pool.CreateIdFromResourceData(ResourceTypeDomain.Stone, 5);
-        crossing.Reuse(Vector3Int.right, id);
-        crossing.StoreResource(Vector3Int.right, 5);
+        crossing.Reuse(1, id);
+        crossing.StoreResource(1, 5);
         return (crossing, target, id);
     }
 
@@ -534,10 +534,7 @@ public static class ResourceTransferVerifierEditor
         SetField(source, "_readyToSend", true);
         SetField(source, "_cts", new CancellationTokenSource());
         // 実際の切断入口から通知されるよう、孤立した検証セルの隣接関係を設定する。
-        var adjacent = typeof(ConnectableCellBaseAdapter).GetProperty("AdjacentCells", InstanceFields);
-        // +Z 側の搬送先と -Z 側の送り元を、固定方向スロットに合わせる。
-        adjacent?.SetValue(target, new CellBaseAdapter[] { null, null, null, source });
-        adjacent?.SetValue(source, new CellBaseAdapter[] { null, null, target, null });
+        LinkFixture(source, 2, target, 3);
         var onLostMethod = typeof(ConveyorCellAdapter).GetMethod("OnConnectionLost", InstanceFields);
         var onLost = Delegate.CreateDelegate(typeof(Action<CellBaseAdapter>), source, onLostMethod);
         typeof(ConnectableCellBaseAdapter).GetField("OnLostConnectedCell", InstanceFields)
@@ -553,6 +550,15 @@ public static class ResourceTransferVerifierEditor
             run.Forget();
         }
         return (source, target, id);
+    }
+
+    private static void LinkFixture(ConnectableCellBaseAdapter source, int sourcePort, ConnectableCellBaseAdapter target, int targetPort)
+    {
+        var field = typeof(ConnectableCellBaseAdapter).GetField("_connections", InstanceFields);
+        ((Dictionary<int, ConnectableCellBaseAdapter.Connection>)field.GetValue(source))[sourcePort] =
+            new ConnectableCellBaseAdapter.Connection { Owner = source, Neighbor = target, PortId = sourcePort, NeighborPortId = targetPort };
+        ((Dictionary<int, ConnectableCellBaseAdapter.Connection>)field.GetValue(target))[targetPort] =
+            new ConnectableCellBaseAdapter.Connection { Owner = target, Neighbor = source, PortId = targetPort, NeighborPortId = sourcePort };
     }
 
     private static T CreateCell<T>(string name, Vector3 position) where T : CellBaseAdapter

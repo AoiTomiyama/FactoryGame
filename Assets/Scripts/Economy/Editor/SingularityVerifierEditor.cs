@@ -34,7 +34,7 @@ public static class SingularityVerifierEditor
     {
         var prices = AssetDatabase.LoadAssetAtPath<SingularityStartDefinition>(LayoutPath).CreateCatalog();
         var wallet = new CurrencyWalletApplication(100);
-        var intake = new SingularityIntakeApplication(wallet, prices) { Accepting = true };
+        var intake = new SingularityIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
         for (var i = 0; i < 4; i++)
             Require(intake.TryReserve(i, i + 1, i % 2 == 0 ? ResourceTypeDomain.Wood : ResourceTypeDomain.Stone), "four mixed inputs");
         Require(wallet.Current.ReservedIncome == 10 && wallet.Current.Balance == 100, "reserve without payment");
@@ -55,7 +55,7 @@ public static class SingularityVerifierEditor
             Require(!intake.TryReserve(0, 1, type), "undefined sale");
         Require(!intake.TryReserve(-1, 1, ResourceTypeDomain.Wood) && !intake.TryReserve(4, 1, ResourceTypeDomain.Wood), "invalid directions");
         wallet = new CurrencyWalletApplication(long.MaxValue - 3);
-        intake = new SingularityIntakeApplication(wallet, prices) { Accepting = true };
+        intake = new SingularityIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
         Require(wallet.TryReserveExpense(10, out var expense), "expense reservation");
         Require(intake.TryReserve(0, 2, ResourceTypeDomain.Wood) && !intake.TryReserve(1, 2, ResourceTypeDomain.Stone), "shared income limit");
         expense.TryCancel();
@@ -63,7 +63,7 @@ public static class SingularityVerifierEditor
         intake.Commit(1, 1); intake.Commit(0, 2);
         Require(wallet.Current.Balance == long.MaxValue && wallet.Current.ReservedIncome == 0, "exact cap after expense cancel");
         wallet = new CurrencyWalletApplication(0);
-        intake = new SingularityIntakeApplication(wallet, prices) { Accepting = true };
+        intake = new SingularityIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
         var callbacks = 0;
         wallet.Changed += snapshot =>
         {
@@ -132,9 +132,9 @@ public static class SingularityVerifierEditor
             Require(singularity != null && wallet.Current.Balance == 100, "MainScene central singularity and shared wallet");
             var identity = singularity.Identity;
             var directions = new[] { Vector3Int.right, Vector3Int.left, Vector3Int.forward, Vector3Int.back };
-            for (var i = 0; i < 4; i++) Require(singularity.AllocateStorage(directions[i], i + 1,
+            for (var i = 0; i < 4; i++) Require(singularity.AllocateStorage(i, i + 1,
                 i % 2 == 0 ? ResourceTypeDomain.Wood : ResourceTypeDomain.Stone), "adapter mixed reservations");
-            Require(!singularity.AllocateStorage(Vector3Int.up, 1, ResourceTypeDomain.Wood), "noncardinal input rejected");
+            Require(!singularity.AllocateStorage(-1, 1, ResourceTypeDomain.Wood), "noncardinal input rejected");
             singularity.gameObject.SetActive(false);
             Require(wallet.Current.ReservedIncome == 0 && wallet.Current.Balance == 100 && singularity.IsAlive, "disable releases without payment and preserves lifetime");
             singularity.gameObject.SetActive(true);
@@ -199,7 +199,7 @@ public static class SingularityVerifierEditor
                 UnityEngine.Object.DestroyImmediate(clone.gameObject);
             };
             using var cts = new CancellationTokenSource();
-            var transfer = coordinator.RunAsync(Vector3Int.right, Vector3.zero, Vector3.right, () => clone,
+            var transfer = coordinator.RunAsync(0, Vector3.zero, Vector3.right, () => clone,
                 endpoint => clone != null && clone.isActiveAndEnabled, resources, presentation, cts.Token);
             await UniTask.WaitUntil(() => localWallet.Current.ReservedIncome == 2).Timeout(TimeSpan.FromSeconds(3));
             Require(localWallet.Current.ReservedIncome == 2, "coordinator fixes sale before presentation");

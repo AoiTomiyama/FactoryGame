@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -54,8 +54,10 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         _cts = null;
     }
 
-    private void OnConnectionUpdated(Vector3Int dir, CellBaseAdapter cell)
+    private void OnConnectionUpdated(Connection connection)
     {
+        var dir = connection.Direction;
+        var cell = connection.Neighbor;
         if (cell is IContainableApplication container)
             _adjacentContainers[dir] = container;
     }
@@ -78,12 +80,14 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         }
     }
 
-    public bool AllocateStorage(Vector3Int dir, int amount, ResourceTypeDomain resourceType)
+    public bool AllocateStorage(int portId, int amount, ResourceTypeDomain resourceType)
     {
+        if (!HasPort(portId, CellPortUseDomain.Input)) return false;
+        var dir = -PortDirection(portId);
         if (_isDisconnected || amount <= 0 || resourceType == ResourceTypeDomain.None || _pending.ContainsKey(dir))
             return false;
         if (!_adjacentContainers.TryGetValue(dir, out var adjacent) ||
-            !ResourceReservationApplication.TryCreate(adjacent, dir, amount, resourceType, out var reservation)) return false;
+            !ResourceReservationApplication.TryCreate(adjacent, TargetPortId(adjacent.Identity as CellBaseAdapter, dir), amount, resourceType, out var reservation)) return false;
 
         var operation = new ResourceTransferOperationApplication(this, adjacent, 0, resourceType, amount);
         operation.TryMarkReserved();
@@ -94,8 +98,10 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         return true;
     }
 
-    public void CancelStorage(Vector3Int dir, int amount, ResourceTypeDomain resourceType)
+    public void CancelStorage(int portId, int amount, ResourceTypeDomain resourceType)
     {
+        if (!HasPort(portId, CellPortUseDomain.Input)) return;
+        var dir = -PortDirection(portId);
         if (!_pending.TryGetValue(dir, out var transfer)) return;
         var operation = transfer.Operation;
         if (operation.Amount != amount || operation.Type != resourceType) return;
@@ -106,8 +112,10 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         if (operation.ResourceId != 0) ResourceItemObjectPoolAdapter.Instance.DisposeId(operation.ResourceId);
     }
 
-    public void StoreResource(Vector3Int dir, int amount)
+    public void StoreResource(int portId, int amount)
     {
+        if (!HasPort(portId, CellPortUseDomain.Input)) return;
+        var dir = -PortDirection(portId);
         if (_cts == null || !_pending.TryGetValue(dir, out var transfer) ||
             transfer.Operation.Amount != amount || transfer.Operation.ResourceId == 0 || transfer.Started) return;
         transfer.Started = true;
@@ -126,7 +134,8 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                 try
                 {
                     var startPos = transform.position + Vector3.up * 1.1f;
-                    var result = await transfer.Coordinator.RunAsync(dir, startPos,
+                    var result = await transfer.Coordinator.RunAsync(
+                        _adjacentContainers.TryGetValue(dir, out var portTarget) ? TargetPortId(portTarget.Identity as CellBaseAdapter, dir) : -1, startPos,
                         transform.position + dir + Vector3.up * 1.1f,
                         () => _adjacentContainers.TryGetValue(dir, out var adjacent) ? adjacent : null,
                         endpoint => _adjacentContainers.TryGetValue(dir, out var adjacent) &&
@@ -174,8 +183,10 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         }
     }
 
-    public void Reuse(Vector3Int dir, int id)
+    public void Reuse(int portId, int id)
     {
+        if (!HasPort(portId, CellPortUseDomain.Input)) return;
+        var dir = -PortDirection(portId);
         if (!_pending.TryGetValue(dir, out var transfer)) return;
         transfer.Operation.TryAttachId(id);
     }

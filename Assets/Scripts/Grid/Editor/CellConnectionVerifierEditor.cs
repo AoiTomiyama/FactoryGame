@@ -9,19 +9,16 @@ using UnityEngine;
 public static class CellConnectionVerifierEditor
 {
     private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
-    private static readonly FieldInfo AllowedDirections =
-        typeof(ConnectableCellBaseAdapter).GetField("allowedDirections", PrivateInstance);
     private static readonly FieldInfo OnConnected =
         typeof(ConnectableCellBaseAdapter).GetField("OnGetConnectedCell", PrivateInstance);
     private static readonly FieldInfo OnLost =
         typeof(ConnectableCellBaseAdapter).GetField("OnLostConnectedCell", PrivateInstance);
-    private static readonly PropertyInfo Adjacent =
-        typeof(ConnectableCellBaseAdapter).GetProperty("AdjacentCells", PrivateInstance);
 
     [MenuItem("Tools/FactoryGame/Verify Cell Connections")]
     public static void Run()
     {
         VerifyFootprints();
+        VerifyExteriorPorts();
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var gridObject = new GameObject("ConnectionCheck:Grid");
         try
@@ -38,13 +35,13 @@ public static class CellConnectionVerifierEditor
             var center = ReplaceWith<StorageCellAdapter>(grid, 1, 1);
             var connected = 0;
             var lost = 0;
-            OnConnected.SetValue(center, (Action<Vector3Int, CellBaseAdapter>)((direction, cell) => connected++));
+            OnConnected.SetValue(center, (Action<ConnectableCellBaseAdapter.Connection>)(connection => connected++));
             OnLost.SetValue(center, (Action<CellBaseAdapter>)(cell => lost++));
             center.InitializeSystem();
 
             var east = ReplaceWith<StorageCellAdapter>(grid, 2, 1);
             var eastConnected = 0;
-            OnConnected.SetValue(east, (Action<Vector3Int, CellBaseAdapter>)((direction, cell) => eastConnected++));
+            OnConnected.SetValue(east, (Action<ConnectableCellBaseAdapter.Connection>)(connection => eastConnected++));
             east.InitializeSystem();
             var west = ReplaceWith<StorageCellAdapter>(grid, 0, 1);
             west.InitializeSystem();
@@ -74,7 +71,7 @@ public static class CellConnectionVerifierEditor
                     Link(south, 2) == null && Link(replacement, 3) == null,
                 "deletion clears every reciprocal link");
             var rotated = ReplaceWith<StorageCellAdapter>(grid, 1, 1, Quaternion.Euler(0, 90, 0));
-            AllowedDirections.SetValue(rotated, DirectionsDomain.Forward);
+            SetPorts(rotated, new CellPortDefinition(2, 0, 0, DirectionsDomain.Forward, CellPortUseDomain.Both));
             rotated.InitializeSystem();
             Require(Link(rotated, 0) == east && Link(east, 1) == rotated &&
                     Link(rotated, 1) == null && Link(rotated, 2) == null && Link(rotated, 3) == null,
@@ -140,6 +137,52 @@ public static class CellConnectionVerifierEditor
         Debug.Log("Footprint checks passed: 1x1/3x2/5x5, four rotations, atomic overlap/boundary/restore, owner lookup, unordered hierarchy.");
     }
 
+    private static void VerifyExteriorPorts()
+    {
+        for (var turn = 0; turn < 4; turn++)
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var root = new GameObject("PortCheck");
+            try
+            {
+                var grid = root.AddComponent<GridFieldDatabaseAdapter>();
+                for (var x = 0; x < 10; x++)
+                for (var z = 0; z < 10; z++) CreateCell<EmptyCellAdapter>(root.transform, x, z, Quaternion.identity);
+                grid.InitializeCells(10);
+                var large = CreateCell<StorageCellAdapter>(root.transform, 4, 4, Quaternion.Euler(0, turn * 90, 0));
+                typeof(StorageCellAdapter).GetField("capacity", PrivateInstance).SetValue(large, 10);
+                var settings = new SerializedObject(large);
+                settings.FindProperty("footprintWidth").intValue = 3;
+                settings.FindProperty("footprintDepth").intValue = 2;
+                settings.ApplyModifiedPropertiesWithoutUndo();
+                SetPorts(large, new CellPortDefinition(10, 0, 0, DirectionsDomain.Back, CellPortUseDomain.Input),
+                    new CellPortDefinition(20, 2, 0, DirectionsDomain.Back, CellPortUseDomain.Input),
+                    new CellPortDefinition(30, 1, 1, DirectionsDomain.Forward, CellPortUseDomain.Output));
+                var previous = grid.CaptureCells(large.Footprint.Coordinates(4, 4, turn));
+                grid.SaveCell(4, 4, large);
+                foreach (var entry in previous) UnityEngine.Object.DestroyImmediate(entry.Owner.gameObject);
+                large.InitializeSystem();
+                foreach (var id in new[] { 10, 20, 30 })
+                {
+                    var point = Vector3Int.RoundToInt(large.PortPosition(id)) + large.PortDirection(id);
+                    ReplaceWith<StorageCellAdapter>(grid, point.x, point.z).InitializeSystem();
+                }
+                Require(large.Connections.Count == 3 && large.Connections.ContainsKey(10) && large.Connections.ContainsKey(20),
+                    "same edge has independent stable port IDs after rotation");
+                Require(large.Connections[10].Neighbor != large.Connections[20].Neighbor, "same-facing ports reach separate owners");
+                var neighbors = large.Connections.Values.Select(c => c.Neighbor).ToArray();
+                large.OnDisconnect();
+                Require(neighbors.All(c => c.Connections.Count == 0), "multiblock removal clears every reciprocal port");
+                SetPorts(large, new CellPortDefinition(0, 1, 0, DirectionsDomain.Right, CellPortUseDomain.Input));
+                var rejected = false;
+                try { large.ValidatePorts(); } catch (InvalidOperationException) { rejected = true; }
+                Require(rejected, "interior-facing ports are rejected");
+            }
+            finally { UnityEngine.Object.DestroyImmediate(root); }
+        }
+        Debug.Log("Exterior port checks passed: same-edge independent IDs, 3x2 at four rotations, reciprocal removal, invalid interior face.");
+    }
+
     private static T ReplaceWith<T>(GridFieldDatabaseAdapter grid, int x, int z,
         Quaternion? rotation = null) where T : CellBaseAdapter
     {
@@ -166,7 +209,18 @@ public static class CellConnectionVerifierEditor
     }
 
     private static CellBaseAdapter Link(ConnectableCellBaseAdapter cell, int direction) =>
-        ((CellBaseAdapter[])Adjacent.GetValue(cell))[direction];
+        cell.Connections.Values.FirstOrDefault(c => c.Direction == new[] { Vector3Int.right, Vector3Int.left, Vector3Int.forward, Vector3Int.back }[direction])?.Neighbor;
+
+    public static void SetPorts(ConnectableCellBaseAdapter cell, params CellPortDefinition[] ports)
+        => typeof(ConnectableCellBaseAdapter).GetField("ports", PrivateInstance).SetValue(cell, ports);
+
+    public static void ConfigureCraftingPorts(CrafterCellAdapter cell, params int[] inputIds)
+    {
+        var ports = inputIds.Select(id => new CellPortDefinition(id, 0, 0,
+            id == 1 ? DirectionsDomain.Left : DirectionsDomain.Right, CellPortUseDomain.Input)).ToList();
+        ports.Add(new CellPortDefinition(2, 0, 0, DirectionsDomain.Forward, CellPortUseDomain.Output));
+        SetPorts(cell, ports.ToArray());
+    }
 
     private static void Require(bool condition, string message)
     {

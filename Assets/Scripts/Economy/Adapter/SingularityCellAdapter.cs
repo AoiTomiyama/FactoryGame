@@ -26,7 +26,7 @@ public sealed class SingularityCellAdapter : ConnectableCellBaseAdapter, IContai
     public void Configure(CurrencyWalletApplication wallet, CurrencyPriceCatalogDomain prices)
     {
         if (_intake != null) throw new InvalidOperationException("Singularity is already configured.");
-        _intake = new SingularityIntakeApplication(wallet, prices);
+        _intake = new SingularityIntakeApplication(wallet, prices, System.Linq.Enumerable.Select(Ports, p => p.Id));
         _wallet = wallet;
         if (isActiveAndEnabled) _wallet.Changed += OnWalletChanged;
     }
@@ -67,12 +67,9 @@ public sealed class SingularityCellAdapter : ConnectableCellBaseAdapter, IContai
         base.OnDestroy(); StopIntake();
     }
 
-    private static int Input(Vector3Int dir)
-        => dir == Vector3Int.right ? 0 : dir == Vector3Int.left ? 1 :
-           dir == Vector3Int.forward ? 2 : dir == Vector3Int.back ? 3 : -1;
-    public bool AllocateStorage(Vector3Int dir, int amount, ResourceTypeDomain type)
-        => isActiveAndEnabled && _intake != null && _intake.TryReserve(Input(dir), amount, type);
-    public void StoreResource(Vector3Int dir, int amount) => _intake?.Commit(Input(dir), amount);
-    public void CancelStorage(Vector3Int dir, int amount, ResourceTypeDomain type)
-        => _intake?.Cancel(Input(dir), amount, type);
+    public bool AllocateStorage(int portId, int amount, ResourceTypeDomain type)
+        => isActiveAndEnabled && HasPort(portId, CellPortUseDomain.Input) && _intake != null && _intake.TryReserve(portId, amount, type);
+    public void StoreResource(int portId, int amount) => _intake?.Commit(portId, amount);
+    public void CancelStorage(int portId, int amount, ResourceTypeDomain type)
+        => _intake?.Cancel(portId, amount, type);
 }

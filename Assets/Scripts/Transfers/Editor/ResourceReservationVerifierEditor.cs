@@ -105,9 +105,9 @@ public static class ResourceReservationVerifierEditor
         {
             SetPrivateField(storage, "capacity", 5);
             ResourceReservationApplication second = null;
-            Require(ResourceReservationApplication.TryCreate(storage, Vector3Int.right, 2, ResourceTypeDomain.Stone,
+            Require(ResourceReservationApplication.TryCreate(storage, 0, 2, ResourceTypeDomain.Stone,
                     out var first) &&
-                    ResourceReservationApplication.TryCreate(storage, Vector3Int.right, 2, ResourceTypeDomain.Stone,
+                    ResourceReservationApplication.TryCreate(storage, 0, 2, ResourceTypeDomain.Stone,
                     out second) && first.Id != second.Id,
                 "Ticket: equal reservations have different IDs");
             Require(first.TryCancel() && !first.TryCancel() && !first.TryCommit() &&
@@ -118,26 +118,27 @@ public static class ResourceReservationVerifierEditor
                 "Ticket: commit moves the reserved amount once");
 
             SetPrivateField(crafter, "ingredientCapacity", 5);
-            var inputs = GetPrivateField<Dictionary<Vector3Int, CrafterCellAdapter.ResourceInputData>>(
+            var inputs = GetPrivateField<Dictionary<int, CrafterCellAdapter.ResourceInputData>>(
                 crafter, "_resourceInputs");
-            inputs[Vector3Int.right] = new CrafterCellAdapter.ResourceInputData();
-            Require(ResourceReservationApplication.TryCreate(crafter, Vector3Int.right, 3, ResourceTypeDomain.Wood,
+            inputs[0] = new CrafterCellAdapter.ResourceInputData();
+            Require(ResourceReservationApplication.TryCreate(crafter, 0, 3, ResourceTypeDomain.Wood,
                     out var ingredient) && ingredient.TryCancel() && !ingredient.TryCancel() &&
-                    inputs[Vector3Int.right].Allocated == 0 &&
-                    inputs[Vector3Int.right].Type == ResourceTypeDomain.None,
+                    inputs[0].Allocated == 0 &&
+                    inputs[0].Type == ResourceTypeDomain.None,
                 "Ticket: crafter cancellation restores the input state");
 
-            Require(ResourceReservationApplication.TryCreate(conveyor, Vector3Int.right, 2, ResourceTypeDomain.Stone,
+            Require(ResourceReservationApplication.TryCreate(conveyor, 0, 2, ResourceTypeDomain.Stone,
                     out var conveyorInput) && conveyorInput.TryCancel() &&
                     !conveyorInput.TryCancel() &&
-                    ResourceReservationApplication.TryCreate(conveyor, Vector3Int.right, 1, ResourceTypeDomain.Wood,
+                    ResourceReservationApplication.TryCreate(conveyor, 0, 1, ResourceTypeDomain.Wood,
                         out var replacement) && replacement.TryCancel(),
                 "Ticket: conveyor input can be canceled and reserved again");
 
             var adjacent = GetPrivateField<Dictionary<Vector3Int, IContainableApplication>>(
                 crossing, "_adjacentContainers");
+            storage.transform.position = Vector3.right;
             adjacent[Vector3Int.right] = storage;
-            Require(ResourceReservationApplication.TryCreate(crossing, Vector3Int.right, 2, ResourceTypeDomain.Stone,
+            Require(ResourceReservationApplication.TryCreate(crossing, 1, 2, ResourceTypeDomain.Stone,
                     out var delegated) && storage.AllocatedAmount == 2 &&
                     delegated.TryCancel() && !delegated.TryCancel() &&
                     storage.AllocatedAmount == 0 && storage.CurrentLoad == 2,
@@ -190,30 +191,30 @@ public static class ResourceReservationVerifierEditor
         {
             SetPrivateField(storage, "capacity", 5);
 
-            Require(!storage.AllocateStorage(Vector3Int.right, 6, ResourceTypeDomain.Stone), "Storage: reject insufficient capacity");
+            Require(!storage.AllocateStorage(0, 6, ResourceTypeDomain.Stone), "Storage: reject insufficient capacity");
             Require(storage.StoredResourceType == ResourceTypeDomain.None, "Storage: rejection leaves type unchanged");
-            Require(storage.AllocateStorage(Vector3Int.right, 4, ResourceTypeDomain.Stone), "Storage: reserve four");
-            Require(!storage.AllocateStorage(Vector3Int.right, 2, ResourceTypeDomain.Stone), "Storage: reject partial reservation");
-            Require(!storage.AllocateStorage(Vector3Int.right, 0, ResourceTypeDomain.Stone), "Storage: reject zero amount");
-            Require(!storage.AllocateStorage(Vector3Int.right, 1, ResourceTypeDomain.None), "Storage: reject missing type");
+            Require(storage.AllocateStorage(0, 4, ResourceTypeDomain.Stone), "Storage: reserve four");
+            Require(!storage.AllocateStorage(0, 2, ResourceTypeDomain.Stone), "Storage: reject partial reservation");
+            Require(!storage.AllocateStorage(0, 0, ResourceTypeDomain.Stone), "Storage: reject zero amount");
+            Require(!storage.AllocateStorage(0, 1, ResourceTypeDomain.None), "Storage: reject missing type");
             Require(storage.AllocatedAmount == 4 && storage.CurrentLoad == 0, "Storage: failed requests leave state intact");
 
-            storage.StoreResource(Vector3Int.right, 5);
+            storage.StoreResource(0, 5);
             Require(storage.AllocatedAmount == 4 && storage.CurrentLoad == 0, "Storage: reject unreserved amount");
-            storage.StoreResource(Vector3Int.right, 4);
+            storage.StoreResource(0, 4);
             Require(storage.AllocatedAmount == 0 && storage.CurrentLoad == 4, "Storage: commit exact reservation");
 
-            Require(storage.AllocateStorage(Vector3Int.right, 1, ResourceTypeDomain.Stone), "Storage: reserve remaining space");
-            storage.CancelStorage(Vector3Int.right, 1, ResourceTypeDomain.Stone);
+            Require(storage.AllocateStorage(0, 1, ResourceTypeDomain.Stone), "Storage: reserve remaining space");
+            storage.CancelStorage(0, 1, ResourceTypeDomain.Stone);
             Require(storage.AllocatedAmount == 0 && storage.CurrentLoad == 4,
                 "Storage: cancellation preserves committed stock");
-            Require(storage.AllocateStorage(Vector3Int.right, 1, ResourceTypeDomain.Stone),
+            Require(storage.AllocateStorage(0, 1, ResourceTypeDomain.Stone),
                 "Storage: canceled capacity can be reserved again");
-            Require(storage.TryExport(Vector3.zero, 4, out var exported, out _) && exported == 4,
+            Require(storage.TryExport(2, 4, out var exported, out _) && exported == 4,
                 "Storage: export existing contents");
             Require(storage.StoredResourceType == ResourceTypeDomain.Stone, "Storage: retain type while delivery is reserved");
-            Require(!storage.AllocateStorage(Vector3Int.right, 1, ResourceTypeDomain.Wood), "Storage: reject another type in flight");
-            storage.StoreResource(Vector3Int.right, 1);
+            Require(!storage.AllocateStorage(0, 1, ResourceTypeDomain.Wood), "Storage: reject another type in flight");
+            storage.StoreResource(0, 1);
             Require(storage.CurrentLoad == 1 && storage.AllocatedAmount == 0, "Storage: complete in-flight delivery");
         }
         finally
@@ -228,33 +229,33 @@ public static class ResourceReservationVerifierEditor
         try
         {
             SetPrivateField(crafter, "ingredientCapacity", 5);
-            var inputs = GetPrivateField<Dictionary<Vector3Int, CrafterCellAdapter.ResourceInputData>>(crafter, "_resourceInputs");
-            inputs[Vector3Int.right] = new CrafterCellAdapter.ResourceInputData();
+            var inputs = GetPrivateField<Dictionary<int, CrafterCellAdapter.ResourceInputData>>(crafter, "_resourceInputs");
+            inputs[0] = new CrafterCellAdapter.ResourceInputData();
 
-            Require(!crafter.AllocateStorage(Vector3Int.right, 6, ResourceTypeDomain.Stone),
+            Require(!crafter.AllocateStorage(0, 6, ResourceTypeDomain.Stone),
                 "Crafter: reject insufficient capacity");
-            Require(inputs[Vector3Int.right].Type == ResourceTypeDomain.None,
+            Require(inputs[0].Type == ResourceTypeDomain.None,
                 "Crafter: rejection leaves type unchanged");
-            Require(crafter.AllocateStorage(Vector3Int.right, 4, ResourceTypeDomain.Stone), "Crafter: reserve four");
-            Require(!crafter.AllocateStorage(Vector3Int.right, 2, ResourceTypeDomain.Stone), "Crafter: reject partial reservation");
-            Require(!crafter.AllocateStorage(Vector3Int.left, 1, ResourceTypeDomain.Stone), "Crafter: reject absent input");
-            Require(!crafter.AllocateStorage(Vector3Int.right, 1, ResourceTypeDomain.Wood), "Crafter: reject another type");
-            Require(inputs[Vector3Int.right].Allocated == 4, "Crafter: failed requests leave reservation intact");
+            Require(crafter.AllocateStorage(0, 4, ResourceTypeDomain.Stone), "Crafter: reserve four");
+            Require(!crafter.AllocateStorage(0, 2, ResourceTypeDomain.Stone), "Crafter: reject partial reservation");
+            Require(!crafter.AllocateStorage(1, 1, ResourceTypeDomain.Stone), "Crafter: reject absent input");
+            Require(!crafter.AllocateStorage(0, 1, ResourceTypeDomain.Wood), "Crafter: reject another type");
+            Require(inputs[0].Allocated == 4, "Crafter: failed requests leave reservation intact");
 
-            crafter.StoreResource(Vector3Int.right, 5);
-            Require(inputs[Vector3Int.right].Amount == 0 && inputs[Vector3Int.right].Allocated == 4,
+            crafter.StoreResource(0, 5);
+            Require(inputs[0].Amount == 0 && inputs[0].Allocated == 4,
                 "Crafter: reject unreserved amount");
-            crafter.StoreResource(Vector3Int.right, 4);
-            Require(inputs[Vector3Int.right].Amount == 4 && inputs[Vector3Int.right].Allocated == 0,
+            crafter.StoreResource(0, 4);
+            Require(inputs[0].Amount == 4 && inputs[0].Allocated == 0,
                 "Crafter: commit exact reservation");
-            Require(crafter.AllocateStorage(Vector3Int.right, 1, ResourceTypeDomain.Stone), "Crafter: reserve final space");
-            crafter.CancelStorage(Vector3Int.right, 1, ResourceTypeDomain.Stone);
-            Require(inputs[Vector3Int.right].Allocated == 0 && inputs[Vector3Int.right].Amount == 4,
+            Require(crafter.AllocateStorage(0, 1, ResourceTypeDomain.Stone), "Crafter: reserve final space");
+            crafter.CancelStorage(0, 1, ResourceTypeDomain.Stone);
+            Require(inputs[0].Allocated == 0 && inputs[0].Amount == 4,
                 "Crafter: cancellation preserves committed ingredients");
-            Require(crafter.AllocateStorage(Vector3Int.right, 1, ResourceTypeDomain.Stone),
+            Require(crafter.AllocateStorage(0, 1, ResourceTypeDomain.Stone),
                 "Crafter: canceled capacity can be reserved again");
-            crafter.StoreResource(Vector3Int.right, 1);
-            Require(inputs[Vector3Int.right].Amount == 5 && inputs[Vector3Int.right].Allocated == 0,
+            crafter.StoreResource(0, 1);
+            Require(inputs[0].Amount == 5 && inputs[0].Allocated == 0,
                 "Crafter: never exceed capacity");
         }
         finally
@@ -268,16 +269,16 @@ public static class ResourceReservationVerifierEditor
         var conveyor = CreateCell<ConveyorCellAdapter>();
         try
         {
-            Require(!conveyor.AllocateStorage(Vector3Int.right, 0, ResourceTypeDomain.Stone),
+            Require(!conveyor.AllocateStorage(0, 0, ResourceTypeDomain.Stone),
                 "Conveyor: reject zero amount");
-            Require(!conveyor.AllocateStorage(Vector3Int.right, 1, ResourceTypeDomain.None),
+            Require(!conveyor.AllocateStorage(0, 1, ResourceTypeDomain.None),
                 "Conveyor: reject missing type");
-            Require(conveyor.AllocateStorage(Vector3Int.right, 5, ResourceTypeDomain.Stone),
+            Require(conveyor.AllocateStorage(0, 5, ResourceTypeDomain.Stone),
                 "Conveyor: accept one full batch");
-            Require(!conveyor.AllocateStorage(Vector3Int.right, 1, ResourceTypeDomain.Stone),
+            Require(!conveyor.AllocateStorage(0, 1, ResourceTypeDomain.Stone),
                 "Conveyor: reject a second batch");
-            conveyor.CancelStorage(Vector3Int.right, 5, ResourceTypeDomain.Stone);
-            Require(conveyor.AllocateStorage(Vector3Int.right, 1, ResourceTypeDomain.Wood),
+            conveyor.CancelStorage(0, 5, ResourceTypeDomain.Stone);
+            Require(conveyor.AllocateStorage(0, 1, ResourceTypeDomain.Wood),
                 "Conveyor: cancellation frees the input slot");
         }
         finally
@@ -295,19 +296,20 @@ public static class ResourceReservationVerifierEditor
             SetPrivateField(storage, "capacity", 5);
             var adjacent = GetPrivateField<Dictionary<Vector3Int, IContainableApplication>>(
                 crossing, "_adjacentContainers");
+            storage.transform.position = Vector3.right;
             adjacent[Vector3Int.right] = storage;
 
-            Require(crossing.AllocateStorage(Vector3Int.right, 4, ResourceTypeDomain.Stone),
+            Require(crossing.AllocateStorage(1, 4, ResourceTypeDomain.Stone),
                 "Crossing: forward full reservation");
-            Require(!crossing.AllocateStorage(Vector3Int.right, 2, ResourceTypeDomain.Stone),
+            Require(!crossing.AllocateStorage(1, 2, ResourceTypeDomain.Stone),
                 "Crossing: forward partial rejection");
-            Require(!crossing.AllocateStorage(Vector3Int.left, 1, ResourceTypeDomain.Stone),
+            Require(!crossing.AllocateStorage(0, 1, ResourceTypeDomain.Stone),
                 "Crossing: reject absent output");
             Require(storage.AllocatedAmount == 4, "Crossing: target reservation remains exact");
-            crossing.CancelStorage(Vector3Int.right, 4, ResourceTypeDomain.Stone);
+            crossing.CancelStorage(1, 4, ResourceTypeDomain.Stone);
             Require(storage.AllocatedAmount == 0 && storage.StoredResourceType == ResourceTypeDomain.None,
                 "Crossing: cancellation reaches target and releases type");
-            Require(crossing.AllocateStorage(Vector3Int.right, 5, ResourceTypeDomain.Wood),
+            Require(crossing.AllocateStorage(1, 5, ResourceTypeDomain.Wood),
                 "Crossing: canceled path accepts a different resource");
         }
         finally

@@ -10,7 +10,7 @@
 - 一つの材料条件は一つの入力の現在量で全量を満たす。同じ加工で入力を重複割当せず、複数入力の量を合算しない。搬入予約量は材料として数えない。
 - 同種の条件は必要量の大きい順に対応付ける。各条件には数量が最小の適合入力を選び、同量の場合は入力 ID 順にする。これにより小さい条件が大きい入力を先取りする見落としを防ぐ。
 - [RecipeRulesDomain](../../Assets/Scripts/Crafting/Domain/RecipeRulesDomain.cs) が成立判定を行い、[RecipePlanDomain](../../Assets/Scripts/Crafting/Domain/RecipePlanDomain.cs) に入力 ID・種別・消費量・成果物を保存する。材料配列と計画は読み取り専用のコピーであり、開始後の定義編集で加工内容を変えない。
-- ID は Adapter が World 座標の4方向から作る単純な整数（+X=1、-X=-1、+Z=2、-Z=-2）。Domain / Application は座標やセルを参照しない。
+- 入力IDはField Prefabで定義した入力ポートIDを使う。回転後もIDとバッファを保持する。Domain / Application は座標やセルを参照しない。
 
 ## 成立条件
 

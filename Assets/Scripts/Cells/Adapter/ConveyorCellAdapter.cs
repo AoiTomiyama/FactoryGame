@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -73,8 +73,10 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     /// </summary>
     /// <param name="dir">接続先の方向</param>
     /// <param name="cell">接続するセル</param>
-    private void OnConnectionUpdated(Vector3Int dir, CellBaseAdapter cell)
+    private void OnConnectionUpdated(Connection connection)
     {
+        var dir = connection.Direction;
+        var cell = connection.Neighbor;
         var forward = DirectionEnumToVector(DirectionsDomain.Forward);
 
         // ・セルが前方である
@@ -165,7 +167,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         try
         {
             _status = TransferStatus.WaitingForStorage;
-            var result = await coordinator.RunAsync(dir, startPos, transform.position + dir + Vector3.up * 1.1f,
+            var result = await coordinator.RunAsync(TargetPortId(targetCell, dir), startPos, transform.position + dir + Vector3.up * 1.1f,
                 () => targetCell != null && _forwardCellBase == targetCell ? target : null,
                 endpoint => ReferenceEquals(_forwardCellBase, endpoint.Identity), pool.Resources, pool, transferCts.Token,
                 () => _status = TransferStatus.Storing);
@@ -189,8 +191,9 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         }
     }
 
-    public bool AllocateStorage(Vector3Int dir, int amount, ResourceTypeDomain resourceType)
+    public bool AllocateStorage(int dir, int amount, ResourceTypeDomain resourceType)
     {
+        if (!HasPort(dir, CellPortUseDomain.Input)) return false;
         // コンベアは一度に一件だけ全量を受け入れる。
         if (amount <= 0 || resourceType == ResourceTypeDomain.None || HasResource || _isDisconnected) return false;
         HasResource = true;
@@ -199,7 +202,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         return true;
     }
 
-    public void StoreResource(Vector3Int dir, int amount)
+    public void StoreResource(int dir, int amount)
     {
         if (amount != _incomingReservationAmount || ResourceId == 0 || _isDisconnected) return;
         var info = ResourceItemObjectPoolAdapter.Instance.TakeResourceDataById(ResourceId);
@@ -209,7 +212,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         _readyToSend = true;
     }
 
-    public void CancelStorage(Vector3Int dir, int amount, ResourceTypeDomain resourceType)
+    public void CancelStorage(int dir, int amount, ResourceTypeDomain resourceType)
     {
         if (amount <= 0 || amount != _incomingReservationAmount ||
             resourceType != _incomingReservationType) return;
@@ -248,7 +251,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         }
     }
 
-    public void Reuse(Vector3Int dir, int resourceId)
+    public void Reuse(int dir, int resourceId)
     {
         ResourceId = resourceId;
     }

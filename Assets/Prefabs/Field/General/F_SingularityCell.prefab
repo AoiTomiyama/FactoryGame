@@ -157,7 +157,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1dc39697fad4d3aabd6199d27543e02, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::SingularityCellAdapter
-  allowedDirections: 15
+  ports:
+  - Id: 0
+    Cell: {x: 0, y: 0}
+    Facing: 4
+    Use: 1
+  - Id: 1
+    Cell: {x: 0, y: 0}
+    Facing: 8
+    Use: 1
+  - Id: 2
+    Cell: {x: 0, y: 0}
+    Facing: 1
+    Use: 1
+  - Id: 3
+    Cell: {x: 0, y: 0}
+    Facing: 2
+    Use: 1
 --- !u!1 &6016305104915069311
 GameObject:
   m_ObjectHideFlags: 0

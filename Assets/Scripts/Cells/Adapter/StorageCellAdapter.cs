@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System;
 
 public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainableApplication, IExportableApplication, IDataProvidableApplication
@@ -33,27 +33,30 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
         StatusChanged?.Invoke();
     }
 
-    public bool AllocateStorage(Vector3Int dir, int amount, ResourceTypeDomain resourceType)
+    public bool AllocateStorage(int dir, int amount, ResourceTypeDomain resourceType)
     {
+        if (!HasPort(dir, CellPortUseDomain.Input)) return false;
         if (!ResourceStorageRulesDomain.TryReserve(Capacity, Stock, amount, resourceType, out var next)) return false;
         ApplyStock(next);
         return true;
     }
 
-    public void StoreResource(Vector3Int dir, int amount)
+    public void StoreResource(int dir, int amount)
     {
         if (ResourceStorageRulesDomain.TryCommit(Capacity, Stock, amount, out var next)) ApplyStock(next);
     }
 
-    public void CancelStorage(Vector3Int dir, int amount, ResourceTypeDomain resourceType)
+    public void CancelStorage(int dir, int amount, ResourceTypeDomain resourceType)
     {
         if (ResourceStorageRulesDomain.TryCancel(Stock, amount, resourceType, out var next)) ApplyStock(next);
     }
 
-    public Vector3 GetPosition() => transform.position;
+    public Vector3 GetPosition(int portId) => PortPosition(portId);
 
-    public bool TryExport(Vector3 from, int requestedAmount, out int amount, out ResourceTypeDomain type)
+    public bool TryExport(int portId, int requestedAmount, out int amount, out ResourceTypeDomain type)
     {
+        amount = 0; type = ResourceTypeDomain.None;
+        if (!HasPort(portId, CellPortUseDomain.Output)) return false;
         if (!ResourceStorageRulesDomain.TryExport(Stock, requestedAmount, out var next, out amount, out type)) return false;
         ApplyStock(next);
         return true;

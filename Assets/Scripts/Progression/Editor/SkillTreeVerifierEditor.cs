@@ -147,13 +147,13 @@ public static class SkillTreeVerifierEditor
                 var cell = Install(grid, names[index], 20 + index, 22); cell.gameObject.SetActive(false); inactive.Add(cell);
             }
             var storage = (StorageCellAdapter)existing[2];
-            storage.AllocateStorage(Vector3Int.back, 30, ResourceTypeDomain.Wood); storage.StoreResource(Vector3Int.back, 20);
+            storage.AllocateStorage(3, 30, ResourceTypeDomain.Wood); storage.StoreResource(3, 20);
             var identity = storage.Identity;
             for (var x = 27; x <= 30; x++) for (var z = 21; z <= 23; z++) Install(grid, "Empty", x, z);
             var crossing = (CrossingCellAdapter)Install(grid, "Crossing", 28, 22);
             var receiver = (StorageCellAdapter)Install(grid, "Storage", 29, 22);
             receiver.InitializeSystem(); crossing.InitializeSystem();
-            Require(crossing.AllocateStorage(Vector3Int.right, 5, ResourceTypeDomain.Stone), "crossing reservation before shared growth");
+            Require(crossing.AllocateStorage(1, 5, ResourceTypeDomain.Stone), "crossing reservation before shared growth");
             var pending = (System.Collections.IDictionary)typeof(CrossingCellAdapter).GetField("_pending", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(crossing);
             var transfer = pending[Vector3Int.right];
             Require(tree.Purchase("basic-research") == SkillPurchaseResultApplication.Success, "scene root");
@@ -168,7 +168,7 @@ public static class SkillTreeVerifierEditor
 
             for (var x = 44; x <= 46; x++) for (var z = 44; z <= 48; z++) Install(grid, "Empty", x, z);
             var feed = (StorageCellAdapter)Install(grid, "Storage", 45, 45);
-            Require(feed.AllocateStorage(Vector3Int.back, 20, ResourceTypeDomain.Wood), "feed reservation"); feed.StoreResource(Vector3Int.back, 20);
+            Require(feed.AllocateStorage(3, 20, ResourceTypeDomain.Wood), "feed reservation"); feed.StoreResource(3, 20);
             Require(feed.CurrentLoad == 20, "feed stock before exporter");
             var exporter = (ExportConveyorCellAdapter)Install(grid, "ExportConveyor", 45, 46);
             Require(ReferenceEquals(typeof(ExportConveyorCellAdapter).GetField("_backwardCellBase", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(exporter), feed), "exporter connected to test feed; actual=" + ((CellBaseAdapter)typeof(ExportConveyorCellAdapter).GetField("_backwardCellBase", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(exporter)) + "; feed=" + feed + "; difference=" + (exporter.transform.position - feed.transform.position));
@@ -185,16 +185,16 @@ public static class SkillTreeVerifierEditor
                 var recipe = new RecipeDataDefinition(); Set(recipe, "ingredients", new[] { new IngredientDefinition { resourceType = ResourceTypeDomain.Stone, requiredAmount = 3 } });
                 Set(recipe, "result", ResourceTypeDomain.Wood); Set(recipe, "resultAmount", 2); Set(recipe, "craftSecond", .4f);
                 var database = ScriptableObject.CreateInstance<RecipeDatabaseDefinition>(); database.recipes = new[] { recipe };
-                Set(cell, "recipeDatabase", database); Set(cell, "importDirection", DirectionsDomain.Left);
+                Set(cell, "recipeDatabase", database); CellConnectionVerifierEditor.ConfigureCraftingPorts((CrafterCellAdapter)cell, 1);
             });
-            activeCrafter.AllocateStorage(Vector3Int.left, 3, ResourceTypeDomain.Stone); activeCrafter.StoreResource(Vector3Int.left, 3);
+            activeCrafter.AllocateStorage(1, 3, ResourceTypeDomain.Stone); activeCrafter.StoreResource(1, 3);
             await Wait(() => Operation(activeCrafter) != null);
-            var operation = Operation(activeCrafter); activeCrafter.AllocateStorage(Vector3Int.left, 2, ResourceTypeDomain.Stone);
-            Require(tree.Purchase("crafter-input-1") == SkillPurchaseResultApplication.Success && ReferenceEquals(operation, Operation(activeCrafter)) && activeCrafter.GetInput(DirectionsDomain.Left).Allocated == 2, "shared purchase preserves active crafting and reservation");
+            var operation = Operation(activeCrafter); activeCrafter.AllocateStorage(1, 2, ResourceTypeDomain.Stone);
+            Require(tree.Purchase("crafter-input-1") == SkillPurchaseResultApplication.Success && ReferenceEquals(operation, Operation(activeCrafter)) && activeCrafter.GetInput(1).Allocated == 2, "shared purchase preserves active crafting and reservation");
             await Wait(() => activeCrafter.ExportStorageAmount > 0); activeCrafter.enabled = false;
             Require(activeCrafter.ExportStorageAmount == 2 && operation.CurrentStage == CraftingOperationApplication.Stage.Completed, "active recipe remains unchanged");
-            activeCrafter.StoreResource(Vector3Int.left, 2);
-            Require(activeCrafter.GetInput(DirectionsDomain.Left).Amount == 2, "old crafting reservation commits");
+            activeCrafter.StoreResource(1, 2);
+            Require(activeCrafter.GetInput(1).Amount == 2, "old crafting reservation commits");
 
             foreach (var node in tree.Catalog.Nodes.Where(node => node.CellType.HasValue))
             {
@@ -211,9 +211,9 @@ public static class SkillTreeVerifierEditor
             }
             for (var index = 0; index < names.Length; index++) VerifyStats(Install(grid, names[index], 20 + index, 26), grid.StatEffects);
             Require(storage.CurrentLoad == 20 && storage.AllocatedAmount == 10 && ReferenceEquals(identity, storage.Identity), "stock reservation and instance preserved");
-            storage.StoreResource(Vector3Int.back, 10); Require(storage.CurrentLoad == 30 && storage.AllocatedAmount == 0, "old stock reservation commits");
+            storage.StoreResource(3, 10); Require(storage.CurrentLoad == 30 && storage.AllocatedAmount == 0, "old stock reservation commits");
             Require(!crossing.SupportsProgression && ReferenceEquals(pending[Vector3Int.right], transfer) && receiver.AllocatedAmount == 5 && receiver.Capacity == 150, "crossing keeps upstream reservation while receiver grows");
-            crossing.CancelStorage(Vector3Int.right, 5, ResourceTypeDomain.Stone);
+            crossing.CancelStorage(1, 5, ResourceTypeDomain.Stone);
             Require(receiver.AllocatedAmount == 0 && pending.Count == 0, "crossing reservation cancels after type purchases");
             Require(generator.Wallet.Current.Balance == 350 && generator.Wallet.Current.ReservedExpense == 0, "scene type purchases charged once");
             Require(generator.Wallet.LastNotificationException == null && tree.LastNotificationException == null && grid.StatEffects.LastNotificationException == null, "scene notifications succeed");

@@ -14,7 +14,7 @@
 
 [識別・生存契約](../../Assets/Scripts/Transfers/Application/IResourceTransferEndpointApplication.cs) は `Identity` と `IsAlive` を提供する。`Identity` は接点の寿命中に固定する非nullのオブジェクトで、別の接点へ再利用せず参照一致で比較する。`IsAlive` は数量操作を受け付けられる寿命内かを実装側で判定する。非セルの受け取り先はこの寿命を自身で管理し、`IContainableApplication` の全量予約・確定・取消を実装する。
 
-セル基底は `Identity => this` と `IsAlive => this != null` でUnityの破棄判定を提供する。無効化を新しい破棄条件へ加えておらず、既存の接続通知と取消Tokenによる中断を維持する。識別・寿命の判定をAdapterへ置き、Reservation・Operation・Coordinatorは搬送先の具体セル基底を参照する経路を契約へ置き換えた。方向・位置のUnity座標型とUniTaskは継続して使う。
+セル基底は `Identity => this` と `IsAlive => this != null` でUnityの破棄判定を提供する。無効化を新しい破棄条件へ加えておらず、既存の接続通知と取消Tokenによる中断を維持する。識別・寿命の判定をAdapterへ置き、Reservation・Operation・Coordinatorは搬送先の具体セル基底を参照する経路を契約へ置き換えた。搬入予約はポートIDを使い、演出位置にはUnity座標型、非同期処理にはUniTaskを使う。
 
 OperationのSourceは識別・生存契約、Targetは搬入契約を借用する。予約Tokenは受け取り先とIdentityを固定し、生存中だけ確定・取消の操作を呼ぶ。寿命終了後の確定は拒否し、取消はTokenだけを閉じる。Tokenは操作前に終端へ進み、再入と反復による二重実行を防ぐ。寿命終了時の受け取り側在庫と予約の後始末は接点の実装側が担当する。
 

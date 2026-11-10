@@ -143,10 +143,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98e6290011147244bb842e7deef075d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  allowedDirections: 13
+  ports:
+  - Id: 0
+    Cell: {x: 0, y: 0}
+    Facing: 4
+    Use: 1
+  - Id: 1
+    Cell: {x: 0, y: 0}
+    Facing: 8
+    Use: 1
+  - Id: 2
+    Cell: {x: 0, y: 0}
+    Facing: 1
+    Use: 2
   ingredientCapacity: 5
-  importDirection: 12
-  exportDirection: 1
   exporterCapacity: 10
   recipeDatabase: {fileID: 11400000, guid: 279a36cb76bd3fa419d433c0feceb0b5, type: 2}
   crafterProvider: {fileID: 11400000, guid: f3015e67d52fe27469418f95f292754d, type: 2}

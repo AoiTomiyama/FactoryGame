@@ -87,12 +87,12 @@ public static class EconomyUIVerifierEditor
             view.UpdateUIStatusWindow(singularity);
             Require(singularity.GetDataProvider().ReadData().Count == 4, "custom singularity provider");
             Require(new HudStatusProviderAdapter(singularity.GetDataProvider()).ReadData().Keys.SequenceEqual(new[] { LabelEnumApplication.Amount }), "HUD hides income reservation without changing source contract");
-            Require(singularity.AllocateStorage(Vector3Int.left, 7, ResourceTypeDomain.Wood), "income reserve");
+            Require(singularity.AllocateStorage(1, 7, ResourceTypeDomain.Wood), "income reserve");
             Require(panel.BalanceText == "残高 100" && wallet.Current.ReservedIncome == 7, "pending income");
-            singularity.CancelStorage(Vector3Int.left, 7, ResourceTypeDomain.Wood);
+            singularity.CancelStorage(1, 7, ResourceTypeDomain.Wood);
             Require(panel.BalanceText == "残高 100", "cancel is not conversion");
-            singularity.AllocateStorage(Vector3Int.left, 7, ResourceTypeDomain.Wood);
-            singularity.StoreResource(Vector3Int.left, 7);
+            singularity.AllocateStorage(1, 7, ResourceTypeDomain.Wood);
+            singularity.StoreResource(1, 7);
             Require(panel.BalanceText == "残高 107", "conversion notification");
             var snapshot = singularity.GetDataProvider().ReadData();
             Require(((TextElementDataApplication)snapshot[LabelEnumApplication.Amount]).Text == "107", "custom reader current balance");
@@ -411,8 +411,8 @@ public static class EconomyUIVerifierEditor
         cursor.RotatePlacement();
         var direction = cursor.transform.rotation;
         var storage = (StorageCellAdapter)Install(grid, "Storage", 25, 25);
-        Require(storage.AllocateStorage(Vector3Int.left, 3, ResourceTypeDomain.Wood), "prepare selected inventory");
-        storage.StoreResource(Vector3Int.left, 3);
+        Require(storage.AllocateStorage(1, 3, ResourceTypeDomain.Wood), "prepare selected inventory");
+        storage.StoreResource(1, 3);
         view.UpdateUIStatusWindow(storage);
         var balance = wallet.Current.Balance;
         var capacity = storage.Capacity;

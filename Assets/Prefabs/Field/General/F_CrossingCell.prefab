@@ -86,7 +86,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 73acfe90a874e8141a924b034626c0f1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CrossingCellAdapter
-  allowedDirections: -1
+  ports:
+  - Id: 0
+    Cell: {x: 0, y: 0}
+    Facing: 4
+    Use: 3
+  - Id: 1
+    Cell: {x: 0, y: 0}
+    Facing: 8
+    Use: 3
+  - Id: 2
+    Cell: {x: 0, y: 0}
+    Facing: 1
+    Use: 3
+  - Id: 3
+    Cell: {x: 0, y: 0}
+    Facing: 2
+    Use: 3
 --- !u!1001 &3757974501245275860
 PrefabInstance:
   m_ObjectHideFlags: 0

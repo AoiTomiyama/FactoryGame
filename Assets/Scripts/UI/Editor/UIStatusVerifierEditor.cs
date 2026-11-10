@@ -92,8 +92,8 @@ public static class UIStatusVerifierEditor
             var providerA = a.GetDataProvider();
             var providerB = b.GetDataProvider();
             var snapshot = providerA.ReadData();
-            Require(a.AllocateStorage(Vector3Int.left, 3, ResourceTypeDomain.Stone), "reserve initial stock");
-            a.StoreResource(Vector3Int.left, 3);
+            Require(a.AllocateStorage(1, 3, ResourceTypeDomain.Stone), "reserve initial stock");
+            a.StoreResource(1, 3);
             Require(((GaugeElementDataApplication)providerA.ReadData()[LabelEnumApplication.Amount]).Current == 3 &&
                     ((GaugeElementDataApplication)providerB.ReadData()[LabelEnumApplication.Amount]).Current == 0 &&
                     ((GaugeElementDataApplication)snapshot[LabelEnumApplication.Amount]).Current == 0,
@@ -103,19 +103,19 @@ public static class UIStatusVerifierEditor
             Require(a.CurrentLoad == 3 && a.AllocatedAmount == 0, "reading and editing display snapshots cannot change quantities");
 
             view.UpdateUIStatusWindow(a);
-            Require(a.AllocateStorage(Vector3Int.left, 2, ResourceTypeDomain.Stone), "reserve while selected");
+            Require(a.AllocateStorage(1, 2, ResourceTypeDomain.Stone), "reserve while selected");
             Require(GaugeText(view, LabelEnumApplication.Allocated) == "2/10", "reservation notification updates the selected row");
-            a.StoreResource(Vector3Int.left, 2);
+            a.StoreResource(1, 2);
             Require(GaugeText(view, LabelEnumApplication.Amount) == "5/10", "commit notification updates the selected row");
-            Require(a.AllocateStorage(Vector3Int.left, 1, ResourceTypeDomain.Stone), "reserve before cancellation");
-            a.CancelStorage(Vector3Int.left, 1, ResourceTypeDomain.Stone);
+            Require(a.AllocateStorage(1, 1, ResourceTypeDomain.Stone), "reserve before cancellation");
+            a.CancelStorage(1, 1, ResourceTypeDomain.Stone);
             Require(GaugeText(view, LabelEnumApplication.Allocated) == "0/10" &&
-                    a.TryExport(Vector3.zero, 2, out var amount, out _) && amount == 2 &&
+                    a.TryExport(2, 2, out var amount, out _) && amount == 2 &&
                     GaugeText(view, LabelEnumApplication.Amount) == "3/10", "cancel and export update displayed quantities");
             view.UpdateUIStatusWindow(b);
             Require(Get(a, "StatusChanged") == null, "selection switch unsubscribes the previous source");
-            Require(b.AllocateStorage(Vector3Int.left, 1, ResourceTypeDomain.Wood), "second selection reserves");
-            b.StoreResource(Vector3Int.left, 1);
+            Require(b.AllocateStorage(1, 1, ResourceTypeDomain.Wood), "second selection reserves");
+            b.StoreResource(1, 1);
             Require(GaugeText(view, LabelEnumApplication.Amount) == "1/10", "second selection owns its provider");
             view.enabled = false;
             Require(!panel.gameObject.activeSelf && Get(b, "StatusChanged") == null && Rows(view).Count == 0,
@@ -273,11 +273,11 @@ public static class UIStatusVerifierEditor
         await Wait(() => extractor.CurrentLoad == 4);
         await UniTask.Delay(450);
         Require(extractor.CurrentLoad == 4 && extractor.ElapsedTime == 0, "re-enable resumes once and capacity remains bounded");
-        Require(extractor.TryExport(Vector3.zero, 1, out var amount, out var type) && amount == 1 && type == ResourceTypeDomain.Stone,
+        Require(extractor.TryExport(2, 1, out var amount, out var type) && amount == 1 && type == ResourceTypeDomain.Stone,
             "existing export quantity and type survive lifecycle changes");
         await Wait(() => extractor.CurrentLoad == 4);
         Require(GaugeText(view, LabelEnumApplication.Amount) == "4/4", "remaining capacity clamps gain and UI stays current");
-        extractor.TryExport(Vector3.zero, 2, out _, out _);
+        extractor.TryExport(2, 2, out _, out _);
         await Wait(() => extractor.ElapsedTime > 0.02f);
         extractor.OnDisconnect();
         await UniTask.Delay(450);
@@ -308,7 +308,7 @@ public static class UIStatusVerifierEditor
         Set(crafter, "crafterProvider", Define<CrafterProviderDefinition>(LabelEnumApplication.Progress,
             LabelEnumApplication.LeftStorage, LabelEnumApplication.RightStorage, LabelEnumApplication.OutputStorage));
         Set(crafter, "ingredientCapacity", 10); Set(crafter, "exporterCapacity", 2);
-        Set(crafter, "importDirection", DirectionsDomain.Left | DirectionsDomain.Right);
+        CellConnectionVerifierEditor.ConfigureCraftingPorts(crafter, 1, 0);
         var recipe = new RecipeDataDefinition();
         Set(recipe, "ingredients", new[]
         {
@@ -320,9 +320,9 @@ public static class UIStatusVerifierEditor
         Set(crafter, "recipeDatabase", database); grid.InitializeCells(1); crafter.InitializeSystem();
         view.UpdateUIStatusWindow(crafter);
         Require(Fill(view, LabelEnumApplication.Progress) == 0, "idle zero-duration progress is finite");
-        Require(crafter.AllocateStorage(Vector3Int.left, 2, ResourceTypeDomain.Stone) &&
-                crafter.AllocateStorage(Vector3Int.right, 2, ResourceTypeDomain.Wood), "craft inputs reserve");
-        crafter.StoreResource(Vector3Int.left, 2); crafter.StoreResource(Vector3Int.right, 2);
+        Require(crafter.AllocateStorage(1, 2, ResourceTypeDomain.Stone) &&
+                crafter.AllocateStorage(0, 2, ResourceTypeDomain.Wood), "craft inputs reserve");
+        crafter.StoreResource(1, 2); crafter.StoreResource(0, 2);
         Require(GaugeText(view, LabelEnumApplication.LeftStorage) == "2/10", "craft input notification reaches UI");
         await Wait(() => Fill(view, LabelEnumApplication.Progress) > 0);
         await Wait(() => crafter.ExportStorageAmount == 2);

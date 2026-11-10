@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using TMPro;
 using UnityEngine;
@@ -37,8 +37,10 @@ public class ExportConveyorCellAdapter : ConveyorCellAdapter
         base.InitializeSystem();
     }
 
-    private void OnConnectionUpdated(Vector3Int dir, CellBaseAdapter cell)
+    private void OnConnectionUpdated(Connection connection)
     {
+        var dir = connection.Direction;
+        var cell = connection.Neighbor;
         var back = DirectionEnumToVector(DirectionsDomain.Back);
         if (dir == back && cell is IExportableApplication exportable && _backwardCell == null)
         {
@@ -75,7 +77,7 @@ public class ExportConveyorCellAdapter : ConveyorCellAdapter
                 _exportStatus = ExportStatus.WaitingForTake;
 
                 await UniTask.WaitUntil(() => _backwardCellBase != null &&
-                    _backwardCell.TryExport(transform.position, TransferAmount, out amount, out type),
+                    _backwardCell.TryExport(TargetPortId(_backwardCellBase, DirectionEnumToVector(DirectionsDomain.Back)), TransferAmount, out amount, out type),
                     cancellationToken: token);
 
                 ResourceId = ResourceItemObjectPoolAdapter.Instance.CreateIdFromResourceData(type, amount);
@@ -83,7 +85,7 @@ public class ExportConveyorCellAdapter : ConveyorCellAdapter
                 _exportStatus = ExportStatus.Taking;
 
                 var padding = Vector3.up * 1.1f;
-                var startPos = _backwardCell.GetPosition() + padding;
+                var startPos = _backwardCell.GetPosition(TargetPortId(_backwardCellBase, DirectionEnumToVector(DirectionsDomain.Back))) + padding;
                 var endPos = transform.position + padding;
 
                 while (true)

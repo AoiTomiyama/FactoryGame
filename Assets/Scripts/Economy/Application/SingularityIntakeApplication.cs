@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
-/// <summary>四つの入力枠に数量・種別・売価と入金余地を固定する。</summary>
+/// <summary>定義された入力枠に数量・種別・売価と入金余地を固定する。</summary>
 public sealed class SingularityIntakeApplication
 {
     private sealed class Intake
@@ -9,20 +11,21 @@ public sealed class SingularityIntakeApplication
         public ResourceTypeDomain Type;
         public CurrencyTransactionApplication Transaction;
     }
-    private readonly Intake[] _inputs = new Intake[4];
+    private readonly Dictionary<int, Intake> _inputs;
     private readonly CurrencyWalletApplication _wallet;
     private readonly CurrencyPriceCatalogDomain _prices;
     public bool Accepting { get; set; }
 
-    public SingularityIntakeApplication(CurrencyWalletApplication wallet, CurrencyPriceCatalogDomain prices)
+    public SingularityIntakeApplication(CurrencyWalletApplication wallet, CurrencyPriceCatalogDomain prices, IEnumerable<int> portIds)
     {
+        _inputs = portIds.ToDictionary(id => id, _ => (Intake)null);
         _wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
         _prices = prices ?? throw new ArgumentNullException(nameof(prices));
     }
 
     public bool TryReserve(int input, int amount, ResourceTypeDomain type)
     {
-        if (!Accepting || input < 0 || input >= 4 || _inputs[input] != null ||
+        if (!Accepting || !_inputs.ContainsKey(input) || _inputs[input] != null ||
             !_prices.TryGetSaleAmount(type, amount, out var income)) return false;
         var intake = new Intake { Amount = amount, Type = type };
         // 残高通知からの再入でも同方向の枠を先に占有する。
@@ -43,7 +46,7 @@ public sealed class SingularityIntakeApplication
 
     private void Complete(int input, int amount, ResourceTypeDomain type, bool commit)
     {
-        if (input < 0 || input >= 4) return;
+        if (!_inputs.ContainsKey(input)) return;
         var intake = _inputs[input];
         if (intake == null || intake.Transaction == null || intake.Amount != amount ||
             (!commit && intake.Type != type)) return;
@@ -55,8 +58,8 @@ public sealed class SingularityIntakeApplication
     public void CancelAll()
     {
         // 全枠を外してから通知する。予約途中の枠はTryReserveへ戻った時に解放する。
-        var previous = (Intake[])_inputs.Clone();
-        Array.Clear(_inputs, 0, _inputs.Length);
+        var previous = _inputs.Values.ToArray();
+        foreach (var id in _inputs.Keys.ToArray()) _inputs[id] = null;
         foreach (var intake in previous) intake?.Transaction?.TryCancel();
     }
 }

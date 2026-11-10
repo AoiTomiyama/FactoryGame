@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -10,8 +10,6 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
 {
     [Header("クラフト設定")]
     [SerializeField] private int ingredientCapacity;
-    [SerializeField] private DirectionsDomain importDirection;
-    [SerializeField] private DirectionsDomain exportDirection;
     [SerializeField] private int exporterCapacity;
     [SerializeField] [InlineSOAttributeAdapter]
     private RecipeDatabaseDefinition recipeDatabase;
@@ -19,8 +17,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
     [Header("その他の設定")]
     [SerializeField] private CrafterProviderDefinition crafterProvider;
 
-    private readonly Dictionary<Vector3Int, ResourceInputData> _resourceInputs = new();
-    private readonly HashSet<Vector3Int> _exportableDirections = new();
+    private readonly Dictionary<int, ResourceInputData> _resourceInputs = new();
     private bool _isActivate;
     private bool _isInitialized;
     private CraftingOperationApplication _operation;
@@ -57,7 +54,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
     private static ResourceStorageRulesDomain.Stock ToStock(ResourceInputData input)
         => new(input.Type, input.Amount, input.Allocated);
 
-    private void ApplyInput(Vector3Int direction, ResourceStorageRulesDomain.Stock stock)
+    private void ApplyInput(int direction, ResourceStorageRulesDomain.Stock stock)
     {
         _resourceInputs[direction] = new ResourceInputData
         {
@@ -99,16 +96,17 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
 
     private void InitAccessPoint()
     {
-        var values = (DirectionsDomain[])Enum.GetValues(typeof(DirectionsDomain));
-        foreach (var direction in values)
-        {
-            if (HasFlag(importDirection, direction)) _resourceInputs.TryAdd(DirectionEnumToVector(direction), new());
-            if (HasFlag(exportDirection, direction)) _exportableDirections.Add(DirectionEnumToVector(direction));
-        }
+        foreach (var port in Ports)
+            if ((port.Use & CellPortUseDomain.Input) != 0) _resourceInputs.TryAdd(port.Id, new());
     }
 
-    public ResourceInputData GetInput(DirectionsDomain direction) =>
-        _resourceInputs.GetValueOrDefault(DirectionEnumToVector(direction), new());
+    public ResourceInputData GetInput(int portId) => _resourceInputs.GetValueOrDefault(portId, new());
+    public ResourceInputData GetInputAt(int index)
+    {
+        var ids = new List<int>(_resourceInputs.Keys); ids.Sort();
+        return index >= 0 && index < ids.Count ? GetInput(ids[index]) : new();
+    }
+    public int InputCount => _resourceInputs.Count;
 
     private void UpdateUI()
     {
@@ -121,8 +119,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
         var i = 0;
         foreach (var pair in _resourceInputs)
         {
-            // World の4方向を単純な ID に変換する。Domain は Unity の座標を知らない。
-            var id = pair.Key.x + pair.Key.z * 2;
+            var id = pair.Key;
             var value = pair.Value;
             inputs[i++] = new RecipeRulesDomain.Input(id, value.Type, value.Amount, value.Allocated);
         }
@@ -163,13 +160,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
         // この反映中には await や通知を挟まない。全入力・成果物の更新後に UI を通知する。
         foreach (var input in commit.Inputs)
         {
-            var direction = input.Id switch
-            {
-                1 => Vector3Int.right, -1 => Vector3Int.left,
-                2 => Vector3Int.forward, -2 => Vector3Int.back,
-                _ => throw new InvalidOperationException("Unknown crafting input ID.")
-            };
-            _resourceInputs[direction] = new ResourceInputData
+            _resourceInputs[input.Id] = new ResourceInputData
             { Type = input.Type, Amount = input.Amount, Allocated = input.Reserved };
         }
         ExportResourceType = commit.Result.Type;
@@ -224,7 +215,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
         }
     }
 
-    public bool AllocateStorage(Vector3Int dir, int amount, ResourceTypeDomain resourceType)
+    public bool AllocateStorage(int dir, int amount, ResourceTypeDomain resourceType)
     {
         if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return false;
         if (!ResourceStorageRulesDomain.TryReserve(IngredientCapacity, ToStock(inputStorage), amount,
@@ -233,28 +224,28 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
         return true;
     }
 
-    public void StoreResource(Vector3Int dir, int amount)
+    public void StoreResource(int dir, int amount)
     {
         if (!_resourceInputs.TryGetValue(dir, out var inputStorage)) return;
         if (ResourceStorageRulesDomain.TryCommit(IngredientCapacity, ToStock(inputStorage), amount, out var next))
             ApplyInput(dir, next);
     }
 
-    public void CancelStorage(Vector3Int dir, int amount, ResourceTypeDomain resourceType)
+    public void CancelStorage(int dir, int amount, ResourceTypeDomain resourceType)
     {
         if (!_resourceInputs.TryGetValue(dir, out var input)) return;
         if (ResourceStorageRulesDomain.TryCancel(ToStock(input), amount, resourceType, out var next))
             ApplyInput(dir, next);
     }
 
-    public Vector3 GetPosition() => transform.position;
+    public Vector3 GetPosition(int portId) => PortPosition(portId);
 
-    public bool TryExport(Vector3 from, int requestedAmount, out int amount, out ResourceTypeDomain type)
+    public bool TryExport(int portId, int requestedAmount, out int amount, out ResourceTypeDomain type)
     {
         amount = 0;
         type = ExportResourceType;
 
-        if (!_exportableDirections.Contains((from - transform.position).ToCardinalDirection())) return false;
+        if (!HasPort(portId, CellPortUseDomain.Output)) return false;
 
         // 出力可能な量がない、または要求量がない場合はfalseを返す
         amount = ResourceStorageRulesDomain.GetExportableAmount(ExportStorageAmount, requestedAmount);

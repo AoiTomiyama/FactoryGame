@@ -46,3 +46,5 @@ public enum CellTypeDomain
     Crossing,
     Singularity,
 }
+[System.Flags]
+public enum CellPortUseDomain { Input = 1, Output = 2, Both = Input | Output }
