@@ -107,6 +107,7 @@ public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<Gri
         foreach (var owner in expected.Select(e => e.Owner).Where(c => c != null).Distinct())
             if (owner.OccupiedCoordinates.Any(p => !entries.ContainsKey(p))) return false;
         foreach (var cell in replacements) cell.ConfigureProgression(StatEffects);
+        if (expected.Any(e => GetCell(e.X, e.Z) != e.Owner)) return false;
         // 全設備の構成と占有を検証した後にまとめて書き込む。
         foreach (var cell in replacements)
         {

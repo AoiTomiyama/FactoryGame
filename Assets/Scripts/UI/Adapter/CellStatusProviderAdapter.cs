@@ -5,18 +5,20 @@ using System.Collections.Generic;
 public static class CellStatusProviderAdapter
 {
     public static IUIDataProviderApplication Create(CellBaseAdapter cell, ProviderBaseDefinition definition)
-        => CreateCustom(definition, label => Read(cell, definition, label));
+        => CreateCustom(definition, label => Read(cell, definition, label),
+            label => cell is not CrafterCellAdapter crafter || crafter.InputCount > 1 || label != LabelEnumApplication.RightStorage);
 
     /// <summary>
     /// セル専用Adapterの読み取り関数を表示セッションへ接続する。
     /// 関数は数量を変更せず、呼出しごとに新しい表示値を返す。型分岐への登録は不要。
     /// </summary>
     public static IUIDataProviderApplication CreateCustom(ProviderBaseDefinition definition,
-        Func<LabelEnumApplication, UIElementDataBaseApplication> read)
+        Func<LabelEnumApplication, UIElementDataBaseApplication> read, Func<LabelEnumApplication, bool> include = null)
     {
         if (definition == null) return null;
         var labels = new List<KeyValuePair<LabelEnumApplication, string>>();
-        foreach (var entry in definition.GetLabels()) labels.Add(new(entry.Label, entry.Name));
+        foreach (var entry in definition.GetLabels())
+            if (include == null || include(entry.Label)) labels.Add(new(entry.Label, entry.Name));
         return new CellStatusDataProviderApplication(labels, read);
     }
 

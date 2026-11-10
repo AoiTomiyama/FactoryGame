@@ -66,10 +66,13 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
     public void ApplyFootprintCollider()
     {
         if (!TryGetComponent<BoxCollider>(out var box)) return;
-        box.center = new Vector3(footprintOffset.x + (footprintWidth - 1) * .5f,
+        var center = new Vector3(footprintOffset.x + (footprintWidth - 1) * .5f,
             box.center.y, footprintOffset.y + (footprintDepth - 1) * .5f);
-        box.size = new Vector3(footprintWidth, box.size.y, footprintDepth);
+        var size = new Vector3(footprintWidth, box.size.y, footprintDepth);
+        if (box.center != center) box.center = center;
+        if (box.size != size) box.size = size;
     }
+    private void OnValidate() { if (footprintWidth > 0 && footprintDepth > 0) ApplyFootprintCollider(); }
 
     public virtual void InitializeSystem()
     {

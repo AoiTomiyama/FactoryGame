@@ -529,6 +529,22 @@ public static class EconomyUIVerifierEditor
         Require(progressRow.gameObject.activeSelf, "progress row returns when work starts");
         progressRow.RenderUIByData(new GaugeElementDataApplication("残り時間", 2) { Current = 0, GaugeText = "0 秒" });
         Require(!progressRow.gameObject.activeSelf, "completed progress hides zero-second row");
+        var advanced = (CrafterCellAdapter)Install(grid, "AdvancedCrafter", 32, 30, 90);
+        foreach (var candidate in new[] { crafter, advanced })
+        foreach (var resolution in new[] { new Vector2(1600, 900), new Vector2(1366, 768) })
+        {
+            root.sizeDelta = new Vector2(resolution.x * 720 / resolution.y, 720);
+            view.UpdateUIStatusWindow(candidate);
+            await UniTask.DelayFrame(3); Canvas.ForceUpdateCanvases();
+            var values = new HudStatusProviderAdapter(candidate.GetDataProvider()).ReadData();
+            Require(values.ContainsKey(LabelEnumApplication.LeftStorage) &&
+                values.ContainsKey(LabelEnumApplication.RightStorage) == (candidate.InputCount == 2), "only actual crafting inputs are displayed");
+            foreach (var text in view.GetComponentsInChildren<Text>())
+                Require(text.preferredHeight <= text.rectTransform.rect.height + 1, "crafting status text fits " + resolution);
+            var marker = (Transform)typeof(CellStatusViewAdapter).GetField("selectionMarker", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(view);
+            Require((marker.position - candidate.WorldCenter).sqrMagnitude < .001f &&
+                Quaternion.Angle(marker.rotation, candidate.transform.rotation) < .1f, "selection marker follows footprint center and rotation");
+        }
     }
     private static void VerifyFixedSummary(EconomyPanelAdapter panel, RectTransform root, Vector2 resolution)
     {
@@ -813,15 +829,18 @@ public static class EconomyUIVerifierEditor
         }
         throw new Exception("Missing event: " + name);
     }
-    private static CellBaseAdapter Install(GridFieldDatabaseAdapter grid, string name, int x, int z)
+    private static CellBaseAdapter Install(GridFieldDatabaseAdapter grid, string name, int x, int z, float rotation = 0)
     {
         var source = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Prefabs/Field/General/F_{name}Cell.prefab");
-        var old = grid.GetCell(x, z);
-        if (old is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
-        old.gameObject.SetActive(false);
-        var cell = UnityEngine.Object.Instantiate(source, old.transform.position, Quaternion.identity, old.transform.parent).GetComponent<CellBaseAdapter>();
-        UnityEngine.Object.Destroy(old.gameObject);
-        grid.SaveCell(x, z, cell); cell.InitializeSystem();
+        var cell = UnityEngine.Object.Instantiate(source, new Vector3(x, 0, z), Quaternion.Euler(0, rotation, 0), grid.transform).GetComponent<CellBaseAdapter>();
+        var previous = grid.CaptureCells(cell.Footprint.Coordinates(x, z, cell.QuarterTurns));
+        if (!grid.TryReplaceCells(new[] { cell }, previous)) throw new InvalidOperationException("UI fixture replacement failed.");
+        foreach (var old in previous.Select(e => e.Owner).Distinct())
+        {
+            if (old is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
+            old.gameObject.SetActive(false); UnityEngine.Object.Destroy(old.gameObject);
+        }
+        cell.InitializeSystem();
         return cell;
     }
     private static void Require(bool condition, string message)

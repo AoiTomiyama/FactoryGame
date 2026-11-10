@@ -10,6 +10,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
 {
     [Header("クラフト設定")]
     [SerializeField] private int ingredientCapacity;
+    [SerializeField] private CellTypeDomain equipmentType = CellTypeDomain.Crafter;
     [SerializeField] private int exporterCapacity;
     [SerializeField] [InlineSOAttributeAdapter]
     private RecipeDatabaseDefinition recipeDatabase;
@@ -32,9 +33,11 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
     public int IngredientCapacity => EffectiveStat(ingredientCapacity, EquipmentStatDomain.InputCapacity);
 
     public int ExporterCapacity => EffectiveStat(exporterCapacity, EquipmentStatDomain.OutputCapacity);
-    public override CellTypeDomain ProgressionType => CellTypeDomain.Crafter;
+    public override CellTypeDomain ProgressionType => equipmentType;
     protected override void ValidateBaseStats()
     {
+        if (equipmentType is not (CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter))
+            throw new InvalidOperationException("Unsupported crafting equipment type.");
         ValidateStat(ingredientCapacity, EquipmentStatDomain.InputCapacity);
         ValidateStat(exporterCapacity, EquipmentStatDomain.OutputCapacity);
     }

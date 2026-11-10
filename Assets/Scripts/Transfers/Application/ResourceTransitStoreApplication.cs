@@ -15,6 +15,7 @@ public sealed class ResourceTransitStoreApplication
 
     private static int _nextId;
     private readonly Dictionary<int, Data> _resources = new();
+    public int Count => _resources.Count;
 
     public int Create(ResourceTypeDomain type, int amount)
     {

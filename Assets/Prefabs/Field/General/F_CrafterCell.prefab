@@ -143,14 +143,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 98e6290011147244bb842e7deef075d0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  equipmentType: 8
+  footprintWidth: 1
+  footprintDepth: 1
+  footprintOffset: {x: 0, y: 0}
   ports:
   - Id: 0
     Cell: {x: 0, y: 0}
-    Facing: 4
-    Use: 1
-  - Id: 1
-    Cell: {x: 0, y: 0}
-    Facing: 8
+    Facing: 2
     Use: 1
   - Id: 2
     Cell: {x: 0, y: 0}

@@ -27,6 +27,7 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
     public Button CloseButton => closeButton;
     public float TopInset { get; set; } = 72;
     private Vector2 _baseMin, _baseMax;
+    private Vector3 _markerBaseScale;
 
     public void ConfigureHud(Font font, ResourceDefinition resources)
     {
@@ -49,6 +50,7 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
 
     private void Start()
     {
+        if (selectionMarker != null) _markerBaseScale = selectionMarker.localScale;
         SetStatusWindowActive(false);
         InitializeUIElementPool();
     }
@@ -158,7 +160,12 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
         }
         SelectionChanged?.Invoke(_selectedCell);
         SetStatusWindowActive(true);
-        if (selectionMarker != null) selectionMarker.position = selectedCell.transform.position;
+        if (selectionMarker != null)
+        {
+            selectionMarker.SetPositionAndRotation(selectedCell.WorldCenter, selectedCell.transform.rotation);
+            selectionMarker.localScale = Vector3.Scale(_markerBaseScale,
+                new Vector3(selectedCell.Footprint.Width, 1, selectedCell.Footprint.Depth));
+        }
     }
 
     private void LateUpdate()

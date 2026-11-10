@@ -269,6 +269,32 @@ public static class EquipmentPlacementVerifierEditor
             wallet.Current.Balance == before && wallet.Current.ReservedExpense == 0, "multiblock initialization failure restores six owners and expense");
         Set(placer, "_cachedCell", cached);
         UnityEngine.Object.Destroy(faultObject);
+        wallet.TryReserveIncome(400, out var advancedFunds); advancedFunds.TryCommit();
+        for (var turn = 0; turn < 4; turn++)
+        {
+            var beforePlacement = wallet.Current.Balance;
+            Place(placer, grid.GetCell(10, 10), CellTypeDomain.AdvancedCrafter, turn * 90);
+            var owner = grid.GetCell(10, 10) as CrafterCellAdapter;
+            Require(owner != null && owner.InputCount == 2 && owner.Footprint.Area == 6 &&
+                owner.ProgressionType == CellTypeDomain.AdvancedCrafter && wallet.Current.Balance == beforePlacement - 90,
+                "saved advanced prefab places once at rotation " + turn);
+            var occupied = owner.OccupiedCoordinates.ToArray();
+            Physics.SyncTransforms();
+            var box = owner.GetComponent<BoxCollider>();
+            Require(box.size == new Vector3(3, 1, 2) && occupied.All(p => box.bounds.Contains(new Vector3(p.x, .25f, p.z))),
+                "collider contains every occupied tile");
+            placer.SetSelectedCellType(CellTypeDomain.Empty);
+            var corner = occupied.Last();
+            placer.SelectGrid(owner.gameObject, new Vector3(corner.x, .5f, corner.z));
+            placer.PointerBegin(); placer.PointerDrag(); placer.PointerEnd();
+            Require(occupied.All(p => grid.GetCell(p.x, p.z) is EmptyCellAdapter) && placer.LastPlacedCount == 1,
+                "saved advanced prefab removes all six tiles");
+        }
+        wallet.TryReserveExpense(wallet.Current.Balance, out var drain); drain.TryCommit();
+        var untouched = grid.GetCell(10, 10);
+        Place(placer, untouched, CellTypeDomain.AdvancedCrafter, 0);
+        Require(placer.LastPlacementResult == EquipmentPlacementApplication.Result.InsufficientFunds && grid.GetCell(10, 10) == untouched &&
+            wallet.Current.ReservedExpense == 0, "insufficient funds leave multiblock occupancy untouched");
     }
 
     private static void SetFootprint(CellBaseAdapter cell, int width, int depth)

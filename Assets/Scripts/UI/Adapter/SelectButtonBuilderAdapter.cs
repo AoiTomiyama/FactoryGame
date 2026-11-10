@@ -16,7 +16,7 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
     {
         CellTypeDomain.Empty => "撤去", CellTypeDomain.ExtractorWood => "木材採取",
         CellTypeDomain.ExtractorStone => "石材採取", CellTypeDomain.Storage => "保管庫",
-        CellTypeDomain.Crafter => "加工設備", CellTypeDomain.Conveyor => "搬送路",
+        CellTypeDomain.Crafter => "基本加工", CellTypeDomain.AdvancedCrafter => "上位加工", CellTypeDomain.Conveyor => "搬送路",
         CellTypeDomain.ExportConveyor => "搬出路", CellTypeDomain.Crossing => "交差搬送路", _ => type.ToString()
     };
     public void Configure(Font font)

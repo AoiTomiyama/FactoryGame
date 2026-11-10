@@ -326,6 +326,7 @@ public class CellPlacerAdapter : MonoBehaviour
         {
             foreach (var old in retired)
             {
+                if (old == null) continue;
                 try { if (old is ConnectableCellBaseAdapter connected) connected.OnDisconnect(); }
                 catch (Exception exception) { Debug.LogException(exception); }
                 old.gameObject.SetActive(false);

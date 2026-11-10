@@ -256,24 +256,27 @@ public static class CraftingVerifierEditor
         try
         {
             foreach (var recipe in recipes)
+            for (var turn = 0; turn < 4; turn++)
             {
-                var root = new GameObject("CraftingCheck:" + recipe.RecipeName);
-                root.transform.SetParent(row); new GameObject("Model").transform.SetParent(root.transform);
-                var cell = root.AddComponent<CrafterCellAdapter>();
-                SetField(cell, "recipeDatabase", database); SetField(cell, "ingredientCapacity", 50);
-                SetField(cell, "exporterCapacity", 50); CellConnectionVerifierEditor.ConfigureCraftingPorts(cell, 1, 0);
-
-                grid.InitializeCells(1); cell.InitializeSystem();
+                var source = AssetDatabase.LoadAssetAtPath<CrafterCellAdapter>("Assets/Prefabs/Field/General/F_" +
+                    (recipe.Ingredients.Length == 1 ? "Crafter" : "AdvancedCrafter") + "Cell.prefab");
+                var cell = UnityEngine.Object.Instantiate(source, new Vector3(4, 0, 4), Quaternion.Euler(0, turn * 90, 0), row);
+                var root = cell.gameObject;
+                grid.InitializeCells(9); cell.InitializeSystem();
+                Require(cell.InputCount == recipe.Ingredients.Length && cell.OccupiedCoordinates.All(p => grid.GetCell(p.x, p.z) == cell),
+                    "saved crafting prefab input count and rotated occupancy");
+                if (cell.InputCount == 1) Require(!cell.AllocateStorage(1, 1, ResourceTypeDomain.Wood), "basic crafter rejects second input");
                 for (var i = 0; i < recipe.Ingredients.Length; i++)
                 {
-                    var ingredient = recipe.Ingredients[i]; var direction = i == 0 ? 1 : 0;
+                    var ingredient = recipe.Ingredients[i]; var direction = i;
                     Require(cell.AllocateStorage(direction, ingredient.requiredAmount, ingredient.resourceType), "product materials reserve");
                     cell.StoreResource(direction, ingredient.requiredAmount);
                 }
                 await Wait(() => cell.ExportStorageAmount == recipe.ResultAmount);
-                Require(cell.ExportResourceType == recipe.Result && cell.GetInput(1).Amount == 0 &&
-                    (recipe.Ingredients.Length == 1 || cell.GetInput(0).Amount == 0),
+                Require(cell.ExportResourceType == recipe.Result && cell.GetInput(0).Amount == 0 &&
+                    (recipe.Ingredients.Length == 1 || cell.GetInput(1).Amount == 0),
                     "saved recipe consumes exact materials and produces " + recipe.Result);
+                Require(!cell.TryExport(0, recipe.ResultAmount, out _, out _), "input port cannot export");
                 Require(cell.TryExport(2, recipe.ResultAmount, out var amount, out var type) && type == recipe.Result,
                     "crafted product exports");
                 var id = pool.CreateIdFromResourceData(type, amount);
@@ -285,12 +288,55 @@ public static class CraftingVerifierEditor
                 intake.Commit(0, amount);
                 Require(wallet.Current.Balance == before + income && wallet.Current.ReservedIncome == 0,
                     "crafted product sale commits once");
+                pool.DisposeId(id);
                 UnityEngine.Object.Destroy(root); await UniTask.Yield();
             }
-            Require(wallet.Current.Balance == 23, "three crafted product sale prices match saved definitions");
+            Require(wallet.Current.Balance == 92, "three crafted product sale prices match saved definitions");
+            await VerifyMultiblockRoute(grid, row, pool, prices);
             Debug.Log("Saved product checks passed: plank, stone brick, building parts; crafting, export, pooled visuals and sale.");
         }
         finally { Time.timeScale = previousScale; UnityEngine.Object.Destroy(poolRoot); }
+    }
+
+    private static async UniTask VerifyMultiblockRoute(GridFieldDatabaseAdapter grid, Transform row,
+        ResourceItemObjectPoolAdapter pool, CurrencyPriceCatalogDomain prices)
+    {
+        for (var turn = 0; turn < 4; turn++)
+        {
+            var route = new GameObject("CraftingCheck:MultiblockRoute").transform; route.SetParent(row);
+            var rotation = Quaternion.Euler(0, turn * 90, 0);
+            var crafter = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<CrafterCellAdapter>(
+                "Assets/Prefabs/Field/General/F_AdvancedCrafterCell.prefab"), new Vector3(8, 0, 8), rotation, route);
+            ConveyorCellAdapter Input(int port, ResourceTypeDomain type)
+            {
+                var cell = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ConveyorCellAdapter>(
+                    "Assets/Prefabs/Field/General/F_ConveyorCell.prefab"), crafter.PortPosition(port) + crafter.PortDirection(port), rotation, route);
+                var id = pool.CreateIdFromResourceData(type, 2);
+                typeof(ConveyorCellAdapter).GetProperty("ResourceId", InstanceFields).SetValue(cell, id);
+                typeof(ConveyorCellAdapter).GetProperty("HasResource", InstanceFields).SetValue(cell, true);
+                SetField(cell, "_readyToSend", true);
+                return cell;
+            }
+            var left = Input(0, ResourceTypeDomain.Plank);
+            var right = Input(1, ResourceTypeDomain.StoneBrick);
+            var output = crafter.PortPosition(2);
+            var forward = crafter.PortDirection(2);
+            var exporter = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<ExportConveyorCellAdapter>(
+                "Assets/Prefabs/Field/General/F_ExportConveyorCell.prefab"), output + forward, rotation, route);
+            // 中央以外の外周入力へ接続し、基準座標への接続に戻っていないことも確認する。
+            var sink = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<SingularityCellAdapter>(
+                "Assets/Prefabs/Field/General/F_SingularityCell.prefab"), output + forward * 4 + rotation * Vector3.right, rotation, route);
+            var wallet = new CurrencyWalletApplication(0);
+            sink.Configure(wallet, prices);
+            grid.InitializeCells(18);
+            sink.InitializeSystem(); crafter.InitializeSystem(); exporter.InitializeSystem(); left.InitializeSystem(); right.InitializeSystem();
+            Require(crafter.Connections.Count == 3 && sink.Connections.Count == 1, "both rear inputs and front output connect to distinct exterior ports");
+            await Wait(() => wallet.Current.Balance == 16);
+            Require(crafter.GetInput(0).Amount == 0 && crafter.GetInput(1).Amount == 0 && crafter.ExportStorageAmount == 0 &&
+                wallet.Current.ReservedIncome == 0 && pool.Resources.Count == 0, "two resources craft and sell once without remaining reservations or IDs");
+            UnityEngine.Object.Destroy(route.gameObject); await UniTask.Yield();
+        }
+        Debug.Log("Multiblock route checks passed: four rotations, independent rear inputs, real building-parts craft, front export and off-center 5x5 singularity sale.");
     }
 
     private static CrafterCellAdapter CreateCrafter(GridFieldDatabaseAdapter grid, Transform row, float seconds)

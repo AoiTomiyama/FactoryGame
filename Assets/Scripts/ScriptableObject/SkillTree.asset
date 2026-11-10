@@ -197,3 +197,35 @@ MonoBehaviour:
     stat: 4
     multiplier: 3
     addition: 0
+  - uid: advanced-crafter-input-1
+    label: 上位加工設備・入力容量 I
+    price: 50
+    prerequisite: basic-research
+    cellType: 13
+    stat: 2
+    multiplier: 2
+    addition: 0
+  - uid: advanced-crafter-input-2
+    label: 上位加工設備・入力容量 II
+    price: 100
+    prerequisite: advanced-crafter-input-1
+    cellType: 13
+    stat: 2
+    multiplier: 3
+    addition: 0
+  - uid: advanced-crafter-output-1
+    label: 上位加工設備・出力容量 I
+    price: 50
+    prerequisite: basic-research
+    cellType: 13
+    stat: 3
+    multiplier: 2
+    addition: 0
+  - uid: advanced-crafter-output-2
+    label: 上位加工設備・出力容量 II
+    price: 100
+    prerequisite: advanced-crafter-output-1
+    cellType: 13
+    stat: 3
+    multiplier: 3
+    addition: 0

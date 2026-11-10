@@ -77,7 +77,7 @@ public static class SkillTreeVerifierEditor
 
     private static void VerifyTypeRules(SkillTreeCatalogDomain catalog)
     {
-        Require(catalog.Nodes.Count == 23, "root, eight ability chains and wood extraction through VIII");
+        Require(catalog.Nodes.Count == 27, "root, ten ability chains and wood extraction through VIII");
         foreach (var node in catalog.Nodes)
         {
             Require(node.Price == (node.CellType.HasValue ? int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-') + 1)) * 50 : 50), "initial ability price");
@@ -139,12 +139,12 @@ public static class SkillTreeVerifierEditor
             var grid = GridFieldDatabaseAdapter.Instance;
             var tree = generator.Skills;
             generator.Wallet.TryReserveIncome(tree.Catalog.Nodes.Sum(node => node.Price) + 250, out var income); income.TryCommit();
-            var names = new[] { "ExtractorWood", "ExtractorStone", "Storage", "Crafter", "ExportConveyor" };
+            var names = new[] { "ExtractorWood", "ExtractorStone", "Storage", "Crafter", "ExportConveyor", "AdvancedCrafter" };
             var existing = new List<CellBaseAdapter>(); var inactive = new List<CellBaseAdapter>();
             for (var index = 0; index < names.Length; index++)
             {
-                existing.Add(Install(grid, names[index], 20 + index, 20));
-                var cell = Install(grid, names[index], 20 + index, 22); cell.gameObject.SetActive(false); inactive.Add(cell);
+                existing.Add(Install(grid, names[index], 20 + index * 4, 20));
+                var cell = Install(grid, names[index], 20 + index * 4, 24); cell.gameObject.SetActive(false); inactive.Add(cell);
             }
             var storage = (StorageCellAdapter)existing[2];
             storage.AllocateStorage(3, 30, ResourceTypeDomain.Wood); storage.StoreResource(3, 20);
@@ -158,7 +158,7 @@ public static class SkillTreeVerifierEditor
             var transfer = pending[Vector3Int.right];
             Require(tree.Purchase("basic-research") == SkillPurchaseResultApplication.Success, "scene root");
 
-            var activeExtractor = (ExtractorCellAdapter)Install(grid, "ExtractorWood", 50, 47, 180, cell => { Set(cell, "extractionAmount", 2); Set(cell, "extractionSecond", .4f); });
+            var activeExtractor = (ExtractorCellAdapter)Install(grid, "ExtractorWood", 50, 45, 180, cell => { Set(cell, "extractionAmount", 2); Set(cell, "extractionSecond", .4f); });
             await Wait(() => activeExtractor.ElapsedTime > .05f);
             Require(tree.Purchase("wood-extraction-1") == SkillPurchaseResultApplication.Success, "shared purchase during extraction");
             await Wait(() => activeExtractor.CurrentLoad > 0);
@@ -209,7 +209,7 @@ public static class SkillTreeVerifierEditor
                     VerifyStats(existing[index], grid.StatEffects); inactive[index].gameObject.SetActive(true); VerifyStats(inactive[index], grid.StatEffects); inactive[index].gameObject.SetActive(false);
                 }
             }
-            for (var index = 0; index < names.Length; index++) VerifyStats(Install(grid, names[index], 20 + index, 26), grid.StatEffects);
+            for (var index = 0; index < names.Length; index++) VerifyStats(Install(grid, names[index], 20 + index * 4, 28), grid.StatEffects);
             Require(storage.CurrentLoad == 20 && storage.AllocatedAmount == 10 && ReferenceEquals(identity, storage.Identity), "stock reservation and instance preserved");
             storage.StoreResource(3, 10); Require(storage.CurrentLoad == 30 && storage.AllocatedAmount == 0, "old stock reservation commits");
             Require(!crossing.SupportsProgression && ReferenceEquals(pending[Vector3Int.right], transfer) && receiver.AllocatedAmount == 5 && receiver.Capacity == 150, "crossing keeps upstream reservation while receiver grows");
@@ -217,7 +217,7 @@ public static class SkillTreeVerifierEditor
             Require(receiver.AllocatedAmount == 0 && pending.Count == 0, "crossing reservation cancels after type purchases");
             Require(generator.Wallet.Current.Balance == 350 && generator.Wallet.Current.ReservedExpense == 0, "scene type purchases charged once");
             Require(generator.Wallet.LastNotificationException == null && tree.LastNotificationException == null && grid.StatEffects.LastNotificationException == null, "scene notifications succeed");
-            Debug.Log($"Skill tree checks passed: {_checks} assertions; type definitions, transactions, notifications, all five types, existing/inactive/new cells, extraction, export, crafting and reservations.");
+            Debug.Log($"Skill tree checks passed: {_checks} assertions; type definitions, transactions, notifications, all six types, existing/inactive/new cells, extraction, export, crafting and reservations.");
             EditorApplication.Exit(0);
         }
         catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
@@ -230,12 +230,15 @@ public static class SkillTreeVerifierEditor
     private static CellBaseAdapter Install(GridFieldDatabaseAdapter grid, string name, int x, int z, float rotation = 0, Action<CellBaseAdapter> configure = null)
     {
         var source = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Prefabs/Field/General/F_{name}Cell.prefab");
-        var old = grid.GetCell(x, z);
-        var cell = UnityEngine.Object.Instantiate(source, old.transform.position, Quaternion.Euler(0, rotation, 0), old.transform.parent).GetComponent<CellBaseAdapter>();
+        var cell = UnityEngine.Object.Instantiate(source, new Vector3(x, 0, z), Quaternion.Euler(0, rotation, 0), grid.transform).GetComponent<CellBaseAdapter>();
         configure?.Invoke(cell);
-        grid.SaveCell(x, z, cell);
-        if (old is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
-        UnityEngine.Object.Destroy(old.gameObject);
+        var previous = grid.CaptureCells(cell.Footprint.Coordinates(x, z, cell.QuarterTurns));
+        if (!grid.TryReplaceCells(new[] { cell }, previous)) throw new InvalidOperationException("Fixture replacement failed.");
+        foreach (var old in previous.Select(e => e.Owner).Distinct())
+        {
+            if (old is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
+            old.gameObject.SetActive(false); UnityEngine.Object.Destroy(old.gameObject);
+        }
         cell.InitializeSystem();
         return cell;
     }

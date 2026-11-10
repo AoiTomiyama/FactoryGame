@@ -53,4 +53,8 @@ MonoBehaviour:
     fieldCellPrefab: {fileID: 4337940525781485777, guid: 546ff39ef199693459e7dad662d4a983, type: 3}
     placeholderCellPrefab: {fileID: 2900265581659463365, guid: 79da4f0de7235d6499f3f58bac247a32, type: 3}
     cellType: 11
+  - cellName: AdvancedCrafter
+    fieldCellPrefab: {fileID: 2108987448181754806, guid: 5a43693c05eb4e118c79a16421c84481, type: 3}
+    placeholderCellPrefab: {fileID: 8732916053966372837, guid: 3e0ec0cebefd42849a0af4af342a746c, type: 3}
+    cellType: 13
   isInitialized: 1

@@ -16,8 +16,8 @@ public sealed class HudStatusProviderAdapter : IUIDataProviderApplication
             var data = pair.Value;
             data.StatusName = pair.Key switch
             {
-                LabelEnumApplication.LeftStorage => "左入力在庫",
-                LabelEnumApplication.RightStorage => "右入力在庫",
+                LabelEnumApplication.LeftStorage => "入力1",
+                LabelEnumApplication.RightStorage => "入力2",
                 LabelEnumApplication.OutputStorage => "出力在庫",
                 LabelEnumApplication.Progress => "残り時間",
                 LabelEnumApplication.Allocated => "搬入予約",

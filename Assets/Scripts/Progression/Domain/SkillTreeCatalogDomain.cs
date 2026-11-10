@@ -24,12 +24,12 @@ public sealed class SkillNodeDomain
 public sealed class SkillTreeCatalogDomain
 {
     public static bool SupportsType(CellTypeDomain type) => type is CellTypeDomain.ExtractorWood or CellTypeDomain.ExtractorStone or
-        CellTypeDomain.Storage or CellTypeDomain.Crafter or CellTypeDomain.ExportConveyor;
+        CellTypeDomain.Storage or CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter or CellTypeDomain.ExportConveyor;
     public static bool SupportsStat(CellTypeDomain type, EquipmentStatDomain stat) => type switch
     {
         CellTypeDomain.ExtractorWood or CellTypeDomain.ExtractorStone => stat is EquipmentStatDomain.ExtractionAmount or EquipmentStatDomain.Capacity,
         CellTypeDomain.Storage => stat == EquipmentStatDomain.Capacity,
-        CellTypeDomain.Crafter => stat is EquipmentStatDomain.InputCapacity or EquipmentStatDomain.OutputCapacity,
+        CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter => stat is EquipmentStatDomain.InputCapacity or EquipmentStatDomain.OutputCapacity,
         CellTypeDomain.ExportConveyor => stat == EquipmentStatDomain.TransferAmount,
         _ => false
     };

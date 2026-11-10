@@ -42,11 +42,4 @@ public sealed class SingularityStartDefinition : ScriptableObject
             throw new InvalidOperationException("Initial wood route must fit the initial balance.");
     }
 
-    public GameObject GetInitialPrefab(int size, int x, int z)
-    {
-        if (x == size / 2 && z == size / 2) return singularity.gameObject;
-        for (var distance = 1; distance <= 4; distance++)
-            if (StarterCell(size, distance) == (x, z)) return distance == 4 ? wood.gameObject : empty.gameObject;
-        return null;
-    }
 }
