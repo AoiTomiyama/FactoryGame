@@ -5,6 +5,7 @@ using UnityEditor;
 using Random = UnityEngine.Random;
 #endif
 using UnityEngine;
+using System.Linq;
 
 public class GridFieldGeneratorAdapter : MonoBehaviour
 {
@@ -62,37 +63,79 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     {
         if (initialLayout != null) initialLayout.Validate(gridSize);
         var grid = GridFieldDatabaseAdapter.Instance;
+        if (initialLayout != null) PrepareInitialLayout(grid.transform);
         grid.InitializeCells(gridSize);
         if (initialLayout == null) return;
-        var center = gridSize / 2;
-        if (grid.GetCell(center, center - 4) is not ResourceCellAdapter wood ||
-            wood.ResourceTypeDomain != ResourceTypeDomain.Wood)
-            throw new InvalidOperationException("Initial field requires wood beside the starter route.");
-        for (var z = center - 3; z < center; z++)
-            if (grid.GetCell(center, z) is not EmptyCellAdapter)
-                throw new InvalidOperationException("Initial starter route must be empty.");
+        var starterWood = initialLayout.StarterCell(gridSize, 4);
+        if (grid.GetCell(starterWood.x, starterWood.z) is not ResourceCellAdapter wood || wood.ResourceTypeDomain != ResourceTypeDomain.Wood)
+            throw new InvalidOperationException("Initial field requires starter wood.");
+        for (var distance = 1; distance <= 3; distance++)
+        {
+            var point = initialLayout.StarterCell(gridSize, distance);
+            if (grid.GetCell(point.x, point.z) is not EmptyCellAdapter) throw new InvalidOperationException("Initial starter route must be empty.");
+        }
         Prices = initialLayout.CreateCatalog();
         Wallet = new CurrencyWalletApplication(Prices.InitialBalance);
         if (skillTree == null) throw new InvalidOperationException("Skill tree definition must be assigned.");
         Skills = new SkillTreeApplication(skillTree.CreateCatalog(), Wallet, grid.StatEffects);
         FindAnyObjectByType<CellPlacerAdapter>()?.Configure(Wallet, Prices);
-        SingularityCellAdapter singularity = null;
-        var count = 0;
-        for (var x = 0; x < gridSize; x++)
-        for (var z = 0; z < gridSize; z++)
-        {
-            if (grid.GetCell(x, z) is not SingularityCellAdapter candidate) continue;
-            count++;
-            if (x != gridSize / 2 || z != gridSize / 2)
-                throw new InvalidOperationException("Singularity must occupy the center.");
-            singularity = candidate;
-        }
-        if (count != 1) throw new InvalidOperationException("Initial field requires exactly one singularity.");
+        var singularities = grid.Owners.OfType<SingularityCellAdapter>().ToArray();
+        if (singularities.Length != 1) throw new InvalidOperationException("Initial field requires exactly one singularity.");
+        var singularity = singularities[0];
         singularity.Configure(Wallet, Prices);
         // 登録と共有残高の構成後に接続を開始する。
         singularity.InitializeSystem();
-        FindAnyObjectByType<CameraControllerAdapter>()?.FocusOn(singularity.transform.position);
+        FindAnyObjectByType<CameraControllerAdapter>()?.FocusOn(singularity.WorldCenter);
         economyPanel.Configure(Wallet, Skills, FindAnyObjectByType<CellStatusViewAdapter>(), FindAnyObjectByType<CellPlacerAdapter>());
+    }
+
+    public void PrepareInitialLayout(Transform parent)
+    {
+        if (initialLayout == null) return;
+        initialLayout.Validate(gridSize);
+        var center = gridSize / 2;
+        var occupied = initialLayout.SingularityPrefab.Footprint.Coordinates(center, center, 0).ToHashSet();
+        var existing = parent.GetComponentsInChildren<CellBaseAdapter>().ToList();
+        var singularity = existing.OfType<SingularityCellAdapter>().FirstOrDefault(c =>
+            Vector3Int.RoundToInt(c.transform.position) == new Vector3Int(center, 0, center));
+        foreach (var cell in existing.ToArray())
+        {
+            if (cell == singularity) continue;
+            var anchor = Vector3Int.RoundToInt(cell.transform.position);
+            if (cell is SingularityCellAdapter || cell.Footprint.Coordinates(anchor.x, anchor.z, cell.QuarterTurns).Any(occupied.Contains))
+            { RetireInitialCell(cell); existing.Remove(cell); }
+        }
+        if (singularity == null) singularity = (SingularityCellAdapter)CreateInitialCell(initialLayout.SingularityPrefab, parent, center, center);
+        singularity.transform.rotation = Quaternion.identity;
+        singularity.ApplyFootprintCollider();
+        // 強制上書きは初期地形の構成時だけ行い、通常の購入配置へ広げない。
+        for (var distance = 1; distance <= 4; distance++)
+        {
+            var point = initialLayout.StarterCell(gridSize, distance);
+            var current = existing.FirstOrDefault(c => Vector3Int.RoundToInt(c.transform.position) == new Vector3Int(point.x, 0, point.z));
+            var prefab = distance == 4 ? (CellBaseAdapter)initialLayout.WoodPrefab : initialLayout.EmptyPrefab;
+            if (current != null && (distance == 4 ? current is ResourceCellAdapter resource && resource.ResourceTypeDomain == ResourceTypeDomain.Wood : current is EmptyCellAdapter)) continue;
+            if (current != null) RetireInitialCell(current);
+            CreateInitialCell(prefab, parent, point.x, point.z);
+        }
+    }
+    private static CellBaseAdapter CreateInitialCell(CellBaseAdapter prefab, Transform parent, int x, int z)
+    {
+        CellBaseAdapter cell;
+#if UNITY_EDITOR
+        if (!Application.isPlaying) cell = ((GameObject)PrefabUtility.InstantiatePrefab(prefab.gameObject, parent)).GetComponent<CellBaseAdapter>();
+        else
+#endif
+            cell = Instantiate(prefab, parent);
+        cell.transform.SetPositionAndRotation(new Vector3(x, 0, z), Quaternion.identity);
+        cell.name = $"Tile_{x}_{z}";
+        return cell;
+    }
+    private static void RetireInitialCell(CellBaseAdapter cell)
+    {
+        if (cell is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
+        cell.gameObject.SetActive(false);
+        if (Application.isPlaying) Destroy(cell.gameObject); else DestroyImmediate(cell.gameObject);
     }
 
 #if UNITY_EDITOR
@@ -160,7 +203,6 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
                     break;
                 }
 
-                obj = initialLayout != null ? initialLayout.GetInitialPrefab(gridSize, x, z) ?? obj : obj;
 
                 // セルの生成
                 var tile = (GameObject)PrefabUtility.InstantiatePrefab(obj, separator.transform);
@@ -168,6 +210,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
                 tile.name = $"Tile_{x}_{z}";
             }
         }
+        if (initialLayout != null) PrepareInitialLayout(parent);
     }
 
     /// <summary>

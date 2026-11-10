@@ -55,16 +55,7 @@ public static class SingularitySetupEditor
         var size = new SerializedObject(generator).FindProperty("gridSize").intValue;
         layout.Validate(size);
         var grid = UnityEngine.Object.FindAnyObjectByType<GridFieldDatabaseAdapter>();
-        var center = size / 2;
-        for (var z = center - 4; z <= center; z++)
-        {
-            var old = grid.transform.GetChild(center).GetChild(z);
-            var replacement = (GameObject)PrefabUtility.InstantiatePrefab(layout.GetInitialPrefab(size, center, z), old.parent);
-            replacement.transform.position = old.position;
-            replacement.name = old.name;
-            replacement.transform.SetSiblingIndex(z);
-            UnityEngine.Object.DestroyImmediate(old.gameObject);
-        }
+        generator.PrepareInitialLayout(grid.transform);
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
         AssetDatabase.SaveAssets();

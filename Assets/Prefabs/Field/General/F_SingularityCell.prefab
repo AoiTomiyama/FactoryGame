@@ -143,7 +143,7 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
+  m_Size: {x: 5, y: 1, z: 5}
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &4995878017902081181
 MonoBehaviour:
@@ -157,21 +157,88 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a1dc39697fad4d3aabd6199d27543e02, type: 3}
   m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::SingularityCellAdapter
+  footprintWidth: 5
+  footprintDepth: 5
+  footprintOffset: {x: -2, y: -2}
   ports:
   - Id: 0
-    Cell: {x: 0, y: 0}
+    Cell: {x: 2, y: -2}
     Facing: 4
     Use: 1
   - Id: 1
-    Cell: {x: 0, y: 0}
-    Facing: 8
+    Cell: {x: 2, y: -1}
+    Facing: 4
     Use: 1
   - Id: 2
-    Cell: {x: 0, y: 0}
-    Facing: 1
+    Cell: {x: 2, y: 0}
+    Facing: 4
     Use: 1
   - Id: 3
-    Cell: {x: 0, y: 0}
+    Cell: {x: 2, y: 1}
+    Facing: 4
+    Use: 1
+  - Id: 4
+    Cell: {x: 2, y: 2}
+    Facing: 4
+    Use: 1
+  - Id: 5
+    Cell: {x: -2, y: -2}
+    Facing: 8
+    Use: 1
+  - Id: 6
+    Cell: {x: -2, y: -1}
+    Facing: 8
+    Use: 1
+  - Id: 7
+    Cell: {x: -2, y: 0}
+    Facing: 8
+    Use: 1
+  - Id: 8
+    Cell: {x: -2, y: 1}
+    Facing: 8
+    Use: 1
+  - Id: 9
+    Cell: {x: -2, y: 2}
+    Facing: 8
+    Use: 1
+  - Id: 10
+    Cell: {x: -2, y: 2}
+    Facing: 1
+    Use: 1
+  - Id: 11
+    Cell: {x: -1, y: 2}
+    Facing: 1
+    Use: 1
+  - Id: 12
+    Cell: {x: 0, y: 2}
+    Facing: 1
+    Use: 1
+  - Id: 13
+    Cell: {x: 1, y: 2}
+    Facing: 1
+    Use: 1
+  - Id: 14
+    Cell: {x: 2, y: 2}
+    Facing: 1
+    Use: 1
+  - Id: 15
+    Cell: {x: -2, y: -2}
+    Facing: 2
+    Use: 1
+  - Id: 16
+    Cell: {x: -1, y: -2}
+    Facing: 2
+    Use: 1
+  - Id: 17
+    Cell: {x: 0, y: -2}
+    Facing: 2
+    Use: 1
+  - Id: 18
+    Cell: {x: 1, y: -2}
+    Facing: 2
+    Use: 1
+  - Id: 19
+    Cell: {x: 2, y: -2}
     Facing: 2
     Use: 1
 --- !u!1 &6016305104915069311
@@ -202,7 +269,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 5, y: 1, z: 5}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5613712627218498300}

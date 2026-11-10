@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -26,6 +27,7 @@ public static class SingularityVerifierEditor
         VerifyIntake();
         VerifyGeneration();
         EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity");
+        EditorUtility.audioMasterMute = true;
         SessionState.SetBool(SessionKey, true);
         EditorApplication.isPlaying = true;
     }
@@ -87,19 +89,40 @@ public static class SingularityVerifierEditor
         var anchor = new GameObject("GenerationVerification").transform;
         try
         {
-            Set(generator, "gridSize", 8);
+            Set(generator, "gridSize", 12);
             var layout = AssetDatabase.LoadAssetAtPath<SingularityStartDefinition>(LayoutPath);
             for (var seed = 0; seed < 3; seed++)
             {
                 Set(generator, "seedValue", seed);
                 generator.GenerateGrid(anchor);
                 var singularities = anchor.GetComponentsInChildren<SingularityCellAdapter>();
-                Require(singularities.Length == 1 && singularities[0].transform == anchor.GetChild(4).GetChild(4), "regeneration central singleton");
-                Require(anchor.GetChild(4).GetChild(0).GetComponent<ResourceCellAdapter>().ResourceTypeDomain == ResourceTypeDomain.Wood, "initial wood");
-                for (var z = 1; z < 4; z++) Require(anchor.GetChild(4).GetChild(z).GetComponent<EmptyCellAdapter>() != null, "initial route empty");
+                Require(singularities.Length == 1 && singularities[0].transform.position == new Vector3(6, 0, 6), "regeneration central singleton");
+                var cells = anchor.GetComponentsInChildren<CellBaseAdapter>();
+                var woodPoint = layout.StarterCell(12, 4);
+                Require(cells.OfType<ResourceCellAdapter>().Any(c => c.ResourceTypeDomain == ResourceTypeDomain.Wood &&
+                    c.transform.position == new Vector3(woodPoint.x, 0, woodPoint.z)), "initial wood outside footprint");
+                for (var distance = 1; distance <= 3; distance++)
+                {
+                    var point = layout.StarterCell(12, distance);
+                    Require(cells.OfType<EmptyCellAdapter>().Any(c => c.transform.position == new Vector3(point.x, 0, point.z)), "starter route outside footprint");
+                }
+                Require(singularities[0].Footprint.Area == 25 && singularities[0].Ports.Count == 20 && cells.Length == 120,
+                    "generated field has one 25-tile owner and no interior terrain");
             }
+            var original = anchor.GetComponentInChildren<SingularityCellAdapter>();
+            UnityEngine.Object.DestroyImmediate(original.gameObject);
+            var displaced = new System.Collections.Generic.List<ResourceCellAdapter>();
+            foreach (var point in layout.SingularityPrefab.Footprint.Coordinates(6, 6, 0))
+            {
+                var resource = ((GameObject)PrefabUtility.InstantiatePrefab(layout.WoodPrefab.gameObject, anchor)).GetComponent<ResourceCellAdapter>();
+                resource.transform.position = new Vector3(point.x, 0, point.z);
+                displaced.Add(resource);
+            }
+            generator.PrepareInitialLayout(anchor);
+            Require(displaced.All(c => c == null) && anchor.GetComponentsInChildren<SingularityCellAdapter>().Length == 1,
+                "forced initial placement retires all original resources before registration");
             var rejected = false;
-            try { layout.Validate(7); } catch (InvalidOperationException) { rejected = true; }
+            try { layout.Validate(11); } catch (InvalidOperationException) { rejected = true; }
             Require(rejected, "small grid rejected");
         }
         finally
@@ -124,12 +147,19 @@ public static class SingularityVerifierEditor
         try
         {
             _checks = 0;
+            AudioListener.volume = 0;
             await UniTask.Yield();
             var generator = UnityEngine.Object.FindAnyObjectByType<GridFieldGeneratorAdapter>();
             var wallet = generator.Wallet;
             var grid = GridFieldDatabaseAdapter.Instance;
             var singularity = grid.GetCell(50, 50) as SingularityCellAdapter;
             Require(singularity != null && wallet.Current.Balance == 100, "MainScene central singularity and shared wallet");
+            Require(grid.Owners.OfType<SingularityCellAdapter>().Count() == 1 && singularity.OccupiedCoordinates.All(p => grid.GetCell(p.x, p.z) == singularity),
+                "all 25 tiles return one owner");
+            for (var port = 0; port < 20; port++) Require(singularity.AllocateStorage(port, 1, ResourceTypeDomain.Wood), "twenty independent inputs");
+            Require(wallet.Current.ReservedIncome == 20, "twenty ports reserve independently");
+            for (var port = 0; port < 20; port++) singularity.CancelStorage(port, 1, ResourceTypeDomain.Wood);
+            Require(wallet.Current.ReservedIncome == 0 && wallet.Current.Balance == 100, "twenty cancellations preserve balance");
             var identity = singularity.Identity;
             var directions = new[] { Vector3Int.right, Vector3Int.left, Vector3Int.forward, Vector3Int.back };
             for (var i = 0; i < 4; i++) Require(singularity.AllocateStorage(i, i + 1,
@@ -143,18 +173,18 @@ public static class SingularityVerifierEditor
             var placer = UnityEngine.Object.FindAnyObjectByType<CellPlacerAdapter>();
             Place(placer, grid.GetCell(50, 50), CellTypeDomain.Empty, 0);
             Require(grid.GetCell(50, 50) == singularity, "singularity deletion protected");
-            Place(placer, grid.GetCell(50, 46), CellTypeDomain.Empty, 0);
-            Require(grid.GetCell(50, 46) is ResourceCellAdapter, "resource deletion protected");
+            Place(placer, grid.GetCell(50, 44), CellTypeDomain.Empty, 0);
+            Require(grid.GetCell(50, 44) is ResourceCellAdapter, "resource deletion protected");
             var before = wallet.Current.Balance - 30;
-            Place(placer, grid.GetCell(50, 47), CellTypeDomain.ExtractorWood, 180);
-            Place(placer, grid.GetCell(50, 48), CellTypeDomain.ExportConveyor, 0);
-            Place(placer, grid.GetCell(50, 49), CellTypeDomain.Conveyor, 0);
-            Require(grid.GetCell(50, 47) is ExtractorCellAdapter && grid.GetCell(50, 48) is ExportConveyorCellAdapter &&
-                grid.GetCell(50, 49) is ConveyorCellAdapter, "actual pointer route placement");
+            Place(placer, grid.GetCell(50, 45), CellTypeDomain.ExtractorWood, 180);
+            Place(placer, grid.GetCell(50, 46), CellTypeDomain.ExportConveyor, 0);
+            Place(placer, grid.GetCell(50, 47), CellTypeDomain.Conveyor, 0);
+            Require(grid.GetCell(50, 45) is ExtractorCellAdapter && grid.GetCell(50, 46) is ExportConveyorCellAdapter &&
+                grid.GetCell(50, 47) is ConveyorCellAdapter, "actual pointer route placement");
             await UniTask.WaitUntil(() => wallet.Current.Balance > before).Timeout(TimeSpan.FromSeconds(30));
             Require(wallet.Current.Balance > before, "first actual extraction to sale");
             // 演出中の実コンベアを切断し、送り元IDを維持して再接続できることを確認する。
-            var conveyor = grid.GetCell(50, 49) as ConveyorCellAdapter;
+            var conveyor = grid.GetCell(50, 47) as ConveyorCellAdapter;
             await UniTask.WaitUntil(() => wallet.Current.ReservedIncome > 0).Timeout(TimeSpan.FromSeconds(20));
             singularity.enabled = false;
             var stoppedBalance = wallet.Current.Balance;

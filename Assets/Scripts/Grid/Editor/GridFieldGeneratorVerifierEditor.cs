@@ -123,6 +123,16 @@ public static class GridFieldGeneratorVerifierEditor
         }
     }
 
+    public static void ApplyInitialLayout()
+    {
+        var scene = UnityEditor.SceneManagement.EditorSceneManager.OpenScene("Assets/Scenes/MainScene.unity");
+        var generator = UnityEngine.Object.FindAnyObjectByType<GridFieldGeneratorAdapter>();
+        generator.PrepareInitialLayout(UnityEngine.Object.FindAnyObjectByType<GridFieldDatabaseAdapter>().transform);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(scene);
+        if (!UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene)) throw new InvalidOperationException("Scene save failed.");
+        Debug.Log("Initial multiblock layout saved.");
+    }
+
     public static void RunPlayerBuild()
         => BuildPlayer(BuildOptions.None);
 
