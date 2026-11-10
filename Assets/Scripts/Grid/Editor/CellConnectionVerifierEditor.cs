@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using System.Linq;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -20,6 +21,7 @@ public static class CellConnectionVerifierEditor
     [MenuItem("Tools/FactoryGame/Verify Cell Connections")]
     public static void Run()
     {
+        VerifyFootprints();
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         var gridObject = new GameObject("ConnectionCheck:Grid");
         try
@@ -88,6 +90,54 @@ public static class CellConnectionVerifierEditor
         {
             UnityEngine.Object.DestroyImmediate(gridObject);
         }
+    }
+
+    private static void VerifyFootprints()
+    {
+        foreach (var shape in new[] { new CellFootprintDomain(1, 1), new CellFootprintDomain(3, 2), new CellFootprintDomain(5, 5, -2, -2) })
+        for (var turn = 0; turn < 4; turn++)
+        {
+            var points = shape.Coordinates(6, 6, turn).ToArray();
+            Require(points.Distinct().Count() == shape.Area, "rotation preserves distinct occupied tiles");
+            var width = points.Max(p => p.x) - points.Min(p => p.x) + 1;
+            var depth = points.Max(p => p.z) - points.Min(p => p.z) + 1;
+            Require(width == (turn % 2 == 0 ? shape.Width : shape.Depth) &&
+                depth == (turn % 2 == 0 ? shape.Depth : shape.Width), "rotated bounds match dimensions");
+            foreach (var point in shape.Coordinates(0, 0, turn))
+            {
+                var restored = CellFootprintDomain.Rotate(point.x, point.z, -turn);
+                Require(shape.Coordinates(0, 0, 0).Contains(restored), "rotation can be reversed");
+            }
+            var cells = new object[13, 13];
+            var owner = new object();
+            Require(GridOccupancyApplication.TryReplace(cells, points, owner, old => old == null, out var snapshot), "whole footprint registers");
+            Require(points.All(p => ReferenceEquals(cells[p.x, p.z], owner)), "all tiles return one owner");
+            Require(!GridOccupancyApplication.TryReplace(cells, points, new object(), old => old == null, out _), "overlap rejected");
+            Require(!GridOccupancyApplication.TryReplace(cells, shape.Coordinates(13, 13, turn), owner, old => true, out _), "boundary rejected atomically");
+            Require(points.All(p => ReferenceEquals(cells[p.x, p.z], owner)), "failed registration preserves every tile");
+            GridOccupancyApplication.Restore(cells, snapshot);
+            Require(points.All(p => cells[p.x, p.z] == null), "whole footprint restores");
+        }
+        EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        var root = new GameObject("FootprintCheck");
+        try
+        {
+            var grid = root.AddComponent<GridFieldDatabaseAdapter>();
+            // 異なる順序・階層で保存した設備も、座標から一度ずつ登録する。
+            var large = CreateCell<EmptyCellAdapter>(root.transform, 3, 3, Quaternion.Euler(0, 90, 0));
+            var settings = new SerializedObject(large);
+            settings.FindProperty("footprintWidth").intValue = 3;
+            settings.FindProperty("footprintDepth").intValue = 2;
+            settings.ApplyModifiedPropertiesWithoutUndo();
+            var small = CreateCell<EmptyCellAdapter>(root.transform, 0, 0, Quaternion.identity);
+            small.transform.SetAsFirstSibling();
+            grid.InitializeCells(8);
+            Require(grid.Owners.Count() == 2 && large.OccupiedCoordinates.All(p => grid.GetCell(p.x, p.z) == large), "hierarchy order does not duplicate owner registration");
+            Require(large.XIndex == 3 && large.ZIndex == 3, "registration preserves anchor");
+            Require(!grid.TryRegisterCell(3, 3, small, old => true, out _), "partial owner overwrite rejected");
+        }
+        finally { UnityEngine.Object.DestroyImmediate(root); }
+        Debug.Log("Footprint checks passed: 1x1/3x2/5x5, four rotations, atomic overlap/boundary/restore, owner lookup, unordered hierarchy.");
     }
 
     private static T ReplaceWith<T>(GridFieldDatabaseAdapter grid, int x, int z,

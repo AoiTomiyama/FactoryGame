@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<GridFieldDatabaseAdapter>
@@ -23,14 +25,12 @@ public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<Gri
         _gridCells = new CellBaseAdapter[size, size];
         _gridSize = size;
 
-        for (int x = 0; x < size; x++)
+        // 名前や子の順序ではなく、設備の位置と定義から一度だけ登録する。
+        foreach (var cell in GetComponentsInChildren<CellBaseAdapter>())
         {
-            var separator = transform.GetChild(x);
-            for (int z = 0; z < size; z++)
-            {
-                var cell = separator.GetChild(z).GetComponent<CellBaseAdapter>();
-                SaveCell(x, z, cell);
-            }
+            var anchor = Vector3Int.RoundToInt(cell.transform.position);
+            if (!TryRegisterCell(anchor.x, anchor.z, cell, previous => previous == null, out _))
+                throw new InvalidOperationException($"Invalid initial occupancy: {cell.name}");
         }
     }
 
@@ -60,12 +60,35 @@ public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<Gri
             return;
         }
 
-        // 初期配置と購入配置を同じ入口で構成し、新設セルにも現在の共有効果を渡す。
-        cellBase.ConfigureProgression(StatEffects);
-        _gridCells[x, z] = cellBase;
-        cellBase.XIndex = x;
-        cellBase.ZIndex = z;
+        var current = _gridCells[x, z];
+        if (!TryRegisterCell(x, z, cellBase, old => old == null || old is EmptyCellAdapter || old == current,
+                out _)) throw new InvalidOperationException("Cell footprint registration failed.");
     }
+
+    public IEnumerable<CellBaseAdapter> Owners => _gridCells.Cast<CellBaseAdapter>().Where(c => c != null).Distinct();
+
+    public bool TryRegisterCell(int x, int z, CellBaseAdapter cell, Predicate<CellBaseAdapter> canReplace,
+        out GridOccupancyApplication.Entry<CellBaseAdapter>[] previous)
+    {
+        previous = null;
+        var coordinates = cell.Footprint.Coordinates(x, z, cell.QuarterTurns).ToHashSet();
+        foreach (var point in coordinates)
+        {
+            if (!IsWithinBounds(point.x, point.z)) return false;
+            var old = _gridCells[point.x, point.z];
+            // 大きい設備の一角だけを上書きして、本体の占有を分断させない。
+            if (old != null && old.OccupiedCoordinates.Any(p => !coordinates.Contains(p))) return false;
+        }
+        // 能力値の検証も書き込み前に済ませ、登録途中の例外で部分占有を残さない。
+        cell.ConfigureProgression(StatEffects);
+        if (!GridOccupancyApplication.TryReplace(_gridCells, coordinates,
+                cell, canReplace, out previous)) return false;
+        cell.XIndex = x; cell.ZIndex = z;
+        return true;
+    }
+
+    public void RestoreCells(GridOccupancyApplication.Entry<CellBaseAdapter>[] previous)
+        => GridOccupancyApplication.Restore(_gridCells, previous);
 
     /// <summary>
     /// 指定した座標のセルを取得する
@@ -138,8 +161,8 @@ public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<Gri
                     continue;
                 
                 // セルが型Tで、かつ除外リストに含まれていない場合は、cellBaseに代入してtrueを返す
-                if (_gridCells[nextX, nextZ] is T selectedCell && excludingList != null &&
-                    !excludingList.Contains(selectedCell))
+                if (_gridCells[nextX, nextZ] is T selectedCell &&
+                    (excludingList == null || !excludingList.Contains(selectedCell)))
                 {
                     cellBase = selectedCell;
                     return true;

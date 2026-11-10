@@ -9,6 +9,15 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
     public int XIndex { get; set; }
     public int ZIndex { get; set; }
     public GameObject CellModel { get; private set; }
+    [SerializeField, Min(1)] private int footprintWidth = 1;
+    [SerializeField, Min(1)] private int footprintDepth = 1;
+    [SerializeField] private Vector2Int footprintOffset;
+    public CellFootprintDomain Footprint => new(footprintWidth, footprintDepth, footprintOffset.x, footprintOffset.y);
+    public int QuarterTurns => Mathf.RoundToInt(transform.eulerAngles.y / 90f);
+    public System.Collections.Generic.IEnumerable<(int x, int z)> OccupiedCoordinates
+        => Footprint.Coordinates(XIndex, ZIndex, QuarterTurns);
+    public Vector3 WorldCenter => transform.TransformPoint(new Vector3(
+        footprintOffset.x + (footprintWidth - 1) * .5f, 0, footprintOffset.y + (footprintDepth - 1) * .5f));
     private SharedStatEffectsApplication _statEffects;
     public virtual CellTypeDomain ProgressionType => CellTypeDomain.None;
     public bool SupportsProgression => SkillTreeCatalogDomain.SupportsType(ProgressionType);

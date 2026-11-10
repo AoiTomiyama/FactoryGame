@@ -2,7 +2,7 @@
 
 タグ: `計画案` `グリッド` `複数マス` `ポート` `加工` `換金`
 
-更新日: 2026-11-10。状態: 採用済み計画。ユーザーが1A・2Aを選択。ゲーム本体は未実装。
+更新日: 2026-11-10。状態: 実装中。ユーザーが1A・2Aを選択し、順次実装を許可。占有・回転の基盤を実装済み。
 
 ## 到達点
 
@@ -99,6 +99,12 @@ flowchart LR
 - `CellConnectionVerifierEditor`、`EquipmentPlacementVerifierEditor`、`ResourceReservationVerifierEditor`、`ResourceTransferVerifierEditor`、`CraftingVerifierEditor`、`EconomyUIVerifierEditor`、`EconomyLoopVerifierEditor`など既存入口へ対象ケースを追加し、最終のプレイヤービルドを確認する。基盤変更のため、関係する入口はまとめて実行する。
 
 今回の範囲は長方形の占有と定義可能なポート。非長方形・複数階・チャンク化・セーブ機能の新設やバランスの作り直しは別の計画とする。
+
+## 実装済みの基盤
+
+段階1では、Field PrefabのCellBaseAdapterへ幅・奥行・局所オフセットを追加した。CellFootprintDomainが4方向の占有座標を計算し、GridOccupancyApplicationが全マスの事前確認・一括登録・復元を行う。GridFieldDatabaseAdapterは設備の位置から登録し、Ownersで設備本体を重複なく列挙する。大きい設備の一角だけを別の設備で上書きする登録は拒否する。
+
+この段階では保存済みPrefabの寸法を変更していない。特異点と加工セルへの寸法設定、配置操作とポートの移行は後続段階で行う。検証の実行条件とログはローカルの`docs/verification/multiblock-cells.json`へ記録する。
 
 ## 採用したポート配置
 
