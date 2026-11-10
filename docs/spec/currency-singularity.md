@@ -34,3 +34,5 @@ CellPlacerは範囲選択と確定の双方で資源セル・特異点の削除�
 接続を初期化する前に旧セルのモデル・Collider・グリッド参照を退役させ、本体1つを25マスへ登録する。生成し直した場合も同じ位置と範囲を使う。初回の木材と経路は、後辺中央ポートからの距離で占有範囲の外へ確保する。カメラはWorldCenterへフォーカスする。通常の設備配置・撤去では、既存の資源と特異点の保護を継続する。
 
 2026-11-10の外観調整: 5×5の土台による親Transformの拡大を球体側で補正し、球のワールド寸法を縦横3.2へ揃えた。中心の高さは2.2とし、土台の上へ収める。占有・入力・Colliderの定義は維持する。
+
+特異点も`Models/SingularityCellModel.prefab`をFieldとPlaceholderで共用する。既存のPrefab Variant Creatorを使い、Fieldは白い`F_EmptyCell`、Placeholderは緑の`P_EmptyCell`を基底とするVariantへ揃えた。既存FieldのGUID、設備コンポーネントIDとSceneが参照するルートIDを維持する。専用PlaceholderをCellDatabaseへ登録し、購入・撤去の保護は継続する。

@@ -130,3 +130,21 @@ flowchart LR
 最終の搬送検証で、交差セルが接続待ちに入ると入力ポートIDを未接続時の値へ固定する問題を修正した。予約を試すたびに現在の相手とポートを取得し直し、成立した予約がIDを保持する。既存の再接続検証で、旧予約の取消、新しい相手のポートID、同じ資源IDの一度だけの確定を確認した。
 
 MainSceneの移行と無関係な既存変更はブロック単位で照合した。先行する6ブロックを作業ツリーへ保持し、設備配置の変更と分けてコミットした。ビルドが生成した描画・Player設定の変更は退避して元へ戻す。検証ログ・差分照合とコミットの対応はローカルの`docs/verification/multiblock-cells.json`へ集約する。
+
+## Prefab構成の統一
+
+特異点・上位加工は、それぞれ独立したModel Prefabを白セルのField Variantと緑セルのPlaceholder Variantで共用する。既存のPrefab Variant Creatorの作成処理を使い、設備設定・ポート・既存Scene参照を維持した。
+
+```mermaid
+flowchart LR
+  AdvancedModel[AdvancedCrafterCellModel] --> AdvancedField[F_AdvancedCrafterCell]
+  AdvancedModel --> AdvancedPreview[P_AdvancedCrafterCell]
+  SingularityModel[SingularityCellModel] --> SingularityField[F_SingularityCell]
+  SingularityModel --> SingularityPreview[P_SingularityCell]
+  White[F_EmptyCell] --> AdvancedField
+  White --> SingularityField
+  Green[P_EmptyCell] --> AdvancedPreview
+  Green --> SingularityPreview
+```
+
+モデルの寸法は両Variantで一致させ、プレビュー側では土台の保存寸法との差分だけを補正する。Fieldの定義が占有判定の編集元となる。

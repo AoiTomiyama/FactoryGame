@@ -69,3 +69,5 @@ CraftingVerifierEditor.RunPlayは保存済みの3レシピを実際の加工セ�
 `CraftingVerifierEditor.RunPlay`は保存済みの両Prefabで3製品を4方向回転して加工・搬出する。さらに実コンベア2本→上位加工→搬出路→5×5特異点の外周入力で、建築部材の加工と換金を4方向で検証する。配置、種類別スキル、PC2寸法の状態欄は既存の配置・スキル・HUD検証へ追加した。実行記録はローカルの`docs/verification/multiblock-cells.json`を参照する。
 
 2026-11-10の外観調整: 加工モデルの接続部を占有内へ収め、基本型は後ろ1口・前1口、上位型は後ろ左右2口・前中央1口へ合わせた。上位型の既存土台も3×2へ合わせ、接続部には既存の搬送路マテリアルを使う。ポート定義・能力値・Colliderは維持する。
+
+上位加工は`Models/AdvancedCrafterCellModel.prefab`を外観の編集元とし、白い`F_EmptyCell`を基底とするField Variant、緑の`P_EmptyCell`を基底とするPlaceholder Variantで共用する。両Variantは既存のPrefab Variant Creatorで作成した。土台だけを3×2に広げ、子のモデルは逆スケールで元の寸法を保つ。Placeholderも専用の`P_AdvancedCrafterCell`をCellDatabaseへ登録する。

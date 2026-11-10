@@ -261,11 +261,16 @@ public class CellPlacerAdapter : MonoBehaviour
         var shape = removing ? target.Footprint : _cachedCell.Footprint;
         var rotation = removing ? target.transform.rotation : transform.rotation;
         var anchor = target != null ? target.transform.position : transform.position;
+        var baseModel = preview.transform.Find("Model");
+        var authoredSize = baseModel.localScale;
+        var scale = new Vector3(shape.Width / authoredSize.x, 1, shape.Depth / authoredSize.z);
+        var center = new Vector3(shape.OffsetX + (shape.Width - 1) * .5f, 0,
+            shape.OffsetZ + (shape.Depth - 1) * .5f);
         // 白いセルと面が重ならない高さへ上げ、プレビューのちらつきを防ぐ。
-        preview.transform.SetPositionAndRotation(anchor + Vector3.up * .01f + rotation * new Vector3(
-            shape.OffsetX + (shape.Width - 1) * .5f, 0, shape.OffsetZ + (shape.Depth - 1) * .5f), rotation);
-        // 寸法の編集元をField Prefabへ集約し、Placeholder側の重複設定を作らない。
-        preview.transform.localScale = new Vector3(shape.Width, 1, shape.Depth);
+        preview.transform.SetPositionAndRotation(anchor + Vector3.up * .01f +
+            rotation * (center - Vector3.Scale(baseModel.localPosition, scale)), rotation);
+        // 作成済みVariantの土台寸法との差分だけを適用し、共有モデルの二重拡大を防ぐ。
+        preview.transform.localScale = scale;
     }
 
     private EquipmentPlacementApplication.Result TryReplaceCell(CellBaseAdapter replaceTarget, out long cost)
