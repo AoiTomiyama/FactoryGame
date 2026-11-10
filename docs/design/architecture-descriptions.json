@@ -654,7 +654,7 @@
     },
     "architecture-cells-grid-1": {
       "source": "architecture-cells-grid.md",
-      "summary": "セルの共通基底と具体型、搬入・出庫・資源ID引継ぎ・状態表示の能力契約を示します。継承による機能共有と契約を通じた連携を区別し、隣接参照を管理する接続基底とUnity非依存の数量規則への依存を確認できます。",
+      "summary": "設備本体と能力契約の関係を示す。複数の占有マスが同じCellBaseAdapterを参照し、ConnectableCellBaseAdapterは外周のポートID同士を接続する。基本加工と上位加工は同じCrafterCellAdapterを使い、Prefabの寸法・入力数・種類で構成する。",
       "nodes": {
         "MonoBehaviour": {
           "description": "UnityのGameObjectへ取り付けるコンポーネントの基底型です。この図ではセル基底に継承され、Awakeや破棄などUnityの実行時通知を受ける接点を表します。",
@@ -669,7 +669,7 @@
           ]
         },
         "CellBaseAdapter": {
-          "description": "セルのグリッド座標と表示モデルを持つ基底です。Awakeで最初の子をモデルとして取得し、InitializeSystemを公開します。搬送接点のIdentityを自身、IsAliveをUnityの破棄判定で提供します。",
+          "description": "設備1台の基準座標、モデル、占有寸法と共有能力設定を持つ。占有マスはFootprintから求め、選択表示とカメラはWorldCenterを使う。複数マス設備も在庫や寿命を本体1つへ集約する。",
           "references": [
             {
               "path": "Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs",
@@ -700,7 +700,7 @@
           ]
         },
         "ConnectableCellBaseAdapter": {
-          "description": "接続可能なセルの共通基底として、4方向の隣接セル参照と許可方向を管理します。初期化時にグリッド座標から隣接セルを取得し、接続型同士は両側の参照を更新してから通知します。OnDisconnectで参照を解除し、相手の喪失通知と自身の切断通知を行います。",
+          "description": "Prefabの外周ポートを位置・方向・入出力用途で照合し、両者の接続情報を確定してから通知する。接続情報は自分と相手のポートIDを保持する。設備の退役時は全ポートと相互参照を閉じる。",
           "references": [
             {
               "path": "Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs",
@@ -754,7 +754,7 @@
           ]
         },
         "CrafterCellAdapter": {
-          "description": "方向別の素材入力在庫と加工結果の出力在庫を持ち、搬入・出庫・表示の契約を公開するセルです。レシピから固定計画を作り、加工終了時に現在の在庫と容量を再検証して成功時だけ確定します。無効化・破棄では未完了計画を取り消します。",
+          "description": "ポートID別の材料と共用する完成品在庫を所有し、加工計画の確定結果を一度反映する。基本型は1×1・1入力、上位型は3×2・2入力として既存のField Prefabで構成し、種類別の入力容量と出力容量を読む。",
           "references": [
             {
               "path": "Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs",
@@ -859,7 +859,7 @@
     },
     "architecture-cells-grid-2": {
       "source": "architecture-cells-grid.md",
-      "summary": "座標管理、配置操作とセル定義の責務を示します。定義からPrefabを選び、配置側が生成したセルをグリッドへ登録して状態UIにつなぐ関係を確認できます。DBによるセル参照の管理と、配置側による複製の寿命管理の違いを示します。",
+      "summary": "設備の定義、占有計算、配置とグリッド登録の関係を示す。回転した長方形の全マスを事前に確認し、設備単位の登録・復元へ接続する。初期特異点の強制上書きと、通常配置での資源保護は入口を分ける。",
       "nodes": {
         "MonoBehaviour": {
           "description": "Unityのコンポーネント基底です。この図では配置側とグリッド生成側が継承し、StartやGameObject操作を使う接点を表します。セルDBの共有設定、座標配列の管理、セルの生成・破棄を同じ所有責任として扱いません。",
@@ -875,7 +875,7 @@
           ]
         },
         "CellPlacerAdapter": {
-          "description": "配置するセル種別、選択セル、配置プレビューと非アクティブな複製キャッシュを管理します。入力からドラッグ範囲を決め、配置時は旧セルを切断・破棄して新セルを登録して初期化します。配置結果と右操作による選択情報は状態UIへ渡します。",
+          "description": "カーソルが指した占有マスから設備本体を選び、配置候補の全マスと1台分の支払いを対応させる。初期化失敗時は旧セル群と支出予約を戻し、撤去時は設備全体を空セル群へ戻す。",
           "references": [
             {
               "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
@@ -902,7 +902,7 @@
           ]
         },
         "GridFieldDatabaseAdapter": {
-          "description": "シーン内のセルを二次元の座標配列に登録し、座標検索を提供する管理コンポーネントです。SaveCellでセル座標も更新します。接続基底は範囲内の4方向のセルを借用参照し、セルの生成・破棄・システム初期化は利用側が担当します。",
+          "description": "各占有マスから設備本体を返す座標配列と共有能力設定を所有する。初期登録は設備の位置を使い、子の順序に依存しない。複数マスを事前確認して登録し、Ownersでは同じ本体を重複なく返す。",
           "references": [
             {
               "path": "Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs",
@@ -961,6 +961,24 @@
               "symbol": "CellStatusViewAdapter"
             }
           ]
+        },
+        "GridOccupancyApplication": {
+          "description": "指定された全座標の範囲・重複・置き換え可否を確認し、成功した場合だけ所有者をまとめて更新する。変更前の所有者を座標付きで返し、失敗時に占有を一組で戻せるようにする。Unityのオブジェクトや描画には依存しない。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Application/GridOccupancyApplication.cs",
+              "symbol": "GridOccupancyApplication"
+            }
+          ]
+        },
+        "CellFootprintDomain": {
+          "description": "長方形の幅・奥行と局所オフセットから占有マスを列挙する。整数の基準座標と四分の一回転を使い、1×1、3×2、5×5を同じ規則で計算する。UnityのTransformやシーン階層には依存しない。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Grid/Domain/CellFootprintDomain.cs",
+              "symbol": "CellFootprintDomain"
+            }
+          ]
         }
       },
       "presentation": {
@@ -975,7 +993,9 @@
           "CellStatusViewAdapter": "surface",
           "MonoBehaviour": "external",
           "ScriptableObject": "external",
-          "GameObject": "external"
+          "GameObject": "external",
+          "GridOccupancyApplication": "foundation",
+          "CellFootprintDomain": "foundation"
         }
       },
       "number": "2.2"
@@ -1030,7 +1050,7 @@
           ]
         },
         "ResourceReservationApplication": {
-          "description": "受け取り先とIdentity、方向、種別、数量を固定する全量予約Tokenです。IsAliveを確認して予約・確定・取消の操作を呼び、確定または取消を一度だけ受け付けます。寿命終了後の取消はTokenだけを閉じます。",
+          "description": "成功した搬入予約に一意のIDを付け、相手のIdentity、ポートID、数量と資源種別を固定する。確定か取消の先着一回だけを受け付ける。同じ辺の複数入力も別ポートとして識別する。",
           "references": [
             {
               "path": "Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs",
@@ -1304,7 +1324,7 @@
           ]
         },
         "CrafterCellAdapter": {
-          "description": "方向別の素材入力在庫と加工結果の出力在庫を持ち、搬入・出庫・表示の契約を公開するセルです。レシピから固定計画を作り、加工終了時に現在の在庫と容量を再検証して成功時だけ確定します。無効化・破棄では未完了計画を取り消します。",
+          "description": "Field Prefabの入力ポートIDごとに材料バッファを所有し、完成品在庫と加工状態は設備単位で共有する。回転しても入力IDを保持し、1入力の基本加工と2入力の上位加工を同じ加工計画・確定規則で実行する。",
           "references": [
             {
               "path": "Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs",
@@ -2189,7 +2209,7 @@
           ]
         },
         "G": {
-          "description": "Editorでは空セルやプロップを含むグリッド生成を支援するコンポーネントです。生成メソッドはUNITY_EDITOR限定で、ゲーム実行時のStartは既存子階層をグリッドDBへ登録します。",
+          "description": "起動時に初期特異点の範囲内にある元の資源と空セルを退役させ、外周基準の木材と搬送経路を確保する。続いてグリッド登録と共有残高・価格・スキルの構成を行い、特異点を接続してカメラを中心へ合わせる。",
           "references": [
             {
               "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs",
@@ -2251,15 +2271,11 @@
           ]
         },
         "P": {
-          "description": "設備の選択、範囲プレビュー、座標順の確定を担います。共有残高の支出予約後に対象を再確認し、新セルの登録と初期化が成功してから旧セルを退役させて課金します。失敗時はグリッドと予約を戻し、途中不足でも確定済みセルを保持します。",
+          "description": "ドラッグの1マス連続配置と、複数マス設備の1台配置を同じ支出取引へ接続する。全占有の登録と初期化が成功した後に旧セル群を退役させる。失敗時は占有と支出予約を戻し、撤去時も本体を一度だけ処理する。",
           "references": [
             {
               "path": "Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs",
               "symbol": "CellPlacerAdapter"
-            },
-            {
-              "path": "Assets/Scripts/Economy/Application/EquipmentPlacementApplication.cs",
-              "symbol": "EquipmentPlacementApplication"
             }
           ]
         },

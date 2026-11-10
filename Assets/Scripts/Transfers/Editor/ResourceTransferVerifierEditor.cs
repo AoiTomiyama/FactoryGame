@@ -141,7 +141,7 @@ public static class ResourceTransferVerifierEditor
         var id = pool.CreateIdFromResourceData(ResourceTypeDomain.Stone, 5);
         var coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, target, id,
             ResourceTypeDomain.Stone, 5));
-        Require(await coordinator.RunAsync(0, Vector3.zero, Vector3.right, () => target,
+        Require(await coordinator.RunAsync(() => 0, Vector3.zero, Vector3.right, () => target,
                     endpoint => ReferenceEquals(endpoint.Identity, target.Identity), pool.Resources, pool, CancellationToken.None) ==
                 ResourceAnimationResultApplication.Completed && target.Amount == 5 && target.Reserved == 0 &&
                 target.CommitCalls == 1 && !ContainsId(pool, id) && !pool.ReleaseVisual(id) &&
@@ -157,7 +157,7 @@ public static class ResourceTransferVerifierEditor
             coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, oldTarget, id,
                 ResourceTypeDomain.Stone, 5));
             using var cts = new CancellationTokenSource();
-            var transfer = coordinator.RunAsync(0, Vector3.zero, Vector3.right, () => current,
+            var transfer = coordinator.RunAsync(() => 0, Vector3.zero, Vector3.right, () => current,
                 endpoint => ReferenceEquals(endpoint.Identity, current.Identity), pool.Resources, pool, cts.Token);
             await UniTask.Delay(120);
             Require(oldTarget.Reserved == 5, "non-cell transfer enters reserved animation");
@@ -178,7 +178,7 @@ public static class ResourceTransferVerifierEditor
                     "endpoint identity uses reference equality independently of Equals");
                 coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, current, id,
                     ResourceTypeDomain.Stone, 5));
-                await coordinator.RunAsync(0, Vector3.zero, Vector3.right, () => current,
+                await coordinator.RunAsync(() => 0, Vector3.zero, Vector3.right, () => current,
                     endpoint => ReferenceEquals(endpoint.Identity, current.Identity), pool.Resources, pool, CancellationToken.None);
                 Require(((EndpointFixture)current).Amount == 5 && !ContainsId(pool, id), "retained ID delivers once to replacement");
             }
@@ -190,7 +190,7 @@ public static class ResourceTransferVerifierEditor
         reusable.OnCommit = () => Require(reusable.Id == id, "non-cell reuse precedes quantity commit");
         coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, reusable, id,
             ResourceTypeDomain.Stone, 5));
-        await coordinator.RunAsync(0, Vector3.zero, Vector3.right, () => reusable,
+        await coordinator.RunAsync(() => 0, Vector3.zero, Vector3.right, () => reusable,
             endpoint => ReferenceEquals(endpoint.Identity, reusable.Identity), pool.Resources, pool, CancellationToken.None);
         Require(reusable.Amount == 5 && reusable.ReuseCalls == 1 && ContainsId(pool, id),
             "reusable non-cell target retains the transferred ID and visual");
@@ -479,8 +479,9 @@ public static class ResourceTransferVerifierEditor
         var adjacent = (Dictionary<Vector3Int, IContainableApplication>)GetField(setup.crossing, "_adjacentContainers");
         adjacent[Vector3Int.right] = replacement;
         await UniTask.Delay(120);
+        await UniTask.WaitUntil(() => GetCrossingReservation(setup.crossing) != null).Timeout(TimeSpan.FromSeconds(2));
         var secondReservation = GetCrossingReservation(setup.crossing);
-        Require(secondReservation.Id != firstReservation.Id &&
+        Require(secondReservation.Id != firstReservation.Id && secondReservation.PortId == 1 &&
                 ReferenceEquals(secondReservation.Target.Identity, replacement) && replacement.AllocatedAmount == 5,
             "crossing reconnect creates a new reservation for the new target");
         await UniTask.Delay(1000);

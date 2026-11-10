@@ -135,7 +135,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                 {
                     var startPos = transform.position + Vector3.up * 1.1f;
                     var result = await transfer.Coordinator.RunAsync(
-                        _adjacentContainers.TryGetValue(dir, out var portTarget) ? TargetPortId(portTarget.Identity as CellBaseAdapter, dir) : -1, startPos,
+                        () => _adjacentContainers.TryGetValue(dir, out var portTarget) ? TargetPortId(portTarget.Identity as CellBaseAdapter, dir) : -1, startPos,
                         transform.position + dir + Vector3.up * 1.1f,
                         () => _adjacentContainers.TryGetValue(dir, out var adjacent) ? adjacent : null,
                         endpoint => _adjacentContainers.TryGetValue(dir, out var adjacent) &&

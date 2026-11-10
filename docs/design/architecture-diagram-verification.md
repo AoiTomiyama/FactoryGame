@@ -64,3 +64,9 @@ doctor、sync、inventory、applyを順に使用し、applyの全件検証はok=
 全14図の173ノードに役割を指定した。フロー2図へ機能別の囲み8件を追加し、クラス4図へ責務別のnamespaceを追加した。クラスの囲みは説明上の分類であり、実装の名前空間ではない。状態図に合成状態、シーケンスに新しいboxは追加せず、既存の開始・終了記号、処理順、分岐、注記を保持した。追加したフロー囲みには説明と根拠を付けた。
 
 既存のleaf ID・ラベル・型付き関係・クラス属性/メソッドと、既存の全概要・ノード説明・根拠を保持する。全14図・188ノードのvalidateはok=true、errors=[]、missing=[]、syncプレビューはchanged=[]だった。個別分類の根拠、既存差分の保全とコミットは `architecture-presentation-factory-result.json` に記録した。担当の検証は共通CLI内部の解析・描画である。続くハブの最終検証では全48図・521役割の本番描画と構造・既存説明・根拠の保持が合格し、全4プロジェクトの代表フロー/クラスを1600px・390pxの16表示で確認した。クリック、根拠リンク、ドラッグ、25〜400%拡大も合格した。証拠は `architecture-viewer-interactions-test.json` と `architecture-presentation-factory-flow-1600.png`、`architecture-presentation-factory-flow-390.png`、`architecture-presentation-factory-class-1600.png`、`architecture-presentation-factory-class-390.png`。画面確認の残課題は解消済みである。製品コード・既存SVG・ハブツール・無関係な既存差分は変更せず、pushもしない。
+
+## 複数マス設備への更新（2026-11-10）
+
+セル・グリッド、搬送予約、加工、起動、配置の6図をOpsisのinventory・applyプレビュー・writeで更新した。占有寸法とWorldCenter、外周接続、両側ポートID、全占有の一括登録・復元、初期資源の上書きを現行コードへ合わせた。CellFootprintDomainとGridOccupancyApplicationの説明・根拠・役割を追加し、既存の図IDと番号を保持した。
+
+Opsis validateは14図・212ノードでok=true、errors=[]、missing=[]。図の内部解析・描画と説明対応を確認した。実行記録はローカルの`docs/verification/multiblock-cells.json`へ集約する。

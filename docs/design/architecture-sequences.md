@@ -19,8 +19,9 @@ sequenceDiagram
  D->>D: 設定配列から実行時辞書を構築
  par グリッド登録
   U->>G: Start
+  G->>G: 特異点の25マスを強制上書きし初回経路を確保
   G->>F: InitializeCells(gridSize)
-  F->>F: 既存子階層からセルと座標を登録
+  F->>F: 設備位置と回転後の全占有マスを登録
  and 配置用キャッシュ
   U->>P: Start
   P->>D: TryGetCellInfo(Empty)
@@ -54,26 +55,26 @@ sequenceDiagram
  P->>D: TryGetCellInfo(type)
  D-->>P: Prefab参照
  P->>P: 古いプレビュー/キャッシュ破棄、複製
- I->>P: SelectGrid(ray hit)
+ I->>P: SelectGrid(ray hit / 占有マス)
  I->>P: PointerBegin
  loop 左ボタン保持中
   I->>P: PointerDrag
   P->>F: GetCell(x,z)
-  P->>P: 配置可能な範囲とプレビューを更新
+  P->>P: 全占有マスの可否と設備単位のプレビューを更新
  end
  I->>P: PointerEnd
  loop ドラッグ開始から終端への有効候補
   P->>P: 対象確認・支出予約・対象再確認
   P->>N: 非アクティブなキャッシュをInstantiate
-  P->>F: SaveCell(x,z,newCell)
+  P->>F: TryReplaceCells(新設備群,旧占有の記録)
   P->>N: SetActive(true) / InitializeSystem
-  N->>F: 隣接座標を検索し相互参照更新・通知
+  N->>F: 外周ポートを検索し相互参照更新・通知
   alt 生成・登録・初期化が成功
    P->>O: 切断・無効化・Destroy
    P->>P: 選択参照更新・支出確定
    P->>V: 状態表示または撤去なら閉じる
   else 不足・失敗
-   P->>F: 登録失敗時は旧セル参照へ復元
+   P->>F: 失敗時は全占有マスの旧所有者を復元
    P->>N: 生成済みなら切断・無効化・Destroy
    P->>P: 支出予約取消・範囲停止
   end

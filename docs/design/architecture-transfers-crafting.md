@@ -32,6 +32,7 @@ classDiagram
  }
  class ResourceReservationApplication {
   long Id
+  int PortId
   TryCreate()
   TryCommit()
   TryCancel()
@@ -148,7 +149,7 @@ classDiagram
  CraftingOperationApplication --> RecipePlanDomain : 固定計画
  RecipePlanDomain *-- Consumption : 素材IDと量の読み取り専用配列
  CraftingOperationApplication ..> RecipeRulesDomain : 終了時に再検証
- CrafterCellAdapter ..> ResourceStorageRulesDomain : 方向別入力在庫と予約
+ CrafterCellAdapter ..> ResourceStorageRulesDomain : ポートID別入力在庫と予約
 ```
 
 [Crafter](../../Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs)、[RecipeRules](../../Assets/Scripts/Crafting/Domain/RecipeRulesDomain.cs)、[Operation](../../Assets/Scripts/Crafting/Application/CraftingOperationApplication.cs)、[RecipeDB](../../Assets/Scripts/Crafting/Definitions/RecipeDatabaseDefinition.cs) が根拠。RecipeDataDefinitionはSO内のシリアライズ可能な普通のクラスで、レシピ個別SOではない。入力・出力在庫はCrafter、加工計画はRecipePlan、加工StageはOperationが保持する。開始時に最初に成立したレシピから固定計画を作り、完了時の在庫と容量を再検証する。ApplyCommitは途中にawaitや通知を挟まず素材消費と出力増加を適用する。finallyは取消・Tween掃除・表示通知を担い、素材を無条件に消費しない。無効化・破棄は未完了計画を取消し、再有効化は初期化済みなら処理を再開する。

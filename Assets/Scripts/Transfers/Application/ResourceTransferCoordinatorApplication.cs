@@ -36,7 +36,7 @@ public sealed class ResourceTransferCoordinatorApplication
         Reservation?.TryCancel();
     }
 
-    public async UniTask<ResourceAnimationResultApplication> RunAsync(int portId, Vector3 from, Vector3 to,
+    public async UniTask<ResourceAnimationResultApplication> RunAsync(Func<int> getPortId, Vector3 from, Vector3 to,
         Func<IContainableApplication> getTarget, Func<IContainableApplication, bool> isCurrentTarget,
         ResourceTransitStoreApplication resources, IResourceTransferPresentationApplication presentation,
         CancellationToken token, Action onAnimating = null)
@@ -44,7 +44,8 @@ public sealed class ResourceTransferCoordinatorApplication
         try
         {
             if (Reservation == null)
-                await UniTask.WaitUntil(() => TryReserve(getTarget(), portId), cancellationToken: token);
+                // 再接続待ちでは相手と接点が変わる。成立した予約だけがIDを固定する。
+                await UniTask.WaitUntil(() => TryReserve(getTarget(), getPortId()), cancellationToken: token);
 
             token.ThrowIfCancellationRequested();
             // 接続喪失で現在の予約が外れても、この試行が所有するTokenで終端を判定する。

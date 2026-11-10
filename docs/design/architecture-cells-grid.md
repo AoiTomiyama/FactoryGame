@@ -19,10 +19,13 @@ classDiagram
   int XIndex
   int ZIndex
   GameObject CellModel
+  CellFootprintDomain Footprint
+  Vector3 WorldCenter
   InitializeSystem()
  }
  class ConnectableCellBaseAdapter {
-  CellBaseAdapter[] AdjacentCells
+  CellPortDefinition[] Ports
+  Dictionary Connections
   InitializeSystem()
   OnDisconnect()
  }
@@ -93,7 +96,7 @@ MonoBehaviour <|-- CellBaseAdapter
  CrafterCellAdapter ..|> IContainableApplication
  CrafterCellAdapter ..|> IExportableApplication
  CrafterCellAdapter ..|> IDataProvidableApplication
- ConnectableCellBaseAdapter --> CellBaseAdapter : 隣接4方向を借用
+ ConnectableCellBaseAdapter --> CellBaseAdapter : 外周の接続先と両側ポートIDを借用
  ConnectableCellBaseAdapter ..> GridFieldDatabaseAdapter : 座標検索
  StorageCellAdapter ..> ResourceStorageRulesDomain : 数量判定
  ExtractorCellAdapter --> ResourceCellAdapter : 採取元の初期参照
@@ -122,6 +125,8 @@ classDiagram
  }
  class GridFieldGeneratorAdapter
  class GridFieldDatabaseAdapter
+ class GridOccupancyApplication
+ class CellFootprintDomain
  }
  namespace セル定義 {
  class CellDatabaseDefinition {
@@ -149,12 +154,14 @@ classDiagram
  CellInfoDefinition --> CellBaseAdapter : fieldCellPrefab
  CellInfoDefinition --> GameObject : placeholderCellPrefab
  CellPlacerAdapter --> CellDatabaseDefinition : cellDatabaseArr
- CellPlacerAdapter --> GridFieldDatabaseAdapter : 選択範囲検索とSaveCell
+ CellPlacerAdapter --> GridFieldDatabaseAdapter : 占有確認と一括登録・復元
  CellPlacerAdapter --> CellStatusViewAdapter : 配置結果と選択UI
  CellPlacerAdapter --> CellBaseAdapter : 選択セルの借用
  CellPlacerAdapter --> GameObject : 生成したキャッシュとプレビューの寿命管理
  GridFieldDatabaseAdapter --> CellBaseAdapter : 座標配列の借用参照
- GridFieldGeneratorAdapter --> GridFieldDatabaseAdapter : Startで既存階層登録
+ GridFieldGeneratorAdapter --> GridFieldDatabaseAdapter : 初期上書き後に座標登録
+ GridFieldDatabaseAdapter ..> GridOccupancyApplication : 全マス確認と登録・復元
+ CellBaseAdapter ..> CellFootprintDomain : 寸法と回転から占有座標を計算
 ```
 
 [CellDatabaseDefinition](../../Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs) は設定配列を正本としOnEnableで辞書を必ず作る。SetCellInfos/OnValidateで無効化し、取得時に必要なら再構築する。旧保存フラグは実行時状態に使わない。[GridFieldGenerator](../../Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs) の生成関数はUNITY_EDITOR限定、Startは [GridDB](../../Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs) に既存子階層を登録する。GridDBは座標を持つがセルを自動生成・破棄しない。[Placer](../../Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs) は非アクティブな雛形を複製し、座標登録・有効化・InitializeSystemが成功してから旧セルを切断・退役させる。課金・復元・範囲順序は[設備設置仕様](../spec/currency-placement.md)を参照する。

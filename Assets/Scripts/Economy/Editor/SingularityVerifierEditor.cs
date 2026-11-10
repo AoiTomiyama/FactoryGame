@@ -229,7 +229,7 @@ public static class SingularityVerifierEditor
                 UnityEngine.Object.DestroyImmediate(clone.gameObject);
             };
             using var cts = new CancellationTokenSource();
-            var transfer = coordinator.RunAsync(0, Vector3.zero, Vector3.right, () => clone,
+            var transfer = coordinator.RunAsync(() => 0, Vector3.zero, Vector3.right, () => clone,
                 endpoint => clone != null && clone.isActiveAndEnabled, resources, presentation, cts.Token);
             await UniTask.WaitUntil(() => localWallet.Current.ReservedIncome == 2).Timeout(TimeSpan.FromSeconds(3));
             Require(localWallet.Current.ReservedIncome == 2, "coordinator fixes sale before presentation");
