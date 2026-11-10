@@ -73,7 +73,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
         var ray = _camera.ScreenPointToRay(_mousePosition);
         if (Physics.Raycast(ray, out var hit, Mathf.Infinity, layerMask))
         {
-            placer.SelectGrid(hit.collider.gameObject);
+            placer.SelectGrid(hit.collider.gameObject, hit.point);
         }
     }
 

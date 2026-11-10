@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -7,9 +7,11 @@ public class CellPlacerAdapter : MonoBehaviour
 {
     [SerializeField] private CellDatabaseDefinition[] cellDatabaseArr;
     private CellBaseAdapter _selectedCell;
+    private Vector3Int _selectedCoordinate;
     private CellBaseAdapter _cachedCell;
     private GameObject _placeholderCell;
     private readonly HashSet<(CellBaseAdapter cell, GameObject placeholder)> _selectedRangeCells = new();
+    private readonly HashSet<CellBaseAdapter> _previewHiddenOwners = new();
     private Vector3Int _dragBeginPos;
     private Vector3Int _dragEndPos;
     private CellTypeDomain _selectedType;
@@ -51,14 +53,14 @@ public class CellPlacerAdapter : MonoBehaviour
         if (!_placementEnabled || _placing || _selectedCell == null) return;
         _placementNotice = "";
         _dragging = true;
-        _dragBeginPos = Vector3Int.RoundToInt(_selectedCell.transform.position);
+        _dragBeginPos = _selectedCoordinate;
         _dragEndPos = _dragBeginPos;
     }
 
     public void PointerDrag()
     {
         if (!_placementEnabled || !_dragging || _placing || _selectedCell == null) return;
-        _dragEndPos = Vector3Int.RoundToInt(_selectedCell.transform.position);
+        _dragEndPos = _selectedCoordinate;
         FindRangedGrid(_dragBeginPos, _dragEndPos);
     }
 
@@ -75,7 +77,7 @@ public class CellPlacerAdapter : MonoBehaviour
     /// カーソルが選択されているセルの位置に移動し、セルを選択する
     /// </summary>
     /// <param name="target"></param>
-    public void SelectGrid(GameObject target)
+    public void SelectGrid(GameObject target, Vector3? hitPoint = null)
     {
         if (_placing || target == null) return;
 
@@ -83,13 +85,17 @@ public class CellPlacerAdapter : MonoBehaviour
         if (_selectedCell != null)
         {
             // 直前に選択されていたオブジェクトと同じ場合は何もしない
-            if (target == _selectedCell.gameObject) return;
             _selectedCell.CellModel.SetActive(true);
         }
 
-        if (!target.TryGetComponent<CellBaseAdapter>(out var cellBase)) return;
+        var cellBase = target.GetComponentInParent<CellBaseAdapter>();
+        if (cellBase == null) return;
         _selectedCell = cellBase;
-        transform.position = _selectedCell.transform.position;
+        _selectedCoordinate = Vector3Int.RoundToInt(hitPoint ?? cellBase.transform.position);
+        _selectedCoordinate.y = 0;
+        if (!cellBase.OccupiedCoordinates.Contains((_selectedCoordinate.x, _selectedCoordinate.z)))
+            _selectedCoordinate = new Vector3Int(cellBase.XIndex, 0, cellBase.ZIndex);
+        transform.position = _selectedCoordinate;
 
         if (!_placementEnabled || cellBase is not EmptyCellAdapter) return;
         _selectedCell.CellModel.SetActive(false);
@@ -99,6 +105,8 @@ public class CellPlacerAdapter : MonoBehaviour
     {
         _overlap = false;
         var newSelection = new HashSet<CellBaseAdapter>();
+        // 複数マス設備はカーソル位置へ1台ずつ置く。1マス設備の連続配置は維持する。
+        if (_cachedCell is not EmptyCellAdapter && _cachedCell.Footprint.Area > 1) from = to;
         var dir = to - from;
 
         // 方向ベクトルの絶対値を比較して、どちらの軸を優先するか決定
@@ -119,7 +127,7 @@ public class CellPlacerAdapter : MonoBehaviour
             if (!GridFieldDatabaseAdapter.Instance.IsWithinBounds(x, z)) continue;
             var cell = GridFieldDatabaseAdapter.Instance.GetCell(x, z);
             if (cell == null) continue;
-            if (_cachedCell is not EmptyCellAdapter && cell is not EmptyCellAdapter) _overlap = true;
+            if (_cachedCell is not EmptyCellAdapter && !CanPlaceAt(x, z)) { _overlap = true; continue; }
             // 撤去は設備だけ、設置は空セルだけを対象にする。
             if (cell is not ResourceCellAdapter && cell is not SingularityCellAdapter &&
                 (_cachedCell is EmptyCellAdapter && cell is not EmptyCellAdapter ||
@@ -135,6 +143,7 @@ public class CellPlacerAdapter : MonoBehaviour
 
     private void SelectRangedGrid(HashSet<CellBaseAdapter> newSelection)
     {
+        RestorePreviewModels();
         var newSet = new HashSet<CellBaseAdapter>(newSelection);
         var oldSet = _selectedRangeCells
             .ToDictionary(t => t.cell, t => t.placeholder);
@@ -144,11 +153,6 @@ public class CellPlacerAdapter : MonoBehaviour
         {
             if (newSet.Contains(cell)) continue;
 
-            // すでに置いてあるセルの表示を元に戻す
-            cell.CellModel.SetActive(true);
-
-            // プレースホルダーを削除
-            // Destroy(placeholder.gameObject);
             placeholder.SetActive(false);
         }
 
@@ -156,7 +160,7 @@ public class CellPlacerAdapter : MonoBehaviour
         // 新しい選択範囲に含まれるセルを追加
         foreach (var cell in newSelection)
         {
-            cell.CellModel.SetActive(false);
+            HidePreviewModels(cell);
             if (!oldSet.TryGetValue(cell, out var placeholder))
             {
                 placeholder = Instantiate(_placeholderCell, cell.transform.position, transform.rotation);
@@ -165,7 +169,7 @@ public class CellPlacerAdapter : MonoBehaviour
             {
                 placeholder.SetActive(true);
             }
-
+            ConfigurePreview(placeholder, cell);
             _selectedRangeCells.Add((cell, placeholder));
         }
     }
@@ -201,9 +205,9 @@ public class CellPlacerAdapter : MonoBehaviour
 
     private void ClearRange()
     {
+        RestorePreviewModels();
         foreach (var (cell, placeholder) in _selectedRangeCells)
         {
-            if (cell != null) cell.CellModel.SetActive(true);
             if (placeholder != null) Destroy(placeholder);
         }
         _selectedRangeCells.Clear();
@@ -224,57 +228,119 @@ public class CellPlacerAdapter : MonoBehaviour
         finally { _placing = false; }
     }
 
+    private bool CanPlaceAt(int x, int z)
+    {
+        var grid = GridFieldDatabaseAdapter.Instance;
+        return _cachedCell.Footprint.Coordinates(x, z, Mathf.RoundToInt(transform.eulerAngles.y / 90f))
+            .All(p => grid.IsWithinBounds(p.x, p.z) && grid.GetCell(p.x, p.z) is EmptyCellAdapter);
+    }
+
+    private void HidePreviewModels(CellBaseAdapter target)
+    {
+        var grid = GridFieldDatabaseAdapter.Instance;
+        var points = _cachedCell is EmptyCellAdapter ? target.OccupiedCoordinates :
+            _cachedCell.Footprint.Coordinates(target.XIndex, target.ZIndex, Mathf.RoundToInt(transform.eulerAngles.y / 90f));
+        foreach (var point in points)
+            if (grid.IsWithinBounds(point.x, point.z) && grid.GetCell(point.x, point.z) is { } owner)
+            {
+                owner.CellModel.SetActive(false);
+                _previewHiddenOwners.Add(owner);
+            }
+    }
+
+    private void RestorePreviewModels()
+    {
+        foreach (var owner in _previewHiddenOwners)
+            if (owner != null) owner.CellModel.SetActive(true);
+        _previewHiddenOwners.Clear();
+    }
+
+    private void ConfigurePreview(GameObject preview, CellBaseAdapter target)
+    {
+        var removing = _cachedCell is EmptyCellAdapter && target != null;
+        var shape = removing ? target.Footprint : _cachedCell.Footprint;
+        var rotation = removing ? target.transform.rotation : transform.rotation;
+        var anchor = target != null ? target.transform.position : transform.position;
+        preview.transform.SetPositionAndRotation(anchor + rotation * new Vector3(
+            shape.OffsetX + (shape.Width - 1) * .5f, 0, shape.OffsetZ + (shape.Depth - 1) * .5f), rotation);
+        // 寸法の編集元をField Prefabへ集約し、Placeholder側の重複設定を作らない。
+        preview.transform.localScale = new Vector3(shape.Width, 1, shape.Depth);
+    }
+
     private EquipmentPlacementApplication.Result TryReplaceCell(CellBaseAdapter replaceTarget, out long cost)
     {
         cost = 0;
-        if (_placement == null || replaceTarget == null) return EquipmentPlacementApplication.Result.InvalidTarget;
+        if (_placement == null || replaceTarget == null || _cachedCell == null)
+            return EquipmentPlacementApplication.Result.InvalidTarget;
+        var removing = _cachedCell is EmptyCellAdapter;
         var x = replaceTarget.XIndex;
         var z = replaceTarget.ZIndex;
         var grid = GridFieldDatabaseAdapter.Instance;
-        CellBaseAdapter newCell = null;
+        var points = (removing ? replaceTarget.OccupiedCoordinates : _cachedCell.Footprint.Coordinates(x, z,
+            Mathf.RoundToInt(transform.eulerAngles.y / 90f))).ToArray();
+        if (points.Any(p => !grid.IsWithinBounds(p.x, p.z))) return EquipmentPlacementApplication.Result.InvalidTarget;
+        var previous = grid.CaptureCells(points);
+        var retired = previous.Select(e => e.Owner).Distinct().ToArray();
+        var created = new List<CellBaseAdapter>();
         bool Validate() => this != null && isActiveAndEnabled && replaceTarget != null &&
             replaceTarget.isActiveAndEnabled && _cachedCell != null &&
             replaceTarget is not ResourceCellAdapter && replaceTarget is not SingularityCellAdapter &&
             _cachedCell is not ResourceCellAdapter && _cachedCell is not SingularityCellAdapter &&
-            (_cachedCell is EmptyCellAdapter ? replaceTarget is not EmptyCellAdapter : replaceTarget is EmptyCellAdapter) &&
-            grid.IsWithinBounds(x, z) && grid.GetCell(x, z) == replaceTarget;
+            (removing ? replaceTarget is not EmptyCellAdapter && retired.All(c => c == replaceTarget) :
+                retired.All(c => c is EmptyCellAdapter)) &&
+            previous.All(e => grid.GetCell(e.X, e.Z) == e.Owner && e.Owner != null && e.Owner.isActiveAndEnabled);
 
         var result = _placement.Execute(_selectedType, Validate, () =>
         {
-            // 非アクティブな雛形から準備し、旧セルは初期化成功まで保持する。
-            newCell = Instantiate(_cachedCell, replaceTarget.transform.position, transform.rotation, replaceTarget.transform.parent);
-            newCell.name = replaceTarget.name;
-            newCell.transform.SetSiblingIndex(replaceTarget.transform.GetSiblingIndex());
-            grid.SaveCell(x, z, newCell);
-            if (grid.GetCell(x, z) != newCell) throw new InvalidOperationException("Cell registration failed.");
-            newCell.gameObject.SetActive(true);
-            newCell.InitializeSystem();
-            if (newCell == null || !newCell.isActiveAndEnabled || grid.GetCell(x, z) != newCell)
+            var anchors = removing ? points : new[] { (x, z) };
+            foreach (var point in anchors)
+            {
+                var cell = Instantiate(_cachedCell, new Vector3(point.Item1, 0, point.Item2),
+                    removing ? Quaternion.identity : transform.rotation, grid.transform);
+                cell.name = $"Tile_{point.Item1}_{point.Item2}";
+                created.Add(cell);
+            }
+            if (!grid.TryReplaceCells(created.ToArray(), previous)) throw new InvalidOperationException("Cell registration failed.");
+            foreach (var cell in created)
+            {
+                cell.gameObject.SetActive(true);
+                cell.InitializeSystem();
+            }
+            if (created.Any(c => c == null || !c.isActiveAndEnabled ||
+                    c.OccupiedCoordinates.Any(p => grid.GetCell(p.x, p.z) != c)))
                 throw new InvalidOperationException("Cell initialization changed the registration.");
         }, () =>
         {
-            try { if (newCell is ConnectableCellBaseAdapter connected) connected.OnDisconnect(); }
+            try
+            {
+                foreach (var cell in created)
+                    if (cell is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
+            }
             finally
             {
-                grid.SaveCell(x, z, replaceTarget);
-                if (newCell != null) { newCell.gameObject.SetActive(false); Destroy(newCell.gameObject); }
+                grid.RestoreCells(previous);
+                foreach (var cell in created)
+                    if (cell != null) { cell.gameObject.SetActive(false); Destroy(cell.gameObject); }
             }
         }, () =>
         {
-            // 退役処理の例外でも、成立した設置と支出の対応を保つ。
-            try { if (replaceTarget is ConnectableCellBaseAdapter connected) connected.OnDisconnect(); }
-            catch (Exception exception) { Debug.LogException(exception); }
-            replaceTarget.gameObject.SetActive(false);
-            Destroy(replaceTarget.gameObject);
-            if (_selectedCell == replaceTarget) _selectedCell = newCell;
+            foreach (var old in retired)
+            {
+                try { if (old is ConnectableCellBaseAdapter connected) connected.OnDisconnect(); }
+                catch (Exception exception) { Debug.LogException(exception); }
+                old.gameObject.SetActive(false);
+                Destroy(old.gameObject);
+            }
+            if (retired.Contains(_selectedCell))
+                _selectedCell = grid.GetCell(_selectedCoordinate.x, _selectedCoordinate.z);
         }, out cost);
 
         if (result == EquipmentPlacementApplication.Result.Success)
         {
             try
             {
-                if (_cachedCell is EmptyCellAdapter) CellStatusViewAdapter.Instance.SetStatusWindowActive(false);
-                else CellStatusViewAdapter.Instance.UpdateUIStatusWindow(newCell);
+                if (removing) CellStatusViewAdapter.Instance.SetStatusWindowActive(false);
+                else CellStatusViewAdapter.Instance.UpdateUIStatusWindow(created[0]);
             }
             catch (Exception exception) { Debug.LogException(exception); }
         }
@@ -306,6 +372,7 @@ public class CellPlacerAdapter : MonoBehaviour
             _placeholderCell.SetActive(_placementEnabled);
             _cachedCell = Instantiate(cellInfo.FieldCellPrefab, transform.position, transform.rotation, transform);
             _cachedCell.gameObject.SetActive(false);
+            ConfigurePreview(_placeholderCell, null);
             return;
         }
 

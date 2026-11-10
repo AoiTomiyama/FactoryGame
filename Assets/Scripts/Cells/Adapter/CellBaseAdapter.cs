@@ -60,6 +60,15 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
     private void Awake()
     {
         CellModel = transform.GetChild(0).gameObject;
+        ApplyFootprintCollider();
+    }
+
+    public void ApplyFootprintCollider()
+    {
+        if (!TryGetComponent<BoxCollider>(out var box)) return;
+        box.center = new Vector3(footprintOffset.x + (footprintWidth - 1) * .5f,
+            box.center.y, footprintOffset.y + (footprintDepth - 1) * .5f);
+        box.size = new Vector3(footprintWidth, box.size.y, footprintDepth);
     }
 
     public virtual void InitializeSystem()

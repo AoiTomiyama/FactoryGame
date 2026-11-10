@@ -90,6 +90,33 @@ public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<Gri
     public void RestoreCells(GridOccupancyApplication.Entry<CellBaseAdapter>[] previous)
         => GridOccupancyApplication.Restore(_gridCells, previous);
 
+    public GridOccupancyApplication.Entry<CellBaseAdapter>[] CaptureCells(IEnumerable<(int x, int z)> coordinates)
+        => coordinates.Select(p => new GridOccupancyApplication.Entry<CellBaseAdapter>(p.x, p.z, GetCell(p.x, p.z))).ToArray();
+
+    public bool TryReplaceCells(CellBaseAdapter[] replacements, GridOccupancyApplication.Entry<CellBaseAdapter>[] expected)
+    {
+        var entries = new Dictionary<(int x, int z), CellBaseAdapter>();
+        foreach (var cell in replacements)
+        {
+            var anchor = Vector3Int.RoundToInt(cell.transform.position);
+            foreach (var point in cell.Footprint.Coordinates(anchor.x, anchor.z, cell.QuarterTurns))
+                if (!IsWithinBounds(point.x, point.z) || !entries.TryAdd(point, cell)) return false;
+        }
+        if (entries.Count != expected.Length || expected.Any(e => !entries.ContainsKey((e.X, e.Z)) ||
+                GetCell(e.X, e.Z) != e.Owner)) return false;
+        foreach (var owner in expected.Select(e => e.Owner).Where(c => c != null).Distinct())
+            if (owner.OccupiedCoordinates.Any(p => !entries.ContainsKey(p))) return false;
+        foreach (var cell in replacements) cell.ConfigureProgression(StatEffects);
+        // 全設備の構成と占有を検証した後にまとめて書き込む。
+        foreach (var cell in replacements)
+        {
+            var anchor = Vector3Int.RoundToInt(cell.transform.position);
+            cell.XIndex = anchor.x; cell.ZIndex = anchor.z;
+        }
+        foreach (var entry in entries) _gridCells[entry.Key.x, entry.Key.z] = entry.Value;
+        return true;
+    }
+
     /// <summary>
     /// 指定した座標のセルを取得する
     /// </summary>

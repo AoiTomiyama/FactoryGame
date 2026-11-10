@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Reflection;
 using System.IO;
+using System.Linq;
 using Cysharp.Threading.Tasks;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -28,6 +29,7 @@ public static class EquipmentPlacementVerifierEditor
         if (!Application.isBatchMode)
             EditorWindow.GetWindow(typeof(EditorWindow).Assembly.GetType("UnityEditor.GameView")).Show();
         SessionState.SetBool(SessionKey, true);
+        EditorUtility.audioMasterMute = true;
         EditorApplication.isPlaying = true;
     }
 
@@ -80,6 +82,7 @@ public static class EquipmentPlacementVerifierEditor
             _checks = 0;
             await UniTask.Yield();
             var grid = GridFieldDatabaseAdapter.Instance;
+            AudioListener.volume = 0;
             var generator = UnityEngine.Object.FindAnyObjectByType<GridFieldGeneratorAdapter>();
             var placer = UnityEngine.Object.FindAnyObjectByType<CellPlacerAdapter>();
             var wallet = generator.Wallet;
@@ -196,10 +199,84 @@ public static class EquipmentPlacementVerifierEditor
             placer.PointerEnd();
             await UniTask.DelayFrame(2);
             Require(panel.PlacementText.Contains("既存セル") && grid.GetCell(50, 49) == occupied && wallet.Current.Balance == occupiedBalance, "overlap stays visible without replacement or expense");
+            VerifyMultiblockPlacement(grid, placer, wallet);
             Debug.Log($"Equipment placement PLAY checks passed: {_checks} assertions; paid starter route, range order, partial funds, rollback, protection, selection, rotation and removal.");
             EditorApplication.Exit(0);
         }
         catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
+    }
+
+    private static void VerifyMultiblockPlacement(GridFieldDatabaseAdapter grid, CellPlacerAdapter placer,
+        CurrencyWalletApplication wallet)
+    {
+        // 地形に依存しない小領域で、実際の配置入口と設備寿命を検証する。
+        placer.SetSelectedCellType(CellTypeDomain.Empty);
+        var emptyTemplate = Get<CellBaseAdapter>(placer, "_cachedCell");
+        for (var x = 7; x <= 14; x++)
+        for (var z = 7; z <= 14; z++)
+        {
+            var old = grid.GetCell(x, z);
+            if (old is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
+            old.gameObject.SetActive(false);
+            UnityEngine.Object.Destroy(old.gameObject);
+            var empty = UnityEngine.Object.Instantiate(emptyTemplate, new Vector3(x, 0, z), Quaternion.identity, grid.transform);
+            grid.SaveCell(x, z, empty); empty.gameObject.SetActive(true);
+        }
+        wallet.TryReserveIncome(100, out var funds); funds.TryCommit();
+        for (var turn = 0; turn < 4; turn++)
+        {
+            placer.transform.rotation = Quaternion.Euler(0, turn * 90, 0);
+            placer.SetSelectedCellType(CellTypeDomain.Storage);
+            var template = Get<CellBaseAdapter>(placer, "_cachedCell");
+            SetFootprint(template, 3, 2);
+            var points = template.Footprint.Coordinates(10, 10, turn).ToArray();
+            var prior = points.Select(p => grid.GetCell(p.x, p.z)).ToArray();
+            var balance = wallet.Current.Balance;
+            placer.SelectGrid(grid.GetCell(10, 10).gameObject);
+            placer.PointerBegin(); placer.PointerDrag();
+            Require(placer.PreviewCount == 1 && placer.PreviewCost == 15, "multiblock preview counts one equipment");
+            placer.PointerEnd();
+            var owner = grid.GetCell(10, 10);
+            Require(owner is StorageCellAdapter && points.All(p => grid.GetCell(p.x, p.z) == owner) &&
+                wallet.Current.Balance == balance - 15 && placer.LastPlacedCount == 1, "rotated footprint charged once " + turn);
+            Require(prior.All(c => !c.gameObject.activeSelf), "all replaced models and colliders retired");
+            var far = points.Last();
+            placer.SelectGrid(owner.gameObject, new Vector3(far.x, .5f, far.z));
+            Require(Get<CellBaseAdapter>(placer, "_selectedCell") == owner, "any occupied tile selects owner");
+            // 角1マスだけの重なりも、設置と課金の前に拒否する。
+            placer.SetSelectedCellType(CellTypeDomain.Conveyor);
+            placer.PointerBegin(); placer.PointerDrag(); placer.PointerEnd();
+            Require(placer.PreviewCount == 0 && wallet.Current.Balance == balance - 15 &&
+                points.All(p => grid.GetCell(p.x, p.z) == owner), "partial overlap cannot fragment owner");
+            placer.SetSelectedCellType(CellTypeDomain.Empty);
+            placer.PointerBegin(); placer.PointerDrag(); placer.PointerEnd();
+            Require(points.All(p => grid.GetCell(p.x, p.z) is EmptyCellAdapter) &&
+                placer.LastPlacedCount == 1 && wallet.Current.Balance == balance - 15 && !owner.gameObject.activeSelf,
+                "any tile removes whole equipment once " + turn);
+        }
+        placer.SetSelectedCellType(CellTypeDomain.Storage);
+        var cached = Get<CellBaseAdapter>(placer, "_cachedCell");
+        var faultObject = new GameObject("Multiblock fault template");
+        faultObject.SetActive(false);
+        new GameObject("Model").transform.SetParent(faultObject.transform);
+        var failing = faultObject.AddComponent<FailingPlacementCellAdapter>();
+        SetFootprint(failing, 3, 2);
+        Set(placer, "_cachedCell", failing);
+        placer.transform.rotation = Quaternion.identity;
+        var originals = failing.Footprint.Coordinates(10, 10, 0).Select(p => (p, owner: grid.GetCell(p.x, p.z))).ToArray();
+        var before = wallet.Current.Balance;
+        placer.SelectGrid(grid.GetCell(10, 10).gameObject); placer.PointerBegin(); placer.PointerDrag(); placer.PointerEnd();
+        Require(placer.LastPlacementResult == EquipmentPlacementApplication.Result.Failed &&
+            originals.All(e => grid.GetCell(e.p.x, e.p.z) == e.owner && e.owner.gameObject.activeSelf && e.owner.CellModel.activeSelf) &&
+            wallet.Current.Balance == before && wallet.Current.ReservedExpense == 0, "multiblock initialization failure restores six owners and expense");
+        Set(placer, "_cachedCell", cached);
+        UnityEngine.Object.Destroy(faultObject);
+    }
+
+    private static void SetFootprint(CellBaseAdapter cell, int width, int depth)
+    {
+        typeof(CellBaseAdapter).GetField("footprintWidth", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(cell, width);
+        typeof(CellBaseAdapter).GetField("footprintDepth", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(cell, depth);
     }
 
     private static async UniTask Capture(string name)
