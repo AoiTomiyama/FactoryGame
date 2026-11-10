@@ -261,7 +261,8 @@ public class CellPlacerAdapter : MonoBehaviour
         var shape = removing ? target.Footprint : _cachedCell.Footprint;
         var rotation = removing ? target.transform.rotation : transform.rotation;
         var anchor = target != null ? target.transform.position : transform.position;
-        preview.transform.SetPositionAndRotation(anchor + rotation * new Vector3(
+        // 白いセルと面が重ならない高さへ上げ、プレビューのちらつきを防ぐ。
+        preview.transform.SetPositionAndRotation(anchor + Vector3.up * .01f + rotation * new Vector3(
             shape.OffsetX + (shape.Width - 1) * .5f, 0, shape.OffsetZ + (shape.Depth - 1) * .5f), rotation);
         // 寸法の編集元をField Prefabへ集約し、Placeholder側の重複設定を作らない。
         preview.transform.localScale = new Vector3(shape.Width, 1, shape.Depth);
