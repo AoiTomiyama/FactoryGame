@@ -39,15 +39,22 @@ public class CameraControllerAdapter : MonoBehaviour
     public bool IsFirstPerson { get; private set; }
     public event Action<bool> FirstPersonChanged;
     private FirstPersonWalkAdapter _walk;
-    private CinemachineFollow _follow;
+    private CinemachineComponentBase _positionControl;
     private CinemachineBrain _brain;
     private Camera _output;
     private LensSettings _savedLens;
     private CinemachineBrain.LensModeOverrideSettings _savedBrainMode;
     private Vector3 _savedPosition;
     private Quaternion _savedRotation;
-    private bool _savedFollow, _savedOrthographic, _savedCursorVisible;
+    private bool _savedPositionControl, _savedOrthographic, _savedCursorVisible;
+    private int _enteredFirstPersonFrame;
     private CursorLockMode _savedCursorLock;
+    private bool _firstPersonRequested, _transitionActive;
+    private float _transitionElapsed, _transitionFromFov;
+    private Vector3 _transitionFromPosition;
+    private Quaternion _transitionFromRotation;
+    private const float TransitionSeconds = .5f;
+    public bool IsTransitioning => _transitionActive;
 
     private void Start()
     {
@@ -70,10 +77,13 @@ public class CameraControllerAdapter : MonoBehaviour
         else if (IsFirstPerson && keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetFirstPerson(false);
         if (IsFirstPerson)
         {
+            if (_transitionActive) { UpdateFirstPersonTransition(); return; }
             var movement = keyboard == null ? Vector2.zero : new Vector2(
                 (keyboard.dKey.isPressed ? 1 : 0) - (keyboard.aKey.isPressed ? 1 : 0),
                 (keyboard.wKey.isPressed ? 1 : 0) - (keyboard.sKey.isPressed ? 1 : 0));
-            var look = Mouse.current != null ? Mouse.current.delta.ReadValue() : Vector2.zero;
+            // 切替クリックとカーソル固定で発生した差分を、最初の見回しへ持ち越さない。
+            var look = Mouse.current != null && Time.frameCount > _enteredFirstPersonFrame + 1
+                ? Mouse.current.delta.ReadValue() : Vector2.zero;
             _walk.Step(movement, look, keyboard != null && (keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed), Time.unscaledDeltaTime);
             transform.SetPositionAndRotation(_walk.Position, _walk.Rotation);
             return;
@@ -97,7 +107,7 @@ public class CameraControllerAdapter : MonoBehaviour
 
     private void OnDisable()
     {
-        SetFirstPerson(false);
+        RestoreOverview();
         middleClickAction.started -= OnPanStart;
         middleClickAction.canceled -= OnPanEnd;
         scrollAction.performed -= HandleZoom;
@@ -117,50 +127,88 @@ public class CameraControllerAdapter : MonoBehaviour
 
     public void SwitchCameraAngle() { if (!IsFirstPerson) _isCameraAngleSwitched = !_isCameraAngleSwitched; }
 
-    public void ToggleFirstPerson() => SetFirstPerson(!IsFirstPerson);
+    public void ToggleFirstPerson() => SetFirstPerson(!_firstPersonRequested);
 
     public bool SetFirstPerson(bool active)
     {
-        if (active == IsFirstPerson) return true;
-        if (active)
+        if (_firstPersonRequested == active && (IsFirstPerson == active || _transitionActive)) return true;
+        if (active && !IsFirstPerson)
         {
             var grid = GridFieldDatabaseAdapter.Instance;
             if (grid == null || virtualCamera == null || followTarget == null || Camera.main == null) return false;
             _walk = new FirstPersonWalkAdapter(grid, eyeHeight, walkSpeed, lookSensitivity);
             if (!_walk.TryStart(followTarget.position)) { Debug.LogWarning("散策を始められる床が見つかりません。", this); return false; }
             _output = Camera.main; _brain = _output.GetComponent<CinemachineBrain>();
-            _follow = virtualCamera.GetComponent<CinemachineFollow>();
-            _savedLens = virtualCamera.Lens; _savedPosition = transform.position; _savedRotation = transform.rotation;
-            _savedFollow = _follow != null && _follow.enabled; _savedOrthographic = _output.orthographic;
+            // Sceneの実際のBodyを止め、Position Composerによる俯瞰位置への上書きを防ぐ。
+            _positionControl = virtualCamera.GetCinemachineComponent(CinemachineCore.Stage.Body);
+            _savedLens = virtualCamera.Lens;
+            _savedPosition = _output.transform.position; _savedRotation = _output.transform.rotation;
+            _savedPositionControl = _positionControl != null && _positionControl.enabled; _savedOrthographic = _output.orthographic;
             _savedCursorLock = Cursor.lockState; _savedCursorVisible = Cursor.visible;
-            if (_follow != null) _follow.enabled = false;
+            if (_positionControl != null) _positionControl.enabled = false;
             if (_brain != null)
             {
                 _savedBrainMode = _brain.LensModeOverride;
                 _brain.LensModeOverride = new CinemachineBrain.LensModeOverrideSettings { Enabled = true, DefaultMode = LensSettings.OverrideModes.Perspective };
             }
+            // 注視点での大きさを揃えて透視投影へ移り、投影切替時の急な拡大を抑える。
+            virtualCamera.Lens.FieldOfView = _savedOrthographic ? OverviewPerspectiveFov() : _output.fieldOfView;
             virtualCamera.Lens.ModeOverride = LensSettings.OverrideModes.Perspective;
-            virtualCamera.Lens.FieldOfView = 65; virtualCamera.Lens.NearClipPlane = .05f;
-            transform.SetPositionAndRotation(_walk.Position, _walk.Rotation);
-            Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
-        }
-        else
-        {
-            if (virtualCamera != null) virtualCamera.Lens = _savedLens;
+            virtualCamera.Lens.NearClipPlane = .05f;
             transform.SetPositionAndRotation(_savedPosition, _savedRotation);
-            if (_follow != null) _follow.enabled = _savedFollow;
-            if (_brain != null) _brain.LensModeOverride = _savedBrainMode;
-            if (_output != null) _output.orthographic = _savedOrthographic;
-            Cursor.lockState = _savedCursorLock; Cursor.visible = _savedCursorVisible;
+            Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false;
+            IsFirstPerson = true;
+            FirstPersonChanged?.Invoke(true);
         }
-        IsFirstPerson = active;
+        else if (!active && !IsFirstPerson) return true;
+        _firstPersonRequested = active;
         _isPanning = false;
-        if (virtualCamera != null) virtualCamera.PreviousStateIsValid = false;
-        FirstPersonChanged?.Invoke(active);
+        _transitionFromPosition = transform.position; _transitionFromRotation = transform.rotation;
+        _transitionFromFov = virtualCamera.Lens.FieldOfView;
+        _transitionElapsed = 0; _transitionActive = true;
+        virtualCamera.PreviousStateIsValid = false;
         return true;
     }
 
-    private void OnApplicationFocus(bool focused) { if (!focused && IsFirstPerson) SetFirstPerson(false); }
+    private float OverviewPerspectiveFov()
+    {
+        var depth = Mathf.Max(.1f, Vector3.Dot(followTarget.position - _savedPosition, _savedRotation * Vector3.forward));
+        return Mathf.Clamp(2 * Mathf.Atan(_savedLens.OrthographicSize / depth) * Mathf.Rad2Deg, 5, 120);
+    }
+
+    private void UpdateFirstPersonTransition()
+    {
+        _transitionElapsed += Time.unscaledDeltaTime;
+        var progress = Mathf.Clamp01(_transitionElapsed / TransitionSeconds);
+        var eased = progress * progress * (3 - 2 * progress);
+        var targetPosition = _firstPersonRequested ? _walk.Position : _savedPosition;
+        var targetRotation = _firstPersonRequested ? _walk.Rotation : _savedRotation;
+        var targetFov = _firstPersonRequested ? 65 : _savedOrthographic ? OverviewPerspectiveFov() : _savedLens.FieldOfView;
+        transform.SetPositionAndRotation(Vector3.Lerp(_transitionFromPosition, targetPosition, eased),
+            Quaternion.Slerp(_transitionFromRotation, targetRotation, eased));
+        virtualCamera.Lens.FieldOfView = Mathf.Lerp(_transitionFromFov, targetFov, eased);
+        if (progress < 1) return;
+        _transitionActive = false;
+        _enteredFirstPersonFrame = Time.frameCount;
+        if (!_firstPersonRequested) RestoreOverview();
+    }
+
+    private void RestoreOverview()
+    {
+        if (!IsFirstPerson) return;
+        _firstPersonRequested = _transitionActive = false;
+        if (virtualCamera != null) virtualCamera.Lens = _savedLens;
+        transform.SetPositionAndRotation(_savedPosition, _savedRotation);
+        if (_positionControl != null) _positionControl.enabled = _savedPositionControl;
+        if (_brain != null) _brain.LensModeOverride = _savedBrainMode;
+        if (_output != null) _output.orthographic = _savedOrthographic;
+        Cursor.lockState = _savedCursorLock; Cursor.visible = _savedCursorVisible;
+        IsFirstPerson = false; _isPanning = false;
+        if (virtualCamera != null) virtualCamera.PreviousStateIsValid = false;
+        FirstPersonChanged?.Invoke(false);
+    }
+
+    private void OnApplicationFocus(bool focused) { if (!focused) RestoreOverview(); }
 
     private void OnPanStart(InputAction.CallbackContext ctx)
     {
