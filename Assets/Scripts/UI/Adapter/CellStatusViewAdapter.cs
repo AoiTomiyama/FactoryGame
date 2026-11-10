@@ -28,6 +28,28 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
     public float TopInset { get; set; } = 72;
     private Vector2 _baseMin, _baseMax;
     private Vector3 _markerBaseScale;
+    private bool _firstPerson;
+    private CanvasGroup _modeVisibility;
+    private float _savedAlpha;
+    private bool _savedInteractable, _savedRaycasts;
+    public void SetFirstPersonMode(bool active)
+    {
+        if (active == _firstPerson) return;
+        if (_modeVisibility == null) _modeVisibility = GetComponent<CanvasGroup>();
+        if (active)
+        {
+            _savedAlpha = _modeVisibility.alpha; _savedInteractable = _modeVisibility.interactable;
+            _savedRaycasts = _modeVisibility.blocksRaycasts;
+            _modeVisibility.alpha = 0; _modeVisibility.interactable = _modeVisibility.blocksRaycasts = false;
+        }
+        else
+        {
+            _modeVisibility.alpha = _savedAlpha; _modeVisibility.interactable = _savedInteractable;
+            _modeVisibility.blocksRaycasts = _savedRaycasts;
+        }
+        _firstPerson = active;
+        if (selectionMarker != null) selectionMarker.gameObject.SetActive(!active && _selectedCell != null && elementWindowTransform.gameObject.activeSelf);
+    }
 
     public void ConfigureHud(Font font, ResourceDefinition resources)
     {
@@ -108,7 +130,7 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
         
         if (selectionMarker != null)
         {
-            selectionMarker.gameObject.SetActive(isActive);
+            selectionMarker.gameObject.SetActive(isActive && !_firstPerson);
         }
     }
     public void ShowDetails()

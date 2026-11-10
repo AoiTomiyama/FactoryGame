@@ -15,6 +15,8 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
     private Camera _camera;
     private Vector2 _mousePosition;
     private bool _isLeftClickPressed;
+    private bool _firstPerson;
+    private CameraControllerAdapter _cameraController;
 
     private void Start()
     {
@@ -24,8 +26,16 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
         }
 
         _camera = Camera.main;
-        if (operationBar != null) operationBar.Configure(this, FindAnyObjectByType<CameraControllerAdapter>());
+        _cameraController = FindAnyObjectByType<CameraControllerAdapter>();
+        if (_cameraController != null) _cameraController.FirstPersonChanged += SetFirstPerson;
+        if (operationBar != null) operationBar.Configure(this, _cameraController);
     }
+    private void SetFirstPerson(bool active)
+    {
+        _firstPerson = active; _isLeftClickPressed = false;
+        placer.CancelPlacementPreview();
+    }
+    private void OnDestroy() { if (_cameraController != null) _cameraController.FirstPersonChanged -= SetFirstPerson; }
 
     private void Update()
     {
@@ -65,7 +75,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
 
     private void OnMouseMove(InputAction.CallbackContext context)
     {
-        if (!context.performed) return;
+        if (_firstPerson || !context.performed) return;
 
         _mousePosition = context.ReadValue<Vector2>();
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
@@ -79,6 +89,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
 
     private void OnLeftClickDown(InputAction.CallbackContext context)
     {
+        if (_firstPerson) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
         _isLeftClickPressed = true;
         placer.PointerBegin();
@@ -100,7 +111,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
 
     private void OnRightClick(InputAction.CallbackContext context)
     {
-        if (!context.performed) return;
+        if (_firstPerson || !context.performed) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
         placer.TransferDataToUI();
     }
@@ -114,5 +125,5 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
     }
 
     // ボタンとショートカットで同じ配置方向を更新する。
-    public void RotatePlacement() => transform.Rotate(Vector3.up, 90f);
+    public void RotatePlacement() { if (!_firstPerson) transform.Rotate(Vector3.up, 90f); }
 }

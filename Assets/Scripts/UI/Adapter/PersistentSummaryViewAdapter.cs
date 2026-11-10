@@ -14,6 +14,14 @@ public sealed class PersistentSummaryViewAdapter
     public IReadOnlyList<Text> WalletItems => _walletItems;
     public IReadOnlyList<Text> Items => _items;
     private readonly Text _rowPrefab;
+    private bool _firstPerson;
+    private int _itemCount;
+    public void SetFirstPersonMode(bool active)
+    {
+        _firstPerson = active;
+        for (var i = 0; i < _items.Count; i++) _items[i].gameObject.SetActive(!active && i < _itemCount);
+        UpdateLayout();
+    }
     public PersistentSummaryViewAdapter(RectTransform root, Font font, Text[] walletItems, Text rowPrefab)
     {
         _font = font;
@@ -29,10 +37,11 @@ public sealed class PersistentSummaryViewAdapter
     }
     public void SetItems(params string[] items)
     {
+        _itemCount = items.Length;
         while (_items.Count < items.Length) _items.Add(CreateItem());
         for (var i = 0; i < _items.Count; i++)
         {
-            _items[i].gameObject.SetActive(i < items.Length);
+            _items[i].gameObject.SetActive(!_firstPerson && i < items.Length);
             if (i < items.Length) _items[i].text = items[i];
         }
         UpdateLayout();

@@ -16,6 +16,17 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     private bool _bound;
     private bool _expanded = true;
     private bool _selectedActive;
+    private bool _firstPerson;
+    private CameraControllerAdapter _cameraController;
+    private void SetFirstPersonMode(bool active)
+    {
+        _firstPerson = active;
+        layout.SetFirstPersonMode(active);
+        _view.SetFirstPersonMode(active);
+        _summaryView.SetFirstPersonMode(active);
+        _operation.SetFirstPersonMode(active);
+        UpdatePlacementMode();
+    }
     [SerializeField] private HudLayoutAdapter layout;
     private Font _font;
     private GameObject _canvas;
@@ -197,7 +208,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
 
     private void UpdatePlacementMode()
     {
-        var active = isActiveAndEnabled && _expanded && SelectedPage == 0;
+        var active = isActiveAndEnabled && !_firstPerson && _expanded && SelectedPage == 0;
         _placer?.SetPlacementEnabled(active);
         _operation?.SetPlacementActive(active);
     }
@@ -227,6 +238,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     private void OnDisable() { UpdatePlacementMode(); Unbind(); _equipmentPresenter?.SetActive(false); if (_canvas != null) _canvas.SetActive(false); }
     private void OnDestroy()
     {
+        if (_cameraController != null) _cameraController.FirstPersonChanged -= SetFirstPersonMode;
         _placer?.SetPlacementEnabled(false); _operation?.SetPlacementActive(false);
         Unbind();
         _equipmentPresenter?.Dispose();
@@ -247,6 +259,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         _canvas = layout.gameObject;
         _body = layout.Body.gameObject;
         _operation = FindAnyObjectByType<OperationBarAdapter>(FindObjectsInactive.Include);
+        _cameraController = FindAnyObjectByType<CameraControllerAdapter>();
+        if (_cameraController != null) _cameraController.FirstPersonChanged += SetFirstPersonMode;
         _placement = _operation.PlacementInfo;
         for (var i = 0; i < 3; i++)
         {

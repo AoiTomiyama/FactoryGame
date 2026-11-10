@@ -26,6 +26,13 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     private float _width, _bodyHeight, _summaryHeight;
     private float _slide, _slideTarget, _slideFrom, _slideElapsed;
     private CanvasGroup _bodyInput, _headerInput;
+    private bool _firstPerson;
+    public void SetFirstPersonMode(bool active)
+    {
+        InitializeLayout(); _firstPerson = active;
+        Navigation.gameObject.SetActive(!active);
+        UpdateSlideInput();
+    }
     public bool IsSliding => _slide != _slideTarget;
     public Font Font => TextRow.font;
     private void Awake() => InitializeLayout();
@@ -115,7 +122,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     }
     private void UpdateSlideInput()
     {
-        var visible = _slide > 0 || _slideTarget > 0;
+        var visible = !_firstPerson && (_slide > 0 || _slideTarget > 0);
         Body.gameObject.SetActive(visible);
         Close.gameObject.SetActive(visible);
         // 移動中の購入を防ぎ、見えているUIの背後へ配置入力を通さない。
