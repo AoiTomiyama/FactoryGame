@@ -243,7 +243,7 @@ public static class CraftingVerifierEditor
         var resources = AssetDatabase.LoadAssetAtPath<ResourceDefinition>("Assets/Scripts/ScriptableObject/ResourceDB.asset");
         var prices = AssetDatabase.LoadAssetAtPath<CurrencyEconomyDefinition>("Assets/Scripts/ScriptableObject/CurrencyEconomy.asset").CreateCatalog();
         var wallet = new CurrencyWalletApplication(0);
-        var intake = new SingularityIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
+        var intake = new ShippingIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
         var poolRoot = new GameObject("CraftingCheck:ProductPool");
         var pool = poolRoot.AddComponent<ResourceItemObjectPoolAdapter>();
         SetField(pool, "resourceDatabase", resources);
@@ -327,11 +327,12 @@ public static class CraftingVerifierEditor
             var sink = UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<SingularityCellAdapter>(
                 "Assets/Prefabs/Field/General/F_SingularityCell.prefab"), output + forward * 4 + rotation * Vector3.right, rotation, route);
             var wallet = new CurrencyWalletApplication(0);
-            sink.Configure(wallet, prices);
+            var absorbed = 0;
+            sink.Absorbed += (type, amount) => { if (type == ResourceTypeDomain.BuildingParts) absorbed += amount; };
             grid.InitializeCells(18);
             sink.InitializeSystem(); crafter.InitializeSystem(); exporter.InitializeSystem(); left.InitializeSystem(); right.InitializeSystem();
             Require(crafter.Connections.Count == 3 && sink.Connections.Count == 1, "both rear inputs and front output connect to distinct exterior ports");
-            await Wait(() => wallet.Current.Balance == 16);
+            await Wait(() => absorbed == 1 && wallet.Current.Balance == 0);
             Require(crafter.GetInput(0).Amount == 0 && crafter.GetInput(1).Amount == 0 && crafter.ExportStorageAmount == 0 &&
                 wallet.Current.ReservedIncome == 0 && pool.Resources.Count == 0, "two resources craft and sell once without remaining reservations or IDs");
             UnityEngine.Object.Destroy(route.gameObject); await UniTask.Yield();

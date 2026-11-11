@@ -143,8 +143,8 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 
 | ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
 | --- | --- | --- | --- |
-| [SingularityIntakeApplication](../../Assets/Scripts/Economy/Application/SingularityIntakeApplication.cs) | 方向別の全量換金予約・確定・取消 | CurrencyWalletApplication, CurrencyPriceCatalogDomain | 標準C# |
-| [SingularityCellAdapter](../../Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs) | 消費専用セルと接続・無効化・破棄 | ConnectableCellBaseAdapter, IContainableApplication, SingularityIntakeApplication | UnityEngine |
+| [ShippingIntakeApplication](../../Assets/Scripts/Economy/Application/ShippingIntakeApplication.cs) | 方向別の全量換金予約・確定・取消 | CurrencyWalletApplication, CurrencyPriceCatalogDomain | 標準C# |
+| [SingularityCellAdapter](../../Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs) | 換金しない吸収先と接続・無効化・破棄 | ConnectableCellBaseAdapter, IContainableApplication, AbsorptionIntakeApplication | UnityEngine |
 | [SingularityStartDefinition](../../Assets/Scripts/Economy/Definitions/SingularityStartDefinition.cs) | 中央初期配置と初回経路の設定検証 | CurrencyEconomyDefinition, SingularityCellAdapter, ResourceCellAdapter, EmptyCellAdapter | UnityEngine |
 | [SingularitySetupEditor](../../Assets/Scripts/Economy/Editor/SingularitySetupEditor.cs) | 初期設定・Prefab・MainScene配線の編集 | SingularityStartDefinition, GridFieldGeneratorAdapter | UnityEditor |
 | [SingularityVerifierEditor](../../Assets/Scripts/Economy/Editor/SingularityVerifierEditor.cs) | 換金境界・寿命・再入・再生成・初回経路の検証 | Economy, Coordinator, CellPlacerAdapter | UnityEditor, UniTask |
@@ -169,7 +169,6 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | --- | --- | --- |
 | [SkillTreeViewAdapter](../../Assets/Scripts/UI/Adapter/SkillTreeViewAdapter.cs) | 既存行Prefabを使った横移動可能な種類別樹形図、前提の接続線、選択・適用済み表示 | HudLayoutAdapter, SkillTreeApplication, uGUI |
 | [EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs) | 共有状態の配線・購読、直接タブ、配置・スキル操作、各Viewの寿命 | CurrencyWalletApplication, SkillTreeApplication, CellStatusViewAdapter, uGUI |
-| [SingularityProviderDefinition](../../Assets/Scripts/UI/Definitions/SingularityProviderDefinition.cs) | 特異点の専用Readerへ渡すラベル | ProviderBaseDefinition |
 | [EconomyUIVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs) | MainSceneの経済表示・購入可否・購読寿命・レイアウト検証、既存UIと設置の検証入口 | EconomyPanelAdapter, UIStatusVerifierEditor, EquipmentPlacementVerifierEditor, UnityEditor, UniTask |
 | [OperationBarAdapter](../../Assets/Scripts/UI/Adapter/OperationBarAdapter.cs) | 下部の操作案内と回転・視点切替ボタン、保存済みPrefabの参照と購入リスナーの寿命 | PlayerCursorBehaviourAdapter, CameraControllerAdapter, uGUI |
 
@@ -191,3 +190,5 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | [RecipeResourceRowAdapter](../../Assets/Scripts/UI/Adapter/RecipeResourceRowAdapter.cs) | Recipe.prefabの資源アイコン・名称・数量の表示 |
 | [EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs) | 選択設備の読み取り専用表示、スキル共用詳細の適用リスナー解除 |
 | [HudPrefabVerifierEditor](../../Assets/Scripts/UI/Editor/HudPrefabVerifierEditor.cs) | MainSceneとPrefabの保存参照、欠損、Editor編集保持、再構成時の固定部品保持を既存UI回帰へ追加 |
+
+出荷セル追加（2026-11-11）: [ShippingCellAdapter](../../Assets/Scripts/Economy/Adapter/ShippingCellAdapter.cs)は換金と寿命の接続、[AbsorptionIntakeApplication](../../Assets/Scripts/Economy/Application/AbsorptionIntakeApplication.cs)は特異点の全量吸収予約を担当する。[ShippingSetupEditor](../../Assets/Scripts/Economy/Editor/ShippingSetupEditor.cs)は資産の構成、[ShippingVerifierEditor](../../Assets/Scripts/Economy/Editor/ShippingVerifierEditor.cs)は資産と吸収の対象検証を行う。

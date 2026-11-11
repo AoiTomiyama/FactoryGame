@@ -1,4 +1,4 @@
-﻿# 状態UIとスクリプト相関
+# 状態UIとスクリプト相関
 
 タグ: `現行設計` `UI` `イベント購読` `データ授受` `依存`
 
@@ -210,4 +210,4 @@ GeneratorがEconomyPanelAdapterを構成し、共有残高と種類別スキル�
 
 CellStatusViewAdapterは選択・Provider・行プールを管理する。統合HUDではHudStatusProviderAdapterが見出しとの重複を省き、在庫・進捗の用途ラベルを付け、HudStatusRowAdapterが共通書体で描画する。行と強化欄は同じ右側スクロール内に置く。UIS-06ではFactoryHudとOperationBarのPrefabへ固定枠を保存し、変動する一覧だけを行Prefabから生成する。EconomyPanelAdapterの破棄時は購読と購入リスナーを解除して保存済みHUDを非表示にする。配置の基準と参照はHudLayoutAdapterが保持する。
 
-特異点は専用ReaderとSingularityProviderDefinitionをCreateCustomへ渡す。Readerから残高と換金待ちを取得し、HUDでは予約値を省く。残高通知をStatusChangedへつなぐ。経済UIは選択切替で前のセル、無効化・破棄で全購読を解除する。左ページの開閉では購読を保ち、残高と右側の状態を更新する。UIRaycasterはEventSystemの全Canvasを照合し、追加パネル上の操作をフィールドから遮る。表示項目・操作・検証入口は[経済UI仕様](../spec/currency-loop-ui.md)を参照する。
+出荷セルが換金を行い、共有残高の変化は経済パネルがWallet.Changedから取得する。特異点の吸収は通貨と独立し、両セルの詳細へ残高や内部予約数を重複表示しない。経済UIは選択切替で前のセル、無効化・破棄で全購読を解除する。左ページの開閉では購読を保ち、残高と右側の状態を更新する。UIRaycasterはEventSystemの全Canvasを照合し、追加パネル上の操作をフィールドから遮る。表示項目・操作・検証入口は[経済UI仕様](../spec/currency-loop-ui.md)を参照する。

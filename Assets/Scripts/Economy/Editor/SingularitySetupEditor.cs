@@ -9,6 +9,7 @@ public static class SingularitySetupEditor
     private const string Folder = "Assets/Scripts/ScriptableObject/";
     public static void Run()
     {
+        ShippingSetupEditor.Run();
         var economy = AssetDatabase.LoadAssetAtPath<CurrencyEconomyDefinition>(Folder + "CurrencyEconomy.asset");
         if (economy == null)
         {

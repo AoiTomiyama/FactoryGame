@@ -82,9 +82,10 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         var singularities = grid.Owners.OfType<SingularityCellAdapter>().ToArray();
         if (singularities.Length != 1) throw new InvalidOperationException("Initial field requires exactly one singularity.");
         var singularity = singularities[0];
-        singularity.Configure(Wallet, Prices);
         // 登録と共有残高の構成後に接続を開始する。
         singularity.InitializeSystem();
+        foreach (var shipping in grid.Owners.OfType<ShippingCellAdapter>())
+        { shipping.Configure(Wallet, Prices); shipping.InitializeSystem(); }
         FindAnyObjectByType<CameraControllerAdapter>()?.FocusOn(singularity.WorldCenter);
         economyPanel.Configure(Wallet, Skills, FindAnyObjectByType<CellStatusViewAdapter>(), FindAnyObjectByType<CellPlacerAdapter>());
     }
@@ -108,6 +109,13 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         if (singularity == null) singularity = (SingularityCellAdapter)CreateInitialCell(initialLayout.SingularityPrefab, parent, center, center);
         singularity.transform.rotation = Quaternion.identity;
         singularity.ApplyFootprintCollider();
+        var sale = initialLayout.ShippingCell(gridSize);
+        var previousShipping = existing.FirstOrDefault(c => Vector3Int.RoundToInt(c.transform.position) == new Vector3Int(sale.x, 0, sale.z));
+        if (previousShipping is not ShippingCellAdapter)
+        {
+            if (previousShipping != null) RetireInitialCell(previousShipping);
+            CreateInitialCell(initialLayout.ShippingPrefab, parent, sale.x, sale.z);
+        }
         // 強制上書きは初期地形の構成時だけ行い、通常の購入配置へ広げない。
         for (var distance = 1; distance <= 4; distance++)
         {

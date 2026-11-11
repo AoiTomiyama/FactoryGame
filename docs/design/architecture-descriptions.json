@@ -72,19 +72,15 @@
           ]
         },
         "Cells": {
-          "description": "保管、採取、コンベア搬送、交差、加工の具体的なUnityセル群です。各セルは役割に応じた在庫や資源ID、非同期処理の寿命を持ち、能力契約を公開します。数量規則や処理進行へ委ねる部分と、Unityとの接続責任を分けています。",
+          "description": "保管・採取・搬送・加工と、資源を換金せず吸収する特異点、共有残高へ換金する出荷セルです。座標と接続を保ち、搬送確定時に受入担当へ渡します。",
           "references": [
             {
-              "path": "Assets/Scripts/Cells/Adapter/StorageCellAdapter.cs",
-              "symbol": "StorageCellAdapter"
+              "path": "Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs",
+              "symbol": "SingularityCellAdapter"
             },
             {
-              "path": "Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs",
-              "symbol": "ConveyorCellAdapter"
-            },
-            {
-              "path": "Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs",
-              "symbol": "CrafterCellAdapter"
+              "path": "Assets/Scripts/Economy/Adapter/ShippingCellAdapter.cs",
+              "symbol": "ShippingCellAdapter"
             }
           ]
         },
@@ -319,13 +315,15 @@
           ]
         },
         "Economy": {
-          "description": "一プレイの共有残高と予約取引を管理します。換金は方向別予約を成功時に入金し、設置は失敗時に登録と予約を戻します。種類別強化の支出はSkillTreeApplicationから同じ残高へ確定します。",
+          "description": "共有残高、出荷の入力予約と設置取引を担当します。出荷だけが共有残高を増やし、特異点の吸収予約は通貨へ依存しません。",
           "references": [
             {
-              "path": "Assets/Scripts/Economy/Application/SingularityIntakeApplication.cs"
+              "path": "Assets/Scripts/Economy/Application/ShippingIntakeApplication.cs",
+              "symbol": "ShippingIntakeApplication"
             },
             {
-              "path": "Assets/Scripts/Economy/Application/EquipmentPlacementApplication.cs"
+              "path": "Assets/Scripts/Economy/Application/AbsorptionIntakeApplication.cs",
+              "symbol": "AbsorptionIntakeApplication"
             }
           ]
         },
@@ -825,10 +823,20 @@
           ]
         },
         "SingularityCellAdapter": {
-          "description": "中央に初期配置される消費専用の受け取り先です。入力方向ごとの全量予約を換金予約へ接続し、搬入確定時に共有残高へ入金します。無効化では接続を取り消して予約を解放し、再有効化時に再接続します。資源IDの終端返却はCoordinatorが担います。",
+          "description": "5×5の占有と20入力を持つ、換金しない資源の吸収先です。吸収の確定だけを通知し、資源IDの終端処理は共有Coordinatorへ任せます。",
           "references": [
             {
-              "path": "Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs"
+              "path": "Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs",
+              "symbol": "SingularityCellAdapter"
+            }
+          ]
+        },
+        "ShippingCellAdapter": {
+          "description": "1マス・四方向入力の換金先です。GeneratorまたはPlacerから共有残高と価格を受け取り、出荷予約の確定時に入金します。無効化・撤去では自身の未確定予約を解除します。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Economy/Adapter/ShippingCellAdapter.cs",
+              "symbol": "ShippingCellAdapter"
             }
           ]
         }
@@ -852,7 +860,8 @@
           "MonoBehaviour": "external",
           "GridFieldDatabaseAdapter": "surface",
           "ResourceStorageRulesDomain": "foundation",
-          "SingularityCellAdapter": "middle"
+          "SingularityCellAdapter": "middle",
+          "ShippingCellAdapter": "middle"
         }
       },
       "number": "2.1"
@@ -2209,11 +2218,11 @@
           ]
         },
         "G": {
-          "description": "起動時に初期特異点の範囲内にある元の資源と空セルを退役させ、外周基準の木材と搬送経路を確保する。続いてグリッド登録と共有残高・価格・スキルの構成を行い、特異点を接続してカメラを中心へ合わせる。",
+          "description": "保存済み初期定義から5×5特異点・1×1出荷セル・初回換金経路を構成します。全所有セルを登録した後、共有残高と価格を出荷先へ渡し、特異点と出荷先の接続を開始します。",
           "references": [
             {
               "path": "Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs",
-              "symbol": "GridFieldGeneratorAdapter"
+              "symbol": "Start"
             }
           ]
         },

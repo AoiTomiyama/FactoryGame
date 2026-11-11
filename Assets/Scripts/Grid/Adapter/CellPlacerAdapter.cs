@@ -310,6 +310,7 @@ public class CellPlacerAdapter : MonoBehaviour
             foreach (var cell in created)
             {
                 cell.gameObject.SetActive(true);
+                if (cell is ShippingCellAdapter shipping) shipping.Configure(_wallet, _prices);
                 cell.InitializeSystem();
             }
             if (created.Any(c => c == null || !c.isActiveAndEnabled ||

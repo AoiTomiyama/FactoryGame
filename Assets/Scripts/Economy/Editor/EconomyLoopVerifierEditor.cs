@@ -69,12 +69,12 @@ public static class EconomyLoopVerifierEditor
                 Require(wallet.Current.Balance == balance - price, "placement charged once");
                 spent += price;
             }
-            Place(50, 45, CellTypeDomain.ExtractorWood, 180);
-            Place(50, 46, CellTypeDomain.ExportConveyor);
-            Place(50, 47, CellTypeDomain.Conveyor);
+            Place(50, 44, CellTypeDomain.ExtractorWood, 180);
+            Place(50, 45, CellTypeDomain.ExportConveyor);
+            Place(50, 46, CellTypeDomain.Conveyor);
             Require(spent == 30 && wallet.Current.Balance == 70, "starter route costs 30 of initial 100");
-            var extractor = grid.GetCell(50, 45) as ExtractorCellAdapter;
-            var conveyor = grid.GetCell(50, 47) as ConveyorCellAdapter;
+            var extractor = grid.GetCell(50, 44) as ExtractorCellAdapter;
+            var conveyor = grid.GetCell(50, 46) as ConveyorCellAdapter;
             Require(extractor != null && conveyor != null, "route installed through pointer commands");
             await Funds(71);
             Require(earned > 0 && panel.BalanceText.Contains(wallet.Current.Balance.ToString()), "first real extraction transfer and conversion");
@@ -113,7 +113,7 @@ public static class EconomyLoopVerifierEditor
             await Funds(5);
             Place(empty.XIndex, empty.ZIndex, CellTypeDomain.ExportConveyor);
             var added = (ExportConveyorCellAdapter)grid.GetCell(empty.XIndex, empty.ZIndex);
-            Require(added.TransferAmount == ((ExportConveyorCellAdapter)grid.GetCell(50, 46)).TransferAmount, "reinvested new equipment inherits global effects");
+            Require(added.TransferAmount == ((ExportConveyorCellAdapter)grid.GetCell(50, 45)).TransferAmount, "reinvested new equipment inherits global effects");
             var before = wallet.Current.Balance;
             await Funds(before + 1);
             Require(wallet.Current.Balance == 100 + earned - spent && wallet.Current.ReservedExpense == 0,

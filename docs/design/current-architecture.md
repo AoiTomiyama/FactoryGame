@@ -6,7 +6,7 @@
 
 この文書は現在動く仕組みの静的説明である。[設計方針](architecture-guidelines.md)の到達像と区別する。
 
-今後のゲームループは[コンセプトと採用方針](game-concept.md)、実装順は[特異点への累計納品と出荷の分離計画](../tasks/black-hole-loop-plan.md)を参照する。現在の換金専用特異点からの拡張であり、納品・出荷セル・段階目標は実装前の仕様として扱う。
+今後のゲームループは[コンセプトと採用方針](game-concept.md)、実装順は[特異点への累計納品と出荷の分離計画](../tasks/black-hole-loop-plan.md)を参照する。出荷セルへの換金分離は実装済みで、累計納品と段階目標は次工程として扱う。
 
 PRG-01の能力合成は[設備の有効能力](../spec/effective-stats.md)を参照する。グリッドが共有効果を所有し、登録時に各設備へ渡す。セルは種類・能力別の倍率と加算値、基礎設定から有効値を読み、稼働中の数量・予約・加工計画を保持する。
 
@@ -26,7 +26,7 @@ UIS-04の[下部操作帯](../spec/currency-loop-ui.md#画面下の操作帯uis-
 
 ## 通貨・初期特異点・設備設置（ECO-01/02/03）
 
-2026-10-21にEconomyのDomain/Applicationと設定定義を追加した。[通貨の仕様・依存・検証](../spec/currency-wallet.md)を参照する。構成入口が価格カタログと共有残高を生成して渡す。ECO-02ではGeneratorが同じ残高と価格カタログを中央の特異点へ渡し、搬送成功時に換金する。[特異点・初期経路・保護・検証](../spec/currency-singularity.md)を参照する。
+2026-10-21にEconomyのDomain/Applicationと設定定義を追加した。[通貨の仕様・依存・検証](../spec/currency-wallet.md)を参照する。構成入口が価格カタログと共有残高を生成して渡す。ECO-02ではGeneratorが同じ残高と価格カタログを出荷セルへ渡し、搬送成功時に換金する。特異点は別の吸収予約を使い、残高を増やさない。[特異点・初期経路・保護・検証](../spec/currency-singularity.md)を参照する。
 
 ECO-03では同じ残高をCellPlacerへ渡し、[設備設置の支出取引](../spec/currency-placement.md)へ接続した。新セルの登録・初期化成功時だけ課金し、失敗時は元のグリッド参照と予約額を復元する。範囲はドラッグ順に確定し、不足・失敗で停止する。設置見積りと確定個数・支出額を表示する。
 
@@ -48,7 +48,7 @@ flowchart LR
  subgraph Adapter["Adapter: Unityとの接続"]
   Input["Input: PlayerCursor / CameraController"]
   Grid["Grid: Generator / Database / Placer"]
-  Cells["Cells: 保管・採取・搬送・交差 / Crafter / 特異点"]
+  Cells["Cells: 保管・採取・搬送・交差 / Crafter / 特異点 / 出荷"]
   Presentation["Transfers: ObjectPool / Animation"]
   UI["UI: View / Provider変換 / Renderer / 行 / 経済パネル"]
  end
@@ -190,7 +190,7 @@ MainSceneの共有残高と初回経路、実際の換金収益による全5種�
 
 ## 配置・経済・成長の操作表示（ECO-05・ECO-07）
 
-[経済UI仕様](../spec/currency-loop-ui.md)に従い、Generatorが共有残高・スキル・強化処理をEconomyPanelAdapterへ渡す。パネルは残高と予約、換金通知、設置見積りと結果、選択設備の有効能力・強化費、スキルの前提・効果・可否を表示する。選択変更はViewのSelectionChanged、特異点の専用ReaderはCreateCustomへ接続する。パネルと選択の寿命に合わせて購読を解除する。
+[経済UI仕様](../spec/currency-loop-ui.md)に従い、Generatorが共有残高・スキル・強化処理をEconomyPanelAdapterへ渡す。パネルは残高と予約、換金通知、設置見積りと結果、選択設備の有効能力・強化費、スキルの前提・効果・可否を表示する。選択変更はViewのSelectionChangedへ接続し、残高は経済パネルがWallet.Changedを購読する。出荷と特異点の詳細へ共有残高を重複表示しない。パネルと選択の寿命に合わせて購読を解除する。
 
 UIS-05では既存のSelectButtonBuilderを左の配置ページへ移し、レシピ・スキルと直接タブで切り替える。残高は上部に常時表示し、設備強化は右側のセル情報へ統合する。採取設備のサブメニューは同じセル定義とPlacerを使う。UI上で離した配置ドラッグは取消し、選択・表示切替では支払を行わない。
 

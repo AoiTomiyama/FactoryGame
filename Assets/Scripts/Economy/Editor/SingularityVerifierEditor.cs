@@ -36,7 +36,7 @@ public static class SingularityVerifierEditor
     {
         var prices = AssetDatabase.LoadAssetAtPath<SingularityStartDefinition>(LayoutPath).CreateCatalog();
         var wallet = new CurrencyWalletApplication(100);
-        var intake = new SingularityIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
+        var intake = new ShippingIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
         for (var i = 0; i < 4; i++)
             Require(intake.TryReserve(i, i + 1, i % 2 == 0 ? ResourceTypeDomain.Wood : ResourceTypeDomain.Stone), "four mixed inputs");
         Require(wallet.Current.ReservedIncome == 10 && wallet.Current.Balance == 100, "reserve without payment");
@@ -57,7 +57,7 @@ public static class SingularityVerifierEditor
             Require(!intake.TryReserve(0, 1, type), "undefined sale");
         Require(!intake.TryReserve(-1, 1, ResourceTypeDomain.Wood) && !intake.TryReserve(4, 1, ResourceTypeDomain.Wood), "invalid directions");
         wallet = new CurrencyWalletApplication(long.MaxValue - 3);
-        intake = new SingularityIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
+        intake = new ShippingIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
         Require(wallet.TryReserveExpense(10, out var expense), "expense reservation");
         Require(intake.TryReserve(0, 2, ResourceTypeDomain.Wood) && !intake.TryReserve(1, 2, ResourceTypeDomain.Stone), "shared income limit");
         expense.TryCancel();
@@ -65,7 +65,7 @@ public static class SingularityVerifierEditor
         intake.Commit(1, 1); intake.Commit(0, 2);
         Require(wallet.Current.Balance == long.MaxValue && wallet.Current.ReservedIncome == 0, "exact cap after expense cancel");
         wallet = new CurrencyWalletApplication(0);
-        intake = new SingularityIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
+        intake = new ShippingIntakeApplication(wallet, prices, new[] { 0, 1, 2, 3 }) { Accepting = true };
         var callbacks = 0;
         wallet.Changed += snapshot =>
         {
@@ -89,30 +89,30 @@ public static class SingularityVerifierEditor
         var anchor = new GameObject("GenerationVerification").transform;
         try
         {
-            Set(generator, "gridSize", 12);
+            Set(generator, "gridSize", 14);
             var layout = AssetDatabase.LoadAssetAtPath<SingularityStartDefinition>(LayoutPath);
             for (var seed = 0; seed < 3; seed++)
             {
                 Set(generator, "seedValue", seed);
                 generator.GenerateGrid(anchor);
                 var singularities = anchor.GetComponentsInChildren<SingularityCellAdapter>();
-                Require(singularities.Length == 1 && singularities[0].transform.position == new Vector3(6, 0, 6), "regeneration central singleton");
+                Require(singularities.Length == 1 && singularities[0].transform.position == new Vector3(7, 0, 7), "regeneration central singleton");
                 var cells = anchor.GetComponentsInChildren<CellBaseAdapter>();
-                var woodPoint = layout.StarterCell(12, 4);
+                var woodPoint = layout.StarterCell(14, 4);
                 Require(cells.OfType<ResourceCellAdapter>().Any(c => c.ResourceTypeDomain == ResourceTypeDomain.Wood &&
                     c.transform.position == new Vector3(woodPoint.x, 0, woodPoint.z)), "initial wood outside footprint");
                 for (var distance = 1; distance <= 3; distance++)
                 {
-                    var point = layout.StarterCell(12, distance);
+                    var point = layout.StarterCell(14, distance);
                     Require(cells.OfType<EmptyCellAdapter>().Any(c => c.transform.position == new Vector3(point.x, 0, point.z)), "starter route outside footprint");
                 }
-                Require(singularities[0].Footprint.Area == 25 && singularities[0].Ports.Count == 20 && cells.Length == 120,
+                Require(singularities[0].Footprint.Area == 25 && singularities[0].Ports.Count == 20 && cells.Length == 172,
                     "generated field has one 25-tile owner and no interior terrain");
             }
             var original = anchor.GetComponentInChildren<SingularityCellAdapter>();
             UnityEngine.Object.DestroyImmediate(original.gameObject);
             var displaced = new System.Collections.Generic.List<ResourceCellAdapter>();
-            foreach (var point in layout.SingularityPrefab.Footprint.Coordinates(6, 6, 0))
+            foreach (var point in layout.SingularityPrefab.Footprint.Coordinates(7, 7, 0))
             {
                 var resource = ((GameObject)PrefabUtility.InstantiatePrefab(layout.WoodPrefab.gameObject, anchor)).GetComponent<ResourceCellAdapter>();
                 resource.transform.position = new Vector3(point.x, 0, point.z);
@@ -157,7 +157,7 @@ public static class SingularityVerifierEditor
             Require(grid.Owners.OfType<SingularityCellAdapter>().Count() == 1 && singularity.OccupiedCoordinates.All(p => grid.GetCell(p.x, p.z) == singularity),
                 "all 25 tiles return one owner");
             for (var port = 0; port < 20; port++) Require(singularity.AllocateStorage(port, 1, ResourceTypeDomain.Wood), "twenty independent inputs");
-            Require(wallet.Current.ReservedIncome == 20, "twenty ports reserve independently");
+            Require(wallet.Current.ReservedIncome == 0, "absorption never reserves income");
             for (var port = 0; port < 20; port++) singularity.CancelStorage(port, 1, ResourceTypeDomain.Wood);
             Require(wallet.Current.ReservedIncome == 0 && wallet.Current.Balance == 100, "twenty cancellations preserve balance");
             var identity = singularity.Identity;
@@ -169,29 +169,53 @@ public static class SingularityVerifierEditor
             Require(wallet.Current.ReservedIncome == 0 && wallet.Current.Balance == 100 && singularity.IsAlive, "disable releases without payment and preserves lifetime");
             singularity.gameObject.SetActive(true);
             Require(ReferenceEquals(identity, singularity.Identity), "reenable stable identity");
-            await VerifyCoordinator(singularity, wallet);
+            var shipping = grid.Owners.OfType<ShippingCellAdapter>().Single();
+            await VerifyCoordinator(shipping, wallet);
             var placer = UnityEngine.Object.FindAnyObjectByType<CellPlacerAdapter>();
             Place(placer, grid.GetCell(50, 50), CellTypeDomain.Empty, 0);
             Require(grid.GetCell(50, 50) == singularity, "singularity deletion protected");
-            Place(placer, grid.GetCell(50, 44), CellTypeDomain.Empty, 0);
-            Require(grid.GetCell(50, 44) is ResourceCellAdapter, "resource deletion protected");
+            Place(placer, grid.GetCell(50, 43), CellTypeDomain.Empty, 0);
+            Require(grid.GetCell(50, 43) is ResourceCellAdapter, "resource deletion protected");
+            var empty = grid.Owners.OfType<EmptyCellAdapter>().First(c => c.XIndex > 5 && c.XIndex < 40 && c.ZIndex > 5 && c.ZIndex < 40);
+            var x = empty.XIndex; var z = empty.ZIndex; var purchaseBalance = wallet.Current.Balance;
+            Place(placer, empty, CellTypeDomain.Shipping, 90);
+            var added = grid.GetCell(x, z) as ShippingCellAdapter;
+            Require(added != null && wallet.Current.Balance == purchaseBalance - 30, "additional shipping purchased through existing placement transaction");
+            var saleBalance = wallet.Current.Balance;
+            Require(added.AllocateStorage(0, 2, ResourceTypeDomain.Wood) && shipping.AllocateStorage(0, 3, ResourceTypeDomain.Stone), "two shipping cells share income room");
+            Require(singularity.AllocateStorage(0, 4, ResourceTypeDomain.Iron), "singularity absorbs unsellable resource independently");
+            singularity.StoreResource(0, 4);
+            Require(wallet.Current.ReservedIncome == 5 && wallet.Current.Balance == saleBalance, "absorption never changes balance or shipping income reservations");
+            added.gameObject.SetActive(false);
+            Require(wallet.Current.ReservedIncome == 3, "shipping disable cancels only its own reservation");
+            shipping.StoreResource(0, 3); shipping.StoreResource(0, 3);
+            Require(wallet.Current.Balance == saleBalance + 3 && wallet.Current.ReservedIncome == 0, "other shipping commits exactly once");
+            added.gameObject.SetActive(true);
+            Require(added.AllocateStorage(3, 2, ResourceTypeDomain.Plank), "rotated shipping resumes after reenable");
+            added.StoreResource(3, 2);
+            Require(wallet.Current.Balance == saleBalance + 9, "new shipping uses existing processed-resource prices");
+            Require(added.AllocateStorage(0, 1, ResourceTypeDomain.Wood), "shipping removal has pending income");
+            var removalBalance = wallet.Current.Balance;
+            Place(placer, added, CellTypeDomain.Empty, 0);
+            Require(grid.GetCell(x, z) is EmptyCellAdapter && wallet.Current.ReservedIncome == 0 && wallet.Current.Balance == removalBalance,
+                "shipping removal cancels pending sale and has no refund");
             var before = wallet.Current.Balance - 30;
-            Place(placer, grid.GetCell(50, 45), CellTypeDomain.ExtractorWood, 180);
-            Place(placer, grid.GetCell(50, 46), CellTypeDomain.ExportConveyor, 0);
-            Place(placer, grid.GetCell(50, 47), CellTypeDomain.Conveyor, 0);
-            Require(grid.GetCell(50, 45) is ExtractorCellAdapter && grid.GetCell(50, 46) is ExportConveyorCellAdapter &&
-                grid.GetCell(50, 47) is ConveyorCellAdapter, "actual pointer route placement");
+            Place(placer, grid.GetCell(50, 44), CellTypeDomain.ExtractorWood, 180);
+            Place(placer, grid.GetCell(50, 45), CellTypeDomain.ExportConveyor, 0);
+            Place(placer, grid.GetCell(50, 46), CellTypeDomain.Conveyor, 0);
+            Require(grid.GetCell(50, 44) is ExtractorCellAdapter && grid.GetCell(50, 45) is ExportConveyorCellAdapter &&
+                grid.GetCell(50, 46) is ConveyorCellAdapter, "actual pointer route placement");
             await UniTask.WaitUntil(() => wallet.Current.Balance > before).Timeout(TimeSpan.FromSeconds(30));
             Require(wallet.Current.Balance > before, "first actual extraction to sale");
             // 演出中の実コンベアを切断し、送り元IDを維持して再接続できることを確認する。
-            var conveyor = grid.GetCell(50, 47) as ConveyorCellAdapter;
+            var conveyor = grid.GetCell(50, 46) as ConveyorCellAdapter;
             await UniTask.WaitUntil(() => wallet.Current.ReservedIncome > 0).Timeout(TimeSpan.FromSeconds(20));
-            singularity.enabled = false;
+            shipping.enabled = false;
             var stoppedBalance = wallet.Current.Balance;
             Require(wallet.Current.ReservedIncome == 0, "connected disable cancels reservation synchronously");
             await UniTask.Delay(300);
             Require(wallet.Current.Balance == stoppedBalance, "disconnected presentation cannot pay");
-            singularity.enabled = true;
+            shipping.enabled = true;
             await UniTask.WaitUntil(() => wallet.Current.Balance > stoppedBalance).Timeout(TimeSpan.FromSeconds(20));
             Require(wallet.Current.Balance > stoppedBalance, "reconnect resumes owned resource");
             await UniTask.WaitUntil(() => wallet.Current.ReservedIncome > 0).Timeout(TimeSpan.FromSeconds(20));
@@ -208,7 +232,7 @@ public static class SingularityVerifierEditor
         catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
     }
 
-    private static async UniTask VerifyCoordinator(SingularityCellAdapter singularity, CurrencyWalletApplication wallet)
+    private static async UniTask VerifyCoordinator(ShippingCellAdapter singularity, CurrencyWalletApplication wallet)
     {
         for (var scenario = 0; scenario < 6; scenario++)
         {

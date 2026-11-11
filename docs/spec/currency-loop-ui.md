@@ -28,7 +28,7 @@ UI上で始めたクリックは配置確定へ進めず、フィールドから
 
 ## 専用セル表示と寿命
 
-[SingularityCellAdapter](../../Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs)はIDataProvidableApplicationを実装し、[SingularityProviderDefinition](../../Assets/Scripts/UI/Definitions/SingularityProviderDefinition.cs)のラベルと専用ReaderをCreateCustomへ渡す。施設名、座標、残高、換金待ちを新しいスナップショットとして返す。HUDでは予約値を省いて表示し、Readerの契約は保持する。表示取得で取引を変更しない。セル有効中は残高変更をStatusChangedへ接続し、無効化・破棄時に解除する。専用ラベル定義はセルが所有し、破棄時に解放する。
+出荷セルの搬入確定で共有残高を更新し、経済パネルがWallet.Changedを購読して常時表示を更新する。特異点は換金しない吸収先へ分離した。出荷セルと特異点の詳細には共有残高や内部予約数を重複表示せず、既存の選択見出しを使う。
 
 [CellStatusViewAdapter](../../Assets/Scripts/UI/Adapter/CellStatusViewAdapter.cs)はSelectedCellとSelectionChangedを公開する。既存Providerを持たない搬送・交差設備も選択でき、EquipmentDetailsViewAdapterへ同じ強化対象を渡す。選択解除、非表示、無効化、破棄で選択通知を送り、前のセルの購読と表示行を解放する。削除した選択セルはLateUpdateで閉じる。設備の無効化中は選択を保持し、強化を購入不可にする。
 

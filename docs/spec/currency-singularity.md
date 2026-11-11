@@ -1,38 +1,40 @@
-# 初期特異点への搬送換金
+# 初期特異点と出荷セル
 
-タグ: `現行仕様` `ECO-02` `通貨` `特異点` `全量予約` `初期配置`
-更新日: 2026-11-10
+タグ: `現行仕様` `換金` `出荷` `特異点` `全量予約` `初期配置`
+更新日: 2026-11-11。
 
-## 現行動作と構成
+## 役割の分離
 
-MainScene中央 `(gridSize/2, gridSize/2)` の特異点1基へ資源を搬送すると、演出成功後の搬入確定時に共有残高へ入金する。初期残高100、木材・石材の売価1は [通貨設定](../../Assets/Scripts/ScriptableObject/CurrencyEconomy.asset) に集約する。売価のない資源は予約を拒否する。
+特異点は5×5・外周20入力の吸収先、出荷セルは1×1・四方向入力の換金先である。特異点へ搬送しても共有残高は増えない。出荷セルで演出成功後に搬入が確定したとき、既存売価で共有残高へ入金する。出荷から納品進捗は増えない。累計納品数と段階目標は次工程で実装する。
 
-[GridFieldGeneratorAdapter](../../Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs) が一プレイの価格カタログと残高を生成し、[SingularityCellAdapter](../../Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs) へ渡す。全セルをグリッドへ登録した後、中央・単一性・木材・空き経路を検証し、特異点を接続する。`Wallet` と `Prices` は今後の設置・成長・表示から同じインスタンスを利用する入口である。再開始時に新しく生成する。
+[ShippingCellAdapter](../../Assets/Scripts/Economy/Adapter/ShippingCellAdapter.cs)は[IContainableApplication](../../Assets/Scripts/Transfers/Application/IContainableApplication.cs)を通じて既存の搬送へ接続する。[ShippingIntakeApplication](../../Assets/Scripts/Economy/Application/ShippingIntakeApplication.cs)が各ポートの全量・種別・換金額と入金余地を予約する。確定・取消・無効化・撤去の一回性と、共有残高上限の契約を既存の換金処理から引き継いだ。
 
-[SingularityStartDefinition](../../Assets/Scripts/Economy/Definitions/SingularityStartDefinition.cs) は経済設定と特異点・木材・空セルのPrefabを参照する。占有範囲と初回経路が収まるサイズ（現在12以上）、参照の存在、木材種別、木材の売価、初回設備3種の総額が初期残高以下であることを生成前と起動時に検証する。[設定アセット](../../Assets/Scripts/ScriptableObject/SingularityStart.asset) と [Prefab](../../Assets/Prefabs/Field/General/F_SingularityCell.prefab) をMainSceneへ配線した。[編集入口](../../Assets/Scripts/Economy/Editor/SingularitySetupEditor.cs) は資産作成と中央の複数マス初期配置を更新する。
+[SingularityCellAdapter](../../Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs)は[AbsorptionIntakeApplication](../../Assets/Scripts/Economy/Application/AbsorptionIntakeApplication.cs)へ吸収予約を渡す。数量と種別が一致する搬送だけを確定・取消する。予約を外してからAbsorbedを通知し、再入・繰返し確定を防ぐ。通知の例外は記録し、ほかの購読者への通知を続ける。売価のない定義済み資源も吸収できる。
 
-## ポートごとの予約
+両者とも資源IDを所有しない。演出失敗や切断では送り元がIDを保持し、成功終端の返却・削除は[共有Coordinator](../../Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs)が一度だけ行う。無効化時は新規予約を止め、接続先の取消を伝えてから自身の未確定枠を解除する。再有効化では同じIdentityで接続を再開する。
 
-[SingularityIntakeApplication](../../Assets/Scripts/Economy/Application/SingularityIntakeApplication.cs) が定義された20ポートに未確定1件ずつ保持する。各辺5口、角は別方向の2ポートとして扱う。数量は正のint、売価と換金額はcheckedのlongで扱い、数量・種別・換金額・入金余地を全量固定する。同じポートの競合を拒否し、各ポートの異種資源は独立して予約できる。
+## 構成と購入
 
-搬入確定ではポートIDと全量を、取消ではポートID・全量・種別を照合する。不一致は予約を維持する。予約枠を外してから通貨取引を確定・取消し、通知への再入でも同じ予約を二度処理しない。残高予約中の通知で無効化された場合も、その予約を解除して失敗を返す。残高上限の余地は他の入金予定を含めて保証し、支出取消後も確定できる。残高の不変条件は [通貨取引仕様](currency-wallet.md) を参照する。
+[GridFieldGeneratorAdapter](../../Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs)が残高・価格カタログを構成し、全所有セルの登録後、各出荷セルへ同じ残高と価格を渡す。追加配置では[CellPlacerAdapter](../../Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs)が登録後・接続開始前にConfigureする。登録・初期化が失敗した場合は既存の設置取引が復元する。
 
-特異点は在庫と搬送IDを保持しない。通常の [Coordinator](../../Assets/Scripts/Transfers/Application/ResourceTransferCoordinatorApplication.cs) が演出成功後に搬入を確定し、資源データと表示を終端で一度返却する。予約Tokenと搬送記録は受け取り側の確定通知前に完了させる。入金通知から切断・破棄・取消が再入しても、確定済み資源を再試行しない。
+[通貨設定](../../Assets/Scripts/ScriptableObject/CurrencyEconomy.asset)の初期残高100と売価は保持した。出荷セルの追加購入価格は30で、既存の配置・回転・無料撤去を使う。特異点の保護は維持する。出荷先の残高や内部予約数は詳細欄へ重複表示せず、共有残高は既存HUDの表示を使う。
 
-無効化では新規予約を止め、接続先の取消を先に行い、残る全ポートの予約を解放する。再有効化では同じIdentityで再接続する。IsAliveは既存のUnity破棄判定を保つ。破棄時も残る予約を解放する。演出失敗・切断・取消では入金せず、送り元の資源IDを維持する。送り元撤去時のID処分は既存の所有者が担う。
+## 初期配置と換金経路
 
-## 初回経路と保護
+中心を(c,c)とすると特異点の占有はc-2..c+2、初期出荷先は(c,c-3)。木材を(c,c-7)、抽出候補を(c,c-6)、搬出候補を(c,c-5)、通常コンベア候補を(c,c-4)に確保する。出荷セルは初期配置なので購入費を払わない。抽出設備20・搬出5・搬送5の計30で最初の換金経路を作れる。
 
-中央を `(c,c)` とすると、5×5の占有範囲は`c-2..c+2`。木材を `(c,c-6)`、抽出候補を `(c,c-5)`、搬出候補を `(c,c-4)`、通常コンベア候補を `(c,c-3)` に確保する。抽出設備は木材へ向けて180度回転し、搬出・通常コンベアは特異点へ向ける。設備費は20+5+5=30。生成ノイズより初期配置を優先するため、再生成後も木材と経路を確保する。
+100×100なら特異点は(50,50)、初期出荷先は(50,47)、木材は(50,43)。抽出を(50,44)へ180度、搬出を(50,45)、搬送を(50,46)へ配置する。最小フィールドは14×14となる。
 
-CellPlacerは範囲選択と確定の双方で資源セル・特異点の削除と上書きを拒否する。特異点は購入一覧へ登録せず、型選択と直接配置も拒否する。ECO-03で[設置課金とプレビュー費用表示](currency-placement.md)を接続した。
+[SingularityStartDefinition](../../Assets/Scripts/Economy/Definitions/SingularityStartDefinition.cs)が参照・占有・出荷先・木材種別・初回経路と予算を検証する。初期生成時は元の地形を優先配置で置き換える。MainSceneの既存Overrideは保存し直さず、現在のPrepareInitialLayout経路で初期出荷先を構成する。
 
-## 5×5の初期配置
+## Prefabと編集元
 
-[マルチブロックセル対応計画](../tasks/multiblock-cell-plan.md)で、特異点を5×5・外周20入力へ変更した。初期配置は現在の中心位置を保ち、占有範囲にある元の資源セル・空セルを強制上書きする。上書きされた資源は採取・在庫化・換金しない。
+[ShippingCellModel](../../Assets/Prefabs/Models/ShippingCellModel.prefab)は独立した外観の編集元である。[Field](../../Assets/Prefabs/Field/General/F_ShippingCell.prefab)は白いF_EmptyCell、[Placeholder](../../Assets/Prefabs/Placeholder/General/P_ShippingCell.prefab)は緑のP_EmptyCellを基底にする。既存Prefab Variant Creatorで作成し、同じModelを入れ子にした。四方向の受入口を持つ暫定モデルで、コンセプト画像の最終造形とは区別する。
 
-接続を初期化する前に旧セルのモデル・Collider・グリッド参照を退役させ、本体1つを25マスへ登録する。生成し直した場合も同じ位置と範囲を使う。初回の木材と経路は、後辺中央ポートからの距離で占有範囲の外へ確保する。カメラはWorldCenterへフォーカスする。通常の設備配置・撤去では、既存の資源と特異点の保護を継続する。
+[ShippingSetupEditor](../../Assets/Scripts/Economy/Editor/ShippingSetupEditor.cs)はPrefabと既存のCellDatabase・通貨・初期配置定義を接続する。Sceneの保存や新しい独立設定資産の作成は行わない。
 
-2026-11-10の外観調整: 5×5の土台による親Transformの拡大を球体側で補正し、球のワールド寸法を縦横3.2へ揃えた。中心の高さは2.2とし、土台の上へ収める。占有・入力・Colliderの定義は維持する。
+## 検証
 
-特異点も`Models/SingularityCellModel.prefab`をFieldとPlaceholderで共用する。既存のPrefab Variant Creatorを使い、Fieldは白い`F_EmptyCell`、Placeholderは緑の`P_EmptyCell`を基底とするVariantへ揃えた。既存FieldのGUID、設備コンポーネントIDとSceneが参照するルートIDを維持する。専用PlaceholderをCellDatabaseへ登録し、購入・撤去の保護は継続する。
+[ShippingVerifierEditor.Run](../../Assets/Scripts/Economy/Editor/ShippingVerifierEditor.cs)は保存資産・吸収の境界と通知を確認し、既存SingularityVerifierEditorへ進む。通貨上限、数量、再入、初期生成、四方向出荷、追加購入、回転、複数出荷先、無効化・撤去・再接続、実搬送を検証する。EconomyUIVerifierEditorでPC2寸法と購読寿命、CraftingVerifierEditorで加工品の換金と5×5特異点への吸収、EconomyLoopVerifierEditorで実収益からの再投資を確認する。自動再生は消音し、ビルドは明示依頼時のみ行う。
+
+対象差分・保存ファイルのハッシュ・結果・代表画像はローカルのdocs/verification/shipping/へ集約する。

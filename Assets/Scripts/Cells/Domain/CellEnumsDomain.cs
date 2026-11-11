@@ -46,6 +46,7 @@ public enum CellTypeDomain
     Crossing,
     Singularity,
     AdvancedCrafter,
+    Shipping,
 }
 [System.Flags]
 public enum CellPortUseDomain { Input = 1, Output = 2, Both = Input | Output }

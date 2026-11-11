@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 
 /// <summary>定義された入力枠に数量・種別・売価と入金余地を固定する。</summary>
-public sealed class SingularityIntakeApplication
+public sealed class ShippingIntakeApplication
 {
     private sealed class Intake
     {
@@ -16,7 +16,7 @@ public sealed class SingularityIntakeApplication
     private readonly CurrencyPriceCatalogDomain _prices;
     public bool Accepting { get; set; }
 
-    public SingularityIntakeApplication(CurrencyWalletApplication wallet, CurrencyPriceCatalogDomain prices, IEnumerable<int> portIds)
+    public ShippingIntakeApplication(CurrencyWalletApplication wallet, CurrencyPriceCatalogDomain prices, IEnumerable<int> portIds)
     {
         _inputs = portIds.ToDictionary(id => id, _ => (Intake)null);
         _wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));

@@ -84,10 +84,9 @@ public static class EconomyUIVerifierEditor
             Require(panel.BalanceText == "残高 100" && wallet.Current.ReservedExpense == 90 && panel.SummaryView.WalletItems.Count == 1, "expense and available balance");
             expense.TryCancel();
             Require(panel.BalanceText == "残高 100" && wallet.Current.ReservedExpense == 0, "cancel refresh");
-            var singularity = (SingularityCellAdapter)grid.GetCell(50, 50);
+            var singularity = grid.Owners.OfType<ShippingCellAdapter>().Single();
             view.UpdateUIStatusWindow(singularity);
-            Require(singularity.GetDataProvider().ReadData().Count == 4, "custom singularity provider");
-            Require(new HudStatusProviderAdapter(singularity.GetDataProvider()).ReadData().Keys.SequenceEqual(new[] { LabelEnumApplication.Amount }), "HUD hides income reservation without changing source contract");
+            Require(panel.EquipmentView.Heading.text == "出荷セル" && view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>().Length == 0, "shipping does not duplicate wallet or internal reservation values");
             Require(singularity.AllocateStorage(1, 7, ResourceTypeDomain.Wood), "income reserve");
             Require(panel.BalanceText == "残高 100" && wallet.Current.ReservedIncome == 7, "pending income");
             singularity.CancelStorage(1, 7, ResourceTypeDomain.Wood);
@@ -102,13 +101,12 @@ public static class EconomyUIVerifierEditor
             wallet.TryReserveExpense(1, out expense);
             expense.TryCancel();
             Require(!balanceMotion.IsAnimating, "reservation-only refresh does not replay balance animation");
-            var snapshot = singularity.GetDataProvider().ReadData();
-            Require(((TextElementDataApplication)snapshot[LabelEnumApplication.Amount]).Text == "107", "custom reader current balance");
+
             var storage = Install(grid, "Storage", 20, 20);
             view.UpdateUIStatusWindow(storage);
             Require(!panel.EquipmentView.Heading.text.Contains("("), "equipment heading omits coordinates");
             Require(!panel.UpgradeInteractable && !panel.EquipmentView.UpgradeRoot.gameObject.activeSelf && panel.EquipmentView.Heading.text.Contains("保管庫"), "cell status is read-only and shows shared type level");
-            Require(Subscribers(singularity, "StatusChanged") == 0, "selection releases singularity UI subscriptions");
+            Require(view.SelectedCell == storage, "selection switches from shipping to storage");
             var conveyor = Install(grid, "Conveyor", 21, 20);
             view.UpdateUIStatusWindow(conveyor);
             Require(ReferenceEquals(view.SelectedCell, conveyor) && !panel.UpgradeInteractable && panel.EquipmentView.Heading.text.Contains("搬送路"), "equipment without legacy provider is selectable");
@@ -175,7 +173,7 @@ public static class EconomyUIVerifierEditor
             Require(Subscribers(storage, "StatusChanged") == 0 && !panel.UpgradeInteractable, "hide selection releases subscriptions");
             view.UpdateUIStatusWindow(storage);
             panel.SetExpanded(false);
-            Require(panel.IsSubscribed && Subscribers(wallet, "Changed") == 2, "collapsed left page keeps persistent balance subscription");
+            Require(panel.IsSubscribed && Subscribers(wallet, "Changed") == 1, "collapsed left page keeps one persistent balance subscription");
             var hiddenText = panel.BalanceText;
             wallet.TryReserveIncome(1, out income); income.TryCommit();
             Require(panel.BalanceText != hiddenText, "closed page still updates persistent balance");
@@ -338,7 +336,7 @@ public static class EconomyUIVerifierEditor
             UnityEngine.Object.Destroy(panel);
             await UniTask.DelayFrame(2);
             Require(canvas != null && !canvas.gameObject.activeSelf && view != null &&
-                Subscribers(wallet, "Changed") == 1 && Subscribers(view, "SelectionChanged") == 0,
+                Subscribers(wallet, "Changed") == 0 && Subscribers(view, "SelectionChanged") == 0,
                 "destroying controller releases subscriptions and retains authored HUD inactive");
             Require(view.SelectedCell == null && view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>().Length == 0,
                 "controller destruction releases selection and active rows without legacy restoration");

@@ -20,7 +20,7 @@
 - [CellPlacerAdapter](../../Assets/Scripts/Grid/Adapter/CellPlacerAdapter.cs)は一つの空セルを一つの設備へ置き換える。占有範囲全体の配置・復元はまだ扱わない。
 - [ConnectableCellBaseAdapter](../../Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs)は基準マスの隣接4マスと固定4スロットを使う。同じ側面の別の位置を識別できない。
 - [搬入契約](../../Assets/Scripts/Transfers/Application/IContainableApplication.cs)と[予約](../../Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs)は方向を接点の識別に使う。搬出演出の始点も設備のTransform位置を使う。
-- [SingularityIntakeApplication](../../Assets/Scripts/Economy/Application/SingularityIntakeApplication.cs)は4入力枠を固定配列で保持する。
+- 計画時点の換金入力は特異点が保持していた。現在の換金予約は[ShippingIntakeApplication](../../Assets/Scripts/Economy/Application/ShippingIntakeApplication.cs)へ移し、特異点の20入力は吸収専用となった。
 - [CrafterCellAdapter](../../Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs)は方向ごとに入力を持つ。[加工計画](../../Assets/Scripts/Crafting/Domain/RecipePlanDomain.cs)は入力IDを既に扱うため、数量と確定・取消の規則を再利用できる。
 
 ## 設計案

@@ -36,7 +36,8 @@ public sealed class CurrencyEconomyDefinition : ScriptableObject
         new() { cell = CellTypeDomain.ExportConveyor, price = 5 },
         new() { cell = CellTypeDomain.Crossing, price = 10 },
         new() { cell = CellTypeDomain.Storage, price = 15 },
-        new() { cell = CellTypeDomain.Crafter, price = 30 }
+        new() { cell = CellTypeDomain.Crafter, price = 30 },
+        new() { cell = CellTypeDomain.Shipping, price = 30 }
     };
 
     // 構成入口が一度取得して共有する。設定の変更は既存カタログへ遡及しない。

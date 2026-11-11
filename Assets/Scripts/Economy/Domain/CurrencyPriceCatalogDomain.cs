@@ -48,5 +48,5 @@ public sealed class CurrencyPriceCatalogDomain
     private static bool IsEquipment(CellTypeDomain type)
         => type == CellTypeDomain.ExtractorStone || type == CellTypeDomain.ExtractorWood ||
            type == CellTypeDomain.Conveyor || type == CellTypeDomain.ExportConveyor ||
-           type == CellTypeDomain.Crossing || type == CellTypeDomain.Storage || type == CellTypeDomain.Crafter || type == CellTypeDomain.AdvancedCrafter;
+           type == CellTypeDomain.Crossing || type == CellTypeDomain.Storage || type == CellTypeDomain.Crafter || type == CellTypeDomain.AdvancedCrafter || type == CellTypeDomain.Shipping;
 }

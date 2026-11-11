@@ -41,3 +41,5 @@ MonoBehaviour:
     price: 30
   - cell: 13
     price: 90
+  - cell: 14
+    price: 30

@@ -19,9 +19,10 @@ sequenceDiagram
  D->>D: 設定配列から実行時辞書を構築
  par グリッド登録
   U->>G: Start
-  G->>G: 特異点の25マスを強制上書きし初回経路を確保
+  G->>G: 特異点の25マス・初期出荷先・換金経路を確保
   G->>F: InitializeCells(gridSize)
   F->>F: 設備位置と回転後の全占有マスを登録
+  G->>G: 残高と価格を構成し、出荷先へ渡して接続開始
  and 配置用キャッシュ
   U->>P: Start
   P->>D: TryGetCellInfo(Empty)
