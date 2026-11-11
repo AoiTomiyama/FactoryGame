@@ -1,0 +1,17 @@
+{
+  "name": "FactoryGame.EditModeTests",
+  "references": [
+    "FactoryGame.TestSupport",
+    "FactoryGame.Runtime",
+    "UniTask",
+    "UnityEngine.UI"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "autoReferenced": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

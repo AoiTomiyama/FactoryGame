@@ -1,0 +1,29 @@
+{
+  "name": "FactoryGame.TestSupport",
+  "references": [
+    "FactoryGame.Runtime",
+    "FactoryGame.Grid.Editor",
+    "FactoryGame.Shared.Editor",
+    "UniTask",
+    "UniTask.DOTween",
+    "DOTween.Modules",
+    "UnityEngine.UI",
+    "Unity.TextMeshPro",
+    "Unity.InputSystem",
+    "Unity.Cinemachine",
+    "Unity.RenderPipelines.Core.Runtime",
+    "Unity.RenderPipelines.Universal.Runtime",
+    "Unity.RenderPipelines.GPUDriven.Runtime"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "autoReferenced": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ],
+  "overrideReferences": true,
+  "precompiledReferences": [
+    "nunit.framework.dll",
+    "DOTween.dll"
+  ]
+}

@@ -1,0 +1,126 @@
+#if UNITY_EDITOR
+using System;
+using System.Reflection;
+using System.Linq;
+using Cysharp.Threading.Tasks;
+using TMPro;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.UI;
+
+/// <summary>レシピ欄と保管状態欄が資源アイコンを表示することを Play Mode で確認する。</summary>
+public static class ResourceIconAssertions
+{
+    private const BindingFlags PrivateInstance = BindingFlags.Instance | BindingFlags.NonPublic;
+
+
+
+
+
+
+
+    public static async UniTask VerifyAsync()
+    {
+        try
+        {
+            var resources = AssetDatabase.LoadAssetAtPath<ResourceDefinition>(
+                "Assets/Scripts/ScriptableObject/ResourceDB.asset");
+            var recipes = AssetDatabase.LoadAssetAtPath<RecipeDatabaseDefinition>(
+                "Assets/Scripts/ScriptableObject/Recipes/RecipeDB.asset");
+            var recipePrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/Recipe.prefab");
+            var storagePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
+                "Assets/Prefabs/UI/StorageParamLine.prefab");
+            Require(resources != null && recipes != null && recipes.recipes.Length > 0 &&
+                    recipePrefab != null && storagePrefab != null, "UI assets are available");
+
+            var stone = GetResource(resources, ResourceTypeDomain.Stone);
+            var wood = GetResource(resources, ResourceTypeDomain.Wood);
+            Require(stone.Icon != null && wood.Icon != null, "both icons resolve as sprites");
+
+            var recipeObject = TestScenes.NewObject("RecipeRows", typeof(RectTransform));
+            var rowPrefab = recipePrefab.GetComponent<RecipeResourceRowAdapter>();
+            Require(rowPrefab != null, "recipe prefab has serialized resource row");
+            var heading = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/HudRecipeHeading.prefab").GetComponent<Text>();
+            var view = new RecipeReferenceViewAdapter(recipeObject.transform, heading.font, heading, rowPrefab);
+            view.Render(recipes, resources);
+            await UniTask.Yield();
+            var stoneRow = false;
+            var woodRow = false;
+            foreach (var row in recipeObject.GetComponentsInChildren<RecipeResourceRowAdapter>(true))
+            {
+                var label = GetField<Text>(row, "label");
+                var icon = GetField<Image>(row, "icon");
+                if (label.text.Contains(stone.Name) && icon.sprite == stone.Icon) stoneRow = true;
+                if (label.text.Contains(wood.Name) && icon.sprite == wood.Icon) woodRow = true;
+            }
+            Require(stoneRow && woodRow, "recipe rows display the stone and wood icons");
+
+            var storageObject = TestScenes.Clone(storagePrefab);
+            var storageUI = storageObject.GetComponent<StorageUIStatusRowAdapter>();
+            Require(storageUI != null, "storage prefab has StorageUIStatusRowAdapter");
+            VerifyStorage(storageUI, ResourceTypeDomain.Stone, stone.Icon, stone.Name);
+            VerifyStorage(storageUI, ResourceTypeDomain.Wood, wood.Icon, wood.Name);
+            foreach (var resource in resources.GetAllResources())
+            {
+                Require(resource.Prefab != null && resource.Icon != null && !string.IsNullOrWhiteSpace(resource.ResourceName),
+                    "resource has saved visual, sprite and display name " + resource.ResourceTypeDomain);
+                Require(recipeObject.GetComponentsInChildren<RecipeResourceRowAdapter>(true).Any(row => GetField<Text>(row, "label").text.Contains(resource.ResourceName) &&
+                    GetField<Image>(row, "icon").sprite == resource.Icon), "recipe displays product icon " + resource.ResourceTypeDomain);
+                VerifyStorage(storageUI, resource.ResourceTypeDomain, resource.Icon, resource.ResourceName);
+                Require(resource.Prefab.GetComponentInChildren<TextMeshPro>() != null &&
+                    resource.Prefab.transform.localScale == new Vector3(.3f, .3f, .3f),
+                    "product model shape preserves quantity text scale " + resource.ResourceTypeDomain);
+            }
+            Require(resources.GetAllResources().Select(resource => resource.Icon).Distinct().Count() == resources.GetAllResources().Length,
+                "resource icons remain distinct");
+            Debug.Log($"Resource icon checks passed: recipe and storage show stone={stone.Icon.name}, wood={wood.Icon.name}.");
+        }
+        catch (Exception exception)
+        {
+            throw;
+        }
+    }
+
+    private static void VerifyStorage(StorageUIStatusRowAdapter row, ResourceTypeDomain type,
+        Sprite expectedIcon, string expectedName)
+    {
+        row.RenderUIByData(new StorageElementDataApplication("Storage", 10)
+        {
+            Current = 1,
+            ResourceTypeDomain = type
+        });
+        var icon = GetField<Image>(row, "resourceIcon");
+        var label = GetField<TextMeshProUGUI>(row, "resourceText");
+        Require(icon.enabled && icon.sprite == expectedIcon && label.text == expectedName,
+            $"storage row displays {type}");
+    }
+
+    private static (Sprite Icon, string Name) GetResource(ResourceDefinition database, ResourceTypeDomain type)
+    {
+        // 作業ツリーで進行中の ResourceDefinition 名称変更と、アイコン検証を独立させる。
+        var method = typeof(ResourceDefinition).GetMethod("GetResourceByType") ??
+                     typeof(ResourceDefinition).GetMethod("GetInfo");
+        if (method == null) throw new InvalidOperationException("Resource lookup method is missing");
+        var resource = method.Invoke(database, new object[] { type });
+        var infoType = resource.GetType();
+        var icon = infoType.GetProperty("Icon")?.GetValue(resource) as Sprite;
+        var name = (infoType.GetProperty("ResourceName") ?? infoType.GetProperty("Name"))
+            ?.GetValue(resource) as string;
+        return (icon, name);
+    }
+
+    private static T GetField<T>(object target, string name) where T : class
+    {
+        var field = target.GetType().GetField(name, PrivateInstance);
+        if (field == null) throw new InvalidOperationException($"Missing field: {name}");
+        return field.GetValue(target) as T;
+    }
+
+    private static void Require(bool condition, string message)
+    {
+        if (!condition) throw new InvalidOperationException(message);
+    }
+}
+
+#endif
