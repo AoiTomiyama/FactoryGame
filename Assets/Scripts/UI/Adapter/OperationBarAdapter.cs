@@ -31,6 +31,8 @@ public sealed class OperationBarAdapter : MonoBehaviour
     public RectTransform Bar => bar;
     public void Configure(PlayerCursorBehaviourAdapter cursor, CameraControllerAdapter cameraController)
     {
+        HudMotionAdapter.Reveal(bar);
+        HudMotionAdapter.Reveal(walkingHelp);
         rotateButton.onClick.RemoveListener(Rotate);
         viewButton.onClick.RemoveListener(SwitchView);
         walkButton.onClick.RemoveListener(Walk);

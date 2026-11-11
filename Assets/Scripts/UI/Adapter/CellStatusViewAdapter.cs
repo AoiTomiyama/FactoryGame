@@ -53,6 +53,7 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
 
     public void ConfigureHud(Font font, ResourceDefinition resources)
     {
+        HudMotionAdapter.Reveal(elementWindowTransform);
         if (!_integrated)
         {
             var rect = (RectTransform)transform;

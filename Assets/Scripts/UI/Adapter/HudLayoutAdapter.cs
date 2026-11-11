@@ -86,6 +86,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
 #endif
     public void StyleButton(Button button, bool selected = false)
     {
+        if (Application.isPlaying) HudMotionAdapter.Bind(button);
         // ColorTintへ色を渡し、背景との二重乗算を避ける。
         button.targetGraphic.color = Color.white;
         var colors = button.colors;
@@ -104,6 +105,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
         _width = body.rect.width; _bodyHeight = body.rect.height; _summaryHeight = Summary.rect.height;
         _bodyInput = Body.GetComponent<CanvasGroup>();
         _headerInput = Close.GetComponent<CanvasGroup>();
+        foreach (var page in Pages) HudMotionAdapter.Reveal(page);
         // 移動する内容より手前にタブを置き、途中でも開き直せるようにする。
         Navigation.SetAsLastSibling();
     }

@@ -16,6 +16,7 @@ public sealed class PersistentSummaryViewAdapter
     private readonly Text _rowPrefab;
     private bool _firstPerson;
     private int _itemCount;
+    private bool _walletRendered;
     public void SetFirstPersonMode(bool active)
     {
         _firstPerson = active;
@@ -32,7 +33,11 @@ public sealed class PersistentSummaryViewAdapter
     public void RenderWallet(CurrencyWalletApplication.Snapshot wallet)
     {
         // 通貨の予約値は取引内部で保持し、プレイヤーには確定した残高を表示する。
-        _walletItems[0].text = $"残高 {wallet.Balance}";
+        var balance = $"残高 {wallet.Balance}";
+        if (_walletRendered && _walletItems[0].text != balance)
+            HudMotionAdapter.Bind(_walletItems[0]).Pulse();
+        _walletItems[0].text = balance;
+        _walletRendered = true;
         UpdateLayout();
     }
     public void SetItems(params string[] items)

@@ -78,6 +78,7 @@ public static class EconomyUIVerifierEditor
             HudPrefabVerifierEditor.VerifyRuntime(panel);
             var grid = GridFieldDatabaseAdapter.Instance;
             Require(panel.IsSubscribed && panel.BalanceText.Contains("残高 100"), "initial shared balance");
+            await VerifyMotion(panel);
             Require(!panel.UpgradeInteractable, "no selected equipment");
             wallet.TryReserveExpense(90, out var expense);
             Require(panel.BalanceText == "残高 100" && wallet.Current.ReservedExpense == 90 && panel.SummaryView.WalletItems.Count == 1, "expense and available balance");
@@ -94,6 +95,13 @@ public static class EconomyUIVerifierEditor
             singularity.AllocateStorage(1, 7, ResourceTypeDomain.Wood);
             singularity.StoreResource(1, 7);
             Require(panel.BalanceText == "残高 107", "conversion notification");
+            var balanceMotion = panel.SummaryView.WalletItems[0].GetComponent<HudMotionAdapter>();
+            Require(balanceMotion != null && balanceMotion.IsAnimating, "committed balance change pulses immediately");
+            await UniTask.Delay(260, ignoreTimeScale: true);
+            expense = null;
+            wallet.TryReserveExpense(1, out expense);
+            expense.TryCancel();
+            Require(!balanceMotion.IsAnimating, "reservation-only refresh does not replay balance animation");
             var snapshot = singularity.GetDataProvider().ReadData();
             Require(((TextElementDataApplication)snapshot[LabelEnumApplication.Amount]).Text == "107", "custom reader current balance");
             var storage = Install(grid, "Storage", 20, 20);
@@ -146,6 +154,12 @@ public static class EconomyUIVerifierEditor
             Require(panel.UpgradeInteractable, "balance change enables selected skill action");
             panel.EquipmentView.UpgradeButton.onClick.Invoke();
             Require(generator.Skills.IsOwned(root.Uid) && !panel.UpgradeInteractable && panel.SkillButton(root.Uid).transform.Find("Applied").gameObject.activeSelf, "detail action applies root and marks owned node");
+            var appliedMotion = panel.SkillButton(root.Uid).transform.Find("Applied").GetComponent<HudMotionAdapter>();
+            Require(appliedMotion != null && appliedMotion.IsAnimating, "newly applied skill pulses its mark");
+            await UniTask.Delay(260, ignoreTimeScale: true);
+            panel.SelectSkill(branch.Uid); panel.SelectSkill(root.Uid);
+            Require(!appliedMotion.IsAnimating && lockedButton.GetComponent<CanvasGroup>().alpha == 1,
+                "selection refresh does not flash owned marks or locked nodes");
             var paidBalance = wallet.Current.Balance;
             panel.EquipmentView.UpgradeButton.onClick.Invoke();
             Require(wallet.Current.Balance == paidBalance, "repeat apply never pays twice");
@@ -223,7 +237,7 @@ public static class EconomyUIVerifierEditor
             panel.ShowPage(0);
             Require(placer.PlacementEnabled && operation.Bar.gameObject.activeInHierarchy && operation.PlacementInfo.transform.IsChildOf(operation.Bar), "placement information belongs to lower window");
             Require(!panel.PlacementButtons.GetComponentsInChildren<Text>().Any(text => text == operation.PlacementInfo), "placement tab contains selection without placement information");
-            VerifyOperationBar(placer, raycaster, wallet, grid);
+            await VerifyOperationBar(placer, raycaster, wallet, grid);
             await VerifySlide(panel, raycaster);
             for (var page = 0; page < 3; page++)
             {
@@ -339,6 +353,48 @@ public static class EconomyUIVerifierEditor
             EditorApplication.Exit(0);
         }
         catch (Exception exception) { Debug.LogException(exception); EditorApplication.Exit(1); }
+    }
+    private static async UniTask VerifyMotion(EconomyPanelAdapter panel)
+    {
+        var button = panel.PageButton(0);
+        var motion = button.GetComponent<HudMotionAdapter>();
+        var scale = button.transform.localScale;
+        var colors = button.colors;
+        Require(motion != null && HudMotionAdapter.Bind(button) == motion && button.GetComponents<HudMotionAdapter>().Length == 1,
+            "repeated styling shares one button animation component");
+        var pointer = new PointerEventData(EventSystem.current) { button = PointerEventData.InputButton.Left };
+        var timeScale = Time.timeScale;
+        try
+        {
+            Time.timeScale = 0;
+            motion.OnPointerDown(pointer);
+            await UniTask.Delay(90, ignoreTimeScale: true);
+            Require(Vector3.Distance(button.transform.localScale, scale * .96f) < .001f, "press animates while paused");
+            motion.OnPointerExit(pointer);
+            await UniTask.Delay(170, ignoreTimeScale: true);
+            Require(Vector3.Distance(button.transform.localScale, scale) < .001f, "cancelled press restores scale");
+            motion.Pulse(); motion.Pulse();
+            await UniTask.Delay(270, ignoreTimeScale: true);
+            Require(Vector3.Distance(button.transform.localScale, scale) < .001f && button.colors == colors,
+                "repeated feedback restores authored scale and palette");
+            motion.OnPointerDown(pointer);
+            button.gameObject.SetActive(false);
+            Require(button.transform.localScale == scale && !motion.IsAnimating, "disable cancels pressed state");
+            button.gameObject.SetActive(true);
+            var operation = UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>();
+            var help = operation.WalkingHelp;
+            help.gameObject.SetActive(true);
+            var group = help.GetComponent<CanvasGroup>();
+            await UniTask.Delay(60, ignoreTimeScale: true);
+            Require(group != null && group.alpha > 0 && group.alpha < 1, "window fades on reveal");
+            help.gameObject.SetActive(false);
+            Require(group.alpha == 1 && help.localScale == Vector3.one, "interrupted reveal restores hidden presentation");
+            help.gameObject.SetActive(true);
+            await UniTask.Delay(210, ignoreTimeScale: true);
+            Require(group.alpha == 1 && help.localScale == Vector3.one, "reopened window finishes while paused");
+            help.gameObject.SetActive(false);
+        }
+        finally { Time.timeScale = timeScale; }
     }
     private static async UniTask WaitForSlide(EconomyPanelAdapter panel)
     {
@@ -608,12 +664,22 @@ public static class EconomyUIVerifierEditor
             foreach (var c in canvases) c.GetComponent<CanvasScaler>().enabled = true;
             panel.ShowPage(page);
             view.StatusScroll.verticalNormalizedPosition = 1;
+            await WaitForSlide(panel);
             await UniTask.DelayFrame(5);
+            var motionDeadline = Time.realtimeSinceStartup + 1;
+            while (canvases.SelectMany(c => c.GetComponentsInChildren<HudMotionAdapter>()).Any(m => m.IsAnimating)
+                && Time.realtimeSinceStartup < motionDeadline)
+                await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate);
             Canvas.ForceUpdateCanvases();
             foreach (var mask in canvas.GetComponentsInChildren<RectMask2D>()) mask.PerformClipping();
             camera.Render();
-            foreach (var icon in panel.RecipeContent.GetComponentsInChildren<Image>())
-                Require(!icon.canvasRenderer.cull, "visible recipe icon rendered " + resolution);
+            var hud = canvas.GetComponent<HudLayoutAdapter>();
+            var canvasRect = (RectTransform)canvas.transform;
+            var visibleRecipes = panel.RecipeContent.GetComponentsInChildren<Image>()
+                .Where(icon => BoundsIn(canvasRect, icon.rectTransform).Overlaps(BoundsIn(canvasRect, hud.Body.viewport))).ToArray();
+            if (page == 1) Require(visibleRecipes.Length > 0, "recipe capture includes visible icons " + resolution);
+            foreach (var icon in visibleRecipes)
+                Require(!icon.canvasRenderer.cull, "visible recipe icon rendered " + icon.name + resolution);
             var previous = RenderTexture.active;
             RenderTexture.active = target;
             var texture = new Texture2D(resolution.x, resolution.y, TextureFormat.RGB24, false);
@@ -656,7 +722,7 @@ public static class EconomyUIVerifierEditor
         Require(placer.PreviewCount == 0 && wallet.Current.Balance == before && ReferenceEquals(grid.GetCell(30, 30), cell), "drag release over UI cancels without payment");
     }
 
-    private static void VerifyOperationBar(CellPlacerAdapter placer, UIRaycasterAdapter raycaster,
+    private static async UniTask VerifyOperationBar(CellPlacerAdapter placer, UIRaycasterAdapter raycaster,
         CurrencyWalletApplication wallet, GridFieldDatabaseAdapter grid)
     {
         var bar = UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>();
@@ -690,6 +756,11 @@ public static class EconomyUIVerifierEditor
         var canvas = bar.GetComponentInChildren<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.GetComponent<CanvasScaler>().enabled = false;
+        // 表示途中の縮小とは分け、完了後の保存寸法で余白と文字の収容を判定する。
+        var deadline = Time.realtimeSinceStartup + 1;
+        while (bar.Bar.GetComponent<HudMotionAdapter>().IsAnimating && Time.realtimeSinceStartup < deadline)
+            await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate);
+        Require(!bar.Bar.GetComponent<HudMotionAdapter>().IsAnimating, "operation reveal completes before layout checks");
         foreach (var resolution in new[] { new Vector2(1600, 900), new Vector2(1366, 768) })
         {
             var root = canvas.GetComponent<RectTransform>();

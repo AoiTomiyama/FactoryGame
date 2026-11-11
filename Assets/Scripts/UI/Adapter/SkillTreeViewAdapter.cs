@@ -67,6 +67,7 @@ public sealed class SkillTreeViewAdapter : IDisposable
             var uid = node.Uid;
             var button = UnityEngine.Object.Instantiate(hud.SkillRow, _root);
             button.name = "SkillNode_" + uid;
+            HudMotionAdapter.Bind(button);
             var label = button.GetComponentInChildren<Text>(true);
             label.text = ""; label.gameObject.SetActive(false);
             button.gameObject.AddComponent<CanvasGroup>();
@@ -135,7 +136,10 @@ public sealed class SkillTreeViewAdapter : IDisposable
             }
             else _hud.StyleButton(button, owned || chosen);
             button.GetComponent<CanvasGroup>().alpha = 1;
-            _marks[node.Uid].gameObject.SetActive(owned);
+            var mark = _marks[node.Uid];
+            var newlyOwned = owned && !mark.gameObject.activeSelf;
+            mark.gameObject.SetActive(owned);
+            if (newlyOwned) HudMotionAdapter.Bind(mark).Pulse();
         }
         foreach (var link in _links) link.image.color = _skills.IsOwned(link.parent) ? _hud.SelectedTabColor : _hud.IdleTabColor;
         UpdateLayout();
