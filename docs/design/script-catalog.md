@@ -146,7 +146,6 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | [ShippingIntakeApplication](../../Assets/Scripts/Economy/Application/ShippingIntakeApplication.cs) | 方向別の全量換金予約・確定・取消 | CurrencyWalletApplication, CurrencyPriceCatalogDomain | 標準C# |
 | [SingularityCellAdapter](../../Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs) | 換金しない吸収先と接続・無効化・破棄 | ConnectableCellBaseAdapter, IContainableApplication, AbsorptionIntakeApplication | UnityEngine |
 | [SingularityStartDefinition](../../Assets/Scripts/Economy/Definitions/SingularityStartDefinition.cs) | 中央初期配置と初回経路の設定検証 | CurrencyEconomyDefinition, SingularityCellAdapter, ResourceCellAdapter, EmptyCellAdapter | UnityEngine |
-| [SingularitySetupEditor](../../Assets/Scripts/Economy/Editor/SingularitySetupEditor.cs) | 初期設定・Prefab・MainScene配線の編集 | SingularityStartDefinition, GridFieldGeneratorAdapter | UnityEditor |
 | [SingularityVerifierEditor](../../Assets/Tests/Editor/Economy/SingularityVerifierEditor.cs) | 換金境界・寿命・再入・再生成・初回経路の検証 | Economy, Coordinator, CellPlacerAdapter | UnityEditor, UniTask |
 
 ## 設備設置（ECO-03）
@@ -191,6 +190,6 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | [EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs) | 選択設備の読み取り専用表示、スキル共用詳細の適用リスナー解除 |
 | [HudPrefabVerifierEditor](../../Assets/Tests/Editor/UI/HudPrefabVerifierEditor.cs) | MainSceneとPrefabの保存参照、欠損、Editor編集保持、再構成時の固定部品保持を既存UI回帰へ追加 |
 
-出荷セル追加（2026-11-11）: [ShippingCellAdapter](../../Assets/Scripts/Economy/Adapter/ShippingCellAdapter.cs)は換金と寿命の接続、[AbsorptionIntakeApplication](../../Assets/Scripts/Economy/Application/AbsorptionIntakeApplication.cs)は特異点の全量吸収予約を担当する。[ShippingSetupEditor](../../Assets/Scripts/Economy/Editor/ShippingSetupEditor.cs)は資産の構成、[ShippingVerifierEditor](../../Assets/Tests/Editor/Economy/ShippingVerifierEditor.cs)は資産と吸収の対象検証を行う。
+出荷セル追加（2026-11-11）: [ShippingCellAdapter](../../Assets/Scripts/Economy/Adapter/ShippingCellAdapter.cs)は換金と寿命の接続、[AbsorptionIntakeApplication](../../Assets/Scripts/Economy/Application/AbsorptionIntakeApplication.cs)は特異点の全量吸収予約を担当する。[ShippingVerifierEditor](../../Assets/Tests/Editor/Economy/ShippingVerifierEditor.cs)は保存済みの資産と吸収の対象検証を行う。初期構築用のSetupスクリプトは撤去し、資産を直接編集する。
 
 納品進行追加（2026-11-11）: [DeliveryGoalCatalogDomain](../../Assets/Scripts/Progression/Domain/DeliveryGoalCatalogDomain.cs)が段階・累計目標の定義を検証し、[DeliveryGoalsDefinition](../../Assets/Scripts/Progression/Definitions/DeliveryGoalsDefinition.cs)が編集用設定をコピーする。[DeliveryProgressApplication](../../Assets/Scripts/Progression/Application/DeliveryProgressApplication.cs)は全ポート共通の予約・確定数・段階状態と一度だけの達成通知を所有する。[DeliveryGoalsViewAdapter](../../Assets/Scripts/Progression/Adapter/DeliveryGoalsViewAdapter.cs)は既存HUD向けに目標を整形し、[DeliveryGoalsVerifierEditor](../../Assets/Tests/Editor/Progression/DeliveryGoalsVerifierEditor.cs)が数量・編集・表示の対象検証を行う。設定と実行時状態は[納品仕様](../spec/currency-singularity.md#累計納品と段階達成)に従う。

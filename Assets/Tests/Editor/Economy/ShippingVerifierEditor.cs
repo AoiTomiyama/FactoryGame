@@ -10,8 +10,8 @@ public static class ShippingVerifierEditor
     public static void Run()
     {
         _checks = 0;
-        var cell = AssetDatabase.LoadAssetAtPath<ShippingCellAdapter>(ShippingSetupEditor.FieldPath);
-        var placeholder = AssetDatabase.LoadAssetAtPath<GameObject>(ShippingSetupEditor.PlaceholderPath);
+        var cell = AssetDatabase.LoadAssetAtPath<ShippingCellAdapter>("Assets/Prefabs/Field/General/F_ShippingCell.prefab");
+        var placeholder = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Placeholder/General/P_ShippingCell.prefab");
         Require(cell != null && cell.Footprint.Area == 1 && cell.Ports.Count == 4 && cell.Ports.All(p => p.Use == CellPortUseDomain.Input), "one tile, four input ports");
         Require(PrefabUtility.GetPrefabAssetType(cell) == PrefabAssetType.Variant &&
             PrefabUtility.GetPrefabAssetType(placeholder) == PrefabAssetType.Variant, "saved variants");

@@ -31,7 +31,7 @@
 
 [ShippingCellModel](../../Assets/Prefabs/Models/ShippingCellModel.prefab)は独立した外観の編集元である。[Field](../../Assets/Prefabs/Field/General/F_ShippingCell.prefab)は白いF_EmptyCell、[Placeholder](../../Assets/Prefabs/Placeholder/General/P_ShippingCell.prefab)は緑のP_EmptyCellを基底にする。既存Prefab Variant Creatorで作成し、同じModelを入れ子にした。四方向の受入口を持つ暫定モデルで、コンセプト画像の最終造形とは区別する。
 
-[ShippingSetupEditor](../../Assets/Scripts/Economy/Editor/ShippingSetupEditor.cs)はPrefabと既存のCellDatabase・通貨・初期配置定義を接続する。Sceneの保存や新しい独立設定資産の作成は行わない。
+生成済みのPrefabと既存のCellDatabase・通貨・初期配置定義を直接編集する。初期構築用のSetupスクリプトは撤去した。
 
 ## 累計納品と段階達成
 
