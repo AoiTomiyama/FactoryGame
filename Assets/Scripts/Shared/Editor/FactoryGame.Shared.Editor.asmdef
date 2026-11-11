@@ -1,0 +1,11 @@
+{
+  "name": "FactoryGame.Shared.Editor",
+  "references": [
+    "FactoryGame.Runtime"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "autoReferenced": true
+}

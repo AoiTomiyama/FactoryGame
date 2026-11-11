@@ -18,7 +18,7 @@ UIS-04の[下部操作帯](../spec/currency-loop-ui.md#画面下の操作帯uis-
 
 原本は各Markdownの `mermaid` ブロック。概要から機能別へ読む。[セル・配置](architecture-cells-grid.md)、[搬送・加工](architecture-transfers-crafting.md)、[UI・イベント](architecture-ui-events.md)、[起動と操作シーケンス](architecture-sequences.md)、[全スクリプト対応表](script-catalog.md)で実ファイルに遡れる。既存閲覧用SVGと説明更新・検証手順は [図の検証記録](architecture-diagram-verification.md)を参照する。
 
-自作C#の `Assets/Scripts/` を対象とする。Domainは数量・レシピ規則、Applicationは処理進行・読み取り契約、AdapterはUnity接続、Definitionsは設定、Editorは編集支援と検証入口。フォルダーは責務の整理であり、asmdefによる境界強制はない。C++/Pythonの製品モジュールはこの範囲にない。外部パッケージの内部型・生成コード・素材シェーダーは展開しない。
+自作C#の `Assets/Scripts/` を対象とする。Domainは数量・レシピ規則、Applicationは処理進行・読み取り契約、AdapterはUnity接続、Definitionsは設定、Editorは編集支援、Assets/Testsは検証入口。Test Runnerへの移行でゲーム本体・Editorツール・テストのasmdefを分けた。機能とレイヤーのフォルダーは責務の整理であり、各レイヤーを別アセンブリには分けない。構成と実行は[Test Runner手順](test-runner.md)を参照する。C++/Pythonの製品モジュールはこの範囲にない。外部パッケージの内部型・生成コード・素材シェーダーは展開しない。
 
 フロー図の実線 `A --> B` はAがBを呼ぶ／参照する依存、点線は設定供給や結果通知などラベルに示したデータの流れ。クラス図の `子 --|> 親` は継承、`実装 ..|> 契約` は実装、`所有者 *-- 内部状態` は生成と管理を担う所有、`A --> B` は借用参照、`A ..> B` は一時的な利用。Unity GameObjectの破棄権限とC#参照の所有は別で、隣接セルやSOは借用する。シーケンス図の実線は呼出、破線は返り値／通知。すべてのイベント矢印には発行元と購読先を明記する。
 
@@ -96,7 +96,7 @@ flowchart LR
  Presentation --> External
  Input --> InputLib
  UI --> UILib
- Editor["Editor検証・編集支援 / 条件付き開発Verifier"] -. "検証・編集" .-> Adapter
+ Editor["Editor編集支援 / Test Runner・既存Verifier"] -. "検証・編集" .-> Adapter
  subgraph Libraries["外部ライブラリ"]
  External["Unity ObjectPool / DOTween / UniTask"]
  InputLib["Input System / Physics / Cinemachine"]
@@ -192,7 +192,7 @@ MainSceneの共有残高と初回経路、実際の換金収益による全5種�
 
 ## 更新・再開時
 
-コードや配線変更時は本索引から該当機能図と対応表を更新する。採用済み作業の状態は [タスクリスト](../tasks/task-list.md)、作成根拠・提案の採用判断・更新手順は [引継ぎ手順](../tasks/design-review.md) を参照する。将来の改修案は根拠文書へ記録し、ユーザーの採用判断を受けて原本へ反映する。R1は完了版を説明し再実装していない。R2の採取寿命は2026-10-13の実装差分を反映し、検証結果は抽出セルの契約へ記録する。R3の専用取得入口と検証はUI契約へ記録する。TRN-01の接点契約と検証は搬送状態の契約へ記録する。asmdef導入は別の判断事項として扱う。検証は構文・参照・静的整合性に限定し、ゲーム体験や配置動作の新たな実行証拠を意味しない。
+コードや配線変更時は本索引から該当機能図と対応表を更新する。採用済み作業の状態は [タスクリスト](../tasks/task-list.md)、作成根拠・提案の採用判断・更新手順は [引継ぎ手順](../tasks/design-review.md) を参照する。将来の改修案は根拠文書へ記録し、ユーザーの採用判断を受けて原本へ反映する。R1は完了版を説明し再実装していない。R2の採取寿命は2026-10-13の実装差分を反映し、検証結果は抽出セルの契約へ記録する。R3の専用取得入口と検証はUI契約へ記録する。TRN-01の接点契約と検証は搬送状態の契約へ記録する。Test Runner用asmdefの採用範囲は[検証手順](test-runner.md#コンパイル区分)に記録する。検証は構文・参照・静的整合性に限定し、ゲーム体験や配置動作の新たな実行証拠を意味しない。
 
 ## 配置・経済・成長の操作表示（ECO-05・ECO-07）
 

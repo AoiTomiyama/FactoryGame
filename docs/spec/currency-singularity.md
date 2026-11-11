@@ -67,4 +67,4 @@
 
 対象差分・保存ファイルのハッシュ・結果・代表画像はローカルのdocs/verification/shipping/へ集約する。
 
-[DeliveryGoalsVerifierEditor.Run](../../Assets/Tests/Editor/Progression/DeliveryGoalsVerifierEditor.cs)は納品規則、設定の編集・Undo／Redo・保存と再読込、実Sceneの特異点・HUD接続、1600×900／1366×768での長い品目名・7品目・long上限付近の数量、詳細末尾へのスクロール、一人称からの復帰を対象検証する。画像取得は既存EconomyUIVerifierEditorの手順を共用する。実行記録と代表画像はローカルのdocs/verification/delivery-goals/へ集約する。通しプレイと目標数のバランス調整は次工程とする。
+納品検証は[Unity Test Runner](../design/test-runner.md)へ移行した。Edit Modeで納品規則と設定の編集・保存、Play Modeで保存済みSceneのHUD、PC2寸法・長い品目名・7品目・大きな数量、詳細末尾への到達、一人称からの復帰を確認する。実搬送は加工品が特異点へ到達して累計へ反映される経路を4回転で確認する。各ケースを個別実行でき、結果XMLと入力はローカルのdocs/verification/delivery-goals/へ記録する。過去の代表画像は同所へ保持する。通しプレイと目標数の調整は次工程とする。

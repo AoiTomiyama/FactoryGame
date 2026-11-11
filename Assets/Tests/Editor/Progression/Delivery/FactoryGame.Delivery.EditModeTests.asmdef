@@ -1,0 +1,14 @@
+{
+  "name": "FactoryGame.Delivery.EditModeTests",
+  "references": [
+    "FactoryGame.Runtime"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "autoReferenced": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

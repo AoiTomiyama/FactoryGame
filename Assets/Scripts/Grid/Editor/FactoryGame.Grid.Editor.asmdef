@@ -1,0 +1,12 @@
+{
+  "name": "FactoryGame.Grid.Editor",
+  "references": [
+    "FactoryGame.Runtime",
+    "Unity.VisualScripting.Core"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "autoReferenced": true
+}

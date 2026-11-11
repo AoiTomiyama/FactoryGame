@@ -1,0 +1,9 @@
+{
+  "name": "DOTween.Modules",
+  "references": [
+    "UnityEngine.UI"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "autoReferenced": true
+}

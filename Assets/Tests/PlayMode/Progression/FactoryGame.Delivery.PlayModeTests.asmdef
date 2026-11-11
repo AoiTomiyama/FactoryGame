@@ -1,0 +1,14 @@
+{
+  "name": "FactoryGame.Delivery.PlayModeTests",
+  "references": [
+    "FactoryGame.Runtime",
+    "UniTask",
+    "UnityEngine.UI"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "autoReferenced": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

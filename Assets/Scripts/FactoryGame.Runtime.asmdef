@@ -1,0 +1,15 @@
+{
+  "name": "FactoryGame.Runtime",
+  "references": [
+    "UniTask",
+    "Unity.Cinemachine",
+    "Unity.InputSystem",
+    "UnityEngine.UI",
+    "Unity.TextMeshPro",
+    "DOTween.Modules",
+    "UniTask.DOTween"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "autoReferenced": true
+}

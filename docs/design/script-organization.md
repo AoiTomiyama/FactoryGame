@@ -13,7 +13,8 @@
 | `<機能>/Adapter/` | `Adapter` | シーン、入力、UI、アニメーション、プールとの接続 |
 | `<機能>/Definitions/` | `Definition` | ScriptableObject と編集可能な設定型 |
 | `Assets/Scripts/<機能>/Editor/` | `Editor` | Inspector、生成ツールなどの編集支援 |
-| `Assets/Tests/Editor/<機能>/` | `VerifierEditor` | Editorから実行する検証 |
+| `Assets/Tests/Editor/<機能>/` | `Tests` / `VerifierEditor` | Test Runnerの判定・設定テスト、移行前のEditor検証 |
+| `Assets/Tests/PlayMode/<機能>/` | `Tests` | Test Runnerで再生して実搬送・表示を確認 |
 | `Assets/Tests/Runtime/<機能>/` | `VerifierAdapter` | Development実行時の検証 |
 
 ## 追加実装の判断
@@ -25,7 +26,7 @@
 - 検証用Verifierは`Assets/Tests/`へまとめ、機能別に分ける。Editor用はEditorフォルダ配下、Development実行用はRuntime配下へ置き、既存のコンパイル条件とCLI入口を保つ。移動時はスクリプトと.metaを一緒に移し、GUIDを維持する。
 - Definition と Editor は実行時の三層とは別の分類。Editor フォルダは Unity のコンパイル区分にも必要。属性クラスは明示的な全型名（例: `[InspectorReadOnlyAttributeAdapter]`）を使う。
 - 同じファイルにある関連列挙型・データ型にも同じ分類の接尾辞を使う。入れ子型は所有型の補助として扱い、Stock、Data などに重ねて接尾辞を付けない。
-- 役割別の追加階層や空のレイヤーフォルダを作らない。名前空間・Assembly Definition の導入は今回の整理に含まない。
+- 役割別の追加階層や空のレイヤーフォルダを作らない。名前空間は追加しない。Test Runnerへの移行で導入したAssembly Definitionは[検証手順](test-runner.md#コンパイル区分)に従う。
 - 既存の設定アセットは `Assets/Scripts/ScriptableObject/` のパスを保持する。スクリプトと .meta は移動し、GUID とシリアライズするフィールド名を維持する。
 - 整理は責務の分類を表す。加工判定と素材消費はタスク F で分離済み。UI の実装分離もタスク H で完了した。各タスクの実装と検証結果で判断し、配置だけで移行完了にしない。
 
@@ -144,3 +145,7 @@
 ## 現行設計の参照
 
 2026-10-11にコードとシーン配線を照合した [現行設計図式](current-architecture.md) と [クラス・スクリプト対応表](script-catalog.md) を参照する。目標方針や移動履歴とは区別し、今後の変更時は該当機能図も更新する。
+
+## Test Runnerへの移行（2026-11-11）
+
+納品のVerifierをEdit Modeの判定・設定テストと、Play ModeのScene・表示・実搬送テストへ移した。新しいテストは[検証手順](test-runner.md)に従って目的別に実行できる形にする。既存のGUIDと保存済み資産を保ち、ゲーム本体・Editorツール・テストのasmdef参照を分ける。

@@ -237,7 +237,7 @@
           ]
         },
         "Editor": {
-          "description": "グリッド編集支援と既存の検証入口をまとめた開発用領域です。Editor専用クラスや条件付きVerifierがセル接続、在庫、搬送、配置などを確認します。通常の製品動作から区別し、図の静的説明だけで実行検証済みとは扱いません。",
+          "description": "Editor専用の編集支援と検証入口。納品の判定・設定はEdit Mode、保存済みSceneの表示と実搬送はPlay ModeのTest Runnerで目的別に実行する。残りのVerifierは既存CLI入口を保持する。",
           "references": [
             {
               "path": "Assets/Tests/Editor/Grid/CellConnectionVerifierEditor.cs"
@@ -248,6 +248,18 @@
             },
             {
               "path": "docs/design/script-catalog.md"
+            },
+            {
+              "path": "Assets/Tests/Editor/Progression/Delivery/DeliveryGoalRulesTests.cs"
+            },
+            {
+              "path": "Assets/Tests/PlayMode/Progression/DeliveryGoalsPlayModeTests.cs"
+            },
+            {
+              "path": "Assets/Tests/PlayMode/Progression/DeliveryTransferPlayModeTests.cs"
+            },
+            {
+              "path": "docs/design/test-runner.md"
             }
           ]
         },
