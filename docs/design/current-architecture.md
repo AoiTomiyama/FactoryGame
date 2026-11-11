@@ -201,3 +201,5 @@ UIS-06ではMainSceneのHUDと操作帯を保存済みPrefabへ移し、固定�
 一人称散策はCameraControllerAdapterが既存Cinemachineの追従・投影とカーソルを切り替え、FirstPersonWalkAdapterがグリッド占有に基づく移動と見回しを行う。実際のBody制御を停止して描画カメラの目線を保持し、0.5秒の往復補間中は配置を止める。FirstPersonChangedで入力と既存HUDを切り替え、戻る補間の完了後に通常UIを復元する。[操作と表示](../spec/currency-loop-ui.md#一人称の散策モード)を参照する。
 
 HUDの押下・表示・状態変化の演出はHudMotionAdapterが既存DOTweenで行う。各Presenterが実際の残高変化や新規適用だけを通知し、購入判定・購読・表示切替は既存の担当に保つ。[UIアニメーション仕様](../spec/currency-loop-ui.md#操作と状態変化のアニメーション)を参照する。
+
+PCのフィールド描画はUnity標準のフラスタムカリングを使う。GPU Resident DrawerとGPUオクルージョンは比較の結果、現行モデルでの処理時間増加と明るさの差を理由に既定無効とした。Editorだけで再比較できる入口を保持する。[採用設定と比較方法](../spec/field-rendering.md)を参照する。
