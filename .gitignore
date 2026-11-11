@@ -74,11 +74,6 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 
-# Local task state and execution records
-/docs/tasks/task-list.md
-/docs/tasks/task-list.md.registrations/
-/docs/tasks/task-list.md.chronos.lock
-/docs/local/
-/docs/design/diagrams/verification.json
-/docs/verification/
-/docs/verification/
+# Local project documents and agent instructions
+/docs/
+/AGENTS.md
