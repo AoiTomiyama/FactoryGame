@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d8b3e80f128d405d94acf5aa37a56f64, type: 3}
+  m_Name: DeliveryGoals
+  m_EditorClassIdentifier: Assembly-CSharp::DeliveryGoalsDefinition
+  stages:
+  - id: raw
+    label: 基礎投入
+    requirements:
+    - resource: 2
+      cumulativeAmount: 40
+    - resource: 1
+      cumulativeAmount: 40
+  - id: processed
+    label: 加工投入
+    requirements:
+    - resource: 5
+      cumulativeAmount: 30
+    - resource: 6
+      cumulativeAmount: 20
+  - id: advanced
+    label: 複合加工投入
+    requirements:
+    - resource: 7
+      cumulativeAmount: 20

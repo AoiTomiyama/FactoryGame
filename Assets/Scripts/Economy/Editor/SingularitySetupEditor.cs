@@ -47,6 +47,7 @@ public static class SingularitySetupEditor
             AssetDatabase.CreateAsset(layout, Folder + "SingularityStart.asset");
         }
         Set(layout, "economy", economy);
+        Set(layout, "deliveryGoals", AssetDatabase.LoadAssetAtPath<DeliveryGoalsDefinition>(Folder + "DeliveryGoals.asset"));
         Set(layout, "singularity", prefab);
         Set(layout, "wood", AssetDatabase.LoadAssetAtPath<ResourceCellAdapter>("Assets/Prefabs/Field/General/F_ResourceWoodCell.prefab"));
         Set(layout, "empty", AssetDatabase.LoadAssetAtPath<EmptyCellAdapter>("Assets/Prefabs/Field/General/F_EmptyCell.prefab"));

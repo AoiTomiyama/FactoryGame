@@ -22,7 +22,9 @@ sequenceDiagram
   G->>G: 特異点の25マス・初期出荷先・換金経路を確保
   G->>F: InitializeCells(gridSize)
   F->>F: 設備位置と回転後の全占有マスを登録
-  G->>G: 残高と価格を構成し、出荷先へ渡して接続開始
+  G->>G: 残高・価格・累計納品を構成
+  G->>G: 出荷へ残高、特異点へ累計納品を渡して接続開始
+  G->>G: 既存HUDへ共有状態を渡す
  and 配置用キャッシュ
   U->>P: Start
   P->>D: TryGetCellInfo(Empty)

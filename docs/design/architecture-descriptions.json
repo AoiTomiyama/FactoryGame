@@ -348,6 +348,28 @@
               "path": "Assets/Scripts/Progression/Domain/SkillTreeCatalogDomain.cs"
             }
           ]
+        },
+        "Delivery": {
+          "description": "品目別累計と未確定納品を一回のプレイで保持する。吸収の確定後に段階と最終目標を判定し、達成後も吸収を続ける。残高とは独立する。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Progression/Application/DeliveryProgressApplication.cs"
+            },
+            {
+              "path": "Assets/Scripts/Economy/Application/AbsorptionIntakeApplication.cs"
+            }
+          ]
+        },
+        "Goals": {
+          "description": "段階ごとの品目と累計必要数を不変の定義にする。重複・不正値・目標の減少を検出し、編集用設定と実行時累計を分離する。",
+          "references": [
+            {
+              "path": "Assets/Scripts/Progression/Domain/DeliveryGoalCatalogDomain.cs"
+            },
+            {
+              "path": "Assets/Scripts/Progression/Definitions/DeliveryGoalsDefinition.cs"
+            }
+          ]
         }
       },
       "presentation": {
@@ -371,7 +393,9 @@
           "Editor": "external",
           "Economy": "middle",
           "Progression": "middle",
-          "Stats": "foundation"
+          "Stats": "foundation",
+          "Delivery": "middle",
+          "Goals": "foundation"
         }
       },
       "number": "1"

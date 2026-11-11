@@ -127,3 +127,7 @@ Fまたは操作帯の「散策 [F]」で、注視点付近の空いた床へ降
 操作ボタンは押下時に0.06秒で96%へ縮小し、指を離すか領域外へ出ると0.12秒で元へ戻る。キーボードの決定、確定残高の変化、スキルの新規適用は0.22秒の小さな拡縮で伝える。残高は即座に確定値へ更新する。予約・取消だけの通知、同じノードの再選択、一覧の再描画では状態変化の演出を再生しない。未解放ノードや適用ボタンの色は従来の状態表示を保つ。
 
 [HudMotionAdapter](../../Assets/Scripts/UI/Adapter/HudMotionAdapter.cs)を既存UIへ実行時に接続し、導入済みのDOTweenで表示だけを補間する。独立した設定アセットやUI部品は追加しない。保存済みのスケール・透明度を基準とし、連続操作や無効化では途中の演出を終了して復元する。時間停止中も動作する。既存EconomyUIVerifierEditorで押下取消・連打・停止中の動作・非表示と再表示・通知の選別・PC2寸法の収容を確認し、散策との組合せはFirstPersonVerifierEditorで確認する。実行結果はローカルの`docs/verification/ui-motion.json`へ記録する。
+
+## 納品目標の接続
+
+Generatorが構成したDeliveryProgressApplicationをEconomyPanelAdapterへ渡し、確定納品の変更を購読する。現在の段階・必要品と確定数を上部の既存行Prefabへ表示し、特異点選択時は右の既存詳細枠も更新する。適用ボタンはスキルの選択時だけ戻す。段階達成は既存HudMotionAdapterで一度だけ強調する。詳細は[特異点と出荷の仕様](currency-singularity.md#納品ui)を参照する。

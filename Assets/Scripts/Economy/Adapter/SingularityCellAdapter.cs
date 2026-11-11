@@ -2,13 +2,27 @@
 public sealed class SingularityCellAdapter : ConnectableCellBaseAdapter, IContainableApplication
 {
     private AbsorptionIntakeApplication _intake;
-    private AbsorptionIntakeApplication Intake => _intake ??= new AbsorptionIntakeApplication(System.Linq.Enumerable.Select(Ports, p => p.Id));
-    public event System.Action<ResourceTypeDomain, int> Absorbed
-    { add => Intake.Absorbed += value; remove { if (_intake != null) _intake.Absorbed -= value; } }
+    public DeliveryProgressApplication Deliveries { get; private set; }
+    public event System.Action<ResourceTypeDomain, int> Absorbed;
+    public void Configure(DeliveryProgressApplication deliveries)
+    {
+        if (deliveries == null) throw new System.ArgumentNullException(nameof(deliveries));
+        if (ReferenceEquals(Deliveries, deliveries)) return;
+        if (_initialized) throw new System.InvalidOperationException("Cannot replace delivery progress while initialized.");
+        Deliveries = deliveries;
+        _intake = new AbsorptionIntakeApplication(System.Linq.Enumerable.Select(Ports, p => p.Id), deliveries);
+        _intake.Absorbed += NotifyAbsorbed;
+    }
+    private void NotifyAbsorbed(ResourceTypeDomain type, int amount)
+    {
+        if (Absorbed == null) return;
+        foreach (System.Action<ResourceTypeDomain, int> handler in Absorbed.GetInvocationList())
+            try { handler(type, amount); } catch (System.Exception exception) { UnityEngine.Debug.LogException(exception, this); }
+    }
     private bool _initialized;
     public override void InitializeSystem()
     {
-        _ = Intake;
+        if (_intake == null) throw new System.InvalidOperationException("Configure delivery progress before initializing singularity.");
         OnDisconnected -= StopIntake; OnDisconnected += StopIntake;
         _initialized = true; _intake.Accepting = isActiveAndEnabled;
         base.InitializeSystem();

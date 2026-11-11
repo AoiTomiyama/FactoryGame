@@ -21,7 +21,7 @@ public sealed class EquipmentDetailsViewAdapter
         _group.transform.SetAsLastSibling();
         foreach (var text in new[] { Heading, _equipment, _feedback })
             text.GetComponent<LayoutElement>().preferredHeight = Mathf.Max(text.GetComponent<LayoutElement>().minHeight, text.preferredHeight);
-        if (!_group.activeSelf) return;
+        if (!_group.activeSelf || !UpgradeButton.gameObject.activeSelf) return;
         // 説明領域を残りの高さまで伸ばし、購入操作を詳細枠の下段へ揃える。
         // 長文は自然な高さを優先し、既存のスクロールで末尾へ到達できるようにする。
         var content = (RectTransform)_group.transform.parent;

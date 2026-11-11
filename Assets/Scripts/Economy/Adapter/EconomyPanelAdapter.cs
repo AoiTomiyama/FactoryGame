@@ -9,6 +9,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
 {
     private CurrencyWalletApplication _wallet;
     private SkillTreeApplication _skills;
+    private DeliveryProgressApplication _deliveries;
+    private DeliveryGoalsViewAdapter _deliveryView;
     private CellStatusViewAdapter _view;
     private CellPlacerAdapter _placer;
     private CellBaseAdapter _selected;
@@ -77,14 +79,16 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     public Button SkillButton(string uid) => _skillView.Buttons[uid];
 
     public void Configure(CurrencyWalletApplication wallet, SkillTreeApplication skills,
-        CellStatusViewAdapter view, CellPlacerAdapter placer)
+        CellStatusViewAdapter view, CellPlacerAdapter placer, DeliveryProgressApplication deliveries)
     {
         Unbind();
         _wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
         _skills = skills ?? throw new ArgumentNullException(nameof(skills));
+        _deliveries = deliveries ?? throw new ArgumentNullException(nameof(deliveries));
         _view = view;
         _placer = placer;
         if (_canvas == null) BindLayout();
+        _deliveryView = new DeliveryGoalsViewAdapter(_deliveries.Catalog, layout.Resources);
         if (isActiveAndEnabled) Bind();
     }
 
@@ -95,6 +99,9 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         UpdatePlacementMode();
         _wallet.Changed += WalletChanged;
         _skills.Changed += Refresh;
+        _deliveries.Changed += DeliveryChanged;
+        _deliveries.StageCompleted += DeliveryStageCompleted;
+        DeliveryChanged(_deliveries.Current);
         if (_view != null) _view.SelectionChanged += Select;
         Select(_view != null ? _view.SelectedCell : null);
         Refresh();
@@ -105,6 +112,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         if (!_bound) return;
         _wallet.Changed -= WalletChanged;
         _skills.Changed -= Refresh;
+        _deliveries.Changed -= DeliveryChanged;
+        _deliveries.StageCompleted -= DeliveryStageCompleted;
         if (_view != null) _view.SelectionChanged -= Select;
         Select(null);
         _bound = false;
@@ -122,6 +131,15 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     }
 
     private void WalletChanged(CurrencyWalletApplication.Snapshot _) => Refresh();
+    private void DeliveryChanged(DeliveryProgressApplication.Snapshot snapshot)
+    {
+        _summaryView.SetItems(_deliveryView.Summary(snapshot));
+        if (_selected is SingularityCellAdapter && _selectedSkill == null) Refresh();
+    }
+    private void DeliveryStageCompleted(DeliveryGoalCatalogDomain.Stage _)
+    {
+        if (_summaryView.Items.Count > 0) HudMotionAdapter.Bind(_summaryView.Items[0]).Pulse();
+    }
 
     public void SetExpanded(bool expanded)
     {
@@ -169,6 +187,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
                 ? parent.Label : "なし";
             var effect = node.CellType.HasValue ? $"同種セルすべて\n{StatName(node.Stat)} ×{node.Modifier.Multiplier:0.###}" + (node.Modifier.Addition == 0 ? "" : $" ＋{node.Modifier.Addition}") : "能力別の強化を解放";
             _equipmentView.Heading.gameObject.SetActive(true); _equipmentView.UpgradeRoot.gameObject.SetActive(true);
+            _equipmentView.UpgradeButton.gameObject.SetActive(true);
             _equipmentView.Heading.text = node.Label;
             layout.EquipmentText.GetComponent<LayoutElement>().minHeight = 64;
             _equipmentView.EquipmentText = effect;
@@ -177,6 +196,11 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
             layout.EquipmentFeedback.gameObject.SetActive(!string.IsNullOrEmpty(_equipmentView.Feedback));
             _equipmentView.UpgradeButton.GetComponentInChildren<Text>(true).text = _skills.IsOwned(node.Uid) ? "適用済み" : $"適用する　{node.Price}";
             _equipmentView.UpgradeButton.interactable = state == SkillPurchaseResultApplication.Success;
+        }
+        else if (_selected is SingularityCellAdapter)
+        {
+            layout.EquipmentText.GetComponent<LayoutElement>().minHeight = _equipmentTextMinHeight;
+            _deliveryView.RenderDetails(_equipmentView, _deliveries.Current, _selectedActive);
         }
         else
         {

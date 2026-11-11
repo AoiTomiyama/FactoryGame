@@ -570,7 +570,8 @@ public static class EconomyUIVerifierEditor
         }
         var singularity = (SingularityCellAdapter)grid.GetCell(50, 50);
         view.UpdateUIStatusWindow(singularity);
-        Require(!panel.EquipmentView.UpgradeRoot.gameObject.activeSelf && view.SelectedCell == singularity,
+        Require(panel.EquipmentView.UpgradeRoot.gameObject.activeSelf && !panel.EquipmentView.UpgradeButton.gameObject.activeSelf &&
+            panel.EquipmentText.Contains("段階") && view.SelectedCell == singularity,
             "non-upgrade cell shows status without upgrade controls");
         view.CloseButton.onClick.Invoke();
         Require(view.SelectedCell == null && !panel.UpgradeInteractable, "right close button releases selection");
@@ -641,9 +642,11 @@ public static class EconomyUIVerifierEditor
         Require(bottom > root.rect.yMin + 132, "summary clears bottom operation bar " + resolution);
     }
 
-    private static async UniTask CaptureHud(EconomyPanelAdapter panel, CellStatusViewAdapter view, Canvas canvas, int page = 1, string prefix = "hud")
+    public static UniTask CaptureDeliveries(EconomyPanelAdapter panel, CellStatusViewAdapter view, Canvas canvas)
+        => CaptureHud(panel, view, canvas, 0, "deliveries", true);
+    private static async UniTask CaptureHud(EconomyPanelAdapter panel, CellStatusViewAdapter view, Canvas canvas, int page = 1, string prefix = "hud", bool keepSummary = false)
     {
-        panel.SetSummaryItems(Enumerable.Range(0, 12).Select(i => "追加項目 " + i + "：12345").ToArray());
+        if (!keepSummary) panel.SetSummaryItems(Enumerable.Range(0, 12).Select(i => "追加項目 " + i + "：12345").ToArray());
         // GUI操作を使わず、実際のHUDを専用カメラから画像へ書き出す。
         var canvases = new[] { canvas, UnityEngine.Object.FindAnyObjectByType<OperationBarAdapter>().GetComponentInChildren<Canvas>() };
         var objects = canvases.SelectMany(c => c.GetComponentsInChildren<Transform>(true)).Distinct().ToArray();
@@ -691,7 +694,7 @@ public static class EconomyUIVerifierEditor
         }
         foreach (var c in canvases) { c.renderMode = RenderMode.ScreenSpaceOverlay; c.worldCamera = null; }
         for (var i = 0; i < objects.Length; i++) if (objects[i] != null) objects[i].gameObject.layer = layers[i];
-        panel.SetSummaryItems();
+        if (!keepSummary) panel.SetSummaryItems();
         UnityEngine.Object.Destroy(cameraObject);
     }
 

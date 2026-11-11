@@ -328,6 +328,8 @@ public static class CraftingVerifierEditor
                 "Assets/Prefabs/Field/General/F_SingularityCell.prefab"), output + forward * 4 + rotation * Vector3.right, rotation, route);
             var wallet = new CurrencyWalletApplication(0);
             var absorbed = 0;
+            sink.Configure(new DeliveryProgressApplication(AssetDatabase.LoadAssetAtPath<SingularityStartDefinition>(
+                "Assets/Scripts/ScriptableObject/SingularityStart.asset").CreateDeliveryCatalog()));
             sink.Absorbed += (type, amount) => { if (type == ResourceTypeDomain.BuildingParts) absorbed += amount; };
             grid.InitializeCells(18);
             sink.InitializeSystem(); crafter.InitializeSystem(); exporter.InitializeSystem(); left.InitializeSystem(); right.InitializeSystem();

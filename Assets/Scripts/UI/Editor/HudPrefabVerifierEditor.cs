@@ -111,7 +111,7 @@ public static class HudPrefabVerifierEditor
         var ids = fixedObjects.Select(o => o.GetInstanceID()).ToArray();
         var generator = panel.GetComponent<GridFieldGeneratorAdapter>();
         panel.Configure(generator.Wallet, generator.Skills,
-            UnityEngine.Object.FindAnyObjectByType<CellStatusViewAdapter>(), UnityEngine.Object.FindAnyObjectByType<CellPlacerAdapter>());
+            UnityEngine.Object.FindAnyObjectByType<CellStatusViewAdapter>(), UnityEngine.Object.FindAnyObjectByType<CellPlacerAdapter>(), generator.Deliveries);
         Require(ids.SequenceEqual(fixedObjects.Select(o => o.GetInstanceID())), "reconfigure preserves static instances");
         Require(UnityEngine.Object.FindObjectsByType<HudLayoutAdapter>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length == 1,
             "no replacement HUD or hidden restore tree");

@@ -10,6 +10,9 @@ public sealed class SingularityStartDefinition : ScriptableObject
     [SerializeField] private ResourceCellAdapter wood;
     [SerializeField] private EmptyCellAdapter empty;
     [SerializeField] private ShippingCellAdapter shipping;
+    [SerializeField] private DeliveryGoalsDefinition deliveryGoals;
+    public DeliveryGoalCatalogDomain CreateDeliveryCatalog() => deliveryGoals != null ? deliveryGoals.CreateCatalog() :
+        throw new InvalidOperationException("Assign delivery goals definition.");
     public SingularityCellAdapter SingularityPrefab => singularity;
     public ResourceCellAdapter WoodPrefab => wood;
     public EmptyCellAdapter EmptyPrefab => empty;
@@ -31,6 +34,7 @@ public sealed class SingularityStartDefinition : ScriptableObject
 
     public void Validate(int size)
     {
+        _ = CreateDeliveryCatalog();
         if (size <= 0 || singularity == null || shipping == null || wood == null || empty == null ||
             wood.ResourceTypeDomain != ResourceTypeDomain.Wood)
             throw new InvalidOperationException("Initial layout requires singularity, shipping, wood and empty prefabs.");

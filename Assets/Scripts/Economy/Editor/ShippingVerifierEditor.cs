@@ -22,7 +22,7 @@ public static class ShippingVerifierEditor
         var layout = AssetDatabase.LoadAssetAtPath<SingularityStartDefinition>("Assets/Scripts/ScriptableObject/SingularityStart.asset");
         layout.Validate(14); layout.Validate(100);
         Require(layout.ShippingPrefab == cell && layout.CreateCatalog().TryGetPlacementAmount(CellTypeDomain.Shipping, 1, out var price) && price == 30, "initial shipping and price");
-        var absorption = new AbsorptionIntakeApplication(new[] { 0, 1 }) { Accepting = true };
+        var absorption = new AbsorptionIntakeApplication(new[] { 0, 1 }, new DeliveryProgressApplication(layout.CreateDeliveryCatalog())) { Accepting = true };
         var count = 0;
         absorption.Absorbed += (type, amount) => { count += amount; absorption.Commit(0, amount); };
         Require(absorption.TryReserve(0, 3, ResourceTypeDomain.Iron) && !absorption.TryReserve(0, 1, ResourceTypeDomain.Wood), "absorption accepts defined unsellable resource and reserves once");

@@ -14,6 +14,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     [SerializeField] private EconomyPanelAdapter economyPanel;
     public SkillTreeApplication Skills { get; private set; }
     public CurrencyWalletApplication Wallet { get; private set; }
+    public DeliveryProgressApplication Deliveries { get; private set; }
     public CurrencyPriceCatalogDomain Prices { get; private set; }
 
     [Header("基本設定")]
@@ -76,18 +77,20 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         }
         Prices = initialLayout.CreateCatalog();
         Wallet = new CurrencyWalletApplication(Prices.InitialBalance);
+        Deliveries = new DeliveryProgressApplication(initialLayout.CreateDeliveryCatalog());
         if (skillTree == null) throw new InvalidOperationException("Skill tree definition must be assigned.");
         Skills = new SkillTreeApplication(skillTree.CreateCatalog(), Wallet, grid.StatEffects);
         FindAnyObjectByType<CellPlacerAdapter>()?.Configure(Wallet, Prices);
         var singularities = grid.Owners.OfType<SingularityCellAdapter>().ToArray();
         if (singularities.Length != 1) throw new InvalidOperationException("Initial field requires exactly one singularity.");
         var singularity = singularities[0];
+        singularity.Configure(Deliveries);
         // 登録と共有残高の構成後に接続を開始する。
         singularity.InitializeSystem();
         foreach (var shipping in grid.Owners.OfType<ShippingCellAdapter>())
         { shipping.Configure(Wallet, Prices); shipping.InitializeSystem(); }
         FindAnyObjectByType<CameraControllerAdapter>()?.FocusOn(singularity.WorldCenter);
-        economyPanel.Configure(Wallet, Skills, FindAnyObjectByType<CellStatusViewAdapter>(), FindAnyObjectByType<CellPlacerAdapter>());
+        economyPanel.Configure(Wallet, Skills, FindAnyObjectByType<CellStatusViewAdapter>(), FindAnyObjectByType<CellPlacerAdapter>(), Deliveries);
     }
 
     public void PrepareInitialLayout(Transform parent)
