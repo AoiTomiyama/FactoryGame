@@ -24,7 +24,7 @@ public class SubMenuUIBuilderAdapter : MonoBehaviour
         {
             if (type == CellTypeDomain.ExtractorWood)
             {
-                if (info.CellTypeDomain != CellTypeDomain.ExtractorWood && info.CellTypeDomain != CellTypeDomain.ExtractorStone) continue;
+                if (!ResourceCellRulesDomain.IsExtractor(info.CellTypeDomain)) continue;
             }
             else if (info.CellTypeDomain != type) continue;
             var selected = info.CellTypeDomain;

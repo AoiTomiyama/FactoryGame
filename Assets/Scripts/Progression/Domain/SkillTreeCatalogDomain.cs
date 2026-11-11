@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 /// <summary>固定uidで参照する不変のノード。根は効果を持たない。</summary>
@@ -23,11 +23,12 @@ public sealed class SkillNodeDomain
 /// <summary>購入前に種類別の定義と前提を検証し、設定から独立したカタログを保持する。</summary>
 public sealed class SkillTreeCatalogDomain
 {
-    public static bool SupportsType(CellTypeDomain type) => type is CellTypeDomain.ExtractorWood or CellTypeDomain.ExtractorStone or
+    public static bool SupportsType(CellTypeDomain type) => ResourceCellRulesDomain.IsExtractor(type) || type is
         CellTypeDomain.Storage or CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter or CellTypeDomain.ExportConveyor;
     public static bool SupportsStat(CellTypeDomain type, EquipmentStatDomain stat) => type switch
     {
-        CellTypeDomain.ExtractorWood or CellTypeDomain.ExtractorStone => stat is EquipmentStatDomain.ExtractionAmount or EquipmentStatDomain.Capacity,
+        CellTypeDomain.ExtractorWood or CellTypeDomain.ExtractorStone or CellTypeDomain.ExtractorIron or
+        CellTypeDomain.ExtractorCopper or CellTypeDomain.ExtractorCoal => stat is EquipmentStatDomain.ExtractionAmount or EquipmentStatDomain.Capacity,
         CellTypeDomain.Storage => stat == EquipmentStatDomain.Capacity,
         CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter => stat is EquipmentStatDomain.InputCapacity or EquipmentStatDomain.OutputCapacity,
         CellTypeDomain.ExportConveyor => stat == EquipmentStatDomain.TransferAmount,

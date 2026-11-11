@@ -43,9 +43,8 @@ public abstract class FactoryPlayModeScope
         }
         else
         {
-            var previous = new Scene[SceneManager.sceneCount]; for (var i = 0; i < previous.Length; i++) previous[i] = SceneManager.GetSceneAt(i);
             _scene = SceneManager.CreateScene("FactoryTestScene"); SceneManager.SetActiveScene(_scene);
-            foreach (var scene in previous) if (scene.isLoaded) yield return SceneManager.UnloadSceneAsync(scene);
+            // 開始Sceneを破棄するとTest Runner自身も停止する。作成したSceneだけをTearDownで閉じる。
         }
         yield return null; yield return null; yield return null;
     }

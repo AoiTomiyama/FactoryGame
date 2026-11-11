@@ -24,7 +24,14 @@ public enum ResourceTypeDomain
     Gold,
     Plank,
     StoneBrick,
-    BuildingParts
+    BuildingParts,
+    Copper,
+    Coal,
+    IronIngot,
+    CopperIngot,
+    CopperWire,
+    Steel,
+    MachineParts
 }
 
 /// <summary>
@@ -47,6 +54,12 @@ public enum CellTypeDomain
     Singularity,
     AdvancedCrafter,
     Shipping,
+    ResourceCopper,
+    ResourceCoal,
+    ExtractorIron,
+    ExtractorCopper,
+    ExtractorCoal,
+    ConstructionDepot,
 }
 [System.Flags]
 public enum CellPortUseDomain { Input = 1, Output = 2, Both = Input | Output }

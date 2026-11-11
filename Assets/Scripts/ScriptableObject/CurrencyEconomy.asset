@@ -24,6 +24,22 @@ MonoBehaviour:
     price: 4
   - resource: 7
     price: 16
+  - resource: 3
+    price: 2
+  - resource: 8
+    price: 2
+  - resource: 9
+    price: 1
+  - resource: 10
+    price: 6
+  - resource: 11
+    price: 6
+  - resource: 12
+    price: 14
+  - resource: 13
+    price: 16
+  - resource: 14
+    price: 50
   placementPrices:
   - cell: 6
     price: 20
@@ -43,3 +59,9 @@ MonoBehaviour:
     price: 90
   - cell: 14
     price: 30
+  - cell: 17
+    price: 30
+  - cell: 18
+    price: 30
+  - cell: 19
+    price: 25

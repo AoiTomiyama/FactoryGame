@@ -33,3 +33,35 @@ MonoBehaviour:
     resourceType: 7
     prefab: {fileID: 8945298940271707279, guid: da28c293a3334accb0c3f619eb3e5e12, type: 3}
     icon: {fileID: 21300000, guid: 47a2cd4ab4e1451e8091a5949a5303e3, type: 3}
+  - resourceName: 鉄鉱石
+    resourceType: 3
+    prefab: {fileID: 8945298940271707279, guid: 3710087f185f4c5fb9f5095328c98b5a, type: 3}
+    icon: {fileID: 21300000, guid: 80a0468f4114468c824f12541dec0a95, type: 3}
+  - resourceName: 銅鉱石
+    resourceType: 8
+    prefab: {fileID: 8945298940271707279, guid: bd8089c99d304f2593fbe640fcc96f4a, type: 3}
+    icon: {fileID: 21300000, guid: 3ae6ce7bd2334d2980ac18c61713825e, type: 3}
+  - resourceName: 石炭
+    resourceType: 9
+    prefab: {fileID: 8945298940271707279, guid: f1c6e268e02e479fac86da473555821d, type: 3}
+    icon: {fileID: 21300000, guid: 134419d0ce404596a3348b41a418e4d9, type: 3}
+  - resourceName: 鉄インゴット
+    resourceType: 10
+    prefab: {fileID: 8945298940271707279, guid: 6aba6f5ca87c402dae03967b4f5567f9, type: 3}
+    icon: {fileID: 21300000, guid: 8c2cc03d32d847298236102437236533, type: 3}
+  - resourceName: 銅インゴット
+    resourceType: 11
+    prefab: {fileID: 8945298940271707279, guid: dcca3da6c93c47e4967e295f9ce71f5a, type: 3}
+    icon: {fileID: 21300000, guid: 0995766d1653498ca341c62da2bb9d7a, type: 3}
+  - resourceName: 銅線
+    resourceType: 12
+    prefab: {fileID: 8945298940271707279, guid: df821fc01e6044c69c56083d2789d293, type: 3}
+    icon: {fileID: 21300000, guid: 16f8f2056b34420faad78a8baa2b75b5, type: 3}
+  - resourceName: 鋼材
+    resourceType: 13
+    prefab: {fileID: 8945298940271707279, guid: ec97467c951849ce877be4a16bcbf522, type: 3}
+    icon: {fileID: 21300000, guid: d8483b41a7304432b247c6df12f0e9e7, type: 3}
+  - resourceName: 機械部品
+    resourceType: 14
+    prefab: {fileID: 8945298940271707279, guid: 3bac6d247ddd4e5e89c1435f84f5c3d5, type: 3}
+    icon: {fileID: 21300000, guid: af7e9f05534a421d8e29b0bababc9f06, type: 3}

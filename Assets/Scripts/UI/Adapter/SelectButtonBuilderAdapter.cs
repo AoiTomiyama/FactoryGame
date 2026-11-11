@@ -15,7 +15,9 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
     public static string PlacementLabel(CellTypeDomain type) => type switch
     {
         CellTypeDomain.Empty => "撤去", CellTypeDomain.ExtractorWood => "木材採取",
-        CellTypeDomain.ExtractorStone => "石材採取", CellTypeDomain.Storage => "保管庫",
+        CellTypeDomain.ExtractorStone => "石材採取", CellTypeDomain.ExtractorIron => "鉄鉱石採取",
+        CellTypeDomain.ExtractorCopper => "銅鉱石採取", CellTypeDomain.ExtractorCoal => "石炭採取",
+        CellTypeDomain.ConstructionDepot => "建設資材庫", CellTypeDomain.Storage => "保管庫",
         CellTypeDomain.Crafter => "基本加工", CellTypeDomain.AdvancedCrafter => "上位加工", CellTypeDomain.Conveyor => "搬送路", CellTypeDomain.Shipping => "出荷",
         CellTypeDomain.ExportConveyor => "搬出路", CellTypeDomain.Crossing => "交差搬送路", _ => type.ToString()
     };
@@ -79,9 +81,8 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
         foreach (var cellInfo in list)
         {
             var type = cellInfo.CellTypeDomain;
-            if (type == CellTypeDomain.None || type == CellTypeDomain.ResourceWood ||
-                type == CellTypeDomain.ResourceStone || type == CellTypeDomain.ResourceIron || type == CellTypeDomain.Singularity) continue;
-            if (_font != null && type == CellTypeDomain.ExtractorStone) continue;
+            if (type == CellTypeDomain.None || ResourceCellRulesDomain.IsNatural(type) || type == CellTypeDomain.Singularity) continue;
+            if (_font != null && ResourceCellRulesDomain.IsExtractor(type) && type != CellTypeDomain.ExtractorWood) continue;
 
             // 割り当てる情報のみを下層のラッパクラスに受け渡す
             // アイコンの設定は未定

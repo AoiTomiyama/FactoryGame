@@ -26,7 +26,7 @@ public static class ShippingAssertions
         var absorption = new AbsorptionIntakeApplication(new[] { 0, 1 }, new DeliveryProgressApplication(layout.CreateDeliveryCatalog())) { Accepting = true };
         var count = 0;
         absorption.Absorbed += (type, amount) => { count += amount; absorption.Commit(0, amount); };
-        Require(absorption.TryReserve(0, 3, ResourceTypeDomain.Iron) && !absorption.TryReserve(0, 1, ResourceTypeDomain.Wood), "absorption accepts defined unsellable resource and reserves once");
+        Require(absorption.TryReserve(0, 3, ResourceTypeDomain.Gold) && !absorption.TryReserve(0, 1, ResourceTypeDomain.Wood), "absorption accepts defined unsellable resource and reserves once");
         Require(!absorption.Commit(0, 2) && !absorption.Cancel(0, 3, ResourceTypeDomain.Wood), "mismatch retains absorption reservation");
         Require(absorption.Commit(0, 3) && !absorption.Commit(0, 3) && count == 3, "absorption notification and reentry are one-shot");
         foreach (var amount in new[] { int.MinValue, -1, 0 }) Require(!absorption.TryReserve(1, amount, ResourceTypeDomain.Wood), "invalid absorption amount");

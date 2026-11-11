@@ -1,5 +1,7 @@
 using Unity.VisualScripting;
 using UnityEditor;
+using UnityEditor.SceneManagement;
+using System;
 using UnityEngine;
 
 [CustomEditor(typeof(GridFieldGeneratorAdapter))]
@@ -16,6 +18,12 @@ public class GridGeneratorEditor : Editor
         if (GUILayout.Button("Generate Grid"))
         {
             Generate(fieldGenerator);
+        }
+
+        if (GUILayout.Button("Ensure Resource Access"))
+        {
+            fieldGenerator.EnsureResourceAccess(FindAnyObjectByType<GridFieldDatabaseAdapter>().transform);
+            EditorSceneManager.MarkSceneDirty(fieldGenerator.gameObject.scene);
         }
 
         if (GUILayout.Button("Clear Grid"))
@@ -68,5 +76,16 @@ public class GridGeneratorEditor : Editor
 
         fieldGenerator.GenerateGrid(_anchorTransform);
         fieldGenerator.GenerateGridLine(_anchorTransform);
+    }
+    public static void UpdateResourceAccessInScene()
+    {
+        var args = Environment.GetCommandLineArgs();
+        var index = Array.IndexOf(args, "-resourceScene");
+        if (index < 0 || index + 1 >= args.Length) throw new ArgumentException("Missing -resourceScene.");
+        var scene = EditorSceneManager.OpenScene(args[index + 1], OpenSceneMode.Single);
+        var generator = FindAnyObjectByType<GridFieldGeneratorAdapter>();
+        generator.EnsureResourceAccess(FindAnyObjectByType<GridFieldDatabaseAdapter>().transform);
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
     }
 }

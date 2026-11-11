@@ -180,12 +180,18 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     public void GenerateGrid(Transform parent)
     {
         if (initialLayout != null) initialLayout.Validate(gridSize);
-        // プロップのノイズオフセットをシード値とインスタンスIDから決定
-        // これにより、同じシード値であれば常に同じ配置になるが、異なるプレハブを使うと異なる配置になる
-        for (var i = 0; i < propPrefabs.Length; i++)
+        var candidates = (propPrefabs ?? Array.Empty<PropPrefab>()).OrderBy(p =>
+            p.prefab != null && p.prefab.TryGetComponent<ResourceCellAdapter>(out var resource) ? (int)resource.ResourceTypeDomain : -1).ToArray();
+        var identities = new System.Collections.Generic.HashSet<ResourceTypeDomain>();
+        for (var i = 0; i < candidates.Length; i++)
         {
-            propPrefabs[i].NoiseOffset = GetHashedVector(seedValue + propPrefabs[i].prefab.GetInstanceID());
+            if (candidates[i].prefab == null || !candidates[i].prefab.TryGetComponent<ResourceCellAdapter>(out var resource) ||
+                !identities.Add(resource.ResourceTypeDomain) || (float.IsNaN(candidates[i].threshold) || float.IsInfinity(candidates[i].threshold)))
+                throw new InvalidOperationException("Generation requires unique resource prefabs and finite thresholds.");
+            // 保存済みの資源種を使い、Editor再起動や候補の並べ替えで配置を変えない。
+            candidates[i].NoiseOffset = GetHashedVector(unchecked(seedValue + (int)resource.ResourceTypeDomain * 73856093));
         }
+        var octaveOffsets = Enumerable.Range(0, octaves).Select(i => GetHashedVector(unchecked(seedValue + i))).ToArray();
 
         if (parent != null)
         {
@@ -203,15 +209,14 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
                 var pos = new Vector3(x * cellScale.x, 0, z * cellScale.z);
 
                 var obj = emptyCellPrefab;
-                foreach (var p in propPrefabs)
+                var best = 0f;
+                foreach (var p in candidates)
                 {
-                    var noiseValue = Fbm(x + p.NoiseOffset.x, z + p.NoiseOffset.y, seedValue);
-
-                    if (noiseValue <= p.threshold) continue;
-
-                    // ノイズ値が閾値を超えた場合、配置するオブジェクトを確定
+                    // 全候補を比較し、配列の先頭だけが資源分布を占める偏りを防ぐ。
+                    var score = Fbm(x + p.NoiseOffset.x, z + p.NoiseOffset.y, octaveOffsets) - p.threshold;
+                    if (score <= best) continue;
+                    best = score;
                     obj = p.prefab;
-                    break;
                 }
 
 
@@ -221,7 +226,42 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
                 tile.name = $"Tile_{x}_{z}";
             }
         }
-        if (initialLayout != null) PrepareInitialLayout(parent);
+        if (initialLayout != null) { PrepareInitialLayout(parent); EnsureResourceAccess(parent); }
+    }
+
+    /// <summary>既存フィールドの設備を保ち、原料ごとに採取・搬出・搬送の空き場所を確保する。</summary>
+    public void EnsureResourceAccess(Transform parent)
+    {
+        if (initialLayout == null) return;
+        initialLayout.Validate(gridSize);
+        var c = gridSize / 2;
+        var sites = new[] {
+            (ResourceTypeDomain.Iron, c - 4, c - 2), (ResourceTypeDomain.Copper, c + 4, c - 2),
+            (ResourceTypeDomain.Coal, c - 4, c + 4), (ResourceTypeDomain.Stone, c + 4, c + 4) };
+        var resources = (propPrefabs ?? Array.Empty<PropPrefab>()).Where(p => p.prefab != null)
+            .Select(p => p.prefab.GetComponent<ResourceCellAdapter>()).Where(p => p != null)
+            .ToDictionary(p => p.ResourceTypeDomain);
+        var existing = parent.GetComponentsInChildren<CellBaseAdapter>().ToDictionary(cell =>
+            (Mathf.RoundToInt(cell.transform.position.x), Mathf.RoundToInt(cell.transform.position.z)));
+        // 変更前に全候補を調べ、手配置設備や未完成フィールドを部分的に上書きしない。
+        foreach (var site in sites.Where(site => resources.ContainsKey(site.Item1)))
+        for (var d = 0; d <= 3; d++)
+        {
+            if (site.Item2 < 0 || site.Item2 >= gridSize || site.Item3 - d < 0 || site.Item3 >= gridSize ||
+                !existing.TryGetValue((site.Item2, site.Item3 - d), out var cell) ||
+                cell is not EmptyCellAdapter && cell is not ResourceCellAdapter)
+                throw new InvalidOperationException("Resource access site is occupied by equipment or outside the field.");
+        }
+        foreach (var site in sites.Where(site => resources.ContainsKey(site.Item1)))
+        for (var d = 0; d <= 3; d++)
+        {
+            var point = (site.Item2, site.Item3 - d);
+            var current = existing[point];
+            if (d == 0 ? current is ResourceCellAdapter r && r.ResourceTypeDomain == site.Item1 : current is EmptyCellAdapter) continue;
+            var host = current.transform.parent;
+            RetireInitialCell(current);
+            CreateInitialCell(d == 0 ? resources[site.Item1] : initialLayout.EmptyPrefab, host, point.Item1, point.Item2);
+        }
     }
 
     /// <summary>
@@ -240,8 +280,8 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         var hash = sha.ComputeHash(data);
 
         // ハッシュ値の一部を取り出す
-        // 値が大きすぎるとノイズの計算が不安定になるので、-10,000,000 ～ 10,000,000 の範囲に正規化
-        const int NormalizeFactor = 10000000;
+        // 値が大きすぎるとノイズの計算が不安定になるので、-10,000 ～ 10,000 の範囲に正規化
+        const int NormalizeFactor = 10000;
 
         var x = BitConverter.ToInt32(hash, 0) % NormalizeFactor;
         var y = BitConverter.ToInt32(hash, 4) % NormalizeFactor;
@@ -256,7 +296,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     /// <param name="y">ノイズ生成用のY座標</param>
     /// <param name="seed">オクターブ毎に加えるオフセットに使うシード値</param>
     /// <returns>0.0～1.0 の範囲に正規化されたfBm値</returns>
-    private float Fbm(float x, float y, int seed)
+    private float Fbm(float x, float y, Vector2Int[] offsets)
     {
         // 各オクターブのノイズ値を累積
         var total = 0f;
@@ -277,7 +317,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
             total += Mathf.PerlinNoise(x * frequency, y * frequency) * amplitude;
             
             // シード値に基づくオフセットを加算して、各オクターブで異なるノイズになるようにする
-            var offset = GetHashedVector(seed + i);
+            var offset = offsets[i];
             x += offset.x;
             y += offset.y;
 

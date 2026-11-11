@@ -31,7 +31,7 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
 
     public int StorageCapacity => EffectiveStat(storageCapacity, EquipmentStatDomain.Capacity);
     public int ExtractionAmount => EffectiveStat(extractionAmount, EquipmentStatDomain.ExtractionAmount);
-    public override CellTypeDomain ProgressionType => resourceType == ResourceTypeDomain.Wood ? CellTypeDomain.ExtractorWood : CellTypeDomain.ExtractorStone;
+    public override CellTypeDomain ProgressionType => ResourceCellRulesDomain.ExtractorType(resourceType);
     protected override void ValidateBaseStats()
     {
         ValidateStat(storageCapacity, EquipmentStatDomain.Capacity);

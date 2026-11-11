@@ -45,3 +45,42 @@ MonoBehaviour:
     craftSecond: 5
     result: 7
     resultAmount: 1
+  - recipeName: 鉄の精錬
+    ingredients:
+    - resourceType: 3
+      requiredAmount: 2
+    craftSecond: 3
+    result: 10
+    resultAmount: 1
+  - recipeName: 銅の精錬
+    ingredients:
+    - resourceType: 8
+      requiredAmount: 2
+    craftSecond: 3
+    result: 11
+    resultAmount: 1
+  - recipeName: 銅線加工
+    ingredients:
+    - resourceType: 11
+      requiredAmount: 2
+    craftSecond: 2
+    result: 12
+    resultAmount: 1
+  - recipeName: 鋼材加工
+    ingredients:
+    - resourceType: 10
+      requiredAmount: 2
+    - resourceType: 9
+      requiredAmount: 1
+    craftSecond: 5
+    result: 13
+    resultAmount: 1
+  - recipeName: 機械部品の組立
+    ingredients:
+    - resourceType: 13
+      requiredAmount: 1
+    - resourceType: 12
+      requiredAmount: 2
+    craftSecond: 6
+    result: 14
+    resultAmount: 1

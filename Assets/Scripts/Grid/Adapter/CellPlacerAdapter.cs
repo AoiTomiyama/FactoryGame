@@ -358,8 +358,7 @@ public class CellPlacerAdapter : MonoBehaviour
     public void SetSelectedCellType(CellTypeDomain cellType)
     {
         if (_placing || cellType == CellTypeDomain.Singularity ||
-            cellType == CellTypeDomain.ResourceWood || cellType == CellTypeDomain.ResourceStone ||
-            cellType == CellTypeDomain.ResourceIron) return;
+            ResourceCellRulesDomain.IsNatural(cellType)) return;
         foreach (var database in cellDatabaseArr)
         {
             if (!database.TryGetCellInfo(cellType, out var cellInfo)) continue;

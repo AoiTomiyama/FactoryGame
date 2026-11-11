@@ -231,10 +231,11 @@ public static class CraftingAssertions
         var poolRoot = TestScenes.NewObject("CraftingCheck:ProductPool");
         var pool = poolRoot.AddComponent<ResourceItemObjectPoolAdapter>();
         SetField(pool, "resourceDatabase", resources);
-        var products = new[] { ResourceTypeDomain.Plank, ResourceTypeDomain.StoneBrick, ResourceTypeDomain.BuildingParts };
+        var products = new[] { ResourceTypeDomain.Plank, ResourceTypeDomain.StoneBrick, ResourceTypeDomain.BuildingParts,
+            ResourceTypeDomain.IronIngot, ResourceTypeDomain.CopperIngot, ResourceTypeDomain.CopperWire, ResourceTypeDomain.Steel, ResourceTypeDomain.MachineParts };
         var recipes = database.recipes.Where(recipe => products.Contains(recipe.Result)).ToArray();
         Require(recipes.Length == products.Length && recipes.Select(recipe => recipe.Result).Distinct().Count() == products.Length,
-            "saved definitions contain all three product recipes");
+            "saved definitions contain all registered product recipes");
         var previousScale = Time.timeScale;
         Time.timeScale = 10;
         try
@@ -275,9 +276,9 @@ public static class CraftingAssertions
                 pool.DisposeId(id);
                 UnityEngine.Object.Destroy(root); await UniTask.Yield();
             }
-            Require(wallet.Current.Balance == 92, "three crafted product sale prices match saved definitions");
+            Require(wallet.Current.Balance == 460, "eight crafted product sale prices match saved definitions");
 
-            Debug.Log("Saved product checks passed: plank, stone brick, building parts; crafting, export, pooled visuals and sale.");
+            Debug.Log("Saved product checks passed: eight products, rotated ports, export, pooled visuals and sale.");
         }
         finally { Time.timeScale = previousScale; UnityEngine.Object.Destroy(poolRoot); }
     }

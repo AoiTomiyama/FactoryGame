@@ -65,3 +65,27 @@ MonoBehaviour:
     fieldCellPrefab: {fileID: 7720530230915372304, guid: e4a1979acf083344d89a9ca37fcfe6fb, type: 3}
     placeholderCellPrefab: {fileID: 8102662341421015401, guid: b173dca5f462e6647b66cd5fb9af3bfd, type: 3}
     cellType: 14
+  - cellName: ResourceIron
+    fieldCellPrefab: {fileID: 1709336970433092768, guid: 157619bcc8f287349808f7ba079b5dc4, type: 3}
+    placeholderCellPrefab: {fileID: 8950711203311801956, guid: 9f9604bc92c0b30428291558a69cfc51, type: 3}
+    cellType: 4
+  - cellName: ResourceCopper
+    fieldCellPrefab: {fileID: 2362885041146466466, guid: c7f1fc37a165b1840912ee9b47f306fb, type: 3}
+    placeholderCellPrefab: {fileID: 5041182996136053745, guid: c4d81c5aae4774d41bd5c18b6a5459bb, type: 3}
+    cellType: 15
+  - cellName: ResourceCoal
+    fieldCellPrefab: {fileID: 7854766696318539945, guid: 194c745d2e6f3544cb44766f5492f728, type: 3}
+    placeholderCellPrefab: {fileID: 8924519310967831268, guid: 33505bb22c5129041b75773038feff2b, type: 3}
+    cellType: 16
+  - cellName: ExtractorIron
+    fieldCellPrefab: {fileID: 3951639537240112164, guid: f06adb667829ff344bacd66ac4334bd7, type: 3}
+    placeholderCellPrefab: {fileID: 8146687936359591436, guid: bfbb4beb6fd0ad44882c84381262c5ca, type: 3}
+    cellType: 17
+  - cellName: ExtractorCopper
+    fieldCellPrefab: {fileID: 180513710175416801, guid: 223dfdbb14b85fe40996ec78148841fc, type: 3}
+    placeholderCellPrefab: {fileID: 7486537281170489180, guid: 177fe5b0bd202424a9f476465cbbe23a, type: 3}
+    cellType: 18
+  - cellName: ExtractorCoal
+    fieldCellPrefab: {fileID: 2399829150124096259, guid: 94942ef0627cd724abedc02062bedbeb, type: 3}
+    placeholderCellPrefab: {fileID: 2014263251996821674, guid: 6be09f76bd0f9dd4cb5a8a9d7f395e94, type: 3}
+    cellType: 19

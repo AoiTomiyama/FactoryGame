@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -74,14 +75,14 @@ public class GenerateVariantWindowEditor : EditorWindow
     }
 
 
-    private static void CreateNewVariant(GameObject baseModel, GameObject basePrefab, string path, string prefabPrefix)
+    private static GameObject CreateNewVariant(GameObject baseModel, GameObject basePrefab, string path, string prefabPrefix)
     {
         const string ModelPrefabSuffix = "Model";
         const string CellPrefabSuffix = "Cell";
         if (!AssetDatabase.IsValidFolder(path))
         {
             Debug.LogError("指定された保存フォルダが存在しません: " + path);
-            return;
+            return null;
         }
 
         var targetFolder = AssetDatabase.FindAssets(Filter, new[] { path })
@@ -91,7 +92,7 @@ public class GenerateVariantWindowEditor : EditorWindow
 
         if (baseModel == null || basePrefab == null || path == null)
         {
-            return;
+            return null;
         }
 
         // Prefabのインスタンスを生成
@@ -121,5 +122,67 @@ public class GenerateVariantWindowEditor : EditorWindow
 
         // シーン上のインスタンスは不要なら削除
         DestroyImmediate(instance);
+        var createdPath = Path.Combine(path, prefabName + ".prefab").Replace("\\", "/");
+        return AssetDatabase.LoadAssetAtPath<GameObject>(createdPath);
+    }
+
+    [Serializable] private sealed class VariantManifest { public VariantJob[] jobs; }
+    [Serializable] private sealed class VariantJob
+    {
+        public string model, fieldBase, placeholderBase, fieldTemplate, fieldFolder, placeholderFolder;
+        public float modelY;
+        public IntOverride[] integers;
+    }
+    [Serializable] private sealed class IntOverride { public string property; public int value; }
+
+    /// <summary>既存Creatorと同じ構成でまとめて作成する。入力JSONは作業用ファイルで、設定資産にはしない。</summary>
+    public static void CreateFromManifest()
+    {
+        var args = Environment.GetCommandLineArgs();
+        var index = Array.IndexOf(args, "-prefabVariants");
+        if (index < 0 || index + 1 >= args.Length) throw new ArgumentException("Missing -prefabVariants manifest.");
+        var manifest = JsonUtility.FromJson<VariantManifest>(File.ReadAllText(args[index + 1]));
+        foreach (var job in manifest.jobs)
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(job.model);
+            var fieldBase = AssetDatabase.LoadAssetAtPath<GameObject>(job.fieldBase);
+            var placeholderBase = AssetDatabase.LoadAssetAtPath<GameObject>(job.placeholderBase);
+            var template = AssetDatabase.LoadAssetAtPath<CellBaseAdapter>(job.fieldTemplate);
+            if (model == null || fieldBase == null || placeholderBase == null || template == null)
+                throw new ArgumentException("Missing prefab input: " + job.model);
+            var field = CreateNewVariant(model, fieldBase, job.fieldFolder, FieldPrefabPrefix);
+            var placeholder = CreateNewVariant(model, placeholderBase, job.placeholderFolder, PlaceholderPrefabPrefix);
+            ConfigureCreatedVariant(field, template, job);
+            ConfigureCreatedVariant(placeholder, null, job);
+        }
+        AssetDatabase.SaveAssets();
+    }
+
+    private static void ConfigureCreatedVariant(GameObject prefab, CellBaseAdapter template, VariantJob job)
+    {
+        if (prefab == null) throw new InvalidOperationException("Variant was not created.");
+        var path = AssetDatabase.GetAssetPath(prefab);
+        var root = PrefabUtility.LoadPrefabContents(path);
+        try
+        {
+            root.transform.Find("Model").GetChild(0).localPosition = new Vector3(0, job.modelY, 0);
+            if (template != null)
+            {
+                // 基底の白セルから空セルの動作だけを交換し、モデルとPrefabの継承を保持する。
+                foreach (var old in root.GetComponents<CellBaseAdapter>()) DestroyImmediate(old);
+                var component = (CellBaseAdapter)root.AddComponent(template.GetType());
+                EditorUtility.CopySerialized(template, component);
+                var serialized = new SerializedObject(component);
+                foreach (var entry in job.integers ?? Array.Empty<IntOverride>())
+                {
+                    var property = serialized.FindProperty(entry.property);
+                    if (property == null) throw new ArgumentException("Missing serialized property: " + entry.property);
+                    property.intValue = entry.value;
+                }
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+            }
+            PrefabUtility.SaveAsPrefabAsset(root, path);
+        }
+        finally { PrefabUtility.UnloadPrefabContents(root); }
     }
 }

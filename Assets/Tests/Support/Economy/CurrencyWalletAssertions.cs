@@ -28,7 +28,7 @@ public static class CurrencyWalletAssertions
             Require(catalog.InitialBalance == 100, "Initial balance");
             foreach (var resource in new[] { ResourceTypeDomain.Wood, ResourceTypeDomain.Stone })
                 Require(catalog.TryGetSaleAmount(resource, int.MaxValue, out total) && total == int.MaxValue, "Default sale price");
-            foreach (var resource in new[] { ResourceTypeDomain.None, ResourceTypeDomain.Iron, ResourceTypeDomain.Gold, (ResourceTypeDomain)999 })
+            foreach (var resource in new[] { ResourceTypeDomain.None, ResourceTypeDomain.Gold, (ResourceTypeDomain)999 })
                 Require(!catalog.TryGetSaleAmount(resource, 1, out total) && total == 0, "Undefined sale rejected");
             var cells = new[] { CellTypeDomain.ExtractorWood, CellTypeDomain.ExtractorStone, CellTypeDomain.Conveyor,
                 CellTypeDomain.ExportConveyor, CellTypeDomain.Crossing, CellTypeDomain.Storage, CellTypeDomain.Crafter };
