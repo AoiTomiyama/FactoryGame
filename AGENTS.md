@@ -4,7 +4,8 @@
 
 ## 環境と配置
 
-- Unityの版は`ProjectSettings/ProjectVersion.txt`、C#は`Assets/Scripts/`、メインシーンは`Assets/Scenes/MainScene.unity`。UniTaskは`Packages/manifest.json`のGit依存を使う。
+- Unityの版は`ProjectSettings/ProjectVersion.txt`、通常のC#は`Assets/Scripts/`、メインシーンは`Assets/Scenes/MainScene.unity`。UniTaskは`Packages/manifest.json`のGit依存を使う。
+- 検証用Verifierは`Assets/Tests/Editor/<機能>/`、Development実行用は`Assets/Tests/Runtime/<機能>/`へ置く。通常スクリプトの編集支援は既存のEditorフォルダへ置く。
 - 実装は[設計方針](docs/design/architecture-guidelines.md)の責務と依存方向に従う。スクリプトの追加・移動・改名は[配置・命名規則](docs/design/script-organization.md)を使う。
 
 ## 作業の入口

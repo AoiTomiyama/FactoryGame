@@ -22,7 +22,7 @@
 
 読み取り関数は、呼出しごとに新しい表示データを返し、予約・搬入・搬出などの数量変更を行わない。通知はセル側の `StatusChanged` から既存Viewへ接続する。表示値の取得自体が副作用を持たないことは専用Adapterの責務であり、任意の関数の副作用をAPIが抑止するわけではない。使用できるラベルと表示行は既存の列挙値・Text/Gauge/Storageの範囲とする。
 
-実装は [Provider接続](../../Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs)、接続例は [検証専用セルとReader](../../Assets/Scripts/UI/Adapter/UIStatusFixtureCellAdapter.cs)。この例は `UNITY_EDITOR` 限定で、設備Prefabや製品ビルドへ追加しない。検証入口は [UIStatusVerifierEditor.VerifyCustomStatus](../../Assets/Scripts/UI/Editor/UIStatusVerifierEditor.cs)。
+実装は [Provider接続](../../Assets/Scripts/UI/Adapter/CellStatusProviderAdapter.cs)、接続例は [検証専用セルとReader](../../Assets/Scripts/UI/Adapter/UIStatusFixtureCellAdapter.cs)。この例は `UNITY_EDITOR` 限定で、設備Prefabや製品ビルドへ追加しない。検証入口は [UIStatusVerifierEditor.VerifyCustomStatus](../../Assets/Tests/Editor/UI/UIStatusVerifierEditor.cs)。
 
 ## 更新と寿命
 

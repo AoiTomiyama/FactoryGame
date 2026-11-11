@@ -33,6 +33,6 @@
 - [共有状態](../../Assets/Scripts/Progression/Application/SharedStatEffectsApplication.cs): 種類・能力別の倍率と加算値、変更通知。
 - [セル基底](../../Assets/Scripts/Cells/Adapter/CellBaseAdapter.cs): 能力別設定の読取、共有状態の接続、数量表示通知と購読寿命。
 - [グリッド](../../Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs): セッション状態の所有と登録時の適用。
-- [Editor検証](../../Assets/Scripts/Progression/Editor/EffectiveStatsVerifierEditor.cs): `Run`で任意の倍率・加算値の計算境界を検証する。SkillTreeVerifierEditor.Runから同じ境界検証を呼び、MainSceneのPlay Modeで抽出・搬送・加工中の変更、容量・予約維持、新設と再有効化を確認する。
+- [Editor検証](../../Assets/Tests/Editor/Progression/EffectiveStatsVerifierEditor.cs): `Run`で任意の倍率・加算値の計算境界を検証する。SkillTreeVerifierEditor.Runから同じ境界検証を呼び、MainSceneのPlay Modeで抽出・搬送・加工中の変更、容量・予約維持、新設と再有効化を確認する。
 
 関連契約: [予約](resource-reservations.md)、[搬送状態](resource-transfer-state.md)、[加工](crafting.md)、[状態UI](cell-status-ui.md)。実行結果はローカルの `docs/verification/prg01-effective-stats.json` に記録する。

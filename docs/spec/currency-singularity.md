@@ -63,8 +63,8 @@
 
 ## 検証
 
-[ShippingVerifierEditor.Run](../../Assets/Scripts/Economy/Editor/ShippingVerifierEditor.cs)は保存資産・吸収の境界と通知を確認し、既存SingularityVerifierEditorへ進む。通貨上限、数量、再入、初期生成、四方向出荷、追加購入、回転、複数出荷先、無効化・撤去・再接続、実搬送を検証する。EconomyUIVerifierEditorでPC2寸法と購読寿命、CraftingVerifierEditorで加工品の換金と5×5特異点への吸収、EconomyLoopVerifierEditorで実収益からの再投資を確認する。自動再生は消音し、ビルドは明示依頼時のみ行う。
+[ShippingVerifierEditor.Run](../../Assets/Tests/Editor/Economy/ShippingVerifierEditor.cs)は保存資産・吸収の境界と通知を確認し、既存SingularityVerifierEditorへ進む。通貨上限、数量、再入、初期生成、四方向出荷、追加購入、回転、複数出荷先、無効化・撤去・再接続、実搬送を検証する。EconomyUIVerifierEditorでPC2寸法と購読寿命、CraftingVerifierEditorで加工品の換金と5×5特異点への吸収、EconomyLoopVerifierEditorで実収益からの再投資を確認する。自動再生は消音し、ビルドは明示依頼時のみ行う。
 
 対象差分・保存ファイルのハッシュ・結果・代表画像はローカルのdocs/verification/shipping/へ集約する。
 
-[DeliveryGoalsVerifierEditor.Run](../../Assets/Scripts/Progression/Editor/DeliveryGoalsVerifierEditor.cs)は納品規則、設定の編集・Undo／Redo・保存と再読込、実Sceneの特異点・HUD接続、1600×900／1366×768での長い品目名・7品目・long上限付近の数量、詳細末尾へのスクロール、一人称からの復帰を対象検証する。画像取得は既存EconomyUIVerifierEditorの手順を共用する。実行記録と代表画像はローカルのdocs/verification/delivery-goals/へ集約する。通しプレイと目標数のバランス調整は次工程とする。
+[DeliveryGoalsVerifierEditor.Run](../../Assets/Tests/Editor/Progression/DeliveryGoalsVerifierEditor.cs)は納品規則、設定の編集・Undo／Redo・保存と再読込、実Sceneの特異点・HUD接続、1600×900／1366×768での長い品目名・7品目・long上限付近の数量、詳細末尾へのスクロール、一人称からの復帰を対象検証する。画像取得は既存EconomyUIVerifierEditorの手順を共用する。実行記録と代表画像はローカルのdocs/verification/delivery-goals/へ集約する。通しプレイと目標数のバランス調整は次工程とする。

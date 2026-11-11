@@ -12,7 +12,9 @@
 | `<機能>/Application/` | `Application` | 処理の進行、実行時状態、利用側の契約、表示用データ |
 | `<機能>/Adapter/` | `Adapter` | シーン、入力、UI、アニメーション、プールとの接続 |
 | `<機能>/Definitions/` | `Definition` | ScriptableObject と編集可能な設定型 |
-| `<機能>/Editor/` | `Editor` | 編集支援と Editor 検証 |
+| `Assets/Scripts/<機能>/Editor/` | `Editor` | Inspector、生成ツールなどの編集支援 |
+| `Assets/Tests/Editor/<機能>/` | `VerifierEditor` | Editorから実行する検証 |
+| `Assets/Tests/Runtime/<機能>/` | `VerifierAdapter` | Development実行時の検証 |
 
 ## 追加実装の判断
 
@@ -20,6 +22,7 @@
 - 名前は `<対象><役割><所属レイヤー>`。例: `ResourceStorageRulesDomain`、`ResourceTransferCoordinatorApplication`、`StorageCellAdapter`。インターフェイスにも同じ接尾辞を使う。
 - MonoBehaviour を継承しなくても Unity の演出や表示に接続する型は Adapter。Unity 非依存でも搬送中の状態を管理する型は Application。
 - 契約は利用する処理の側へ置く。現在の搬送契約には Unity の座標型が残るが、Application の進行管理が利用する契約として扱う。
+- 検証用Verifierは`Assets/Tests/`へまとめ、機能別に分ける。Editor用はEditorフォルダ配下、Development実行用はRuntime配下へ置き、既存のコンパイル条件とCLI入口を保つ。移動時はスクリプトと.metaを一緒に移し、GUIDを維持する。
 - Definition と Editor は実行時の三層とは別の分類。Editor フォルダは Unity のコンパイル区分にも必要。属性クラスは明示的な全型名（例: `[InspectorReadOnlyAttributeAdapter]`）を使う。
 - 同じファイルにある関連列挙型・データ型にも同じ分類の接尾辞を使う。入れ子型は所有型の補助として扱い、Stock、Data などに重ねて接尾辞を付けない。
 - 役割別の追加階層や空のレイヤーフォルダを作らない。名前空間・Assembly Definition の導入は今回の整理に含まない。
@@ -51,16 +54,16 @@
 | `Assets/Scripts/Cells/ResourceTransferOperation.cs` | `Assets/Scripts/Transfers/Application/ResourceTransferOperationApplication.cs` |
 | `Assets/Scripts/Cells/ResourceTransitStore.cs` | `Assets/Scripts/Transfers/Application/ResourceTransitStoreApplication.cs` |
 | `Assets/Scripts/Cells/StorageCell.cs` | `Assets/Scripts/Cells/Adapter/StorageCellAdapter.cs` |
-| `Assets/Scripts/Editor/CellConnectionVerifier.cs` | `Assets/Scripts/Grid/Editor/CellConnectionVerifierEditor.cs` |
+| `Assets/Scripts/Editor/CellConnectionVerifier.cs` | `Assets/Tests/Editor/Grid/CellConnectionVerifierEditor.cs` |
 | `Assets/Scripts/Editor/CellDatabaseEditor.cs` | `Assets/Scripts/Grid/Editor/CellDatabaseEditor.cs` |
 | `Assets/Scripts/Editor/GenerateVariantWindow.cs` | `Assets/Scripts/Grid/Editor/GenerateVariantWindowEditor.cs` |
-| `Assets/Scripts/Editor/GridFieldGeneratorVerifier.cs` | `Assets/Scripts/Grid/Editor/GridFieldGeneratorVerifierEditor.cs` |
+| `Assets/Scripts/Editor/GridFieldGeneratorVerifier.cs` | `Assets/Tests/Editor/Grid/GridFieldGeneratorVerifierEditor.cs` |
 | `Assets/Scripts/Editor/GridGeneratorEditor.cs` | `Assets/Scripts/Grid/Editor/GridGeneratorEditor.cs` |
 | `Assets/Scripts/Editor/InlineSODrawer.cs` | `Assets/Scripts/Shared/Editor/InlineSODrawerEditor.cs` |
 | `Assets/Scripts/Editor/InspectorReadOnlyDrawer.cs` | `Assets/Scripts/Shared/Editor/InspectorReadOnlyDrawerEditor.cs` |
-| `Assets/Scripts/Editor/ResourceIconVerifier.cs` | `Assets/Scripts/Resources/Editor/ResourceIconVerifierEditor.cs` |
-| `Assets/Scripts/Editor/ResourceReservationVerifier.cs` | `Assets/Scripts/Transfers/Editor/ResourceReservationVerifierEditor.cs` |
-| `Assets/Scripts/Editor/ResourceTransferVerifier.cs` | `Assets/Scripts/Transfers/Editor/ResourceTransferVerifierEditor.cs` |
+| `Assets/Scripts/Editor/ResourceIconVerifier.cs` | `Assets/Tests/Editor/Resources/ResourceIconVerifierEditor.cs` |
+| `Assets/Scripts/Editor/ResourceReservationVerifier.cs` | `Assets/Tests/Editor/Transfers/ResourceReservationVerifierEditor.cs` |
+| `Assets/Scripts/Editor/ResourceTransferVerifier.cs` | `Assets/Tests/Editor/Transfers/ResourceTransferVerifierEditor.cs` |
 | `Assets/Scripts/Extentions/CalculationExtensions.cs` | `Assets/Scripts/Grid/Adapter/CalculationExtensionsAdapter.cs` |
 | `Assets/Scripts/GridFieldGenerator.cs` | `Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs` |
 | `Assets/Scripts/Interface/IContainable.cs` | `Assets/Scripts/Transfers/Application/IContainableApplication.cs` |

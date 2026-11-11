@@ -20,4 +20,4 @@
 
 プレイヤー検証はGUIのクリック位置・入力装置の配送や主観的な操作感を保証するものではなく、実際のUIコールバックと配置処理の接続を検証する。Hidden起動の画面キャプチャが黒になる場合に備え、MainSceneのCameraから `RenderPipeline.StandardRequest` でRenderTextureへ描画し、黒一色・単色の画像を失敗とする。画像でゲームフィールドの描画を確認するが、画面に重ねたUIの見た目全体はこの画像の保証範囲に含めない。通常起動では引数がないので検証オブジェクトを生成しない。Releaseでは検証型自体を含めない。
 
-関連コード: `Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs`、`Assets/Scripts/Grid/Editor/GridFieldGeneratorVerifierEditor.cs`、`Assets/Scripts/Grid/Adapter/CellDefinitionVerifierAdapter.cs`、`Assets/Scripts/UI/Editor/UIStatusVerifierEditor.cs`。実施結果・残作業は [R1の再開文書](../tasks/extension-readiness-review.md)を参照。
+関連コード: `Assets/Scripts/Grid/Definitions/CellDatabaseDefinition.cs`、`Assets/Tests/Editor/Grid/GridFieldGeneratorVerifierEditor.cs`、`Assets/Tests/Runtime/Grid/CellDefinitionVerifierAdapter.cs`、`Assets/Tests/Editor/UI/UIStatusVerifierEditor.cs`。実施結果・残作業は [R1の再開文書](../tasks/extension-readiness-review.md)を参照。

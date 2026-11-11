@@ -24,7 +24,7 @@ Unity のコンポーネント構成を土台とし、ゲームのルール、�
 
 ## ファイル配置と命名
 
-機能を先に分け、その下に `Domain`・`Application`・`Adapter` を配置する。型とファイル名の接尾辞を所属レイヤーと一致させる。設定は `Definitions` / `Definition`、編集支援は `Editor` / `Editor` とする。分類基準と対応表は [スクリプト配置・命名規則](script-organization.md) を参照する。
+機能を先に分け、その下に `Domain`・`Application`・`Adapter` を配置する。型とファイル名の接尾辞を所属レイヤーと一致させる。設定は `Definitions` / `Definition`、編集支援は `Editor` / `Editor` とする。検証用Verifierは`Assets/Tests/Editor/<機能>/`、Development実行用は`Assets/Tests/Runtime/<機能>/`へ分離する。分類基準と対応表は [スクリプト配置・命名規則](script-organization.md) を参照する。
 
 ## 責務の置き場所
 

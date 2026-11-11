@@ -14,7 +14,7 @@ MainSceneは共有残高100、中央の特異点1基、初期出荷セル1基、
 
 ## 検証入口と判定
 
-[EconomyLoopVerifierEditor.Run](../../Assets/Scripts/Economy/Editor/EconomyLoopVerifierEditor.cs)はMainSceneをPlay Modeで開き、実際のPointer操作入口で経路を設置する。初回換金後、経済パネルから全8系統のI・IIを購入し、既設能力、新設設備への効果、購入後の継続収益、収支と通知例外を確認する。資金は採取からの換金で得る。
+[EconomyLoopVerifierEditor.Run](../../Assets/Tests/Editor/Economy/EconomyLoopVerifierEditor.cs)はMainSceneをPlay Modeで開き、実際のPointer操作入口で経路を設置する。初回換金後、経済パネルから全8系統のI・IIを購入し、既設能力、新設設備への効果、購入後の継続収益、収支と通知例外を確認する。資金は採取からの換金で得る。
 
 初回換金は通常速度、その後の蓄積はTime.timeScale=20で短縮する。設備の数量・周期・価格定義はそのまま使い、終了時に時間倍率を戻す。再生前にEditorの消音を設定し、購入資金の待機には実時間180秒の上限を設ける。
 

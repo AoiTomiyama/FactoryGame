@@ -35,7 +35,7 @@
 | UIS-01 / UIS-02 / UIS-03 | [UI契約](../spec/cell-status-ui.md)、[アイコン](../spec/resource-icons.md)。専用取得、表示境界と購読寿命、資産参照 |
 | CRF-01 | [加工](../spec/crafting.md)。固定計画と再検証、消費・確定・取消 |
 | ECO-01〜06 / PRG-01〜02 | [通貨ゲームループ実装計画](currency-game-loop-plan.md)。ユーザーの計画・登録依頼と曖昧点補完の許可に基づく採用仕様、搬送換金、支出取引、設備強化、共有スキルと依存順 |
-| DEV-01 / DEV-02 | 本書の旧3、[配置・命名](../design/script-organization.md)、[グリッド検証入口](../../Assets/Scripts/Grid/Editor/GridFieldGeneratorVerifierEditor.cs)。Editor依存分離、GUID維持と配置整理 |
+| DEV-01 / DEV-02 | 本書の旧3、[配置・命名](../design/script-organization.md)、[グリッド検証入口](../../Assets/Tests/Editor/Grid/GridFieldGeneratorVerifierEditor.cs)。Editor依存分離、GUID維持と配置整理 |
 
 上表の関連仕様から旧1〜5、A〜H、ORG-1、R1〜R4の記録へ到達できる。旧文書の「問題」「方針」「未着手」は記録当時の状態として読み、現行進捗は原本を使う。
 
@@ -109,7 +109,7 @@ C:/Users/Taomo/.codex/atlas/taxis.cmd validate --project factory
 - 完了条件: Unity Editor でフィールド生成が使え、プレイヤービルドのスクリプトコンパイルが通る。
 - 採用した設計: 既存シーンに保存された `GridFieldGeneratorAdapter` のコンポーネントと設定値を維持し、生成・消去・グリッドライン・ノイズ計算を `UNITY_EDITOR` 条件付きコードに限定する。プレイヤーには `Start` のグリッド初期化を残す。
 - 検証証拠: Unity 6000.3.8f1 のバッチモードで `GridFieldGeneratorVerifier.RunGeneration` を実行し、2×2 セルのプレハブ参照、グリッドライン、消去を確認。続けて `GridFieldGeneratorVerifier.RunPlayerBuild` を実行し、`MainScene` を含む Windows 64-bit プレイヤービルドが成功した。Play Mode での手操作は行っていない。
-- 参照: `Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs`、`Assets/Scripts/Grid/Editor/GridGeneratorEditor.cs`、`Assets/Scripts/Grid/Editor/GridFieldGeneratorVerifierEditor.cs`。
+- 参照: `Assets/Scripts/Grid/Adapter/GridFieldGeneratorAdapter.cs`、`Assets/Scripts/Grid/Editor/GridGeneratorEditor.cs`、`Assets/Tests/Editor/Grid/GridFieldGeneratorVerifierEditor.cs`。
 
 ## 4. 隣接セル探索を4方向の直接参照にする
 
@@ -119,7 +119,7 @@ C:/Users/Taomo/.codex/atlas/taxis.cmd validate --project factory
 - 完了条件: 配置、回転、削除、再接続の結果が現行の意図に沿い、隣接確認でグリッド全体の探索用配列を生成しない。
 - 採用した設計: 4方向を固定スロットとして座標から `GetCell` で直接取得し、グリッド外は先に除外する。接続・切断では両側の参照を更新してから通知する。仕様は `docs/spec/cell-connections.md`。
 - 検証証拠: Unity 6000.3.8f1 のバッチモードで `CellConnectionVerifier.Run` を実行し、コンパイルと Edit Mode の4方向接続・相互通知・削除・再接続・90度回転・グリッド端の確認が成功。接続処理から `TryGetCellFromRange` の呼び出しがなくなった。Play Mode とプレイヤービルドは今回実行していない。
-- 参照: `Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs`、`Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs`、`Assets/Scripts/Grid/Editor/CellConnectionVerifierEditor.cs`。
+- 参照: `Assets/Scripts/Cells/Adapter/ConnectableCellBaseAdapter.cs`、`Assets/Scripts/Grid/Adapter/GridFieldDatabaseAdapter.cs`、`Assets/Tests/Editor/Grid/CellConnectionVerifierEditor.cs`。
 
 ## 5. 資源アイコンの参照を確認する
 
@@ -129,4 +129,4 @@ C:/Users/Taomo/.codex/atlas/taxis.cmd validate --project factory
 - 完了条件: レシピ欄と保管セルの状態欄を Unity Editor で確認し、意図した表示になっている。
 - 採用した設計: 既存の画像表示を維持し、木材・石材の `icon` に従来の Unity 組み込み Sprite 参照を戻す。資源データ名変更など進行中の別作業は変更しない。仕様は `docs/spec/resource-icons.md`。
 - 検証証拠: Unity 6000.3.8f1 の Play Mode バッチ実行 `ResourceIconVerifier.Run` で `ResourceDB.asset` の2種の Sprite が解決でき、`Recipe.prefab` の材料・成果物行と `StorageParamLine.prefab` の状態欄に Sprite と資源名が設定されたことを確認。参照先の Sprite 名は石材が `Checkmark`、木材が `Background`。画面の目視確認とプレイヤービルドは実施していない。
-- 参照: `Assets/Scripts/ScriptableObject/ResourceDB.asset`、`Assets/Scripts/UI/Adapter/RecipeElementUIAdapter.cs`、`Assets/Scripts/UI/Adapter/StorageUIStatusRowAdapter.cs`、`Assets/Scripts/Resources/Editor/ResourceIconVerifierEditor.cs`。
+- 参照: `Assets/Scripts/ScriptableObject/ResourceDB.asset`、`Assets/Scripts/UI/Adapter/RecipeElementUIAdapter.cs`、`Assets/Scripts/UI/Adapter/StorageUIStatusRowAdapter.cs`、`Assets/Tests/Editor/Resources/ResourceIconVerifierEditor.cs`。

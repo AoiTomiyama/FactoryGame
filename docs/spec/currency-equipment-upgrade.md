@@ -18,4 +18,4 @@
 
 ## 検証
 
-[SkillTreeVerifierEditor.Run](../../Assets/Scripts/Progression/Editor/SkillTreeVerifierEditor.cs)が種類別の取引と効果範囲、既設・新設・再有効化、実行中の抽出・搬出・加工、予約と在庫の保持を検証する。UIと実際の換金収益による再投資は[スキル仕様](skill-tree.md#検証入口)の既存入口を使う。実行記録はローカルの`docs/verification/type-skills.json`へ集約する。
+[SkillTreeVerifierEditor.Run](../../Assets/Tests/Editor/Progression/SkillTreeVerifierEditor.cs)が種類別の取引と効果範囲、既設・新設・再有効化、実行中の抽出・搬出・加工、予約と在庫の保持を検証する。UIと実際の換金収益による再投資は[スキル仕様](skill-tree.md#検証入口)の既存入口を使う。実行記録はローカルの`docs/verification/type-skills.json`へ集約する。

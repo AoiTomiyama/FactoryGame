@@ -21,9 +21,9 @@ Placerは旧セルを保持したまま非アクティブな雛形を複製し�
 
 ## 検証入口
 
-[EquipmentPlacementVerifierEditor.Run](../../Assets/Scripts/Economy/Editor/EquipmentPlacementVerifierEditor.cs)で価格ちょうどの支払い、不足、生成・登録・初期化の失敗復元、通知再入と対象再確認を検証する。同じ起動で既存の接続・UI資産検証とMainSceneのPlay Modeを実行し、有料の初回換金経路、範囲の正逆順、途中不足、保護セル、回転、無料撤去、選択表示、初期化失敗後の再配置を確認する。失敗注入セルは`UNITY_EDITOR`に限定し、プレイヤーへ含めない。
+[EquipmentPlacementVerifierEditor.Run](../../Assets/Tests/Editor/Economy/EquipmentPlacementVerifierEditor.cs)で価格ちょうどの支払い、不足、生成・登録・初期化の失敗復元、通知再入と対象再確認を検証する。同じ起動で既存の接続・UI資産検証とMainSceneのPlay Modeを実行し、有料の初回換金経路、範囲の正逆順、途中不足、保護セル、回転、無料撤去、選択表示、初期化失敗後の再配置を確認する。失敗注入セルは`UNITY_EDITOR`に限定し、プレイヤーへ含めない。
 
-関連する搬送取消・ID処分は[特異点の検証入口](../../Assets/Scripts/Economy/Editor/SingularityVerifierEditor.cs)でも確認する。実行条件・結果・コード識別情報はローカルの`docs/verification/currency-placement.md`へ記録する。
+関連する搬送取消・ID処分は[特異点の検証入口](../../Assets/Tests/Editor/Economy/SingularityVerifierEditor.cs)でも確認する。実行条件・結果・コード識別情報はローカルの`docs/verification/currency-placement.md`へ記録する。
 
 ## プレビュー面の重なり
 

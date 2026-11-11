@@ -14,7 +14,7 @@ PCのGPU Resident DrawerとGPU Occlusion Cullingは既定で無効とする。�
 
 ## 検証と比較
 
-[FieldRenderingVerifierEditor.Run](../../Assets/Scripts/Grid/Editor/FieldRenderingVerifierEditor.cs)は保存済みMainSceneを再生し、実行時だけ複製したURP設定で次の3条件を比較する。起動は既存の検証コピーで行い、比較用のシェーダー保持設定も成功・失敗のどちらも終了前に復元する。保存済みのScene・PrefabとURP設定へ比較条件を書き戻さない。
+[FieldRenderingVerifierEditor.Run](../../Assets/Tests/Editor/Grid/FieldRenderingVerifierEditor.cs)は保存済みMainSceneを再生し、実行時だけ複製したURP設定で次の3条件を比較する。起動は既存の検証コピーで行い、比較用のシェーダー保持設定も成功・失敗のどちらも終了前に復元する。保存済みのScene・PrefabとURP設定へ比較条件を書き戻さない。
 
 | 条件 | GPU描画 | GPUオクルージョン |
 | --- | --- | --- |

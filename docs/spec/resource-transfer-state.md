@@ -20,7 +20,7 @@ OperationのSourceは識別・生存契約、Targetは搬入契約を借用す�
 
 Coordinatorは演出前後に接点の生存・接続・同じ予約Tokenの継続を照合する。交換・破棄・取消Tokenによる中断では旧予約を閉じ、資源IDは所有者へ残す。再利用先は確定前にIDを引き継ぎ、通常終端では資源データと表示を返却する。コンベアと交差セルのシーン上の隣接接続は従来どおりセルを使い、共有の予約・搬送処理を非セルからも利用できる。
 
-検証は [ResourceTransferVerifierEditor](../../Assets/Scripts/Transfers/Editor/ResourceTransferVerifierEditor.cs) の既存Play Mode入口を使う。C#だけの受け取り先で、全量予約、確定・取消と再入、Identityの参照一致、寿命終了、交換後の同じIDによる再試行、取消Token、再利用先へのID引継ぎ、資源データと表示の終了を確認する。同じ起動の既存予約・搬送回帰は、今回変更した共通契約を利用するセルの数量境界と接続寿命を確認するために実行する。
+検証は [ResourceTransferVerifierEditor](../../Assets/Tests/Editor/Transfers/ResourceTransferVerifierEditor.cs) の既存Play Mode入口を使う。C#だけの受け取り先で、全量予約、確定・取消と再入、Identityの参照一致、寿命終了、交換後の同じIDによる再試行、取消Token、再利用先へのID引継ぎ、資源データと表示の終了を確認する。同じ起動の既存予約・搬送回帰は、今回変更した共通契約を利用するセルの数量境界と接続寿命を確認するために実行する。
 
 ## TRN-01の検証証拠
 

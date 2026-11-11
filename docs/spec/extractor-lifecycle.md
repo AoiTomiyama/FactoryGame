@@ -16,7 +16,7 @@
 
 ## 検証入口
 
-[UIStatusVerifierEditor.Run](../../Assets/Scripts/UI/Editor/UIStatusVerifierEditor.cs)に通常初期化経由の抽出寿命回帰を組み込み、既存の表示・予約・加工検証と同じ起動で確認する。対象なし・後置き・種別不一致・削除・交換・対象無効化、設備の無効化・再有効化、重複初期化、進捗破棄、在庫・容量・出庫・UI、切断・再初期化・破棄を対象にする。
+[UIStatusVerifierEditor.Run](../../Assets/Tests/Editor/UI/UIStatusVerifierEditor.cs)に通常初期化経由の抽出寿命回帰を組み込み、既存の表示・予約・加工検証と同じ起動で確認する。対象なし・後置き・種別不一致・削除・交換・対象無効化、設備の無効化・再有効化、重複初期化、進捗破棄、在庫・容量・出庫・UI、切断・再初期化・破棄を対象にする。
 
 ## 検証結果（2026-10-13）
 

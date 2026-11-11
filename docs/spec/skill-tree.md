@@ -64,8 +64,8 @@ Domainは空定義、nullノード、空uid・名称、価格0以下、uid重複
 
 ## 検証入口
 
-[SkillTreeVerifierEditor.Run](../../Assets/Scripts/Progression/Editor/SkillTreeVerifierEditor.cs)は定義不正、前提、不足、重複、long境界、通知再入・例外、予約後の再確認を検証する。MainSceneで6種類の既設・非アクティブ・再有効化・新設セルへのI/II、他種類の不変、在庫・予約・Identity、稼働中の抽出・搬出・加工と交差の中継予約を確認する。
+[SkillTreeVerifierEditor.Run](../../Assets/Tests/Editor/Progression/SkillTreeVerifierEditor.cs)は定義不正、前提、不足、重複、long境界、通知再入・例外、予約後の再確認を検証する。MainSceneで6種類の既設・非アクティブ・再有効化・新設セルへのI/II、他種類の不変、在庫・予約・Identity、稼働中の抽出・搬出・加工と交差の中継予約を確認する。
 
-[EconomyUIVerifierEditor.RunRendered](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs)はスキルの選択・適用、セル状態の読み取り専用化、横移動とPC2寸法を既存HUDと合わせて確認する。[EconomyLoopVerifierEditor.Run](../../Assets/Scripts/Economy/Editor/EconomyLoopVerifierEditor.cs)は実際の換金収益で全種類のI/IIを取得し、新設設備への継承と収支を照合する。実行条件・対象差分・ログ・代表画像はローカルの`docs/verification/skill-schema-cleanup.json`へ集約する。
+[EconomyUIVerifierEditor.RunRendered](../../Assets/Tests/Editor/Economy/EconomyUIVerifierEditor.cs)はスキルの選択・適用、セル状態の読み取り専用化、横移動とPC2寸法を既存HUDと合わせて確認する。[EconomyLoopVerifierEditor.Run](../../Assets/Tests/Editor/Economy/EconomyLoopVerifierEditor.cs)は実際の換金収益で全種類のI/IIを取得し、新設設備への継承と収支を照合する。実行条件・対象差分・ログ・代表画像はローカルの`docs/verification/skill-schema-cleanup.json`へ集約する。
 
 樹形図が縦に収まらない場合は、ツリー内をホイール・ドラッグ・右端の縦スクロールバーで移動する。親ページはスキル表示中の縦スクロールを止め、ツリーが縦横の移動を扱う。ノード選択時は縦横とも対象へ寄せ、再描画では手動の移動位置を保持する。

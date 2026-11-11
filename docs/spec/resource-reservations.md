@@ -30,7 +30,7 @@
 
 実装参照: `Assets/Scripts/Transfers/Application/IContainableApplication.cs`、`Assets/Scripts/Resources/Domain/ResourceStorageRulesDomain.cs`、`Assets/Scripts/Transfers/Application/ResourceReservationApplication.cs`、`Assets/Scripts/Cells/Adapter/StorageCellAdapter.cs`、`Assets/Scripts/Crafting/Adapter/CrafterCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/ConveyorCellAdapter.cs`、`Assets/Scripts/Cells/Adapter/CrossingCellAdapter.cs`。
 
-検証コード: `Assets/Scripts/Transfers/Editor/ResourceReservationVerifierEditor.cs`。共通ルールの検証はセルやシーンを生成せず、数値と種別だけで行う。続いて保管・加工セルへの反映、コンベア・交差セルとの予約連携を確認する。Unity Editor ではメニュー `Tools/FactoryGame/Verify Resource Reservations`、バッチでは `-executeMethod ResourceReservationVerifierEditor.Run` を使用する。
+検証コード: `Assets/Tests/Editor/Transfers/ResourceReservationVerifierEditor.cs`。共通ルールの検証はセルやシーンを生成せず、数値と種別だけで行う。続いて保管・加工セルへの反映、コンベア・交差セルとの予約連携を確認する。Unity Editor ではメニュー `Tools/FactoryGame/Verify Resource Reservations`、バッチでは `-executeMethod ResourceReservationVerifierEditor.Run` を使用する。
 
 搬送中断時、送り元は生存する搬送先の予約を取り消す。搬送先だけが削除された場合は資源 ID を送り元に保持し、送り元自身が削除された場合は ID をプールへ一度だけ返す。演出の中断は搬入確定を起こさない。交差セルは委譲先の予約を取消し、保持中の ID を解放する。実装と検証結果は `docs/tasks/design-review.md` のタスク2を参照する。
 

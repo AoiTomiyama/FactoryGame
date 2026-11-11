@@ -13,7 +13,7 @@
 | [SkillTreeCatalogDomain](../../Assets/Scripts/Progression/Domain/SkillTreeCatalogDomain.cs)<br>SkillTreeCatalogDomain, SkillNodeDomain | 不変ノード、固定uidと前提・価格・種類別段階・効果上限の定義検証 | EffectiveStatsRulesDomain | 標準C# |
 | [SkillTreeApplication](../../Assets/Scripts/Progression/Application/SkillTreeApplication.cs)<br>SkillTreeApplication, SkillPurchaseResultApplication | 取得状態、購入可否、支出と共有効果の確定・通知 | SkillTreeCatalogDomain, CurrencyWalletApplication, CurrencyTransactionApplication, SharedStatEffectsApplication | 標準C# |
 | [SkillTreeDefinition](../../Assets/Scripts/Progression/Definitions/SkillTreeDefinition.cs) | 編集設定から不変カタログを生成 | SkillTreeCatalogDomain, SkillNodeDomain | UnityEngine |
-| [SkillTreeVerifierEditor](../../Assets/Scripts/Progression/Editor/SkillTreeVerifierEditor.cs) | 定義・取引・再入と全設備の既設・再有効化・新設のI/II効果検証 | Progression, Economy, Grid, EffectiveStatsVerifierEditor | UnityEditor, UnityEngine, UniTask |
+| [SkillTreeVerifierEditor](../../Assets/Tests/Editor/Progression/SkillTreeVerifierEditor.cs) | 定義・取引・再入と全設備の既設・再有効化・新設のI/II効果検証 | Progression, Economy, Grid, EffectiveStatsVerifierEditor | UnityEditor, UnityEngine, UniTask |
 
 ## 設備能力（PRG-01）
 
@@ -21,7 +21,7 @@
 | --- | --- | --- | --- |
 | [EffectiveStatsRulesDomain](../../Assets/Scripts/Progression/Domain/EffectiveStatsRulesDomain.cs)<br>EffectiveStatsRulesDomain | 能力別の倍率・加算・切り捨て、範囲と最大値検証 | 標準C# | 標準C# |
 | [SharedStatEffectsApplication](../../Assets/Scripts/Progression/Application/SharedStatEffectsApplication.cs) | 一プレイの種類・能力別の共有倍率と加算値と変更通知 | EffectiveStatsRulesDomain | 標準C# |
-| [EffectiveStatsVerifierEditor](../../Assets/Scripts/Progression/Editor/EffectiveStatsVerifierEditor.cs) | 基礎設定一致、計算境界、稼働中変更、予約維持と新設への適用検証 | Progression, Cells, Crafting, Grid, ResourceReservationVerifierEditor | UnityEditor, UnityEngine, UniTask |
+| [EffectiveStatsVerifierEditor](../../Assets/Tests/Editor/Progression/EffectiveStatsVerifierEditor.cs) | 基礎設定一致、計算境界、稼働中変更、予約維持と新設への適用検証 | Progression, Cells, Crafting, Grid, ResourceReservationVerifierEditor | UnityEditor, UnityEngine, UniTask |
 
 ## ランタイム・定義
 
@@ -94,19 +94,19 @@
 
 | ファイル / 宣言型 | 役割 | 主な自作依存 | 外部境界 |
 | --- | --- | --- | --- |
-| [CraftingVerifierEditor](../../Assets/Scripts/Crafting/Editor/CraftingVerifierEditor.cs)<br>CraftingVerifierEditor | 加工計画・在庫・中断の既存検証 | CrafterCellAdapter, CraftingOperationApplication, DirectionsDomain, GridFieldDatabaseAdapter, IngredientDefinition, RecipeDataDefinition, RecipeDatabaseDefinition, RecipeRulesDomain, ResourceReservationApplication, ResourceTypeDomain | Cysharp.Threading.Tasks, DG.Tweening, UnityEditor, UnityEditor.SceneManagement, UnityEngine |
-| [CellDefinitionVerifierAdapter](../../Assets/Scripts/Grid/Adapter/CellDefinitionVerifierAdapter.cs)<br>CellDefinitionVerifierAdapter | Editor/Development限定CLI起動のセル定義・配置・描画検証 | CellBaseAdapter, CellDatabaseDefinition, CellInfoDefinition, CellPlacerAdapter, CellSelectButtonUIAdapter, CellTypeDomain, EmptyCellAdapter, GridFieldDatabaseAdapter, StorageCellAdapter | UnityEngine, UnityEngine.Rendering, UnityEngine.UI |
-| [CellConnectionVerifierEditor](../../Assets/Scripts/Grid/Editor/CellConnectionVerifierEditor.cs)<br>CellConnectionVerifierEditor | 隣接接続・通知・境界の既存検証 | CellBaseAdapter, ConnectableCellBaseAdapter, DirectionsDomain, EmptyCellAdapter, GridFieldDatabaseAdapter, StorageCellAdapter | UnityEditor, UnityEditor.SceneManagement, UnityEngine |
+| [CraftingVerifierEditor](../../Assets/Tests/Editor/Crafting/CraftingVerifierEditor.cs)<br>CraftingVerifierEditor | 加工計画・在庫・中断の既存検証 | CrafterCellAdapter, CraftingOperationApplication, DirectionsDomain, GridFieldDatabaseAdapter, IngredientDefinition, RecipeDataDefinition, RecipeDatabaseDefinition, RecipeRulesDomain, ResourceReservationApplication, ResourceTypeDomain | Cysharp.Threading.Tasks, DG.Tweening, UnityEditor, UnityEditor.SceneManagement, UnityEngine |
+| [CellDefinitionVerifierAdapter](../../Assets/Tests/Runtime/Grid/CellDefinitionVerifierAdapter.cs)<br>CellDefinitionVerifierAdapter | Editor/Development限定CLI起動のセル定義・配置・描画検証 | CellBaseAdapter, CellDatabaseDefinition, CellInfoDefinition, CellPlacerAdapter, CellSelectButtonUIAdapter, CellTypeDomain, EmptyCellAdapter, GridFieldDatabaseAdapter, StorageCellAdapter | UnityEngine, UnityEngine.Rendering, UnityEngine.UI |
+| [CellConnectionVerifierEditor](../../Assets/Tests/Editor/Grid/CellConnectionVerifierEditor.cs)<br>CellConnectionVerifierEditor | 隣接接続・通知・境界の既存検証 | CellBaseAdapter, ConnectableCellBaseAdapter, DirectionsDomain, EmptyCellAdapter, GridFieldDatabaseAdapter, StorageCellAdapter | UnityEditor, UnityEditor.SceneManagement, UnityEngine |
 | [CellDatabaseEditor](../../Assets/Scripts/Grid/Editor/CellDatabaseEditor.cs)<br>CellDatabaseEditor | セルDB編集Inspector | CellBaseAdapter, CellDatabaseDefinition, CellInfoDefinition, CellTypeDomain | UnityEditor, UnityEngine |
 | [GenerateVariantWindowEditor](../../Assets/Scripts/Grid/Editor/GenerateVariantWindowEditor.cs)<br>GenerateVariantWindowEditor | Prefab variant生成支援Window |  | UnityEditor, UnityEngine |
-| [GridFieldGeneratorVerifierEditor](../../Assets/Scripts/Grid/Editor/GridFieldGeneratorVerifierEditor.cs)<br>GridFieldGeneratorVerifierEditor | 生成条件と座標の既存検証 | CellDatabaseDefinition, CellInfoDefinition, CellTypeDomain, GridFieldGeneratorAdapter | UnityEditor, UnityEditor.Build.Reporting, UnityEngine |
+| [GridFieldGeneratorVerifierEditor](../../Assets/Tests/Editor/Grid/GridFieldGeneratorVerifierEditor.cs)<br>GridFieldGeneratorVerifierEditor | 生成条件と座標の既存検証 | CellDatabaseDefinition, CellInfoDefinition, CellTypeDomain, GridFieldGeneratorAdapter | UnityEditor, UnityEditor.Build.Reporting, UnityEngine |
 | [GridGeneratorEditor](../../Assets/Scripts/Grid/Editor/GridGeneratorEditor.cs)<br>GridGeneratorEditor | グリッド生成Inspector | GridFieldDatabaseAdapter, GridFieldGeneratorAdapter | Unity.VisualScripting, UnityEditor, UnityEngine |
-| [ResourceIconVerifierEditor](../../Assets/Scripts/Resources/Editor/ResourceIconVerifierEditor.cs)<br>ResourceIconVerifierEditor | 資源アイコン・設定参照の既存検証 | RecipeDatabaseDefinition, RecipeReferenceViewAdapter, RecipeResourceRowAdapter, ResourceDefinition, ResourceTypeDomain, StorageElementDataApplication, StorageUIStatusRowAdapter | Cysharp.Threading.Tasks, TMPro, UnityEditor, UnityEditor.SceneManagement, UnityEngine, UnityEngine.UI |
+| [ResourceIconVerifierEditor](../../Assets/Tests/Editor/Resources/ResourceIconVerifierEditor.cs)<br>ResourceIconVerifierEditor | 資源アイコン・設定参照の既存検証 | RecipeDatabaseDefinition, RecipeReferenceViewAdapter, RecipeResourceRowAdapter, ResourceDefinition, ResourceTypeDomain, StorageElementDataApplication, StorageUIStatusRowAdapter | Cysharp.Threading.Tasks, TMPro, UnityEditor, UnityEditor.SceneManagement, UnityEngine, UnityEngine.UI |
 | [InlineSODrawerEditor](../../Assets/Scripts/Shared/Editor/InlineSODrawerEditor.cs)<br>InlineSODrawerEditor | SO属性のDrawer | InlineSOAttributeAdapter | UnityEditor, UnityEngine |
 | [InspectorReadOnlyDrawerEditor](../../Assets/Scripts/Shared/Editor/InspectorReadOnlyDrawerEditor.cs)<br>InspectorReadOnlyDrawerEditor | 読取専用属性のDrawer | InspectorReadOnlyAttributeAdapter | UnityEditor, UnityEngine |
-| [ResourceReservationVerifierEditor](../../Assets/Scripts/Transfers/Editor/ResourceReservationVerifierEditor.cs)<br>ResourceReservationVerifierEditor | 数量・予約・取消の既存検証 | CellBaseAdapter, ConveyorCellAdapter, CrafterCellAdapter, CrossingCellAdapter, IContainableApplication, ResourceReservationApplication, ResourceStorageRulesDomain, ResourceTransferOperationApplication, ResourceTypeDomain, StorageCellAdapter | UnityEditor, UnityEngine |
-| [ResourceTransferVerifierEditor](../../Assets/Scripts/Transfers/Editor/ResourceTransferVerifierEditor.cs)<br>ResourceTransferVerifierEditor | 非セル接点・搬送・接続喪失・ID寿命の検証 | CellBaseAdapter, ConnectableCellBaseAdapter, ConveyorCellAdapter, CrossingCellAdapter, ExportConveyorCellAdapter, IContainableApplication, IResourceReusableApplication, ResourceReservationVerifierEditor, ResourceTransferCoordinatorApplication, ResourceAnimationResultApplication, ResourceDefinition, ResourceItemObjectPoolAdapter, ResourceReservationApplication, ResourceTransferOperationApplication, ResourceTypeDomain, StorageCellAdapter | Cysharp.Threading.Tasks, DG.Tweening, UnityEditor, UnityEditor.SceneManagement, UnityEngine |
-| [UIStatusVerifierEditor](../../Assets/Scripts/UI/Editor/UIStatusVerifierEditor.cs)<br>UIStatusVerifierEditor | 選択通知・読み取り・行表示の既存検証 | CellBaseAdapter, CellStatusViewAdapter, CrafterCellAdapter, CrafterProviderDefinition, DirectionsDomain, ExtractorCellAdapter, ExtractorProviderDefinition, GaugeElementDataApplication, GaugeUIStatusRowAdapter, GridFieldDatabaseAdapter, IDataProvidableApplication, IngredientDefinition, LabelEnumApplication, LabelNameDefinition, ProviderBaseDefinition, RecipeDataDefinition, RecipeDatabaseDefinition, ResourceCellAdapter, ResourceDefinition, ResourceProviderDefinition, ResourceTypeDomain, StatusRowInfoAdapter, StorageCellAdapter, StorageProviderDefinition, TextUIStatusRowAdapter, UIStatusRowBaseAdapter, UIStatusRowTypeApplication | Cysharp.Threading.Tasks, TMPro, UnityEditor, UnityEditor.SceneManagement, UnityEngine, UnityEngine.UI |
+| [ResourceReservationVerifierEditor](../../Assets/Tests/Editor/Transfers/ResourceReservationVerifierEditor.cs)<br>ResourceReservationVerifierEditor | 数量・予約・取消の既存検証 | CellBaseAdapter, ConveyorCellAdapter, CrafterCellAdapter, CrossingCellAdapter, IContainableApplication, ResourceReservationApplication, ResourceStorageRulesDomain, ResourceTransferOperationApplication, ResourceTypeDomain, StorageCellAdapter | UnityEditor, UnityEngine |
+| [ResourceTransferVerifierEditor](../../Assets/Tests/Editor/Transfers/ResourceTransferVerifierEditor.cs)<br>ResourceTransferVerifierEditor | 非セル接点・搬送・接続喪失・ID寿命の検証 | CellBaseAdapter, ConnectableCellBaseAdapter, ConveyorCellAdapter, CrossingCellAdapter, ExportConveyorCellAdapter, IContainableApplication, IResourceReusableApplication, ResourceReservationVerifierEditor, ResourceTransferCoordinatorApplication, ResourceAnimationResultApplication, ResourceDefinition, ResourceItemObjectPoolAdapter, ResourceReservationApplication, ResourceTransferOperationApplication, ResourceTypeDomain, StorageCellAdapter | Cysharp.Threading.Tasks, DG.Tweening, UnityEditor, UnityEditor.SceneManagement, UnityEngine |
+| [UIStatusVerifierEditor](../../Assets/Tests/Editor/UI/UIStatusVerifierEditor.cs)<br>UIStatusVerifierEditor | 選択通知・読み取り・行表示の既存検証 | CellBaseAdapter, CellStatusViewAdapter, CrafterCellAdapter, CrafterProviderDefinition, DirectionsDomain, ExtractorCellAdapter, ExtractorProviderDefinition, GaugeElementDataApplication, GaugeUIStatusRowAdapter, GridFieldDatabaseAdapter, IDataProvidableApplication, IngredientDefinition, LabelEnumApplication, LabelNameDefinition, ProviderBaseDefinition, RecipeDataDefinition, RecipeDatabaseDefinition, ResourceCellAdapter, ResourceDefinition, ResourceProviderDefinition, ResourceTypeDomain, StatusRowInfoAdapter, StorageCellAdapter, StorageProviderDefinition, TextUIStatusRowAdapter, UIStatusRowBaseAdapter, UIStatusRowTypeApplication | Cysharp.Threading.Tasks, TMPro, UnityEditor, UnityEditor.SceneManagement, UnityEngine, UnityEngine.UI |
 
 ## 未採用の作業差分
 
@@ -137,7 +137,7 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | [CurrencyWalletApplication](../../Assets/Scripts/Economy/Application/CurrencyWalletApplication.cs) | 残高と予約合計、スナップショット通知。CurrencyTransactionApplicationを生成する |
 | [CurrencyTransactionApplication](../../Assets/Scripts/Economy/Application/CurrencyTransactionApplication.cs) | 一件の予約額と終端。所有するCurrencyWalletApplicationを更新する |
 | [CurrencyEconomyDefinition](../../Assets/Scripts/Economy/Definitions/CurrencyEconomyDefinition.cs) | ScriptableObject設定をCurrencyPriceCatalogDomainへ複製する |
-| [CurrencyWalletVerifierEditor](../../Assets/Scripts/Economy/Editor/CurrencyWalletVerifierEditor.cs) | 通貨境界・再入と既存ResourceReservationVerifierEditorの回帰検証 |
+| [CurrencyWalletVerifierEditor](../../Assets/Tests/Editor/Economy/CurrencyWalletVerifierEditor.cs) | 通貨境界・再入と既存ResourceReservationVerifierEditorの回帰検証 |
 
 ## ECO-02の追加
 
@@ -147,21 +147,21 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | [SingularityCellAdapter](../../Assets/Scripts/Economy/Adapter/SingularityCellAdapter.cs) | 換金しない吸収先と接続・無効化・破棄 | ConnectableCellBaseAdapter, IContainableApplication, AbsorptionIntakeApplication | UnityEngine |
 | [SingularityStartDefinition](../../Assets/Scripts/Economy/Definitions/SingularityStartDefinition.cs) | 中央初期配置と初回経路の設定検証 | CurrencyEconomyDefinition, SingularityCellAdapter, ResourceCellAdapter, EmptyCellAdapter | UnityEngine |
 | [SingularitySetupEditor](../../Assets/Scripts/Economy/Editor/SingularitySetupEditor.cs) | 初期設定・Prefab・MainScene配線の編集 | SingularityStartDefinition, GridFieldGeneratorAdapter | UnityEditor |
-| [SingularityVerifierEditor](../../Assets/Scripts/Economy/Editor/SingularityVerifierEditor.cs) | 換金境界・寿命・再入・再生成・初回経路の検証 | Economy, Coordinator, CellPlacerAdapter | UnityEditor, UniTask |
+| [SingularityVerifierEditor](../../Assets/Tests/Editor/Economy/SingularityVerifierEditor.cs) | 換金境界・寿命・再入・再生成・初回経路の検証 | Economy, Coordinator, CellPlacerAdapter | UnityEditor, UniTask |
 
 ## 設備設置（ECO-03）
 
 | ファイル | 役割 | 主な自作依存 | 外部 |
 | --- | --- | --- | --- |
 | [EquipmentPlacementApplication](../../Assets/Scripts/Economy/Application/EquipmentPlacementApplication.cs) | 支出予約・対象再確認・設置失敗復元・再入拒否 | CurrencyWalletApplication, CurrencyPriceCatalogDomain | 標準C# |
-| [EquipmentPlacementVerifierEditor](../../Assets/Scripts/Economy/Editor/EquipmentPlacementVerifierEditor.cs) | 設置取引の境界とMainSceneの配置・撤去・接続・表示検証 | EquipmentPlacementApplication, CellPlacerAdapter, CellConnectionVerifierEditor, UIStatusVerifierEditor | UnityEditor, UniTask |
+| [EquipmentPlacementVerifierEditor](../../Assets/Tests/Editor/Economy/EquipmentPlacementVerifierEditor.cs) | 設置取引の境界とMainSceneの配置・撤去・接続・表示検証 | EquipmentPlacementApplication, CellPlacerAdapter, CellConnectionVerifierEditor, UIStatusVerifierEditor | UnityEditor, UniTask |
 | [FailingPlacementCellAdapter](../../Assets/Scripts/Economy/Adapter/FailingPlacementCellAdapter.cs) | 初期化失敗・登録変更を注入するEditor限定セル | ConnectableCellBaseAdapter, GridFieldDatabaseAdapter | UnityEngine（UNITY_EDITOR限定） |
 
 ## 基礎ゲームループの統合（ECO-06）
 
 | スクリプト | 責務 |
 | --- | --- |
-| [EconomyLoopVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyLoopVerifierEditor.cs) | MainSceneの実収益で初回換金・Lv.3・全枝I/II・再投資を確認。搬送・加工回帰の消音起動入口も提供 |
+| [EconomyLoopVerifierEditor](../../Assets/Tests/Editor/Economy/EconomyLoopVerifierEditor.cs) | MainSceneの実収益で初回換金・Lv.3・全枝I/II・再投資を確認。搬送・加工回帰の消音起動入口も提供 |
 
 ## 経済UI（ECO-05）
 
@@ -169,7 +169,7 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | --- | --- | --- |
 | [SkillTreeViewAdapter](../../Assets/Scripts/UI/Adapter/SkillTreeViewAdapter.cs) | 既存行Prefabを使った横移動可能な種類別樹形図、前提の接続線、選択・適用済み表示 | HudLayoutAdapter, SkillTreeApplication, uGUI |
 | [EconomyPanelAdapter](../../Assets/Scripts/Economy/Adapter/EconomyPanelAdapter.cs) | 共有状態の配線・購読、直接タブ、配置・スキル操作、各Viewの寿命 | CurrencyWalletApplication, SkillTreeApplication, CellStatusViewAdapter, uGUI |
-| [EconomyUIVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs) | MainSceneの経済表示・購入可否・購読寿命・レイアウト検証、既存UIと設置の検証入口 | EconomyPanelAdapter, UIStatusVerifierEditor, EquipmentPlacementVerifierEditor, UnityEditor, UniTask |
+| [EconomyUIVerifierEditor](../../Assets/Tests/Editor/Economy/EconomyUIVerifierEditor.cs) | MainSceneの経済表示・購入可否・購読寿命・レイアウト検証、既存UIと設置の検証入口 | EconomyPanelAdapter, UIStatusVerifierEditor, EquipmentPlacementVerifierEditor, UnityEditor, UniTask |
 | [OperationBarAdapter](../../Assets/Scripts/UI/Adapter/OperationBarAdapter.cs) | 下部の操作案内と回転・視点切替ボタン、保存済みPrefabの参照と購入リスナーの寿命 | PlayerCursorBehaviourAdapter, CameraControllerAdapter, uGUI |
 
 ## サイドタブとセル情報（UIS-05）
@@ -189,8 +189,8 @@ EditorフォルダーのVerifierは既存のEditorメソッドをCLIから呼ぶ
 | [HudLayoutAdapter](../../Assets/Scripts/UI/Adapter/HudLayoutAdapter.cs) | FactoryHud内の固定枠・3タブ・行Prefab参照、既存の通常色・選択色の共用、左ページのスライドと入力状態、保存した配置を基準にする幅・上余白の追従 |
 | [RecipeResourceRowAdapter](../../Assets/Scripts/UI/Adapter/RecipeResourceRowAdapter.cs) | Recipe.prefabの資源アイコン・名称・数量の表示 |
 | [EquipmentDetailsPresenterAdapter](../../Assets/Scripts/Economy/Adapter/EquipmentDetailsPresenterAdapter.cs) | 選択設備の読み取り専用表示、スキル共用詳細の適用リスナー解除 |
-| [HudPrefabVerifierEditor](../../Assets/Scripts/UI/Editor/HudPrefabVerifierEditor.cs) | MainSceneとPrefabの保存参照、欠損、Editor編集保持、再構成時の固定部品保持を既存UI回帰へ追加 |
+| [HudPrefabVerifierEditor](../../Assets/Tests/Editor/UI/HudPrefabVerifierEditor.cs) | MainSceneとPrefabの保存参照、欠損、Editor編集保持、再構成時の固定部品保持を既存UI回帰へ追加 |
 
-出荷セル追加（2026-11-11）: [ShippingCellAdapter](../../Assets/Scripts/Economy/Adapter/ShippingCellAdapter.cs)は換金と寿命の接続、[AbsorptionIntakeApplication](../../Assets/Scripts/Economy/Application/AbsorptionIntakeApplication.cs)は特異点の全量吸収予約を担当する。[ShippingSetupEditor](../../Assets/Scripts/Economy/Editor/ShippingSetupEditor.cs)は資産の構成、[ShippingVerifierEditor](../../Assets/Scripts/Economy/Editor/ShippingVerifierEditor.cs)は資産と吸収の対象検証を行う。
+出荷セル追加（2026-11-11）: [ShippingCellAdapter](../../Assets/Scripts/Economy/Adapter/ShippingCellAdapter.cs)は換金と寿命の接続、[AbsorptionIntakeApplication](../../Assets/Scripts/Economy/Application/AbsorptionIntakeApplication.cs)は特異点の全量吸収予約を担当する。[ShippingSetupEditor](../../Assets/Scripts/Economy/Editor/ShippingSetupEditor.cs)は資産の構成、[ShippingVerifierEditor](../../Assets/Tests/Editor/Economy/ShippingVerifierEditor.cs)は資産と吸収の対象検証を行う。
 
-納品進行追加（2026-11-11）: [DeliveryGoalCatalogDomain](../../Assets/Scripts/Progression/Domain/DeliveryGoalCatalogDomain.cs)が段階・累計目標の定義を検証し、[DeliveryGoalsDefinition](../../Assets/Scripts/Progression/Definitions/DeliveryGoalsDefinition.cs)が編集用設定をコピーする。[DeliveryProgressApplication](../../Assets/Scripts/Progression/Application/DeliveryProgressApplication.cs)は全ポート共通の予約・確定数・段階状態と一度だけの達成通知を所有する。[DeliveryGoalsViewAdapter](../../Assets/Scripts/Progression/Adapter/DeliveryGoalsViewAdapter.cs)は既存HUD向けに目標を整形し、[DeliveryGoalsVerifierEditor](../../Assets/Scripts/Progression/Editor/DeliveryGoalsVerifierEditor.cs)が数量・編集・表示の対象検証を行う。設定と実行時状態は[納品仕様](../spec/currency-singularity.md#累計納品と段階達成)に従う。
+納品進行追加（2026-11-11）: [DeliveryGoalCatalogDomain](../../Assets/Scripts/Progression/Domain/DeliveryGoalCatalogDomain.cs)が段階・累計目標の定義を検証し、[DeliveryGoalsDefinition](../../Assets/Scripts/Progression/Definitions/DeliveryGoalsDefinition.cs)が編集用設定をコピーする。[DeliveryProgressApplication](../../Assets/Scripts/Progression/Application/DeliveryProgressApplication.cs)は全ポート共通の予約・確定数・段階状態と一度だけの達成通知を所有する。[DeliveryGoalsViewAdapter](../../Assets/Scripts/Progression/Adapter/DeliveryGoalsViewAdapter.cs)は既存HUD向けに目標を整形し、[DeliveryGoalsVerifierEditor](../../Assets/Tests/Editor/Progression/DeliveryGoalsVerifierEditor.cs)が数量・編集・表示の対象検証を行う。設定と実行時状態は[納品仕様](../spec/currency-singularity.md#累計納品と段階達成)に従う。

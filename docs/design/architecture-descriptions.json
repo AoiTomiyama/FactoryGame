@@ -240,10 +240,10 @@
           "description": "グリッド編集支援と既存の検証入口をまとめた開発用領域です。Editor専用クラスや条件付きVerifierがセル接続、在庫、搬送、配置などを確認します。通常の製品動作から区別し、図の静的説明だけで実行検証済みとは扱いません。",
           "references": [
             {
-              "path": "Assets/Scripts/Grid/Editor/CellConnectionVerifierEditor.cs"
+              "path": "Assets/Tests/Editor/Grid/CellConnectionVerifierEditor.cs"
             },
             {
-              "path": "Assets/Scripts/Grid/Adapter/CellDefinitionVerifierAdapter.cs",
+              "path": "Assets/Tests/Runtime/Grid/CellDefinitionVerifierAdapter.cs",
               "symbol": "CellDefinitionVerifierAdapter"
             },
             {

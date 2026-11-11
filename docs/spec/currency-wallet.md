@@ -41,7 +41,7 @@ ECO-01は取引基盤を提供する。MainSceneの共有所有者と搬送換�
 
 - [数量計算](../../Assets/Scripts/Economy/Domain/CurrencyRulesDomain.cs)、[価格カタログ](../../Assets/Scripts/Economy/Domain/CurrencyPriceCatalogDomain.cs)
 - [共有残高](../../Assets/Scripts/Economy/Application/CurrencyWalletApplication.cs)、[取引](../../Assets/Scripts/Economy/Application/CurrencyTransactionApplication.cs)、[設定定義](../../Assets/Scripts/Economy/Definitions/CurrencyEconomyDefinition.cs)
-- [Editor検証](../../Assets/Scripts/Economy/Editor/CurrencyWalletVerifierEditor.cs): `CurrencyWalletVerifierEditor.Run`。数量・価格の境界、定義不正、設定コピー、残高不足・上限、入金競合、支出取消、終端の一回性、再入・通知例外を確認する。4予約の24処理順×16確定/取消の384ケースを独立した残高モデルと照合し、既存 `ResourceReservationVerifierEditor.Run` を同じ起動で実行する。
+- [Editor検証](../../Assets/Tests/Editor/Economy/CurrencyWalletVerifierEditor.cs): `CurrencyWalletVerifierEditor.Run`。数量・価格の境界、定義不正、設定コピー、残高不足・上限、入金競合、支出取消、終端の一回性、再入・通知例外を確認する。4予約の24処理順×16確定/取消の384ケースを独立した残高モデルと照合し、既存 `ResourceReservationVerifierEditor.Run` を同じ起動で実行する。
 
 ## MainSceneへの接続
 

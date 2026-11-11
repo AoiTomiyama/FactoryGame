@@ -36,7 +36,7 @@ UI上で始めたクリックは配置確定へ進めず、フィールドから
 
 ## 検証
 
-[EconomyUIVerifierEditor.Run](../../Assets/Scripts/Economy/Editor/EconomyUIVerifierEditor.cs)がMainSceneで、残高と予約額、換金の予約・取消・確定、専用Reader、設備選択・能力別I/II・上限、支出予約による購入不可、実Buttonのスキル取得と前提解除、選択・非表示・無効化・削除時の購読解除、UIの入力遮断を検証する。ECO-07では既存配置ボタンと採取サブメニューによる選択、ページ切替時の購読数、スキル連打時の支払一回性、UIクリックとドラッグ終了による誤配置防止も確認する。1600×900・1366×768はCanvasScalerの高さ基準720に換算した論理サイズで、各ページの文字高さ・ボタン幅・操作領域・スクロール領域の画面内配置を検査する。描画の目視確認とは区別する。再生前にEditorの音声を消音する。
+[EconomyUIVerifierEditor.Run](../../Assets/Tests/Editor/Economy/EconomyUIVerifierEditor.cs)がMainSceneで、残高と予約額、換金の予約・取消・確定、専用Reader、設備選択・能力別I/II・上限、支出予約による購入不可、実Buttonのスキル取得と前提解除、選択・非表示・無効化・削除時の購読解除、UIの入力遮断を検証する。ECO-07では既存配置ボタンと採取サブメニューによる選択、ページ切替時の購読数、スキル連打時の支払一回性、UIクリックとドラッグ終了による誤配置防止も確認する。1600×900・1366×768はCanvasScalerの高さ基準720に換算した論理サイズで、各ページの文字高さ・ボタン幅・操作領域・スクロール領域の画面内配置を検査する。描画の目視確認とは区別する。再生前にEditorの音声を消音する。
 
 実行条件・対象コード・結果・ログはローカルの`docs/verification/eco05-ui.json`、統合UIへの変更分は`docs/verification/eco07-ui.json`へ集約する。既存UIと設置の回帰を直接依存する検証として実行する。Windowsビルドとゲームループ全体の統合検証はECO-06の記録を参照する。
 
@@ -118,7 +118,7 @@ Fまたは操作帯の「散策 [F]」で、注視点付近の空いた床へ降
 
 出入りは0.5秒で位置・向き・画角を補間し、Smoothstepで両端を減速する。直交投影から透視投影へ移る際は注視点での大きさを揃える。移行中は移動と配置を止め、戻る移行が終わってから通常UIを復元する。切替途中の反転でも元の俯瞰設定を保つ。フォーカス喪失・コンポーネント無効化では、更新停止後にカーソルが固定されたまま残らないよう即座に復元する。
 
-[FirstPersonVerifierEditor.Run](../../Assets/Scripts/Input/Editor/FirstPersonVerifierEditor.cs)で保存済みMainSceneを再生し、実描画カメラの目線位置・透視投影・マウス/WASD・F/Esc・HUDの表示対象・配置禁止・選択と俯瞰の復元・切替途中の反転・フォーカスと無効化・PC2寸法を検証する。バッチでは検証用の入力デバイスを使い、Game Viewフォーカスによる入力抑止を検証中だけ解除する。実行記録はローカルの`docs/verification/first-person/verification.json`を参照する。
+[FirstPersonVerifierEditor.Run](../../Assets/Tests/Editor/Input/FirstPersonVerifierEditor.cs)で保存済みMainSceneを再生し、実描画カメラの目線位置・透視投影・マウス/WASD・F/Esc・HUDの表示対象・配置禁止・選択と俯瞰の復元・切替途中の反転・フォーカスと無効化・PC2寸法を検証する。バッチでは検証用の入力デバイスを使い、Game Viewフォーカスによる入力抑止を検証中だけ解除する。実行記録はローカルの`docs/verification/first-person/verification.json`を参照する。
 
 ## 操作と状態変化のアニメーション
 

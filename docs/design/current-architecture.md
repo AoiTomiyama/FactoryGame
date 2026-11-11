@@ -184,7 +184,7 @@ flowchart LR
 
 ## 基礎ゲームループの統合（ECO-06）
 
-MainSceneの共有残高と初回経路、実際の換金収益による全5種類・8能力系統のI/II取得・新設設備への再投資は[統合仕様](../spec/currency-game-loop.md)を参照する。[EconomyLoopVerifierEditor](../../Assets/Scripts/Economy/Editor/EconomyLoopVerifierEditor.cs)がPointer操作入口と経済パネルを通して能力と収支を確認し、既存の搬送・数量・抽出・加工・UI検証とWindowsビルドへ接続する。
+MainSceneの共有残高と初回経路、実際の換金収益による全5種類・8能力系統のI/II取得・新設設備への再投資は[統合仕様](../spec/currency-game-loop.md)を参照する。[EconomyLoopVerifierEditor](../../Assets/Tests/Editor/Economy/EconomyLoopVerifierEditor.cs)がPointer操作入口と経済パネルを通して能力と収支を確認し、既存の搬送・数量・抽出・加工・UI検証とWindowsビルドへ接続する。
 
 ## 図と説明の正本
 
