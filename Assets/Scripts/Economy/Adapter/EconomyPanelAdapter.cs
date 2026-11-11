@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.Events;
@@ -123,10 +124,12 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         _selectedSkill = null;
         if (_source != null) _source.StatusChanged -= Refresh;
+        if (_selected is ConstructionDepotCellAdapter previousDepot) previousDepot.StatusChanged -= Refresh;
         _selected = cell;
         _selectedActive = cell != null && cell.isActiveAndEnabled;
         _source = cell as IDataProvidableApplication;
         if (_source != null) _source.StatusChanged += Refresh;
+        if (_selected is ConstructionDepotCellAdapter depot) depot.StatusChanged += Refresh;
         Refresh();
     }
 
@@ -197,6 +200,17 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
             _equipmentView.UpgradeButton.GetComponentInChildren<Text>(true).text = _skills.IsOwned(node.Uid) ? "適用済み" : $"適用する　{node.Price}";
             _equipmentView.UpgradeButton.interactable = state == SkillPurchaseResultApplication.Success;
         }
+        else if (_selected is ConstructionDepotCellAdapter depot)
+        {
+            _equipmentPresenter.Refresh(_selected);
+            layout.EquipmentText.GetComponent<LayoutElement>().minHeight = _equipmentTextMinHeight;
+            _equipmentView.UpgradeRoot.gameObject.SetActive(true);
+            _equipmentView.UpgradeButton.gameObject.SetActive(false);
+            var items = layout.Resources.GetAllResources().Where(r => depot.Stock.Stored(r.ResourceTypeDomain) > 0)
+                .Select(r => $"{r.ResourceName}　{depot.Stock.Stored(r.ResourceTypeDomain)}");
+            _equipmentView.EquipmentText = items.Any() ? string.Join("\n", items) : "在庫なし";
+            _equipmentView.Feedback = "";
+        }
         else if (_selected is SingularityCellAdapter)
         {
             layout.EquipmentText.GetComponent<LayoutElement>().minHeight = _equipmentTextMinHeight;
@@ -240,7 +254,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     private void RefreshPlacement()
     {
         if (_placer == null) return;
-        _placement.text = _placer.PreviewText.Replace(_placer.SelectedType.ToString(), SelectButtonBuilderAdapter.PlacementLabel(_placer.SelectedType)).Replace("\n", "　") + (string.IsNullOrEmpty(_placer.PlacementNotice) ? "" : "\n" + _placer.PlacementNotice);
+        _placement.text = _placer.PreviewText.Replace(_placer.SelectedType.ToString(), SelectButtonBuilderAdapter.PlacementLabel(_placer.SelectedType)) + (string.IsNullOrEmpty(_placer.PlacementNotice) ? "" : "\n" + _placer.PlacementNotice);
     }
     private void LateUpdate()
     {

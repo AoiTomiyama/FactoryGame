@@ -31,6 +31,9 @@ public class CellPlacerAdapter : MonoBehaviour
         if (_selectedCell != null) _selectedCell.CellModel.SetActive(!enabled || _selectedCell is not EmptyCellAdapter);
     }
     private CurrencyWalletApplication _wallet;
+    private ConstructionStockApplication _stock;
+    private ResourceDefinition _resources;
+    public ConstructionStockApplication ConstructionStock => _stock;
     public CellTypeDomain SelectedType => _selectedType;
     public int PreviewCount => _selectedRangeCells.Count(t => t.placeholder.activeSelf);
     public long PreviewCost => _prices != null && _prices.TryGetPlacementAmount(_selectedType, PreviewCount, out var cost) ? cost : 0;
@@ -38,12 +41,14 @@ public class CellPlacerAdapter : MonoBehaviour
     public long LastPlacementCost { get; private set; }
     public EquipmentPlacementApplication.Result LastPlacementResult { get; private set; }
 
-    public void Configure(CurrencyWalletApplication wallet, CurrencyPriceCatalogDomain prices)
+    public void Configure(CurrencyWalletApplication wallet, CurrencyPriceCatalogDomain prices,
+        ConstructionStockApplication stock, ResourceDefinition resources)
     {
         if (_placing) throw new InvalidOperationException("Cannot configure placement during a transaction.");
         _prices = prices;
         _wallet = wallet;
-        _placement = new EquipmentPlacementApplication(wallet, prices);
+        _stock = stock; _resources = resources;
+        _placement = new EquipmentPlacementApplication(wallet, prices, stock);
     }
 
     private void Start() => SetSelectedCellType(CellTypeDomain.Empty);
@@ -200,7 +205,7 @@ public class CellPlacerAdapter : MonoBehaviour
         finally { ClearRange(); _placing = false; }
         // プレイヤーが修正できる不足と重なりはHUDへ、処理上の失敗はConsoleへ分ける。
         if (LastPlacementResult == EquipmentPlacementApplication.Result.InsufficientFunds) _placementNotice = "残高不足";
-        else if (LastPlacementResult != EquipmentPlacementApplication.Result.Success) Debug.LogWarning($"配置失敗：{FailureText}", this);
+        else if (LastPlacementResult != EquipmentPlacementApplication.Result.Success && LastPlacementResult != EquipmentPlacementApplication.Result.InsufficientMaterials) Debug.LogWarning($"配置失敗：{FailureText}", this);
     }
 
     private void ClearRange()
@@ -311,6 +316,7 @@ public class CellPlacerAdapter : MonoBehaviour
             {
                 cell.gameObject.SetActive(true);
                 if (cell is ShippingCellAdapter shipping) shipping.Configure(_wallet, _prices);
+                if (cell is ConstructionDepotCellAdapter depot) depot.Configure(_stock);
                 cell.InitializeSystem();
             }
             if (created.Any(c => c == null || !c.isActiveAndEnabled ||
@@ -394,14 +400,28 @@ public class CellPlacerAdapter : MonoBehaviour
         {
             if (_selectedType == CellTypeDomain.Empty) return PreviewCount > 0 ? $"撤去予定 {PreviewCount}個 / 無料・返金なし" : "撤去 / 無料・返金なし";
             if (_prices == null || !_prices.TryGetPlacementAmount(_selectedType, 1, out var unit)) return "設置価格が無効です";
-            if (PreviewCount == 0) return $"{_selectedType} 単価 {unit}";
-            return $"{_selectedType} 単価 {unit}\n設置予定 {PreviewCount}個 / 費用 {PreviewCost}" +
-                (PreviewCost > (_wallet?.Current.AvailableBalance ?? 0) ? " / 残高不足で途中停止" : "");
+            if (PreviewCount == 0) return $"{_selectedType} 単価 {unit}" + MaterialCostText;
+            return $"{_selectedType} 設置予定 {PreviewCount}個 / 費用 {PreviewCost}" +
+                (PreviewCost > (_wallet?.Current.AvailableBalance ?? 0) ? " / 残高不足で途中停止" : "") + MaterialCostText;
+        }
+    }
+    private string MaterialCostText
+    {
+        get
+        {
+            if (_stock == null || !_prices.TryGetMaterialCosts(_selectedType, Math.Max(1, PreviewCount), out var costs) || costs.Count == 0) return "";
+            return "\n" + string.Join("・", costs.Select(cost =>
+            {
+                var label = _resources.GetResourceByType(cost.Resource).ResourceName;
+                var missing = Math.Max(0, cost.Amount - _stock.Available(cost.Resource));
+                return $"{label} {cost.Amount}" + (missing > 0 ? $"（不足{missing}）" : "");
+            }));
         }
     }
     public string FailureText => LastPlacementResult switch
     {
         EquipmentPlacementApplication.Result.InsufficientFunds => "残高不足",
+        EquipmentPlacementApplication.Result.InsufficientMaterials => "材料不足",
         EquipmentPlacementApplication.Result.InvalidTarget => "設置先または価格が無効です",
         EquipmentPlacementApplication.Result.Busy => "設置処理中",
         EquipmentPlacementApplication.Result.Failed => "設置に失敗しました",

@@ -89,3 +89,7 @@ MonoBehaviour:
     fieldCellPrefab: {fileID: 2399829150124096259, guid: 94942ef0627cd724abedc02062bedbeb, type: 3}
     placeholderCellPrefab: {fileID: 2014263251996821674, guid: 6be09f76bd0f9dd4cb5a8a9d7f395e94, type: 3}
     cellType: 19
+  - cellName: 建設資材庫
+    fieldCellPrefab: {fileID: 6587917589516151994, guid: 5f2d985679d41b44c871d8ec8e066cbd, type: 3}
+    placeholderCellPrefab: {fileID: 6373486319321302720, guid: 6dad53f7f4169044c90e03a26c265aad, type: 3}
+    cellType: 20

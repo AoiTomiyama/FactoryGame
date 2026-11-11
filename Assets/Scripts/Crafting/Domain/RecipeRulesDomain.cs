@@ -110,7 +110,10 @@ public static class RecipeRulesDomain
             var input = next[i];
             if (input.Type != consumption.Type || input.Amount < consumption.Amount) return false;
             // 搬入予約は保持する。元の入力は書き換えず、成功後に Adapter が一括反映する。
-            next[i] = new Input(input.Id, input.Type, input.Amount - consumption.Amount, input.Reserved);
+            var remaining = input.Amount - consumption.Amount;
+            // 空になった入力は別資源へ接続し直せる。搬入予約が残る間は種別を保持する。
+            var nextType = remaining == 0 && input.Reserved == 0 ? ResourceTypeDomain.None : input.Type;
+            next[i] = new Input(input.Id, nextType, remaining, input.Reserved);
         }
         commit = new Commit(next, new Output(plan.ResultType, output.Amount + plan.ResultAmount));
         return true;

@@ -51,17 +51,33 @@ MonoBehaviour:
     price: 5
   - cell: 11
     price: 10
+    materials:
+    - resource: 12
+      amount: 1
   - cell: 7
     price: 15
+    materials:
+    - resource: 5
+      amount: 2
   - cell: 8
     price: 30
   - cell: 13
     price: 90
+    materials:
+    - resource: 5
+      amount: 2
+    - resource: 10
+      amount: 2
   - cell: 14
     price: 30
+    materials:
+    - resource: 14
+      amount: 1
   - cell: 17
     price: 30
   - cell: 18
     price: 30
   - cell: 19
     price: 25
+  - cell: 20
+    price: 30

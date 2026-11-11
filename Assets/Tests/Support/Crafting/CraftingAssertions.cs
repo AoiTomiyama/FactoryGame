@@ -85,6 +85,15 @@ public static class CraftingAssertions
                 !RecipeRulesDomain.TryApply(maxPlan, maxInputs, new Output(Wood, int.MaxValue), int.MaxValue, out _),
             "quantity limits use subtraction before addition");
 
+        var oneInputRecipe = new Recipe(new[] { new Ingredient(Wood,2) }, ResourceTypeDomain.Plank,1);
+        foreach(var reserved in new[]{0,1})
+        {
+            var input = new[] { new Input(0,Wood,2,reserved) };
+            Require(RecipeRulesDomain.TryCreatePlan(oneInputRecipe,input,default,10,out var emptyPlan) &&
+                RecipeRulesDomain.TryApply(emptyPlan,input,default,10,out var emptied) &&
+                emptied.Inputs[0].Type == (reserved == 0 ? ResourceTypeDomain.None : Wood) && emptied.Inputs[0].Reserved == reserved,
+                "empty input releases its resource type only after reservations finish");
+        }
         Debug.Log("Crafting rule checks passed: matching, immutable plan, reservation preservation, atomic result, quantity limits, one-shot completion/cancellation.");
     }
 

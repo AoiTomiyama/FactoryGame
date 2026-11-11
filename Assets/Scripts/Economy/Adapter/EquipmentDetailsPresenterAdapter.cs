@@ -33,6 +33,6 @@ public sealed class EquipmentDetailsPresenterAdapter : IDisposable
         ExtractorCellAdapter extractor => SelectButtonBuilderAdapter.PlacementLabel(extractor.ProgressionType),
         StorageCellAdapter => "保管庫", CrafterCellAdapter crafter => crafter.ProgressionType == CellTypeDomain.AdvancedCrafter ? "上位加工設備" : "基本加工設備",
         ExportConveyorCellAdapter => "搬出路", ConveyorCellAdapter => "搬送路", CrossingCellAdapter => "交差搬送路",
-        SingularityCellAdapter => "特異点", ShippingCellAdapter => "出荷セル", ResourceCellAdapter => "資源", _ => "セル"
+        ConstructionDepotCellAdapter => "建設資材庫", SingularityCellAdapter => "特異点", ShippingCellAdapter => "出荷セル", ResourceCellAdapter => "資源", _ => "セル"
     };
 }

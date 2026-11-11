@@ -9,8 +9,8 @@ public class GenerateVariantWindowEditor : EditorWindow
     private GameObject _baseFieldPrefab;
     private GameObject _basePlaceholderPrefab;
     private GameObject _modelPrefab;
-    private string _placeholderFilePath = "Assets/Prefabs/Cells/Placeholder";
-    private string _fieldFilePath = "Assets/Prefabs/Cells/Field";
+    private string _placeholderFilePath = "Assets/Prefabs/Placeholder/General";
+    private string _fieldFilePath = "Assets/Prefabs/Field/General";
 
     private const string PlaceholderPrefabPrefix = "P_";
     private const string FieldPrefabPrefix = "F_";
@@ -63,7 +63,7 @@ public class GenerateVariantWindowEditor : EditorWindow
             }
         }
 
-        GUI.enabled = _baseFieldPrefab != null && _modelPrefab != null;
+        GUI.enabled = _baseFieldPrefab != null && _basePlaceholderPrefab != null && _modelPrefab != null;
 
         if (GUILayout.Button("バリアント作成"))
         {
@@ -113,7 +113,6 @@ public class GenerateVariantWindowEditor : EditorWindow
             var savePath = Path.Combine(path, prefabName + ".prefab").Replace("\\", "/");
             PrefabUtility.SaveAsPrefabAsset(instance, savePath);
             Debug.Log("PrefabVariant 作成完了: " + path);
-            AssetDatabase.Refresh();
         }
         else
         {
@@ -142,6 +141,18 @@ public class GenerateVariantWindowEditor : EditorWindow
         var index = Array.IndexOf(args, "-prefabVariants");
         if (index < 0 || index + 1 >= args.Length) throw new ArgumentException("Missing -prefabVariants manifest.");
         var manifest = JsonUtility.FromJson<VariantManifest>(File.ReadAllText(args[index + 1]));
+        if (manifest?.jobs == null) throw new ArgumentException("Missing variant jobs.");
+        // 全出力を先に確認し、既存Variantの設定を作成処理で上書きしない。
+        foreach (var job in manifest.jobs)
+        {
+            var model = AssetDatabase.LoadAssetAtPath<GameObject>(job.model);
+            if (model == null) throw new ArgumentException("Missing model: " + job.model);
+            var name = model.name.Replace("Model", "");
+            if (!name.EndsWith("Cell")) name += "Cell";
+            if (File.Exists(Path.Combine(job.fieldFolder, FieldPrefabPrefix + name + ".prefab")) ||
+                File.Exists(Path.Combine(job.placeholderFolder, PlaceholderPrefabPrefix + name + ".prefab")))
+                throw new InvalidOperationException("Variant already exists: " + name);
+        }
         foreach (var job in manifest.jobs)
         {
             var model = AssetDatabase.LoadAssetAtPath<GameObject>(job.model);

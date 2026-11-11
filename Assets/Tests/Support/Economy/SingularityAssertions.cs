@@ -162,6 +162,7 @@ public static class SingularityAssertions
             Require(grid.GetCell(50, 43) is ResourceCellAdapter, "resource deletion protected");
             var empty = grid.Owners.OfType<EmptyCellAdapter>().First(c => c.XIndex > 5 && c.XIndex < 40 && c.ZIndex > 5 && c.ZIndex < 40);
             var x = empty.XIndex; var z = empty.ZIndex; var purchaseBalance = wallet.Current.Balance;
+            TestScenes.Find<GridFieldGeneratorAdapter>().ConstructionStock.TryReserveDeposit(ResourceTypeDomain.MachineParts, 1, out var parts); parts.TryCommit();
             Place(placer, empty, CellTypeDomain.Shipping, 90);
             var added = grid.GetCell(x, z) as ShippingCellAdapter;
             Require(added != null && wallet.Current.Balance == purchaseBalance - 30, "additional shipping purchased through existing placement transaction");

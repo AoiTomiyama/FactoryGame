@@ -12,6 +12,8 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     [SerializeField] private SingularityStartDefinition initialLayout;
     [SerializeField] private SkillTreeDefinition skillTree;
     [SerializeField] private EconomyPanelAdapter economyPanel;
+    [SerializeField] private ResourceDefinition resources;
+    public ConstructionStockApplication ConstructionStock { get; private set; }
     public SkillTreeApplication Skills { get; private set; }
     public CurrencyWalletApplication Wallet { get; private set; }
     public DeliveryProgressApplication Deliveries { get; private set; }
@@ -77,10 +79,12 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         }
         Prices = initialLayout.CreateCatalog();
         Wallet = new CurrencyWalletApplication(Prices.InitialBalance);
+        if (resources == null) throw new InvalidOperationException("Assign registered resources for construction stock.");
+        ConstructionStock = new ConstructionStockApplication(resources.GetAllResources().Select(r => r.ResourceTypeDomain));
         Deliveries = new DeliveryProgressApplication(initialLayout.CreateDeliveryCatalog());
         if (skillTree == null) throw new InvalidOperationException("Skill tree definition must be assigned.");
         Skills = new SkillTreeApplication(skillTree.CreateCatalog(), Wallet, grid.StatEffects);
-        FindAnyObjectByType<CellPlacerAdapter>()?.Configure(Wallet, Prices);
+        FindAnyObjectByType<CellPlacerAdapter>()?.Configure(Wallet, Prices, ConstructionStock, resources);
         var singularities = grid.Owners.OfType<SingularityCellAdapter>().ToArray();
         if (singularities.Length != 1) throw new InvalidOperationException("Initial field requires exactly one singularity.");
         var singularity = singularities[0];
@@ -89,6 +93,8 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         singularity.InitializeSystem();
         foreach (var shipping in grid.Owners.OfType<ShippingCellAdapter>())
         { shipping.Configure(Wallet, Prices); shipping.InitializeSystem(); }
+        foreach (var depot in grid.Owners.OfType<ConstructionDepotCellAdapter>())
+        { depot.Configure(ConstructionStock); depot.InitializeSystem(); }
         FindAnyObjectByType<CameraControllerAdapter>()?.FocusOn(singularity.WorldCenter);
         economyPanel.Configure(Wallet, Skills, FindAnyObjectByType<CellStatusViewAdapter>(), FindAnyObjectByType<CellPlacerAdapter>(), Deliveries);
     }

@@ -377416,6 +377416,7 @@ MonoBehaviour:
   initialLayout: {fileID: 11400000, guid: 70c0b5380dc99c740a2b4a6ae8fe02b4, type: 2}
   skillTree: {fileID: 11400000, guid: 3fa1b6aa9b9243b696bb0e808dd76b17, type: 2}
   economyPanel: {fileID: 1279850227}
+  resources: {fileID: 11400000, guid: 5f6a275ee023b01479c5af4732e290af, type: 2}
   emptyCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
   gridSize: 100
   lineWidth: 0.03

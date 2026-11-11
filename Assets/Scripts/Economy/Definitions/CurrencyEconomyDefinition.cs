@@ -13,10 +13,14 @@ public sealed class CurrencyEconomyDefinition : ScriptableObject
     }
 
     [Serializable]
+    public struct MaterialPrice { public ResourceTypeDomain resource; public long amount; }
+
+    [Serializable]
     public struct PlacementPrice
     {
         public CellTypeDomain cell;
         public long price;
+        public MaterialPrice[] materials;
     }
 
     [SerializeField] private long initialBalance = 100;
@@ -42,11 +46,11 @@ public sealed class CurrencyEconomyDefinition : ScriptableObject
         new() { cell = CellTypeDomain.ExtractorStone, price = 20 },
         new() { cell = CellTypeDomain.Conveyor, price = 5 },
         new() { cell = CellTypeDomain.ExportConveyor, price = 5 },
-        new() { cell = CellTypeDomain.Crossing, price = 10 },
-        new() { cell = CellTypeDomain.Storage, price = 15 },
+        new() { cell = CellTypeDomain.Crossing, price = 10, materials = new[] { new MaterialPrice { resource = ResourceTypeDomain.CopperWire, amount = 1 } } },
+        new() { cell = CellTypeDomain.Storage, price = 15, materials = new[] { new MaterialPrice { resource = ResourceTypeDomain.Plank, amount = 2 } } },
         new() { cell = CellTypeDomain.Crafter, price = 30 },
-        new() { cell = CellTypeDomain.Shipping, price = 30 },
-        new() { cell = CellTypeDomain.AdvancedCrafter, price = 90 },
+        new() { cell = CellTypeDomain.Shipping, price = 30, materials = new[] { new MaterialPrice { resource = ResourceTypeDomain.MachineParts, amount = 1 } } },
+        new() { cell = CellTypeDomain.AdvancedCrafter, price = 90, materials = new[] { new MaterialPrice { resource = ResourceTypeDomain.Plank, amount = 2 }, new MaterialPrice { resource = ResourceTypeDomain.IronIngot, amount = 2 } } },
         new() { cell = CellTypeDomain.ExtractorIron, price = 30 },
         new() { cell = CellTypeDomain.ExtractorCopper, price = 30 },
         new() { cell = CellTypeDomain.ExtractorCoal, price = 25 },
@@ -62,6 +66,13 @@ public sealed class CurrencyEconomyDefinition : ScriptableObject
         foreach (var entry in salePrices) sales.Add(new(entry.resource, entry.price));
         var placements = new List<KeyValuePair<CellTypeDomain, long>>();
         foreach (var entry in placementPrices) placements.Add(new(entry.cell, entry.price));
-        return new CurrencyPriceCatalogDomain(initialBalance, sales, placements);
+        var materials = new List<KeyValuePair<CellTypeDomain, ResourceCostDomain[]>>();
+        foreach (var entry in placementPrices)
+        {
+            var costs = new List<ResourceCostDomain>();
+            foreach (var material in entry.materials ?? Array.Empty<MaterialPrice>()) costs.Add(new ResourceCostDomain(material.resource, material.amount));
+            materials.Add(new(entry.cell, costs.ToArray()));
+        }
+        return new CurrencyPriceCatalogDomain(initialBalance, sales, placements, materials);
     }
 }

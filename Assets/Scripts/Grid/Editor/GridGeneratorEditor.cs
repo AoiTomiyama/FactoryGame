@@ -20,7 +20,7 @@ public class GridGeneratorEditor : Editor
             Generate(fieldGenerator);
         }
 
-        if (GUILayout.Button("Ensure Resource Access"))
+        if (GUILayout.Button("資源の採取場所を確保"))
         {
             fieldGenerator.EnsureResourceAccess(FindAnyObjectByType<GridFieldDatabaseAdapter>().transform);
             EditorSceneManager.MarkSceneDirty(fieldGenerator.gameObject.scene);

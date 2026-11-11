@@ -15,11 +15,19 @@ public static class EquipmentPlacementAssertions
 
 
 
+    private static ConstructionStockApplication FundedStock()
+    {
+        var stock = new ConstructionStockApplication(new[] { ResourceTypeDomain.Plank, ResourceTypeDomain.IronIngot });
+        foreach (var type in new[] { ResourceTypeDomain.Plank, ResourceTypeDomain.IronIngot })
+        { stock.TryReserveDeposit(type, 200, out var ticket); ticket.TryCommit(); }
+        return stock;
+    }
+
     public static void VerifyTransactions()
     {
         var prices = AssetDatabase.LoadAssetAtPath<CurrencyEconomyDefinition>("Assets/Scripts/ScriptableObject/CurrencyEconomy.asset").CreateCatalog();
         var wallet = new CurrencyWalletApplication(15);
-        var service = new EquipmentPlacementApplication(wallet, prices);
+        var service = new EquipmentPlacementApplication(wallet, prices, FundedStock());
         var installed = false;
         var result = service.Execute(CellTypeDomain.Storage, () => true, () => installed = true,
             () => installed = false, () => Require(installed, "complete sees installed state"), out var cost);
@@ -29,7 +37,7 @@ public static class EquipmentPlacementAssertions
         for (var stage = 0; stage < 3; stage++)
         {
             wallet = new CurrencyWalletApplication(100);
-            service = new EquipmentPlacementApplication(wallet, prices);
+            service = new EquipmentPlacementApplication(wallet, prices, FundedStock());
             var grid = 0;
             var restores = 0;
             result = service.Execute(CellTypeDomain.Conveyor, () => true, () =>
@@ -41,7 +49,7 @@ public static class EquipmentPlacementAssertions
                 wallet.Current.Balance == 100 && wallet.Current.ReservedExpense == 0, "failure restores target and expense " + stage);
         }
         wallet = new CurrencyWalletApplication(100);
-        service = new EquipmentPlacementApplication(wallet, prices);
+        service = new EquipmentPlacementApplication(wallet, prices, FundedStock());
         var valid = true;
         var calls = 0;
         wallet.Changed += snapshot =>
@@ -66,6 +74,9 @@ public static class EquipmentPlacementAssertions
             var grid = GridFieldDatabaseAdapter.Instance;
             AudioListener.volume = 0;
             var generator = TestScenes.Find<GridFieldGeneratorAdapter>();
+            // このケースは配置の復元を扱う。材料不足はConstructionStockTestsで独立して確認する。
+            foreach (var type in new[] { ResourceTypeDomain.Plank, ResourceTypeDomain.IronIngot })
+            { generator.ConstructionStock.TryReserveDeposit(type, 200, out var ticket); ticket.TryCommit(); }
             var placer = TestScenes.Find<CellPlacerAdapter>();
             var wallet = generator.Wallet;
             Require(wallet.Current.Balance == 100, "shared starting balance");
