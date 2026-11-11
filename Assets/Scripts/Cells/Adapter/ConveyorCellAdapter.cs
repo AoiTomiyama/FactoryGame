@@ -27,7 +27,18 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     /// 0 の場合、リソースを保持していないことを示す。（例外処理を設ける必要がある。）
     /// それ以外の値の場合、そのIDのリソースを保持していることを示す。
     /// </summary>
-    protected int ResourceId { get; set; }
+    private int _resourceId;
+    private ResourceItemObjectPoolAdapter _resourceOwner;
+    protected int ResourceId
+    {
+        get => _resourceId;
+        set
+        {
+            _resourceId = value;
+            // IDを受け取ったプールへ返す。Scene終了後に別のSingletonを探し直さない。
+            _resourceOwner = value == 0 ? null : ResourceItemObjectPoolAdapter.Instance;
+        }
+    }
 
     /// <summary>
     /// 現在の輸送ステータス
@@ -136,7 +147,8 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         }
         finally
         {
-            if (ResourceId != 0) ResourceItemObjectPoolAdapter.Instance.DisposeId(ResourceId);
+            // プールが先に破棄された場合、プール側がデータと表示を終了済み。
+            if (ResourceId != 0 && _resourceOwner != null) _resourceOwner.DisposeId(ResourceId);
             ResourceId = 0;
             HasResource = false;
             _readyToSend = false;
