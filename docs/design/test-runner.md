@@ -38,10 +38,12 @@ Test Runner用アセンブリから既定のAssembly-CSharpを直接参照でき
 | FactoryGame.Runtime | [ゲーム本体](../../Assets/Scripts/FactoryGame.Runtime.asmdef)。UniTask、UniTask.DOTween、DOTween.Modules、Cinemachine、Input System、uGUI、TextMeshProを参照 |
 | FactoryGame.Grid.Editor | [グリッド編集ツール](../../Assets/Scripts/Grid/Editor/FactoryGame.Grid.Editor.asmdef)。ゲーム本体とVisual Scripting Coreを参照し、Editorでのみコンパイル |
 | FactoryGame.Shared.Editor | [共通Drawer](../../Assets/Scripts/Shared/Editor/FactoryGame.Shared.Editor.asmdef)。ゲーム本体を参照し、Editorでのみコンパイル |
-| DOTween.Modules | [既存DOTweenモジュール](../../Assets/Plugins/Demigiant/DOTween/Modules/DOTween.Modules.asmdef)。ゲーム側からCanvasGroupのDOFadeなどを参照するための定義。モジュールのC#は変更しない |
+| DOTween.Modules | [既存DOTweenモジュール](../../Assets/Plugins/Demigiant/DOTween/Modules/DOTween.Modules.asmdef)。ゲーム側からCanvasGroupのDOFadeなどを参照するための定義。DOTweenSettingsのcreateASMDEFも有効にして管理設定を一致させる |
 | FactoryGame.Delivery.EditModeTests | [Edit Modeテスト](../../Assets/Tests/Editor/Progression/Delivery/FactoryGame.Delivery.EditModeTests.asmdef)。ゲーム本体とTestAssembliesを参照 |
 | FactoryGame.Delivery.PlayModeTests | [Play Modeテスト](../../Assets/Tests/PlayMode/Progression/FactoryGame.Delivery.PlayModeTests.asmdef)。ゲーム本体、UniTask、uGUI、TestAssembliesを参照。保存済みアセットを読むためテストのC#をUNITY_EDITORで限定 |
 
 ゲーム本体からテストを参照しない。既存スクリプトのGUID・フィールド・PrefabとSceneの参照を維持する。残りのVerifierは従来のCLI入口を保持し、関係する機能の変更時に順次移す。Test Runnerのテストを独自Verifierからまとめて起動する互換入口は追加しない。
 
 根拠: [Unity公式のテスト区分とアセンブリ参照](https://docs.unity3d.com/6000.3/Documentation/Manual/test-framework/edit-mode-vs-play-mode-tests.html)、[Test Runnerでの実行](https://docs.unity3d.com/6000.3/Documentation/Manual/test-framework/workflow-run-test.html)。
+
+DOTweenのasmdefは[DOTweenSettings](../../Assets/Resources/DOTweenSettings.asset)の`createASMDEF: 1`と合わせて管理する。無効のまま手動でasmdefだけを配置すると、DOTweenによって削除されることがある。設定アセットとasmdef・metaを同じ版で保持する。[DOTween公式の該当説明](https://dotween.demigiant.com/support.php)。
