@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -153,7 +153,7 @@ public static class SkillTreeAssertions
             Require(feed.AllocateStorage(3, 20, ResourceTypeDomain.Wood), "feed reservation"); feed.StoreResource(3, 20);
             Require(feed.CurrentLoad == 20, "feed stock before exporter");
             var exporter = (ExportConveyorCellAdapter)Install(grid, "ExportConveyor", 45, 46);
-            Require(ReferenceEquals(typeof(ExportConveyorCellAdapter).GetField("_backwardCellBase", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(exporter), feed), "exporter connected to test feed; actual=" + ((CellBaseAdapter)typeof(ExportConveyorCellAdapter).GetField("_backwardCellBase", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(exporter)) + "; feed=" + feed + "; difference=" + (exporter.transform.position - feed.transform.position));
+            Require(ReferenceEquals(typeof(ConveyorCellAdapter).GetField("_backwardCellBase", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(exporter), feed), "exporter connected to test feed; actual=" + ((CellBaseAdapter)typeof(ConveyorCellAdapter).GetField("_backwardCellBase", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(exporter)) + "; feed=" + feed + "; difference=" + (exporter.transform.position - feed.transform.position));
             await Wait(() => ResourceId(exporter) != 0);
             var id = ResourceId(exporter); var pool = ResourceItemObjectPoolAdapter.Instance;
             Require(pool.TakeResourceDataById(id).amount == 5, "export captures original amount");
@@ -192,6 +192,10 @@ public static class SkillTreeAssertions
                 }
             }
             for (var index = 0; index < names.Length; index++) VerifyStats(Install(grid, names[index], 20 + index * 4, 28), grid.StatEffects);
+            var promoted=(ConveyorCellAdapter)Install(grid,"Conveyor",16,30);
+            Install(grid,"Storage",16,29);
+            await Wait(()=>promoted.IsExportConveyor);
+            VerifyStats(promoted,grid.StatEffects);
             Require(storage.CurrentLoad == 20 && storage.AllocatedAmount == 10 && ReferenceEquals(identity, storage.Identity), "stock reservation and instance preserved");
             storage.StoreResource(3, 10); Require(storage.CurrentLoad == 30 && storage.AllocatedAmount == 0, "old stock reservation commits");
             Require(!crossing.SupportsProgression && ReferenceEquals(pending[Vector3Int.right], transfer) && receiver.AllocatedAmount == 5 && receiver.Capacity == 150, "crossing keeps upstream reservation while receiver grows");

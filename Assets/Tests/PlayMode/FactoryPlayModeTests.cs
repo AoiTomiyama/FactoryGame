@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections;
 using Cysharp.Threading.Tasks;
@@ -92,6 +92,7 @@ public sealed class EconomyLoopPlayModeTests : FactoryPlayModeScope
 {
     protected override bool NeedsMainScene => true;
     [UnityTest] public IEnumerator EarnedCurrencyFundsSkillsAndReinvestment() => EconomyLoopAssertions.Verify().ToCoroutine();
+    [UnityTest] public IEnumerator PhysicalFactoryCompletesEveryDeliveryGoalAndKeepsRunning() => DeliveryFactoryAssertions.Verify().ToCoroutine();
 }
 [TestFixture, Category("UI")]
 public sealed class EconomyHudPlayModeTests : FactoryPlayModeScope
