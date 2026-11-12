@@ -111,6 +111,32 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
         await Until(()=>core.IsExportConveyor);
         Assert.That(core.Identity,Is.SameAs(identity));
     }
+    [UnityTest] public IEnumerator DefaultCrafterCapacityAcceptsAWholeBatchAfterRecipeRemainder()=>RecipeRemainder().ToCoroutine();
+    private async UniTask RecipeRemainder()
+    {
+        var core=Add<ConveyorCellAdapter>("Conveyor",4,4);var crafter=Add<CrafterCellAdapter>("Crafter",4,5);
+        Assert.That(crafter.IngredientCapacity,Is.EqualTo(10));
+        Assert.That(crafter.AllocateStorage(0,2,ResourceTypeDomain.Stone));crafter.StoreResource(0,2);
+        Assert.That(core.AllocateStorage(0,5,ResourceTypeDomain.Stone));var id=_pool.CreateIdFromResourceData(ResourceTypeDomain.Stone,5);
+        core.Reuse(0,id);core.StoreResource(0,5);
+        Time.timeScale=10;
+        await Until(()=>crafter.ExportStorageAmount==2 && crafter.GetInput(0).Amount==1 && Id(core)==0);
+        Assert.That(_pool.Resources.Count,Is.Zero);Assert.That(crafter.GetInput(0).Allocated,Is.Zero);
+    }
+    [UnityTest] public IEnumerator InsufficientSpaceKeepsTheWholeBatchUntilCapacityIncreases()=>WaitForCapacity().ToCoroutine();
+    private async UniTask WaitForCapacity()
+    {
+        var core=Add<ConveyorCellAdapter>("Conveyor",4,4);var sink=Add<StorageCellAdapter>("Storage",4,5);
+        typeof(StorageCellAdapter).GetField("capacity",Fields).SetValue(sink,3);Fill(sink,ResourceTypeDomain.Wood,1);
+        Assert.That(core.AllocateStorage(0,5,ResourceTypeDomain.Wood));var id=_pool.CreateIdFromResourceData(ResourceTypeDomain.Wood,5);
+        core.Reuse(0,id);core.StoreResource(0,5);
+        await UniTask.Delay(400);
+        Assert.That(Id(core),Is.EqualTo(id));Assert.That(_pool.Resources.TryGet(id,out var held));Assert.That(held.Amount,Is.EqualTo(5));
+        Assert.That(_pool.Resources.Count,Is.EqualTo(1));Assert.That(sink.CurrentLoad,Is.EqualTo(1));Assert.That(sink.AllocatedAmount,Is.Zero);
+        // 容量拡張後に同じ5個を一括で受け取り、分割用のIDを作らない。
+        typeof(StorageCellAdapter).GetField("capacity",Fields).SetValue(sink,10);
+        await Until(()=>sink.CurrentLoad==6);Assert.That(Id(core),Is.Zero);Assert.That(_pool.Resources.Count,Is.Zero);
+    }
     [UnityTest] public IEnumerator InvalidPromotionVisualKeepsTheOriginalBatchAndRole()=>FailedPromotion().ToCoroutine();
     private async UniTask FailedPromotion()
     {

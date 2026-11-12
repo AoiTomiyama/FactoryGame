@@ -156,7 +156,7 @@ MonoBehaviour:
     Cell: {x: 0, y: 0}
     Facing: 1
     Use: 2
-  ingredientCapacity: 5
+  ingredientCapacity: 10
   exporterCapacity: 10
   recipeDatabase: {fileID: 11400000, guid: 279a36cb76bd3fa419d433c0feceb0b5, type: 2}
   crafterProvider: {fileID: 11400000, guid: f3015e67d52fe27469418f95f292754d, type: 2}
