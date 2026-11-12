@@ -35,7 +35,10 @@ public sealed class DeliveryGoalsPlayModeTests
         EditorUtility.audioMasterMute = true; AudioListener.volume = 0; Time.timeScale = 1;
         _scene = EditorSceneManager.LoadSceneInPlayMode("Assets/Scenes/MainScene.unity", new LoadSceneParameters(LoadSceneMode.Single));
         for (var i = 0; i < 5; i++) yield return null;
-        _generator = Object.FindAnyObjectByType<GridFieldGeneratorAdapter>(); _core = Object.FindAnyObjectByType<SingularityCellAdapter>();
+        _generator = Object.FindAnyObjectByType<GridFieldGeneratorAdapter>();
+        Assert.That(_generator.ConfirmStartSite(),Is.True);
+        for(var i=0;i<3;i++) yield return null;
+        _core = Object.FindAnyObjectByType<SingularityCellAdapter>();
         _panel = Object.FindAnyObjectByType<EconomyPanelAdapter>(); _view = Object.FindAnyObjectByType<CellStatusViewAdapter>();
         _layout = Object.FindAnyObjectByType<HudLayoutAdapter>(); _placer = Object.FindAnyObjectByType<CellPlacerAdapter>();
         Assert.That(_generator, Is.Not.Null); Assert.That(App, Is.Not.Null); Assert.That(_core, Is.Not.Null);

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -58,6 +58,8 @@ public class CellPlacerAdapter : MonoBehaviour
         foreach(var database in cellDatabaseArr) if(database.TryGetCellInfo(type,out info)) return true;
         info = default; return false;
     }
+    public GameObject PlaceholderPrefab(CellTypeDomain type)
+        => TryGetDefinition(type,out var info) ? info.PlaceholderCellPrefab : throw new InvalidOperationException("Missing preview definition.");
     private CellTypeDomain PlacementKind(int x,int z)
         => _selectedType == CellTypeDomain.Conveyor && ConveyorCellAdapter.HasExtractionSource(
             GridFieldDatabaseAdapter.Instance,x,z,transform.rotation) ? CellTypeDomain.ExportConveyor : _selectedType;

@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
@@ -64,8 +64,9 @@ public sealed class ResourceGenerationTests : FactoryEditModeScope
             Assert.That(grid.GetCell(point.Item1, point.Item2), Is.TypeOf<ResourceCellAdapter>());
             for (var d = 1; d <= 3; d++) Assert.That(grid.GetCell(point.Item1, point.Item2 - d), Is.TypeOf<EmptyCellAdapter>());
         }
-        Assert.That(grid.Owners.OfType<SingularityCellAdapter>().Count(), Is.EqualTo(1));
-        Assert.That(grid.Owners.OfType<ShippingCellAdapter>().Count(), Is.EqualTo(1));
+        Assert.That(generator.StartSites.Count, Is.EqualTo(1));
+        Assert.That(grid.Owners.OfType<SingularityCellAdapter>().Count(), Is.Zero);
+        Assert.That(grid.Owners.OfType<ShippingCellAdapter>().Count(), Is.Zero);
     }
     [Test] public void SavedMainSceneContainsAccessibleNewResources()
     {

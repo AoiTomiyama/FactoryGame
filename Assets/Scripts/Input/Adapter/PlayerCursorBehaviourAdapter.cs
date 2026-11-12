@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class PlayerCursorBehaviourAdapter : MonoBehaviour
@@ -12,6 +12,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
     [SerializeField] private CellPlacerAdapter placer;
     [SerializeField] private OperationBarAdapter operationBar;
 
+    private GridFieldGeneratorAdapter _generator;
     private Camera _camera;
     private Vector2 _mousePosition;
     private bool _isLeftClickPressed;
@@ -25,6 +26,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
             placer = FindAnyObjectByType<CellPlacerAdapter>();
         }
 
+        _generator=FindAnyObjectByType<GridFieldGeneratorAdapter>();
         _camera = Camera.main;
         _cameraController = FindAnyObjectByType<CameraControllerAdapter>();
         if (_cameraController != null) _cameraController.FirstPersonChanged += SetFirstPerson;
@@ -78,7 +80,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
         if (_firstPerson || !context.performed) return;
 
         _mousePosition = context.ReadValue<Vector2>();
-        if (raycaster.IsPointerOverUI(_mousePosition)) return;
+        if (raycaster.IsPointerOverUI(_mousePosition) || _camera==null || _generator!=null && _generator.IsChoosingStart) return;
 
         var ray = _camera.ScreenPointToRay(_mousePosition);
         if (Physics.Raycast(ray, out var hit, Mathf.Infinity, layerMask))
@@ -91,6 +93,12 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
     {
         if (_firstPerson) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
+        if(_generator!=null && _generator.IsChoosingStart)
+        {
+            if(_camera!=null && Physics.Raycast(_camera.ScreenPointToRay(_mousePosition),out var hit,Mathf.Infinity,layerMask))
+                _generator.SelectStartSiteAt(hit.point);
+            return;
+        }
         _isLeftClickPressed = true;
         placer.PointerBegin();
     }
@@ -111,7 +119,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
 
     private void OnRightClick(InputAction.CallbackContext context)
     {
-        if (_firstPerson || !context.performed) return;
+        if (_firstPerson || !context.performed || _generator!=null && _generator.IsChoosingStart) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
         placer.TransferDataToUI();
     }
@@ -125,5 +133,5 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
     }
 
     // ボタンとショートカットで同じ配置方向を更新する。
-    public void RotatePlacement() { if (!_firstPerson) transform.Rotate(Vector3.up, 90f); }
+    public void RotatePlacement() { if (!_firstPerson && !(_generator!=null && _generator.IsChoosingStart)) transform.Rotate(Vector3.up, 90f); }
 }

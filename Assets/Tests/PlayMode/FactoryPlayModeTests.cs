@@ -18,6 +18,7 @@ public abstract class FactoryPlayModeScope
     private float _volume, _scale;
     protected virtual bool NeedsMainScene => false;
     protected virtual bool PrepareHud => false;
+    protected virtual bool ChooseDefaultStart => true;
     [UnitySetUp]
     public IEnumerator OpenScope()
     {
@@ -47,6 +48,11 @@ public abstract class FactoryPlayModeScope
             // 開始Sceneを破棄するとTest Runner自身も停止する。作成したSceneだけをTearDownで閉じる。
         }
         yield return null; yield return null; yield return null;
+        if(NeedsMainScene && ChooseDefaultStart)
+        {
+            Assert.That(TestScenes.Find<GridFieldGeneratorAdapter>().ConfirmStartSite(),Is.True,"confirm default start for this fixture");
+            yield return null; yield return null; yield return null;
+        }
     }
     [UnityTearDown]
     public IEnumerator CloseScope()

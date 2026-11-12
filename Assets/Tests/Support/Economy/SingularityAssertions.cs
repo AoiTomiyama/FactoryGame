@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Linq;
 using System.Reflection;
@@ -79,6 +79,9 @@ public static class SingularityAssertions
             {
                 Set(generator, "seedValue", seed);
                 generator.GenerateGrid(anchor);
+                Require(generator.StartSites.Count==1 && anchor.GetComponentsInChildren<SingularityCellAdapter>().Length==0,
+                    "minimum field offers one unconfirmed start site");
+                generator.PrepareInitialLayout(anchor,generator.StartSites[0]);
                 var singularities = anchor.GetComponentsInChildren<SingularityCellAdapter>();
                 Require(singularities.Length == 1 && singularities[0].transform.position == new Vector3(7, 0, 7), "regeneration central singleton");
                 var cells = anchor.GetComponentsInChildren<CellBaseAdapter>();

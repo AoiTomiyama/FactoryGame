@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -37,6 +37,8 @@ public class CameraControllerAdapter : MonoBehaviour
     [SerializeField] private float walkSpeed = 3f;
     [SerializeField] private float lookSensitivity = .12f;
     public bool IsFirstPerson { get; private set; }
+    private bool _choosingStart;
+    public void SetStartSelection(bool active) => _choosingStart=active;
     public event Action<bool> FirstPersonChanged;
     private FirstPersonWalkAdapter _walk;
     private CinemachineComponentBase _positionControl;
@@ -131,6 +133,7 @@ public class CameraControllerAdapter : MonoBehaviour
 
     public bool SetFirstPerson(bool active)
     {
+        if(active && _choosingStart) return false;
         if (_firstPersonRequested == active && (IsFirstPerson == active || _transitionActive)) return true;
         if (active && !IsFirstPerson)
         {

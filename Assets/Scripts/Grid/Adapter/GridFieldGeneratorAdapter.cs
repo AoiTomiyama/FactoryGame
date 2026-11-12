@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 #if UNITY_EDITOR
 using System.Security.Cryptography;
 using UnityEditor;
@@ -62,21 +62,44 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         public Vector2Int NoiseOffset { get; set; }
     }
 
+    public bool IsChoosingStart { get; private set; }
+    public bool HasStarted { get; private set; }
+    public System.Collections.Generic.IReadOnlyList<Vector2Int> StartSites { get; private set; } = Array.Empty<Vector2Int>();
+    public int SelectedStartSite { get; private set; }
+    public Vector2Int StartAnchor { get; private set; }
+    private StartSiteSelectionAdapter _selection;
+    public Material GridLineMaterial => lineMaterial;
+
     private void Start()
     {
-        if (initialLayout != null) initialLayout.Validate(gridSize);
-        var grid = GridFieldDatabaseAdapter.Instance;
-        if (initialLayout != null) PrepareInitialLayout(grid.transform);
+        if (initialLayout == null) { GridFieldDatabaseAdapter.Instance.InitializeCells(gridSize); return; }
+        PrepareStartSites(GridFieldDatabaseAdapter.Instance.transform);
+        IsChoosingStart = true;
+        _selection = gameObject.AddComponent<StartSiteSelectionAdapter>();
+        _selection.Begin(this);
+    }
+    public bool SelectStartSite(int index)
+    {
+        if (!IsChoosingStart || index<0 || index>=StartSites.Count) return false;
+        SelectedStartSite=index;
+        _selection.RefreshSelection();
+        return true;
+    }
+    public bool SelectStartSiteAt(Vector3 point)
+    {
+        for(var i=0;i<StartSites.Count;i++)
+            if (initialLayout.SingularityPrefab.Footprint.Coordinates(StartSites[i].x,StartSites[i].y,0)
+                .Contains((Mathf.RoundToInt(point.x),Mathf.RoundToInt(point.z)))) return SelectStartSite(i);
+        return false;
+    }
+    public bool ConfirmStartSite()
+    {
+        if (!IsChoosingStart || HasStarted) return false;
+        StartAnchor=StartSites[SelectedStartSite];
+        initialLayout.ValidateAt(gridSize,StartAnchor);
+        var grid=GridFieldDatabaseAdapter.Instance;
+        PrepareInitialLayout(grid.transform,StartAnchor);
         grid.InitializeCells(gridSize);
-        if (initialLayout == null) return;
-        var starterWood = initialLayout.StarterCell(gridSize, 4);
-        if (grid.GetCell(starterWood.x, starterWood.z) is not ResourceCellAdapter wood || wood.ResourceTypeDomain != ResourceTypeDomain.Wood)
-            throw new InvalidOperationException("Initial field requires starter wood.");
-        for (var distance = 1; distance <= 3; distance++)
-        {
-            var point = initialLayout.StarterCell(gridSize, distance);
-            if (grid.GetCell(point.x, point.z) is not EmptyCellAdapter) throw new InvalidOperationException("Initial starter route must be empty.");
-        }
         Prices = initialLayout.CreateCatalog();
         Wallet = new CurrencyWalletApplication(Prices.InitialBalance);
         if (resources == null) throw new InvalidOperationException("Assign registered resources for construction stock.");
@@ -96,18 +119,26 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         foreach (var depot in grid.Owners.OfType<ConstructionDepotCellAdapter>())
         { depot.Configure(ConstructionStock); depot.InitializeSystem(); }
         FindAnyObjectByType<CameraControllerAdapter>()?.FocusOn(singularity.WorldCenter);
+        _selection.Finish();
         economyPanel.Configure(Wallet, Skills, FindAnyObjectByType<CellStatusViewAdapter>(), FindAnyObjectByType<CellPlacerAdapter>(), Deliveries);
+
+        IsChoosingStart=false; HasStarted=true;
+        return true;
+    }
+    public Vector2Int ShippingPreviewPosition(Vector2Int anchor)
+    {
+        var point=initialLayout.ShippingCell(anchor);return new Vector2Int(point.x,point.z);
     }
 
-    public void PrepareInitialLayout(Transform parent)
+    public void PrepareInitialLayout(Transform parent) => PrepareInitialLayout(parent,new Vector2Int(gridSize/2,gridSize/2));
+    public void PrepareInitialLayout(Transform parent, Vector2Int start)
     {
         if (initialLayout == null) return;
-        initialLayout.Validate(gridSize);
-        var center = gridSize / 2;
-        var occupied = initialLayout.SingularityPrefab.Footprint.Coordinates(center, center, 0).ToHashSet();
+        initialLayout.ValidateAt(gridSize,start);
+        var occupied = initialLayout.SingularityPrefab.Footprint.Coordinates(start.x, start.y, 0).ToHashSet();
         var existing = parent.GetComponentsInChildren<CellBaseAdapter>().ToList();
         var singularity = existing.OfType<SingularityCellAdapter>().FirstOrDefault(c =>
-            Vector3Int.RoundToInt(c.transform.position) == new Vector3Int(center, 0, center));
+            Vector3Int.RoundToInt(c.transform.position) == new Vector3Int(start.x, 0, start.y));
         foreach (var cell in existing.ToArray())
         {
             if (cell == singularity) continue;
@@ -115,24 +146,24 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
             if (cell is SingularityCellAdapter || cell.Footprint.Coordinates(anchor.x, anchor.z, cell.QuarterTurns).Any(occupied.Contains))
             { RetireInitialCell(cell); existing.Remove(cell); }
         }
-        if (singularity == null) singularity = (SingularityCellAdapter)CreateInitialCell(initialLayout.SingularityPrefab, parent, center, center);
+        if (singularity == null) singularity = (SingularityCellAdapter)CreateInitialCell(initialLayout.SingularityPrefab, parent, start.x, start.y);
         singularity.transform.rotation = Quaternion.identity;
         singularity.ApplyFootprintCollider();
-        var sale = initialLayout.ShippingCell(gridSize);
+        var sale = initialLayout.ShippingCell(start);
         var previousShipping = existing.FirstOrDefault(c => Vector3Int.RoundToInt(c.transform.position) == new Vector3Int(sale.x, 0, sale.z));
         if (previousShipping is not ShippingCellAdapter)
         {
-            if (previousShipping != null) RetireInitialCell(previousShipping);
+            if (previousShipping != null) { RetireInitialCell(previousShipping); existing.Remove(previousShipping); }
             CreateInitialCell(initialLayout.ShippingPrefab, parent, sale.x, sale.z);
         }
         // 強制上書きは初期地形の構成時だけ行い、通常の購入配置へ広げない。
         for (var distance = 1; distance <= 4; distance++)
         {
-            var point = initialLayout.StarterCell(gridSize, distance);
+            var point = initialLayout.StarterCell(start, distance);
             var current = existing.FirstOrDefault(c => Vector3Int.RoundToInt(c.transform.position) == new Vector3Int(point.x, 0, point.z));
             var prefab = distance == 4 ? (CellBaseAdapter)initialLayout.WoodPrefab : initialLayout.EmptyPrefab;
             if (current != null && (distance == 4 ? current is ResourceCellAdapter resource && resource.ResourceTypeDomain == ResourceTypeDomain.Wood : current is EmptyCellAdapter)) continue;
-            if (current != null) RetireInitialCell(current);
+            if (current != null) { RetireInitialCell(current); existing.Remove(current); }
             CreateInitialCell(prefab, parent, point.x, point.z);
         }
     }
@@ -153,6 +184,86 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         if (cell is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
         cell.gameObject.SetActive(false);
         if (Application.isPlaying) Destroy(cell.gameObject); else DestroyImmediate(cell.gameObject);
+    }
+
+    /// <summary>候補を見せる前に必要な地形を確保し、選択後の資源配置を変えない。</summary>
+    public void PrepareStartSites(Transform parent)
+    {
+        initialLayout.Validate(gridSize);
+        // 保存済み旧開始地点の占有を地形へ戻す。手配置の生産設備は保護する。
+        var legacy=initialLayout.ShippingCell(gridSize);
+        foreach(var cell in parent.GetComponentsInChildren<CellBaseAdapter>().Where(c=>c is SingularityCellAdapter ||
+            c is ShippingCellAdapter && Vector3Int.RoundToInt(c.transform.position)==new Vector3Int(legacy.x,0,legacy.z)).ToArray())
+        {
+            var anchor=Vector3Int.RoundToInt(cell.transform.position);
+            var points=cell.Footprint.Coordinates(anchor.x,anchor.z,cell.QuarterTurns).ToArray();
+            RetireInitialCell(cell);
+            foreach(var point in points) CreateInitialCell(initialLayout.EmptyPrefab,parent,point.x,point.z);
+        }
+        var terrain=parent.GetComponentsInChildren<CellBaseAdapter>().ToDictionary(c=>(Mathf.RoundToInt(c.transform.position.x),Mathf.RoundToInt(c.transform.position.z)));
+        var candidates=StartSiteRulesDomain.Candidates(gridSize,seedValue,(x,z)=>terrain.TryGetValue((x,z),out var cell) &&
+            (cell is EmptyCellAdapter || cell is ResourceCellAdapter));
+        if(candidates.Count==0) throw new InvalidOperationException("No safe start site fits the saved field.");
+        var resourcePrefabs=(propPrefabs ?? Array.Empty<PropPrefab>()).Where(p=>p.prefab!=null)
+            .Select(p=>p.prefab.GetComponent<ResourceCellAdapter>()).Where(p=>p!=null).ToDictionary(p=>p.ResourceTypeDomain);
+        foreach(var type in new[]{ResourceTypeDomain.Stone,ResourceTypeDomain.Iron,ResourceTypeDomain.Copper,ResourceTypeDomain.Coal})
+            if(!resourcePrefabs.ContainsKey(type)) throw new InvalidOperationException("Missing starting resource prefab: "+type);
+        StartSites=Array.AsReadOnly(candidates.Select(p=>new Vector2Int(p.x,p.z)).ToArray());
+        foreach(var anchor in StartSites)
+        {
+            initialLayout.ValidateAt(gridSize,anchor);
+            var wood=initialLayout.StarterCell(anchor,4);
+            var desired=new System.Collections.Generic.Dictionary<(int x,int z),CellBaseAdapter> {
+                [wood]=initialLayout.WoodPrefab,
+                [(anchor.x-4,anchor.y-2)]=resourcePrefabs[ResourceTypeDomain.Iron],
+                [(anchor.x+4,anchor.y-2)]=resourcePrefabs[ResourceTypeDomain.Copper],
+                [(anchor.x-4,anchor.y+4)]=resourcePrefabs[ResourceTypeDomain.Coal],
+                [(anchor.x+4,anchor.y+4)]=resourcePrefabs[ResourceTypeDomain.Stone] };
+            foreach(var point in StartSiteRulesDomain.Area(anchor.x,anchor.y))
+            {
+                var current=terrain[point];
+                var prefab=desired.TryGetValue(point,out var resourcePrefab) ? resourcePrefab : initialLayout.EmptyPrefab;
+                if(prefab is ResourceCellAdapter r ? current is ResourceCellAdapter old && old.ResourceTypeDomain==r.ResourceTypeDomain : current is EmptyCellAdapter) continue;
+                var host=current.transform.parent;RetireInitialCell(current);CreateInitialCell(prefab,host,point.x,point.z);
+            }
+            EnsureResourceAccess(parent,anchor);
+        }
+    }
+
+    /// <summary>既存フィールドの設備を保ち、原料ごとに採取・搬出・搬送の空き場所を確保する。</summary>
+    public void EnsureResourceAccess(Transform parent) => EnsureResourceAccess(parent,new Vector2Int(gridSize/2,gridSize/2));
+    public void EnsureResourceAccess(Transform parent, Vector2Int start)
+    {
+        if (initialLayout == null) return;
+        initialLayout.Validate(gridSize);
+        var x = start.x; var z = start.y;
+        var sites = new[] {
+            (ResourceTypeDomain.Iron, x - 4, z - 2), (ResourceTypeDomain.Copper, x + 4, z - 2),
+            (ResourceTypeDomain.Coal, x - 4, z + 4), (ResourceTypeDomain.Stone, x + 4, z + 4) };
+        var resources = (propPrefabs ?? Array.Empty<PropPrefab>()).Where(p => p.prefab != null)
+            .Select(p => p.prefab.GetComponent<ResourceCellAdapter>()).Where(p => p != null)
+            .ToDictionary(p => p.ResourceTypeDomain);
+        var existing = parent.GetComponentsInChildren<CellBaseAdapter>().ToDictionary(cell =>
+            (Mathf.RoundToInt(cell.transform.position.x), Mathf.RoundToInt(cell.transform.position.z)));
+        // 変更前に全候補を調べ、手配置設備や未完成フィールドを部分的に上書きしない。
+        foreach (var site in sites.Where(site => resources.ContainsKey(site.Item1)))
+        for (var d = 0; d <= 3; d++)
+        {
+            if (site.Item2 < 0 || site.Item2 >= gridSize || site.Item3 - d < 0 || site.Item3 >= gridSize ||
+                !existing.TryGetValue((site.Item2, site.Item3 - d), out var cell) ||
+                cell is not EmptyCellAdapter && cell is not ResourceCellAdapter)
+                throw new InvalidOperationException("Resource access site is occupied by equipment or outside the field.");
+        }
+        foreach (var site in sites.Where(site => resources.ContainsKey(site.Item1)))
+        for (var d = 0; d <= 3; d++)
+        {
+            var point = (site.Item2, site.Item3 - d);
+            var current = existing[point];
+            if (d == 0 ? current is ResourceCellAdapter r && r.ResourceTypeDomain == site.Item1 : current is EmptyCellAdapter) continue;
+            var host = current.transform.parent;
+            RetireInitialCell(current);
+            CreateInitialCell(d == 0 ? resources[site.Item1] : initialLayout.EmptyPrefab, host, point.Item1, point.Item2);
+        }
     }
 
 #if UNITY_EDITOR
@@ -232,42 +343,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
                 tile.name = $"Tile_{x}_{z}";
             }
         }
-        if (initialLayout != null) { PrepareInitialLayout(parent); EnsureResourceAccess(parent); }
-    }
-
-    /// <summary>既存フィールドの設備を保ち、原料ごとに採取・搬出・搬送の空き場所を確保する。</summary>
-    public void EnsureResourceAccess(Transform parent)
-    {
-        if (initialLayout == null) return;
-        initialLayout.Validate(gridSize);
-        var c = gridSize / 2;
-        var sites = new[] {
-            (ResourceTypeDomain.Iron, c - 4, c - 2), (ResourceTypeDomain.Copper, c + 4, c - 2),
-            (ResourceTypeDomain.Coal, c - 4, c + 4), (ResourceTypeDomain.Stone, c + 4, c + 4) };
-        var resources = (propPrefabs ?? Array.Empty<PropPrefab>()).Where(p => p.prefab != null)
-            .Select(p => p.prefab.GetComponent<ResourceCellAdapter>()).Where(p => p != null)
-            .ToDictionary(p => p.ResourceTypeDomain);
-        var existing = parent.GetComponentsInChildren<CellBaseAdapter>().ToDictionary(cell =>
-            (Mathf.RoundToInt(cell.transform.position.x), Mathf.RoundToInt(cell.transform.position.z)));
-        // 変更前に全候補を調べ、手配置設備や未完成フィールドを部分的に上書きしない。
-        foreach (var site in sites.Where(site => resources.ContainsKey(site.Item1)))
-        for (var d = 0; d <= 3; d++)
-        {
-            if (site.Item2 < 0 || site.Item2 >= gridSize || site.Item3 - d < 0 || site.Item3 >= gridSize ||
-                !existing.TryGetValue((site.Item2, site.Item3 - d), out var cell) ||
-                cell is not EmptyCellAdapter && cell is not ResourceCellAdapter)
-                throw new InvalidOperationException("Resource access site is occupied by equipment or outside the field.");
-        }
-        foreach (var site in sites.Where(site => resources.ContainsKey(site.Item1)))
-        for (var d = 0; d <= 3; d++)
-        {
-            var point = (site.Item2, site.Item3 - d);
-            var current = existing[point];
-            if (d == 0 ? current is ResourceCellAdapter r && r.ResourceTypeDomain == site.Item1 : current is EmptyCellAdapter) continue;
-            var host = current.transform.parent;
-            RetireInitialCell(current);
-            CreateInitialCell(d == 0 ? resources[site.Item1] : initialLayout.EmptyPrefab, host, point.Item1, point.Item2);
-        }
+        if (initialLayout != null) PrepareStartSites(parent);
     }
 
     /// <summary>
