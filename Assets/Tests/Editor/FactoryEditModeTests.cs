@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine.TestTools;
@@ -91,7 +91,7 @@ public sealed class ShippingRulesTests : FactoryEditModeScope
 public sealed class SingularityGenerationTests : FactoryEditModeScope
 {
     protected override bool NeedsMainScene => true;
-    [Test] public void InitialFootprintStarterRouteAndForcedReplacement() => SingularityAssertions.VerifyGeneration();
+    [Test] public void GeneratedTerrainAndStartCandidateDiscoveryRemainSeparate() => SingularityAssertions.VerifyGeneration();
 }
 [TestFixture, Category("Progression")]
 public sealed class SkillTreeRulesTests : FactoryEditModeScope

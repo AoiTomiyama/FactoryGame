@@ -49,10 +49,14 @@ public sealed class StartSiteSelectionAdapter : MonoBehaviour
         foreach(var collider in preview.GetComponentsInChildren<Collider>()) collider.enabled=false;
         foreach(var script in preview.GetComponentsInChildren<MonoBehaviour>()) script.enabled=false;
     }
-    public void Step(int delta) => _generator.SelectStartSite((SelectedIndex+delta+Count)%Count);
+    public void Step(int delta) { if(Count>0) _generator.SelectStartSite((SelectedIndex+delta+Count)%Count); }
     public void Confirm() => _generator.ConfirmStartSite();
     public void RefreshSelection()
     {
+        if(Count==0)
+        {
+            _shipping.SetActive(false);_bar.PlacementInfo.text="開始できる候補がありません";return;
+        }
         for(var i=0;i<_previews.Count;i++)
         {
             _previews[i].SetActive(i==SelectedIndex);

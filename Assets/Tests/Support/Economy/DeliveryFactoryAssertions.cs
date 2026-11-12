@@ -65,7 +65,16 @@ public sealed class DeliveryFactoryAssertions
         throw new InvalidOperationException("採取場所が見つからない: " + resource);
     }
     private async UniTask<T> Equipment<T>(CellTypeDomain type, int x, int z) where T:CellBaseAdapter
-        => (T)await Place(type,new Vector3Int(x,0,z),Vector3Int.forward);
+    {
+        var width=type==CellTypeDomain.AdvancedCrafter?3:type==CellTypeDomain.ConstructionDepot?2:1;
+        var depth=type==CellTypeDomain.AdvancedCrafter || type==CellTypeDomain.ConstructionDepot?2:1;
+        var sites=Enumerable.Range(1,98-width).SelectMany(px=>Enumerable.Range(1,97-depth).Select(pz=>new Vector3Int(px,0,pz)))
+            .OrderBy(p=>Mathf.Abs(p.x-x)+Mathf.Abs(p.z-z));
+        foreach(var p in sites)
+            if(Enumerable.Range(-1,width+2).All(dx=>Enumerable.Range(-1,depth+3).All(dz=>Empty(p+new Vector3Int(dx,0,dz)))))
+                return (T)await Place(type,p,Vector3Int.forward);
+        throw new InvalidOperationException("No existing construction space for "+type);
+    }
 
     private List<Vector3Int> Path(Vector3Int first, Vector3Int direction, Vector3Int end)
     {
@@ -133,9 +142,8 @@ public sealed class DeliveryFactoryAssertions
         Require(UnityEditor.EditorUtility.audioMasterMute,"消音"); _panel.ShowPage(0);
         var last=100L;
         _generator.Wallet.Changed+=s=>{ if(s.Balance>last)_earned+=s.Balance-last; last=s.Balance; };
-        await Place(CellTypeDomain.ExtractorWood,new Vector3Int(50,0,44),Vector3Int.back);
-        await Equipment<ConveyorCellAdapter>(CellTypeDomain.Conveyor,50,45);
-        await Equipment<ConveyorCellAdapter>(CellTypeDomain.Conveyor,50,46);
+        foreach(var command in TestScenes.StarterPlacements(_generator))
+            await Place(command.Type,new Vector3Int(command.X,0,command.Z),Vector3Int.RoundToInt(Quaternion.Euler(0,command.Yaw,0)*Vector3.forward));
         await Until(()=>_earned>0,"初回換金"); Record("初回換金");
         Time.timeScale=20;
         foreach(var uid in new[]{"basic-research","wood-extraction-1"})

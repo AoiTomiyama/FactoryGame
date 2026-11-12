@@ -28,12 +28,13 @@ public sealed class OperationBarAdapter : MonoBehaviour
             foreach(var pair in _savedStartText)
                 if(pair.Key!=placementInfo && pair.Key.GetComponentInParent<Button>()==null)
                     pair.Key.text=line++==0 ? "候補地をクリックして選択\n中ドラッグ：移動　ホイール：拡大・縮小" : "";
-            viewButton.interactable=true;walkingHelp.gameObject.SetActive(false);
+            rotateButton.interactable=viewButton.interactable=walkButton.interactable=selection.Count>0;walkingHelp.gameObject.SetActive(false);
         }
         else
         {
             foreach(var pair in _savedStartText) if(pair.Key!=null) pair.Key.text=pair.Value;
             _savedStartText.Clear();
+            rotateButton.interactable=walkButton.interactable=true;viewButton.interactable=_cameraController!=null;
         }
         BindButtons();
         if(bar!=null) bar.gameObject.SetActive(selection!=null || _placementActive && !_firstPerson);

@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Linq;
 using System.Reflection;
@@ -532,7 +532,7 @@ public static class EconomyUIAssertions
             Require(raycaster.IsPointerOverUI(point), "new HUD controls intercept field input");
             VerifyInputCancellation(placer, raycaster, point, wallet, grid);
         }
-        var singularity = (SingularityCellAdapter)grid.GetCell(50, 50);
+        var singularity = grid.Owners.OfType<SingularityCellAdapter>().Single();
         view.UpdateUIStatusWindow(singularity);
         Require(panel.EquipmentView.UpgradeRoot.gameObject.activeSelf && !panel.EquipmentView.UpgradeButton.gameObject.activeSelf &&
             panel.EquipmentText.Contains("段階") && view.SelectedCell == singularity,

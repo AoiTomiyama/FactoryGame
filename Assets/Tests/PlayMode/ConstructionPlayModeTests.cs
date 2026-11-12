@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -105,15 +105,16 @@ public sealed class ConstructionGameplayPlayModeTests : FactoryPlayModeScope
             throw new InvalidOperationException("No construction test area.");
         }
         async UniTask Funds(long amount) => await ConstructionTestRoute.Until(() => generator.Wallet.Current.AvailableBalance >= amount, "残高 " + amount);
-        Place(CellTypeDomain.ExtractorWood,50,44,180);
+        var commands=TestScenes.StarterPlacements(generator).ToArray();var first=commands[0];
+        Place(first.Type,first.X,first.Z,first.Yaw);
         // 換金経路をつなぐ前に、最初の板材用の木材を採る。
-        await Mine((ExtractorCellAdapter)grid.GetCell(50,44),4);
-        Place(CellTypeDomain.ExportConveyor,50,45); Place(CellTypeDomain.Conveyor,50,46);
-        Assert.That(generator.Wallet.Current.Balance, Is.EqualTo(70));
+        await Mine((ExtractorCellAdapter)grid.GetCell(first.X,first.Z),4);
+        foreach(var command in commands.Skip(1)) Place(command.Type,command.X,command.Z,command.Yaw);
+        await Funds(30);
         var site=Area(2,3); Place(CellTypeDomain.ConstructionDepot,site.x,site.z+1); var depot=(ConstructionDepotCellAdapter)grid.GetCell(site.x,site.z+1);
-        Place(CellTypeDomain.Conveyor,site.x,site.z); var feeder=(ConveyorCellAdapter)grid.GetCell(site.x,site.z);
-        var basicSite=Area(1,1); Place(CellTypeDomain.Crafter,basicSite.x,basicSite.z); var basic=(CrafterCellAdapter)grid.GetCell(basicSite.x,basicSite.z);
-        await Funds(30); Place(CellTypeDomain.ExtractorIron,46,47); var iron=(ExtractorCellAdapter)grid.GetCell(46,47);
+        await Funds(5); Place(CellTypeDomain.Conveyor,site.x,site.z); var feeder=(ConveyorCellAdapter)grid.GetCell(site.x,site.z);
+        var basicSite=Area(1,1); await Funds(30); Place(CellTypeDomain.Crafter,basicSite.x,basicSite.z); var basic=(CrafterCellAdapter)grid.GetCell(basicSite.x,basicSite.z);
+        await Funds(30);var ironSite=TestScenes.ExtractorSite(ResourceTypeDomain.Iron);Place(CellTypeDomain.ExtractorIron,ironSite.X,ironSite.Z,ironSite.Yaw);var iron=(ExtractorCellAdapter)grid.GetCell(ironSite.X,ironSite.Z);
         async UniTask<int> Mine(ExtractorCellAdapter extractor, int amount)
         {
             await ConstructionTestRoute.Until(() => extractor.CurrentLoad >= amount, "採取 " + extractor.ResourceTypeDomain + " " + amount);
@@ -147,11 +148,12 @@ public sealed class ConstructionGameplayPlayModeTests : FactoryPlayModeScope
         var advancedSite=Area(3,2); var before=generator.Wallet.Current.Balance; Place(CellTypeDomain.AdvancedCrafter,advancedSite.x,advancedSite.z);
         Assert.That(generator.Wallet.Current.Balance,Is.EqualTo(before-90)); Assert.That(stock.Stored(ResourceTypeDomain.Plank),Is.Zero); Assert.That(stock.Stored(ResourceTypeDomain.IronIngot),Is.Zero);
         var advanced=(CrafterCellAdapter)grid.GetCell(advancedSite.x,advancedSite.z);
-        await Funds(55); Place(CellTypeDomain.ExtractorCopper,54,47); Place(CellTypeDomain.ExtractorCoal,46,53);
+        await Funds(55);var copperSite=TestScenes.ExtractorSite(ResourceTypeDomain.Copper);Place(CellTypeDomain.ExtractorCopper,copperSite.X,copperSite.Z,copperSite.Yaw);
+        var coalSite=TestScenes.ExtractorSite(ResourceTypeDomain.Coal);Place(CellTypeDomain.ExtractorCoal,coalSite.X,coalSite.Z,coalSite.Yaw);
         await Mine(iron,4); await Produce(basic,ResourceTypeDomain.IronIngot,2,(ResourceTypeDomain.Iron,4));
-        await Mine((ExtractorCellAdapter)grid.GetCell(46,53),1);
+        await Mine((ExtractorCellAdapter)grid.GetCell(coalSite.X,coalSite.Z),1);
         await Produce(advanced,ResourceTypeDomain.Steel,1,(ResourceTypeDomain.IronIngot,2),(ResourceTypeDomain.Coal,1));
-        await Mine((ExtractorCellAdapter)grid.GetCell(54,47),8);
+        await Mine((ExtractorCellAdapter)grid.GetCell(copperSite.X,copperSite.Z),8);
         await Produce(basic,ResourceTypeDomain.CopperIngot,4,(ResourceTypeDomain.Copper,8));
         await Produce(basic,ResourceTypeDomain.CopperWire,2,(ResourceTypeDomain.CopperIngot,4));
         await Produce(advanced,ResourceTypeDomain.MachineParts,1,(ResourceTypeDomain.Steel,1),(ResourceTypeDomain.CopperWire,2));

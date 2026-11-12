@@ -27,32 +27,47 @@ public sealed class StartSitePlayModeTests : FactoryPlayModeScope
         Assert.That(generator.Wallet,Is.Null);Assert.That(placer.PlacementEnabled,Is.False);
         Assert.That(hud.gameObject.activeSelf,Is.False);Assert.That(Object.FindObjectsByType<SingularityCellAdapter>(FindObjectsSortMode.None),Is.Empty);
         Assert.That(Object.FindAnyObjectByType<CameraControllerAdapter>().SetFirstPerson(true),Is.False);
-        var resourceIds=Object.FindObjectsByType<ResourceCellAdapter>(FindObjectsSortMode.None).Select(c=>c.GetInstanceID()).OrderBy(v=>v).ToArray();
+        var terrain=Object.FindObjectsByType<CellBaseAdapter>(FindObjectsSortMode.None).Where(c=>c.GetComponentInParent<GridFieldDatabaseAdapter>()!=null).ToDictionary(c=>c,c=>c.transform.position);
         Assert.That(generator.SelectStartSite(-1),Is.False);Assert.That(generator.SelectStartSiteAt(new Vector3(-100,0,-100)),Is.False);
         bar.ViewButton.onClick.Invoke();Assert.That(generator.SelectedStartSite,Is.EqualTo(1));
         bar.RotateButton.onClick.Invoke();Assert.That(generator.SelectedStartSite,Is.Zero);
         var position=generator.StartSites[index];Assert.That(generator.SelectStartSiteAt(new Vector3(position.x,0,position.y)));
         Assert.That(generator.SelectedStartSite,Is.EqualTo(index));Assert.That(bar.PlacementInfo.text,Does.Contain((index+1)+" / 3"));
+        foreach(var p in terrain) Assert.That(p.Key!=null && p.Key.transform.position==p.Value,"selection leaves every terrain cell untouched");
+        var plan=generator.StartCandidates[index];
         bar.WalkButton.onClick.Invoke();await UniTask.DelayFrame(4);
         Assert.That(generator.HasStarted);Assert.That(generator.IsChoosingStart,Is.False);Assert.That(generator.ConfirmStartSite(),Is.False);
         Assert.That(generator.Wallet.Current.Balance,Is.EqualTo(100));Assert.That(hud.gameObject.activeSelf);Assert.That(placer.PlacementEnabled);
-        Assert.That(Object.FindObjectsByType<ResourceCellAdapter>(FindObjectsSortMode.None).Select(c=>c.GetInstanceID()).OrderBy(v=>v),Is.EqualTo(resourceIds));
+        foreach(var p in terrain)
+            if(!(Mathf.Abs(p.Value.x-position.x)<=2 && Mathf.Abs(p.Value.z-position.y)<=2) && p.Value!=new Vector3(position.x,0,position.y-3))
+                Assert.That(p.Key!=null && p.Key.transform.position==p.Value,"confirmation changes only the two equipment footprints");
+        var after=Object.FindObjectsByType<CellBaseAdapter>(FindObjectsSortMode.None).Where(c=>c.GetComponentInParent<GridFieldDatabaseAdapter>()!=null).ToArray();
+        var added=after.Where(c=>!terrain.ContainsKey(c)).ToArray();
+        Assert.That(added.Length,Is.EqualTo(2),"initial placement creates exactly two cells");
+        Assert.That(added.Count(c=>c is SingularityCellAdapter),Is.EqualTo(1));
+        Assert.That(added.Count(c=>c is ShippingCellAdapter),Is.EqualTo(1));
         var grid=GridFieldDatabaseAdapter.Instance;
         Assert.That(grid.Owners.OfType<SingularityCellAdapter>().Single().transform.position,Is.EqualTo(new Vector3(position.x,0,position.y)));
         Assert.That(grid.Owners.OfType<ShippingCellAdapter>().Count(),Is.EqualTo(1));
         Assert.That(bar.RotateButton.GetComponentInChildren<Text>().text,Does.Contain("回転"));
         var sale=generator.ShippingPreviewPosition(position);
-        void Place(CellTypeDomain type,int z,float angle)
+        void Place(CellTypeDomain type,int x,int z,Vector3 forward)
         {
-            placer.transform.rotation=Quaternion.Euler(0,angle,0);placer.SetSelectedCellType(type);
-            placer.SelectGrid(grid.GetCell(sale.x,z).gameObject);placer.PointerBegin();placer.PointerDrag();placer.PointerEnd();
+            placer.transform.rotation=Quaternion.LookRotation(forward);placer.SetSelectedCellType(type);
+            placer.SelectGrid(grid.GetCell(x,z).gameObject);placer.PointerBegin();placer.PointerDrag();placer.PointerEnd();
             Assert.That(placer.LastPlacedCount,Is.EqualTo(1));
         }
-        Place(CellTypeDomain.ExtractorWood,sale.y-3,180);Place(CellTypeDomain.Conveyor,sale.y-2,0);Place(CellTypeDomain.Conveyor,sale.y-1,0);
-        Assert.That(generator.Wallet.Current.Balance,Is.EqualTo(70));
+        Place(CellTypeDomain.ExtractorWood,plan.Extractor.x,plan.Extractor.z,new Vector3(plan.Wood.x-plan.Extractor.x,0,plan.Wood.z-plan.Extractor.z));
+        for(var i=0;i<plan.Belts.Count;i++)
+        {
+            var current=plan.Belts[i];var next=i+1<plan.Belts.Count?plan.Belts[i+1]:(sale.x,sale.y);
+            Place(CellTypeDomain.Conveyor,current.x,current.z,new Vector3(next.Item1-current.x,0,next.Item2-current.z));
+        }
+        var remaining=100-20-plan.Belts.Count*5;
+        Assert.That(generator.Wallet.Current.Balance,Is.EqualTo(remaining));
         var end=Time.realtimeSinceStartup+8;
-        while(generator.Wallet.Current.Balance==70 && Time.realtimeSinceStartup<end) await UniTask.Yield();
-        Assert.That(generator.Wallet.Current.Balance,Is.GreaterThan(70),"chosen site's starter route earns real income");
+        while(generator.Wallet.Current.Balance==remaining && Time.realtimeSinceStartup<end) await UniTask.Yield();
+        Assert.That(generator.Wallet.Current.Balance,Is.GreaterThan(remaining),"chosen site's existing wood route earns real income");
     }
     [UnityTest] public IEnumerator CandidateControlsFitBothPcSizes()=>Fit().ToCoroutine();
     private static async UniTask Fit()

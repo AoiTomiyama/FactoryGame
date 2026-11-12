@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -42,6 +42,29 @@ public static class TestScenes
                 .OfType<T>().ToArray();
         return Object.FindObjectsByType<T>(inactive, FindObjectsSortMode.None).Where(item =>
             item is Component component && component.gameObject.scene == scene || item is GameObject gameObject && gameObject.scene == scene).ToArray();
+    }
+    public static IEnumerable<(CellTypeDomain Type,int X,int Z,float Yaw)> StarterPlacements(GridFieldGeneratorAdapter generator)
+    {
+        var plan=generator.StartCandidates[generator.SelectedStartSite];
+        float Yaw((int x,int z) a,(int x,int z) b)=>Quaternion.LookRotation(new Vector3(b.x-a.x,0,b.z-a.z)).eulerAngles.y;
+        yield return (CellTypeDomain.ExtractorWood,plan.Extractor.x,plan.Extractor.z,Yaw(plan.Extractor,plan.Wood));
+        for(var i=0;i<plan.Belts.Count;i++)
+        {
+            var p=plan.Belts[i];var next=i+1<plan.Belts.Count?plan.Belts[i+1]:plan.Shipping;
+            yield return (CellTypeDomain.Conveyor,p.x,p.z,Yaw(p,next));
+        }
+    }
+    public static (int X,int Z,float Yaw) ExtractorSite(ResourceTypeDomain type)
+    {
+        var grid=GridFieldDatabaseAdapter.Instance;
+        foreach(var raw in grid.Owners.OfType<ResourceCellAdapter>().Where(r=>r.ResourceTypeDomain==type))
+        foreach(var direction in new[]{Vector3Int.forward,Vector3Int.right,Vector3Int.back,Vector3Int.left})
+        {
+            var p=Vector3Int.RoundToInt(raw.transform.position)-direction;
+            if(grid.IsWithinBounds(p.x,p.z) && grid.GetCell(p.x,p.z) is EmptyCellAdapter)
+                return (p.x,p.z,Quaternion.LookRotation(direction).eulerAngles.y);
+        }
+        throw new InvalidOperationException("No existing extraction site for "+type);
     }
     public static void UseGrid(GridFieldDatabaseAdapter grid) => SetSingleton(typeof(GridFieldDatabaseAdapter), grid);
     private static FieldInfo Singleton(Type type) => typeof(SingletonMonoBehaviourAdapter<>).MakeGenericType(type).GetField("_instance", BindingFlags.NonPublic | BindingFlags.Static);

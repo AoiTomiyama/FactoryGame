@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -49,14 +49,13 @@ public static class EconomyLoopAssertions
                 Require(wallet.Current.Balance == balance - price, "placement charged once");
                 spent += price;
             }
-            Place(50, 44, CellTypeDomain.ExtractorWood, 180);
-            Place(50, 45, CellTypeDomain.ExportConveyor);
-            Place(50, 46, CellTypeDomain.Conveyor);
-            Require(spent == 30 && wallet.Current.Balance == 70, "starter route costs 30 of initial 100");
-            var extractor = grid.GetCell(50, 44) as ExtractorCellAdapter;
-            var conveyor = grid.GetCell(50, 46) as ConveyorCellAdapter;
+            var plan=generator.StartCandidates[generator.SelectedStartSite];
+            foreach(var command in TestScenes.StarterPlacements(generator)) Place(command.X,command.Z,command.Type,command.Yaw);
+            Require(wallet.Current.Balance==100-spent,"starter route stays within initial budget");
+            var extractor=grid.GetCell(plan.Extractor.x,plan.Extractor.z) as ExtractorCellAdapter;
+            var tail=plan.Belts[plan.Belts.Count-1];var conveyor=grid.GetCell(tail.x,tail.z) as ConveyorCellAdapter;
             Require(extractor != null && conveyor != null, "route installed through pointer commands");
-            await Funds(71);
+            await Funds(wallet.Current.Balance+1);
             Require(earned > 0 && panel.BalanceText.Contains(wallet.Current.Balance.ToString()), "first real extraction transfer and conversion");
             Debug.Log($"Economy loop first sale: balance={wallet.Current.Balance}, earned={earned}, spent={spent}");
 
@@ -85,7 +84,7 @@ public static class EconomyLoopAssertions
                 }
                 Require(extractor.ExtractionAmount == baseExtraction * (tier + 1) &&
                     extractor.StorageCapacity == baseCapacity * (tier + 1) &&
-                    conveyor.TransferAmount == baseTransfer, "I/II apply shared type levels to existing equipment");
+                    conveyor.TransferAmount == (conveyor.IsExportConveyor?baseTransfer*(tier+1):baseTransfer), "I/II apply shared type levels to existing equipment");
             }
             // 空セルへ課金して新設し、既設・新設で同じ共有効果になることを確認する。
             var empty = UnityEngine.Object.FindObjectsByType<EmptyCellAdapter>(FindObjectsSortMode.None)
@@ -93,7 +92,7 @@ public static class EconomyLoopAssertions
             await Funds(5);
             Place(empty.XIndex, empty.ZIndex, CellTypeDomain.ExportConveyor);
             var added = (ExportConveyorCellAdapter)grid.GetCell(empty.XIndex, empty.ZIndex);
-            Require(added.TransferAmount == ((ExportConveyorCellAdapter)grid.GetCell(50, 45)).TransferAmount, "reinvested new equipment inherits global effects");
+            Require(added.TransferAmount == ((ConveyorCellAdapter)grid.GetCell(plan.Belts[0].x,plan.Belts[0].z)).TransferAmount, "reinvested new equipment inherits global effects");
             var before = wallet.Current.Balance;
             await Funds(before + 1);
             Require(wallet.Current.Balance == 100 + earned - spent && wallet.Current.ReservedExpense == 0,

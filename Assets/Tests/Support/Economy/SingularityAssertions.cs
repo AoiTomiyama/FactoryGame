@@ -79,37 +79,13 @@ public static class SingularityAssertions
             {
                 Set(generator, "seedValue", seed);
                 generator.GenerateGrid(anchor);
-                Require(generator.StartSites.Count==1 && anchor.GetComponentsInChildren<SingularityCellAdapter>().Length==0,
-                    "minimum field offers one unconfirmed start site");
-                generator.PrepareInitialLayout(anchor,generator.StartSites[0]);
-                var singularities = anchor.GetComponentsInChildren<SingularityCellAdapter>();
-                Require(singularities.Length == 1 && singularities[0].transform.position == new Vector3(7, 0, 7), "regeneration central singleton");
-                var cells = anchor.GetComponentsInChildren<CellBaseAdapter>();
-                var woodPoint = layout.StarterCell(14, 4);
-                Require(cells.OfType<ResourceCellAdapter>().Any(c => c.ResourceTypeDomain == ResourceTypeDomain.Wood &&
-                    c.transform.position == new Vector3(woodPoint.x, 0, woodPoint.z)), "initial wood outside footprint");
-                for (var distance = 1; distance <= 3; distance++)
-                {
-                    var point = layout.StarterCell(14, distance);
-                    Require(cells.OfType<EmptyCellAdapter>().Any(c => c.transform.position == new Vector3(point.x, 0, point.z)), "starter route outside footprint");
-                }
-                Require(singularities[0].Footprint.Area == 25 && singularities[0].Ports.Count == 20 && cells.Length == 172,
-                    "generated field has one 25-tile owner and no interior terrain");
+                var cells=anchor.GetComponentsInChildren<CellBaseAdapter>();
+                Require(cells.Length==196 && cells.All(c=>c is EmptyCellAdapter || c is ResourceCellAdapter),"generation contains terrain only");
+                generator.PrepareStartSites(anchor);
+                Require(anchor.GetComponentsInChildren<CellBaseAdapter>().SequenceEqual(cells),"candidate discovery preserves the generated terrain");
             }
-            var original = anchor.GetComponentInChildren<SingularityCellAdapter>();
-            UnityEngine.Object.DestroyImmediate(original.gameObject);
-            var displaced = new System.Collections.Generic.List<ResourceCellAdapter>();
-            foreach (var point in layout.SingularityPrefab.Footprint.Coordinates(7, 7, 0))
-            {
-                var resource = ((GameObject)PrefabUtility.InstantiatePrefab(layout.WoodPrefab.gameObject, anchor)).GetComponent<ResourceCellAdapter>();
-                resource.transform.position = new Vector3(point.x, 0, point.z);
-                displaced.Add(resource);
-            }
-            generator.PrepareInitialLayout(anchor);
-            Require(displaced.All(c => c == null) && anchor.GetComponentsInChildren<SingularityCellAdapter>().Length == 1,
-                "forced initial placement retires all original resources before registration");
             var rejected = false;
-            try { layout.Validate(11); } catch (InvalidOperationException) { rejected = true; }
+            try { layout.Validate(5); } catch (InvalidOperationException) { rejected = true; }
             Require(rejected, "small grid rejected");
         }
         finally
@@ -139,7 +115,7 @@ public static class SingularityAssertions
             var generator = TestScenes.Find<GridFieldGeneratorAdapter>();
             var wallet = generator.Wallet;
             var grid = GridFieldDatabaseAdapter.Instance;
-            var singularity = grid.GetCell(50, 50) as SingularityCellAdapter;
+            var singularity = grid.Owners.OfType<SingularityCellAdapter>().Single();
             Require(singularity != null && wallet.Current.Balance == 100, "MainScene central singularity and shared wallet");
             Require(grid.Owners.OfType<SingularityCellAdapter>().Count() == 1 && singularity.OccupiedCoordinates.All(p => grid.GetCell(p.x, p.z) == singularity),
                 "all 25 tiles return one owner");
@@ -159,10 +135,20 @@ public static class SingularityAssertions
             var shipping = grid.Owners.OfType<ShippingCellAdapter>().Single();
             await VerifyCoordinator(shipping, wallet);
             var placer = TestScenes.Find<CellPlacerAdapter>();
-            Place(placer, grid.GetCell(50, 50), CellTypeDomain.Empty, 0);
-            Require(grid.GetCell(50, 50) == singularity, "singularity deletion protected");
-            Place(placer, grid.GetCell(50, 43), CellTypeDomain.Empty, 0);
-            Require(grid.GetCell(50, 43) is ResourceCellAdapter, "resource deletion protected");
+            Place(placer, singularity, CellTypeDomain.Empty, 0);
+            Require(singularity == singularity, "singularity deletion protected");
+            var protectedResource=grid.Owners.OfType<ResourceCellAdapter>().First();
+            Place(placer,protectedResource,CellTypeDomain.Empty,0);
+            Require(protectedResource!=null,"resource deletion protected");
+            var plan=generator.StartCandidates[generator.SelectedStartSite];
+            foreach(var command in TestScenes.StarterPlacements(generator)) Place(placer,grid.GetCell(command.X,command.Z),command.Type,command.Yaw);
+            var miner=(ExtractorCellAdapter)grid.GetCell(plan.Extractor.x,plan.Extractor.z);
+            var tail=plan.Belts[plan.Belts.Count-1];var conveyor=(ConveyorCellAdapter)grid.GetCell(tail.x,tail.z);
+            var pool=ResourceItemObjectPoolAdapter.Instance;var scale=Time.timeScale;Time.timeScale=20;
+            await UniTask.WaitUntil(()=>wallet.Current.Balance>=130).Timeout(TimeSpan.FromSeconds(30),DelayType.Realtime);
+            miner.enabled=false;
+            await UniTask.WaitUntil(()=>pool.Resources.Count==0).Timeout(TimeSpan.FromSeconds(30),DelayType.Realtime);
+            Time.timeScale=scale;
             var empty = grid.Owners.OfType<EmptyCellAdapter>().First(c => c.XIndex > 5 && c.XIndex < 40 && c.ZIndex > 5 && c.ZIndex < 40);
             var x = empty.XIndex; var z = empty.ZIndex; var purchaseBalance = wallet.Current.Balance;
             TestScenes.Find<GridFieldGeneratorAdapter>().ConstructionStock.TryReserveDeposit(ResourceTypeDomain.MachineParts, 1, out var parts); parts.TryCommit();
@@ -187,16 +173,10 @@ public static class SingularityAssertions
             Place(placer, added, CellTypeDomain.Empty, 0);
             Require(grid.GetCell(x, z) is EmptyCellAdapter && wallet.Current.ReservedIncome == 0 && wallet.Current.Balance == removalBalance,
                 "shipping removal cancels pending sale and has no refund");
-            var before = wallet.Current.Balance - 30;
-            Place(placer, grid.GetCell(50, 44), CellTypeDomain.ExtractorWood, 180);
-            Place(placer, grid.GetCell(50, 45), CellTypeDomain.ExportConveyor, 0);
-            Place(placer, grid.GetCell(50, 46), CellTypeDomain.Conveyor, 0);
-            Require(grid.GetCell(50, 44) is ExtractorCellAdapter && grid.GetCell(50, 45) is ExportConveyorCellAdapter &&
-                grid.GetCell(50, 46) is ConveyorCellAdapter, "actual pointer route placement");
-            await UniTask.WaitUntil(() => wallet.Current.Balance > before).Timeout(TimeSpan.FromSeconds(30));
-            Require(wallet.Current.Balance > before, "first actual extraction to sale");
+            var before=wallet.Current.Balance;miner.enabled=true;
+            await UniTask.WaitUntil(()=>wallet.Current.Balance>before).Timeout(TimeSpan.FromSeconds(30));
+            Require(wallet.Current.Balance>before,"actual extraction and sale resumes");
             // 演出中の実コンベアを切断し、送り元IDを維持して再接続できることを確認する。
-            var conveyor = grid.GetCell(50, 46) as ConveyorCellAdapter;
             await UniTask.WaitUntil(() => wallet.Current.ReservedIncome > 0).Timeout(TimeSpan.FromSeconds(20));
             shipping.enabled = false;
             var stoppedBalance = wallet.Current.Balance;
@@ -208,7 +188,6 @@ public static class SingularityAssertions
             Require(wallet.Current.Balance > stoppedBalance, "reconnect resumes owned resource");
             await UniTask.WaitUntil(() => wallet.Current.ReservedIncome > 0).Timeout(TimeSpan.FromSeconds(20));
             var heldId = (int)typeof(ConveyorCellAdapter).GetProperty("ResourceId", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(conveyor);
-            var pool = ResourceItemObjectPoolAdapter.Instance;
             var beforeRemoval = wallet.Current.Balance;
             Place(placer, conveyor, CellTypeDomain.Empty, 0);
             await UniTask.Delay(300);

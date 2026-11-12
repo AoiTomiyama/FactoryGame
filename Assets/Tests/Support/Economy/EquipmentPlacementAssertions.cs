@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Reflection;
 using System.IO;
@@ -81,36 +81,39 @@ public static class EquipmentPlacementAssertions
             var wallet = generator.Wallet;
             Require(wallet.Current.Balance == 100, "shared starting balance");
             // 初回経路は課金後も100以内で成立する。
-            Place(placer, grid.GetCell(50, 44), CellTypeDomain.ExtractorWood, 180);
+            var strip=grid.Owners.OfType<EmptyCellAdapter>().First(c=>c.ZIndex>0 && grid.IsWithinBounds(c.XIndex,c.ZIndex+2) &&
+                grid.GetCell(c.XIndex,c.ZIndex+1) is EmptyCellAdapter && grid.GetCell(c.XIndex,c.ZIndex+2) is EmptyCellAdapter &&
+                grid.GetCell(c.XIndex,c.ZIndex-1) is not ResourceCellAdapter);
+            var testX=strip.XIndex;var testZ=strip.ZIndex;
+            Place(placer, grid.GetCell(testX, testZ), CellTypeDomain.ExtractorWood, 180);
             Require(wallet.Current.Balance == 80 && placer.LastPlacedCount == 1 && placer.LastPlacementCost == 20,
                 "extractor charged once");
-            Require(Quaternion.Angle(grid.GetCell(50, 44).transform.rotation, Quaternion.Euler(0, 180, 0)) < .1f, "rotation retained");
-            Require(Get<CellBaseAdapter>(placer, "_selectedCell") == grid.GetCell(50, 44) &&
-                Get<CellBaseAdapter>(CellStatusViewAdapter.Instance, "_selectedCell") == grid.GetCell(50, 44), "cursor and status select new cell");
-            Place(placer, grid.GetCell(50, 45), CellTypeDomain.ExportConveyor, 0);
-            Place(placer, grid.GetCell(50, 46), CellTypeDomain.Conveyor, 0);
-            Require(wallet.Current.Balance == 70 && wallet.Current.ReservedExpense == 0, "starter route costs thirty");
-            await UniTask.WaitUntil(() => wallet.Current.Balance > 70).Timeout(TimeSpan.FromSeconds(30));
-            Require(wallet.Current.Balance > 70, "paid route extracts and sells");
+            Require(Quaternion.Angle(grid.GetCell(testX, testZ).transform.rotation, Quaternion.Euler(0, 180, 0)) < .1f, "rotation retained");
+            Require(Get<CellBaseAdapter>(placer, "_selectedCell") == grid.GetCell(testX, testZ) &&
+                Get<CellBaseAdapter>(CellStatusViewAdapter.Instance, "_selectedCell") == grid.GetCell(testX, testZ), "cursor and status select new cell");
+            Place(placer, grid.GetCell(testX, testZ+1), CellTypeDomain.ExportConveyor, 0);
+            Place(placer, grid.GetCell(testX, testZ+2), CellTypeDomain.Conveyor, 0);
+            Require(wallet.Current.Balance == 70 && wallet.Current.ReservedExpense == 0, "three purchased cells cost thirty");
+            // 実収益はStartSitePlayModeTestsで確認する。このケースは購入・撤去と失敗復元を扱う。
             // 撤去は返金せず、既存の在庫・搬送取消経路を使う。
             var balance = wallet.Current.Balance;
-            Place(placer, grid.GetCell(50, 45), CellTypeDomain.Empty, 0);
-            Require(wallet.Current.Balance == balance && grid.GetCell(50, 45) is EmptyCellAdapter && placer.LastPlacementCost == 0,
+            Place(placer, grid.GetCell(testX, testZ+1), CellTypeDomain.Empty, 0);
+            Require(wallet.Current.Balance == balance && grid.GetCell(testX, testZ+1) is EmptyCellAdapter && placer.LastPlacementCost == 0,
                 "removal free without refund");
-            Place(placer, grid.GetCell(50, 44), CellTypeDomain.Empty, 0);
-            Place(placer, grid.GetCell(50, 46), CellTypeDomain.Empty, 0);
+            Place(placer, grid.GetCell(testX, testZ), CellTypeDomain.Empty, 0);
+            Place(placer, grid.GetCell(testX, testZ+2), CellTypeDomain.Empty, 0);
             await UniTask.Delay(100);
-            var singularity = grid.GetCell(50, 50);
-            var resource = grid.GetCell(50, 43);
+            var singularity = grid.Owners.OfType<SingularityCellAdapter>().Single();
+            var resource = grid.Owners.OfType<ResourceCellAdapter>().First();
             Place(placer, singularity, CellTypeDomain.Empty, 0);
             Place(placer, resource, CellTypeDomain.Conveyor, 0);
-            Require(grid.GetCell(50, 50) == singularity && grid.GetCell(50, 43) == resource, "protected targets unchanged");
+            Require(grid.Owners.OfType<SingularityCellAdapter>().Single() == singularity && grid.Owners.OfType<ResourceCellAdapter>().First() == resource, "protected targets unchanged");
             // 3セルの逆向きドラッグで2セル分の残高だけを用意する。
             wallet.TryReserveExpense(wallet.Current.Balance - 10, out var drain);
             drain.TryCommit();
             placer.SetSelectedCellType(CellTypeDomain.Conveyor);
-            placer.SelectGrid(grid.GetCell(50, 46).gameObject); placer.PointerBegin();
-            placer.SelectGrid(grid.GetCell(50, 44).gameObject); placer.PointerDrag();
+            placer.SelectGrid(grid.GetCell(testX, testZ+2).gameObject); placer.PointerBegin();
+            placer.SelectGrid(grid.GetCell(testX, testZ).gameObject); placer.PointerDrag();
             Require(placer.PreviewCount == 3 && placer.PreviewCost == 15 && placer.PreviewText.Contains("15"), "range preview quantity and cost");
             var panel = generator.GetComponent<EconomyPanelAdapter>();
             var availableBeforeToggle = wallet.Current.AvailableBalance;
@@ -119,8 +122,8 @@ public static class EquipmentPlacementAssertions
             panel.enabled = false; panel.enabled = true;
             Require(wallet.Current.AvailableBalance == availableBeforeToggle && placer.PreviewCount == 0,
                 "UI page, visibility and enable changes cancel placement without payment");
-            placer.SelectGrid(grid.GetCell(50, 46).gameObject); placer.PointerBegin();
-            placer.SelectGrid(grid.GetCell(50, 44).gameObject); placer.PointerDrag();
+            placer.SelectGrid(grid.GetCell(testX, testZ+2).gameObject); placer.PointerBegin();
+            placer.SelectGrid(grid.GetCell(testX, testZ).gameObject); placer.PointerDrag();
             await UniTask.DelayFrame(2);
             Require(panel.PlacementText.Contains("費用 15") && panel.PlacementText.Contains("残高不足"), "integrated range quote reports insufficient funds");
             var placementWarnings = 0;
@@ -132,26 +135,26 @@ public static class EquipmentPlacementAssertions
             await UniTask.DelayFrame(2);
             Require(!panel.PlacementText.Contains("確定") && !panel.PlacementText.Contains("支出") && panel.PlacementText.Contains("残高不足"), "integrated result matches partial placement expense");
             // 反復PointerEnd後も残高と配置を変えない。
-            Require(grid.GetCell(50, 46) is ConveyorCellAdapter && grid.GetCell(50, 45) is ConveyorCellAdapter &&
-                grid.GetCell(50, 44) is EmptyCellAdapter && wallet.Current.Balance == 0, "reverse range stops on third cell");
-            Require(grid.GetCell(50, 44).CellModel.activeSelf && placer.PreviewCount == 0, "unplaced model and preview restored");
+            Require(grid.GetCell(testX, testZ+2) is ConveyorCellAdapter && grid.GetCell(testX, testZ+1) is ConveyorCellAdapter &&
+                grid.GetCell(testX, testZ) is EmptyCellAdapter && wallet.Current.Balance == 0, "reverse range stops on third cell");
+            Require(grid.GetCell(testX, testZ).CellModel.activeSelf && placer.PreviewCount == 0, "unplaced model and preview restored");
             Require(placer.LastPlacedCount == 2 && placer.LastPlacementCost == 10, "repeated end preserves result");
             // 失敗前後の結果表示を独立した順方向操作で確認する。
-            Place(placer, grid.GetCell(50, 46), CellTypeDomain.Empty, 0);
-            Place(placer, grid.GetCell(50, 45), CellTypeDomain.Empty, 0);
+            Place(placer, grid.GetCell(testX, testZ+2), CellTypeDomain.Empty, 0);
+            Place(placer, grid.GetCell(testX, testZ+1), CellTypeDomain.Empty, 0);
             wallet.TryReserveIncome(10, out var fund); fund.TryCommit();
             placer.SetSelectedCellType(CellTypeDomain.Conveyor);
-            placer.SelectGrid(grid.GetCell(50, 44).gameObject); placer.PointerBegin();
-            placer.SelectGrid(grid.GetCell(50, 46).gameObject); placer.PointerDrag();
+            placer.SelectGrid(grid.GetCell(testX, testZ).gameObject); placer.PointerBegin();
+            placer.SelectGrid(grid.GetCell(testX, testZ+2).gameObject); placer.PointerDrag();
             await Capture("placement-preview.png");
             placer.PointerEnd();
-            Require(grid.GetCell(50, 44) is ConveyorCellAdapter && grid.GetCell(50, 45) is ConveyorCellAdapter &&
-                grid.GetCell(50, 46) is EmptyCellAdapter, "forward coordinate order");
+            Require(grid.GetCell(testX, testZ) is ConveyorCellAdapter && grid.GetCell(testX, testZ+1) is ConveyorCellAdapter &&
+                grid.GetCell(testX, testZ+2) is EmptyCellAdapter, "forward coordinate order");
             Require(placer.LastPlacedCount == 2 && placer.LastPlacementCost == 10 &&
                 placer.LastPlacementResult == EquipmentPlacementApplication.Result.InsufficientFunds && placer.ResultText.Contains("残高不足"), "partial result display");
             await Capture("placement-result.png");
-            Place(placer, grid.GetCell(50, 44), CellTypeDomain.Empty, 0);
-            Place(placer, grid.GetCell(50, 45), CellTypeDomain.Empty, 0);
+            Place(placer, grid.GetCell(testX, testZ), CellTypeDomain.Empty, 0);
+            Place(placer, grid.GetCell(testX, testZ+1), CellTypeDomain.Empty, 0);
             // 登録後に初期化が失敗する実Adapterを使い、グリッドと隣接参照を復元する。
             wallet.TryReserveIncome(20, out fund); fund.TryCommit();
             placer.SetSelectedCellType(CellTypeDomain.Conveyor);
@@ -161,7 +164,7 @@ public static class EquipmentPlacementAssertions
             template.SetActive(false);
             var failing = template.AddComponent<FailingPlacementCellAdapter>();
             Set(placer, "_cachedCell", failing);
-            var original = grid.GetCell(50, 46);
+            var original = grid.GetCell(testX, testZ+2);
             var systemWarnings = 0;
             Application.LogCallback countSystemWarning = (message, stack, type) => { if (type == LogType.Warning && message.Contains("配置失敗：設置に失敗しました")) systemWarnings++; };
             Application.logMessageReceived += countSystemWarning;
@@ -169,27 +172,27 @@ public static class EquipmentPlacementAssertions
             finally { Application.logMessageReceived -= countSystemWarning; }
             await UniTask.DelayFrame(2);
             Require(systemWarnings == 1 && !panel.PlacementText.Contains("失敗"), "system failure uses Console without HUD error");
-            Require(grid.GetCell(50, 46) == original && original.gameObject.activeSelf && original.CellModel.activeSelf &&
+            Require(grid.GetCell(testX, testZ+2) == original && original.gameObject.activeSelf && original.CellModel.activeSelf &&
                 wallet.Current.Balance == 20 && wallet.Current.ReservedExpense == 0 && placer.LastPlacedCount == 0 &&
                 placer.LastPlacementResult == EquipmentPlacementApplication.Result.Failed, "real initialization rollback");
             failing.Replacement = original;
             placer.PointerBegin(); placer.PointerDrag(); placer.PointerEnd();
-            Require(grid.GetCell(50, 46) == original && wallet.Current.Balance == 20 &&
+            Require(grid.GetCell(testX, testZ+2) == original && wallet.Current.Balance == 20 &&
                 wallet.Current.ReservedExpense == 0 && placer.LastPlacementResult == EquipmentPlacementApplication.Result.Failed,
                 "registration changed during initialization restores original");
             Require(((ConnectableCellBaseAdapter)singularity).Connections.Count == 0, "rollback removes neighbor references");
             Set(placer, "_cachedCell", cached);
             UnityEngine.Object.Destroy(template);
             Place(placer, original, CellTypeDomain.Storage, 90);
-            Require(wallet.Current.Balance == 5 && grid.GetCell(50, 46) is StorageCellAdapter, "placement works after rollback");
-            var occupied = grid.GetCell(50, 46);
+            Require(wallet.Current.Balance == 5 && grid.GetCell(testX, testZ+2) is StorageCellAdapter, "placement works after rollback");
+            var occupied = grid.GetCell(testX, testZ+2);
             var occupiedBalance = wallet.Current.Balance;
             placer.SetSelectedCellType(CellTypeDomain.Conveyor);
             placer.SelectGrid(occupied.gameObject); placer.PointerBegin(); placer.PointerDrag();
             Require(placer.PlacementNotice.Contains("既存セル") && placer.PreviewCount == 0, "occupied target has dedicated UI reason");
             placer.PointerEnd();
             await UniTask.DelayFrame(2);
-            Require(panel.PlacementText.Contains("既存セル") && grid.GetCell(50, 46) == occupied && wallet.Current.Balance == occupiedBalance, "overlap stays visible without replacement or expense");
+            Require(panel.PlacementText.Contains("既存セル") && grid.GetCell(testX, testZ+2) == occupied && wallet.Current.Balance == occupiedBalance, "overlap stays visible without replacement or expense");
             VerifyMultiblockPlacement(grid, placer, wallet);
             Debug.Log($"Equipment placement PLAY checks passed: {_checks} assertions; paid starter route, range order, partial funds, rollback, protection, selection, rotation and removal.");
         }

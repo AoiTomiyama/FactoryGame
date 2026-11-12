@@ -41,7 +41,7 @@ public sealed class ResourceExpansionAssetTests : FactoryEditModeScope
 public sealed class ResourceGenerationTests : FactoryEditModeScope
 {
     protected override bool NeedsMainScene => true;
-    [Test] public void MinimumFieldHasAllRawResourcesAndStableLayoutRegardlessOfCandidateOrder()
+    [Test] public void GeneratedTerrainIsStableRegardlessOfCandidateOrder()
     {
         var saved = TestScenes.Find<GridFieldGeneratorAdapter>();
         var generator = TestScenes.NewObject("ResourceGenerator").AddComponent<GridFieldGeneratorAdapter>();
@@ -53,20 +53,13 @@ public sealed class ResourceGenerationTests : FactoryEditModeScope
         string Map() => string.Join(";", field.GetComponentsInChildren<ResourceCellAdapter>().OrderBy(r => r.transform.position.x)
             .ThenBy(r => r.transform.position.z).Select(r => r.transform.position + ":" + r.ResourceTypeDomain));
         var first = Map();
-        foreach (var type in new[] { ResourceTypeDomain.Wood, ResourceTypeDomain.Stone, ResourceTypeDomain.Iron, ResourceTypeDomain.Copper, ResourceTypeDomain.Coal })
-            Assert.That(field.GetComponentsInChildren<ResourceCellAdapter>().Any(r => r.ResourceTypeDomain == type), "原料: " + type);
         serialized.Update(); var candidates = serialized.FindProperty("propPrefabs");
         candidates.MoveArrayElement(0, candidates.arraySize - 1); serialized.ApplyModifiedPropertiesWithoutUndo();
         generator.GenerateGrid(field); Assert.That(Map(), Is.EqualTo(first));
         var grid = field.gameObject.AddComponent<GridFieldDatabaseAdapter>(); grid.InitializeCells(14);
-        foreach (var point in new[] { (3,5), (11,5), (3,11), (11,11) })
-        {
-            Assert.That(grid.GetCell(point.Item1, point.Item2), Is.TypeOf<ResourceCellAdapter>());
-            for (var d = 1; d <= 3; d++) Assert.That(grid.GetCell(point.Item1, point.Item2 - d), Is.TypeOf<EmptyCellAdapter>());
-        }
-        Assert.That(generator.StartSites.Count, Is.EqualTo(1));
-        Assert.That(grid.Owners.OfType<SingularityCellAdapter>().Count(), Is.Zero);
-        Assert.That(grid.Owners.OfType<ShippingCellAdapter>().Count(), Is.Zero);
+        Assert.That(grid.Owners.Count(),Is.EqualTo(196));
+        Assert.That(grid.Owners.OfType<SingularityCellAdapter>(),Is.Empty);
+        Assert.That(grid.Owners.OfType<ShippingCellAdapter>(),Is.Empty);
     }
     [Test] public void SavedMainSceneContainsAccessibleNewResources()
     {

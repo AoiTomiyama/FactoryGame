@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.IO;
 using System.Linq;
@@ -50,7 +50,7 @@ public static class FirstPersonAssertions
             keyboard = InputSystem.AddDevice<Keyboard>(); mouse = InputSystem.AddDevice<Mouse>();
             keyboard.MakeCurrent(); mouse.MakeCurrent();
             panel.ShowPage(0); await UniTask.DelayFrame(16);
-            var selected = grid.GetCell(50, 50); view.UpdateUIStatusWindow(selected);
+            var selected = grid.Owners.OfType<SingularityCellAdapter>().Single(); view.UpdateUIStatusWindow(selected);
             var marker = (Transform)typeof(CellStatusViewAdapter).GetField("selectionMarker", Private).GetValue(view);
             var overviewPosition = camera.transform.position; var overviewRotation = camera.transform.rotation;
             var orthographicSize = camera.orthographicSize;

@@ -140,7 +140,8 @@ public static class SkillTreeAssertions
             var transfer = pending[Vector3Int.right];
             Require(tree.Purchase("basic-research") == SkillPurchaseResultApplication.Success, "scene root");
 
-            var activeExtractor = (ExtractorCellAdapter)Install(grid, "ExtractorWood", 50, 44, 180, cell => { Set(cell, "extractionAmount", 2); Set(cell, "extractionSecond", .4f); });
+            var activeSite=TestScenes.ExtractorSite(ResourceTypeDomain.Wood);
+            var activeExtractor = (ExtractorCellAdapter)Install(grid, "ExtractorWood", activeSite.X, activeSite.Z, activeSite.Yaw, cell => { Set(cell, "extractionAmount", 2); Set(cell, "extractionSecond", .4f); });
             await Wait(() => activeExtractor.ElapsedTime > .05f);
             Require(tree.Purchase("wood-extraction-1") == SkillPurchaseResultApplication.Success, "shared purchase during extraction");
             await Wait(() => activeExtractor.CurrentLoad > 0);

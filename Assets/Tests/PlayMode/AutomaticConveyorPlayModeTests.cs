@@ -162,13 +162,16 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
         var panel=Object.FindAnyObjectByType<EconomyPanelAdapter>();panel.ShowPage(0);
         void Place(CellTypeDomain type,int x,int z,float angle=0)
         { placer.transform.rotation=Quaternion.Euler(0,angle,0);placer.SetSelectedCellType(type);placer.SelectGrid(grid.GetCell(x,z).gameObject);placer.PointerBegin();placer.PointerDrag();placer.PointerEnd();Assert.That(placer.LastPlacedCount,Is.EqualTo(1)); }
-        Place(CellTypeDomain.ExtractorWood,50,44,180);
-        placer.transform.rotation=Quaternion.identity;placer.SetSelectedCellType(CellTypeDomain.Conveyor);placer.SelectGrid(grid.GetCell(50,45).gameObject);
+        var strip=grid.Owners.OfType<EmptyCellAdapter>().First(c=>grid.IsWithinBounds(c.XIndex,c.ZIndex+2) &&
+            grid.GetCell(c.XIndex,c.ZIndex+1) is EmptyCellAdapter && grid.GetCell(c.XIndex,c.ZIndex+2) is EmptyCellAdapter);
+        var x=strip.XIndex;var z=strip.ZIndex;
+        Place(CellTypeDomain.ExtractorWood,x,z,180);
+        placer.transform.rotation=Quaternion.identity;placer.SetSelectedCellType(CellTypeDomain.Conveyor);placer.SelectGrid(grid.GetCell(x,z+1).gameObject);
         var preview=(GameObject)typeof(CellPlacerAdapter).GetField("_placeholderCell",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(placer);
         Assert.That(preview.name,Does.Contain("ExportConveyor"));
-        placer.PointerBegin();placer.SelectGrid(grid.GetCell(50,46).gameObject);placer.PointerDrag();placer.PointerEnd();
+        placer.PointerBegin();placer.SelectGrid(grid.GetCell(x,z+2).gameObject);placer.PointerDrag();placer.PointerEnd();
         Assert.That(placer.LastPlacedCount,Is.EqualTo(2));Assert.That(placer.LastPlacementCost,Is.EqualTo(10));Assert.That(generator.Wallet.Current.Balance,Is.EqualTo(70));
-        Assert.That(((ConveyorCellAdapter)grid.GetCell(50,45)).IsExportConveyor);Assert.That(((ConveyorCellAdapter)grid.GetCell(50,46)).IsExportConveyor,Is.False);
+        Assert.That(((ConveyorCellAdapter)grid.GetCell(x,z+1)).IsExportConveyor);Assert.That(((ConveyorCellAdapter)grid.GetCell(x,z+2)).IsExportConveyor,Is.False);
         Assert.That(placer.SelectedType,Is.EqualTo(CellTypeDomain.Conveyor));
         Assert.That(panel.PlacementButtons.GetComponentsInChildren<CellSelectButtonUIAdapter>(true).Any(b=>b.name=="ExportConveyorButton"),Is.False);
         await UniTask.DelayFrame(2);
