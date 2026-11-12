@@ -31,6 +31,18 @@ public static class CellDefinitionAssertions
         Require(Get(placer, "_cachedCell") is StorageCellAdapter, "real button callback selects Storage");
         Require((GameObject)Get(placer, "_placeholderCell") != null, "selection creates placeholder");
 
+        var generator = TestScenes.Find<GridFieldGeneratorAdapter>();
+        TestScenes.Find<EconomyPanelAdapter>().ShowPage(0);
+        // 定義から実配置までの経路が対象なので、購入材料は現行価格表から準備する。
+        Require(generator.Prices.TryGetMaterialCosts(CellTypeDomain.Storage,1,out var materials), "Storage material costs are defined");
+        foreach (var material in materials)
+        {
+            Require(generator.ConstructionStock.TryReserveDeposit(material.Resource,material.Amount,out var deposit), "prepare Storage construction material");
+            Require(deposit.TryCommit(), "construction material deposit commits");
+        }
+        Require(generator.Prices.TryGetPlacementAmount(CellTypeDomain.Storage,1,out var price), "Storage price is defined");
+        var balance = generator.Wallet.Current.Balance;
+        Require(balance >= price, "fixture has enough currency");
         var grid = GridFieldDatabaseAdapter.Instance;
         EmptyCellAdapter empty = null;
         for (var x = 0; grid.IsWithinBounds(x, 0) && empty == null; x++)
@@ -47,6 +59,9 @@ public static class CellDefinitionAssertions
         Require(grid.GetCell(targetX, targetZ) is StorageCellAdapter placed && placed.gameObject.activeInHierarchy,
             "pointer placement creates active Storage in grid");
         Require(((CellBaseAdapter)Get(placer, "_selectedCell")) == grid.GetCell(targetX, targetZ), "selection follows placed cell");
+        Require(placer.LastPlacedCount == 1 && generator.Wallet.Current.Balance == balance-price, "placement charges once");
+        foreach (var material in materials)
+            Require(generator.ConstructionStock.Stored(material.Resource) == 0, "placement consumes prepared construction material");
         yield return null;
     }
 

@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections;
 using System.Linq;
@@ -146,7 +146,10 @@ public sealed class DeliveryGoalsPlayModeTests
         for (var i = 0; i < entries.arraySize; i++)
             entries.GetArrayElementAtIndex(i).FindPropertyRelative("resourceName").stringValue += "（長い名前の加工品を使った表示確認）";
         serialized.ApplyModifiedPropertiesWithoutUndo();
-        var types = Enum.GetValues(typeof(ResourceTypeDomain)).Cast<ResourceTypeDomain>().Where(t => t != ResourceTypeDomain.None).ToArray();
+        // このケースは7品目の収容を検証する。Enumへの資源追加で入力件数を変えない。
+        var types = new[] { ResourceTypeDomain.Wood, ResourceTypeDomain.Stone, ResourceTypeDomain.Plank,
+            ResourceTypeDomain.StoneBrick, ResourceTypeDomain.BuildingParts, ResourceTypeDomain.IronIngot, ResourceTypeDomain.CopperWire };
+        Require(types.All(type => !string.IsNullOrEmpty(resources.GetResourceByType(type).ResourceName)), "seven named resources are registered");
         var app = new DeliveryProgressApplication(Catalog(new DeliveryGoalCatalogDomain.Stage("long", "長い段階名を設定した場合の収容確認", types.Select(t => Need(t, long.MaxValue)))));
         foreach (var type in types) Deliver(app, type, long.MaxValue - 1);
         try
@@ -160,6 +163,9 @@ public sealed class DeliveryGoalsPlayModeTests
                 await UniTask.DelayFrame(5); Canvas.ForceUpdateCanvases();
                 var texts = panel.SummaryView.WalletItems.Concat(panel.SummaryView.Items).Where(t => t.gameObject.activeSelf).ToArray();
                 Require(texts.Length == 9, "all seven resources visible");
+                foreach (var type in types)
+                    Require(panel.SummaryView.Items.Any(t => t.text.Contains(resources.GetResourceByType(type).ResourceName)),
+                        "summary includes resource " + type);
                 foreach (var text in texts)
                     Require(Inside(text.rectTransform, panel.SummaryRect) && text.preferredHeight <= text.rectTransform.rect.height + 1,
                         "long summary wraps without clipping " + resolution);
