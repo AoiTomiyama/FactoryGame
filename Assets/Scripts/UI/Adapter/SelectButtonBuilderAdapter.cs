@@ -81,7 +81,7 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
         foreach (var cellInfo in list)
         {
             var type = cellInfo.CellTypeDomain;
-            if (type == CellTypeDomain.None || ResourceCellRulesDomain.IsNatural(type) || type == CellTypeDomain.Singularity) continue;
+            if (type == CellTypeDomain.None || type == CellTypeDomain.ExportConveyor || ResourceCellRulesDomain.IsNatural(type) || type == CellTypeDomain.Singularity) continue;
             if (_font != null && ResourceCellRulesDomain.IsExtractor(type) && type != CellTypeDomain.ExtractorWood) continue;
 
             // 割り当てる情報のみを下層のラッパクラスに受け渡す

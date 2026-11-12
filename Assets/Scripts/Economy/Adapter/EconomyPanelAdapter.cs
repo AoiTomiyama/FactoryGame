@@ -124,11 +124,13 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         _selectedSkill = null;
         if (_source != null) _source.StatusChanged -= Refresh;
+        if (_selected is ConveyorCellAdapter previousConveyor) previousConveyor.KindChanged -= Refresh;
         if (_selected is ConstructionDepotCellAdapter previousDepot) previousDepot.StatusChanged -= Refresh;
         _selected = cell;
         _selectedActive = cell != null && cell.isActiveAndEnabled;
         _source = cell as IDataProvidableApplication;
         if (_source != null) _source.StatusChanged += Refresh;
+        if (_selected is ConveyorCellAdapter conveyor) conveyor.KindChanged += Refresh;
         if (_selected is ConstructionDepotCellAdapter depot) depot.StatusChanged += Refresh;
         Refresh();
     }

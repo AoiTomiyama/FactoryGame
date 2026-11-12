@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -6,6 +8,15 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
 {
     [SerializeField] protected float transferSecond;
     [SerializeField] private int transferAmount;
+    [SerializeField] private ExportConveyorCellAdapter exportDefinition;
+    private bool _exportMode, _modeEvaluationQueued, _takeLoopStarted;
+    private IExportableApplication _backwardCell;
+    private ConnectableCellBaseAdapter _backwardCellBase;
+    private int _backwardPortId;
+    protected virtual bool StartsAsExporter => false;
+    public bool IsExportConveyor => StartsAsExporter || _exportMode;
+    public event Action KindChanged;
+    public int BaseTransferAmount => transferAmount;
     private IContainableApplication _forwardCell;
     private CellBaseAdapter _forwardCellBase;
     private TransferStatus _status;
@@ -18,7 +29,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     private int _incomingReservationAmount;
     private ResourceTypeDomain _incomingReservationType;
     public int TransferAmount => EffectiveStat(transferAmount, EquipmentStatDomain.TransferAmount);
-    public override CellTypeDomain ProgressionType => CellTypeDomain.Conveyor;
+    public override CellTypeDomain ProgressionType => IsExportConveyor ? CellTypeDomain.ExportConveyor : CellTypeDomain.Conveyor;
     protected override void ValidateBaseStats() => ValidateStat(transferAmount, EquipmentStatDomain.TransferAmount);
     protected bool HasResource { get; set; }
 
@@ -61,12 +72,17 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
 
     public override void InitializeSystem()
     {
-        _cts = new();
-        OnGetConnectedCell += OnConnectionUpdated;
-        OnLostConnectedCell += OnConnectionLost;
-        OnDisconnected += Shutdown;
+        if (_cts == null) _cts = new();
+        OnGetConnectedCell -= OnConnectionUpdated; OnGetConnectedCell += OnConnectionUpdated;
+        OnLostConnectedCell -= OnConnectionLost; OnLostConnectedCell += OnConnectionLost;
+        OnDisconnected -= Shutdown; OnDisconnected += Shutdown;
+        // 回転・再接続では処理と保持IDを残し、古い相手との試行だけを取り消す。
+        _activeTransferCts?.Cancel();
+        _forwardCell = null; _forwardCellBase = null;
+        _backwardCell = null; _backwardCellBase = null;
         base.InitializeSystem();
         StoreResourceAsync(_cts.Token).Forget();
+        if (IsExportConveyor) StartTaking();
     }
 
     protected override void OnDestroy() { base.OnDestroy(); Shutdown(); }
@@ -86,6 +102,13 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     /// <param name="cell">接続するセル</param>
     private void OnConnectionUpdated(Connection connection)
     {
+        if (IsExtractionConnection(connection))
+        {
+            _backwardCell = (IExportableApplication)connection.Neighbor;
+            _backwardCellBase = connection.Neighbor;
+            _backwardPortId = connection.NeighborPortId;
+            ScheduleModeEvaluation();
+        }
         var dir = connection.Direction;
         var cell = connection.Neighbor;
         var forward = DirectionEnumToVector(DirectionsDomain.Forward);
@@ -104,10 +127,125 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
 
     private void OnConnectionLost(CellBaseAdapter cell)
     {
+        if (cell == _backwardCellBase) { _backwardCell = null; _backwardCellBase = null; }
         if (cell != _forwardCellBase) return;
         _forwardCell = null;
         _forwardCellBase = null;
         _activeTransferCts?.Cancel();
+    }
+
+    private bool IsExtractionConnection(Connection connection)
+        => connection.Direction == DirectionEnumToVector(DirectionsDomain.Back) &&
+           connection.Neighbor is IExportableApplication &&
+           connection.Neighbor.HasPort(connection.NeighborPortId, CellPortUseDomain.Output);
+
+    /// <summary>プレビューも接続時も、接した外周の出力口で判定する。在庫の有無は使わない。</summary>
+    public static bool HasExtractionSource(GridFieldDatabaseAdapter grid, int x, int z, Quaternion rotation)
+    {
+        var forward = rotation * Vector3.forward;
+        var dx = Mathf.RoundToInt(forward.x); var dz = Mathf.RoundToInt(forward.z);
+        var bx = x - dx; var bz = z - dz;
+        if (!grid.IsWithinBounds(bx,bz) || grid.GetCell(bx,bz) is not ConnectableCellBaseAdapter source ||
+            source is not IExportableApplication || !source.isActiveAndEnabled) return false;
+        return source.Ports.Any(port => (port.Use & CellPortUseDomain.Output) != 0 &&
+            source.PortDirection(port.Id) == new Vector3Int(dx,0,dz) &&
+            Vector3Int.RoundToInt(source.PortPosition(port.Id)) == new Vector3Int(bx,0,bz));
+    }
+
+    private void ScheduleModeEvaluation()
+    {
+        if (!Application.isPlaying || _modeEvaluationQueued || _cts == null) return;
+        _modeEvaluationQueued = true;
+        EvaluateModeAsync(_cts.Token).Forget();
+    }
+    private async UniTask EvaluateModeAsync(CancellationToken token)
+    {
+        try
+        {
+            // 設備の登録・初期化と失敗復元が完了した後の接続だけを採用する。
+            await UniTask.Yield(PlayerLoopTiming.Update,token);
+            if (this == null || !isActiveAndEnabled || _isDisconnected ||
+                !Connections.Values.Any(IsExtractionConnection) || _backwardCellBase == null || !_backwardCellBase.isActiveAndEnabled) return;
+            if (!IsExportConveyor) EnableExportMode();
+            StartTaking();
+        }
+        catch (OperationCanceledException) when(token.IsCancellationRequested) { }
+        finally { _modeEvaluationQueued = false; }
+    }
+    private void EnableExportMode()
+    {
+        GameObject prepared = null;
+        var amount = exportDefinition != null ? exportDefinition.BaseTransferAmount : transferAmount;
+        var grid = GridFieldDatabaseAdapter.Instance;
+        // 状態を変える前に能力値と見た目を用意し、失敗時は元の搬送を保つ。
+        EffectiveStatsRulesDomain.Calculate(amount,grid.StatEffects.GetModifier(CellTypeDomain.ExportConveyor,EquipmentStatDomain.TransferAmount));
+        var model = transform.Find("Model");
+        try
+        {
+            if (exportDefinition != null && model != null)
+            {
+                var sourceModel = exportDefinition.transform.Find("Model").GetChild(0);
+                prepared = Instantiate(sourceModel.gameObject,model);
+                prepared.SetActive(false);
+                prepared.transform.localPosition = sourceModel.localPosition;
+                prepared.transform.localRotation = sourceModel.localRotation;
+                prepared.transform.localScale = sourceModel.localScale;
+            }
+        }
+        catch { if (prepared != null) Destroy(prepared); throw; }
+        _exportMode = true; transferAmount = amount;
+        ConfigureProgression(grid.StatEffects);
+        if (prepared != null)
+        {
+            foreach (Transform child in model)
+                if (child.gameObject != prepared) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
+            prepared.SetActive(true);
+        }
+        if (KindChanged != null)
+            foreach(Action handler in KindChanged.GetInvocationList())
+                try { handler(); } catch(Exception exception) { Debug.LogException(exception); }
+    }
+    private void StartTaking()
+    {
+        if (!Application.isPlaying || _takeLoopStarted || _cts == null || _isDisconnected) return;
+        TakeResourceAsync(_cts.Token).Forget();
+    }
+    private bool TryTakeBatch(out Vector3 startPosition)
+    {
+        startPosition = default;
+        if (!isActiveAndEnabled || HasResource || ResourceId != 0 || _backwardCellBase == null ||
+            !_backwardCellBase.isActiveAndEnabled || !_backwardCellBase.HasPort(_backwardPortId,CellPortUseDomain.Output)) return false;
+        startPosition = _backwardCell.GetPosition(_backwardPortId) + Vector3.up * 1.1f;
+        // 送り元の通知から搬入が再入しても、同じ枠を二重に使わない。
+        HasResource = true;
+        if (!_backwardCell.TryExport(_backwardPortId,TransferAmount,out var amount,out var type)) { HasResource = false; return false; }
+        ResourceId = ResourceItemObjectPoolAdapter.Instance.CreateIdFromResourceData(type,amount);
+        return true;
+    }
+    private async UniTask TakeResourceAsync(CancellationToken token)
+    {
+        _takeLoopStarted = true;
+        try
+        {
+            await UniTask.Yield(PlayerLoopTiming.Update,token);
+            while (!token.IsCancellationRequested)
+            {
+                var start = default(Vector3);
+                await UniTask.WaitUntil(() => TryTakeBatch(out start),cancellationToken:token);
+                var end = transform.position + Vector3.up * 1.1f;
+                while (true)
+                {
+                    var result = await ResourceItemObjectPoolAdapter.Instance.Transfer(token,start,end,ResourceId);
+                    token.ThrowIfCancellationRequested();
+                    if (result == ResourceAnimationResultApplication.Completed) break;
+                    await UniTask.Delay(100,cancellationToken:token);
+                }
+                // 搬出済みの資源は、後方の切断後も同じIDで前へ送る。
+                MarkResourceReady();
+            }
+        }
+        catch (OperationCanceledException) when(token.IsCancellationRequested) { }
+        finally { _takeLoopStarted = false; }
     }
 
     private bool IsForwardEmpty()

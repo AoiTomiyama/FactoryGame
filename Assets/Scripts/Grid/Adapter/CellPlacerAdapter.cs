@@ -10,6 +10,8 @@ public class CellPlacerAdapter : MonoBehaviour
     private Vector3Int _selectedCoordinate;
     private CellBaseAdapter _cachedCell;
     private GameObject _placeholderCell;
+    private CellTypeDomain _idlePreviewKind;
+    private readonly Dictionary<CellBaseAdapter,CellTypeDomain> _rangePreviewKinds = new();
     private readonly HashSet<(CellBaseAdapter cell, GameObject placeholder)> _selectedRangeCells = new();
     private readonly HashSet<CellBaseAdapter> _previewHiddenOwners = new();
     private Vector3Int _dragBeginPos;
@@ -50,6 +52,26 @@ public class CellPlacerAdapter : MonoBehaviour
         _stock = stock; _resources = resources;
         _placement = new EquipmentPlacementApplication(wallet, prices, stock);
     }
+
+    private bool TryGetDefinition(CellTypeDomain type,out CellInfoDefinition info)
+    {
+        foreach(var database in cellDatabaseArr) if(database.TryGetCellInfo(type,out info)) return true;
+        info = default; return false;
+    }
+    private CellTypeDomain PlacementKind(int x,int z)
+        => _selectedType == CellTypeDomain.Conveyor && ConveyorCellAdapter.HasExtractionSource(
+            GridFieldDatabaseAdapter.Instance,x,z,transform.rotation) ? CellTypeDomain.ExportConveyor : _selectedType;
+    private void RefreshIdlePreview()
+    {
+        if (_selectedType != CellTypeDomain.Conveyor || _placing || _placeholderCell == null || _selectedCell == null) return;
+        var kind = PlacementKind(_selectedCoordinate.x,_selectedCoordinate.z);
+        if (kind == _idlePreviewKind || !TryGetDefinition(kind,out var info)) return;
+        _placeholderCell.SetActive(false); Destroy(_placeholderCell);
+        _placeholderCell = Instantiate(info.PlaceholderCellPrefab,transform.position,transform.rotation,transform);
+        _idlePreviewKind = kind; _placeholderCell.SetActive(_placementEnabled);
+        ConfigurePreview(_placeholderCell,null);
+    }
+    private void LateUpdate() => RefreshIdlePreview();
 
     private void Start() => SetSelectedCellType(CellTypeDomain.Empty);
 
@@ -101,6 +123,7 @@ public class CellPlacerAdapter : MonoBehaviour
         if (!cellBase.OccupiedCoordinates.Contains((_selectedCoordinate.x, _selectedCoordinate.z)))
             _selectedCoordinate = new Vector3Int(cellBase.XIndex, 0, cellBase.ZIndex);
         transform.position = _selectedCoordinate;
+        RefreshIdlePreview();
 
         if (!_placementEnabled || cellBase is not EmptyCellAdapter) return;
         _selectedCell.CellModel.SetActive(false);
@@ -166,9 +189,15 @@ public class CellPlacerAdapter : MonoBehaviour
         foreach (var cell in newSelection)
         {
             HidePreviewModels(cell);
-            if (!oldSet.TryGetValue(cell, out var placeholder))
+            var kind = PlacementKind(cell.XIndex,cell.ZIndex);
+            var reusable = oldSet.TryGetValue(cell,out var placeholder) &&
+                _rangePreviewKinds.TryGetValue(cell,out var previousKind) && previousKind == kind;
+            if (!reusable)
             {
-                placeholder = Instantiate(_placeholderCell, cell.transform.position, transform.rotation);
+                if (placeholder != null) { _selectedRangeCells.Remove((cell,placeholder)); placeholder.SetActive(false); Destroy(placeholder); }
+                if (!TryGetDefinition(kind,out var info)) throw new InvalidOperationException("Missing placement definition.");
+                placeholder = Instantiate(info.PlaceholderCellPrefab,cell.transform.position,transform.rotation);
+                _rangePreviewKinds[cell] = kind;
             }
             else
             {
@@ -215,7 +244,7 @@ public class CellPlacerAdapter : MonoBehaviour
         {
             if (placeholder != null) Destroy(placeholder);
         }
-        _selectedRangeCells.Clear();
+        _selectedRangeCells.Clear(); _rangePreviewKinds.Clear();
         _overlap = false;
     }
 
@@ -301,12 +330,15 @@ public class CellPlacerAdapter : MonoBehaviour
                 retired.All(c => c is EmptyCellAdapter)) &&
             previous.All(e => grid.GetCell(e.X, e.Z) == e.Owner && e.Owner != null && e.Owner.isActiveAndEnabled);
 
+        var kind = PlacementKind(x,z);
+        var template = _cachedCell;
+        if (kind != _selectedType && TryGetDefinition(kind,out var resolved)) template = resolved.FieldCellPrefab;
         var result = _placement.Execute(_selectedType, Validate, () =>
         {
             var anchors = removing ? points : new[] { (x, z) };
             foreach (var point in anchors)
             {
-                var cell = Instantiate(_cachedCell, new Vector3(point.Item1, 0, point.Item2),
+                var cell = Instantiate(template, new Vector3(point.Item1, 0, point.Item2),
                     removing ? Quaternion.identity : transform.rotation, grid.transform);
                 cell.name = $"Tile_{point.Item1}_{point.Item2}";
                 created.Add(cell);
@@ -370,7 +402,7 @@ public class CellPlacerAdapter : MonoBehaviour
             if (!database.TryGetCellInfo(cellType, out var cellInfo)) continue;
             ClearRange();
             _placementNotice = "";
-            _selectedType = cellType;
+            _selectedType = cellType; _idlePreviewKind = cellType;
 
             // _selectedCellType = cellInfo.CellTypeDomain;
             Destroy(_placeholderCell);

@@ -68,7 +68,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
 
     public override void InitializeSystem()
     {
-        if (_isInitialized) return;
+        if (_isInitialized) { base.InitializeSystem(); return; }
         base.InitializeSystem();
         InitAccessPoint();
         _isInitialized = true;

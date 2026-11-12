@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -228,15 +228,15 @@ public static class ResourceTransferAssertions
             "export fixture reserves its source data");
         storage.StoreResource(2, 5);
         var exporter = CreateCell<ExportConveyorCellAdapter>("TransferCheck:Exporter", Vector3.zero);
-        SetField(exporter, "_backwardCell", storage);
-        SetField(exporter, "_backwardCellBase", storage);
+        typeof(ConveyorCellAdapter).GetField("_backwardCell", InstanceFields).SetValue(exporter, storage);
+        typeof(ConveyorCellAdapter).GetField("_backwardCellBase", InstanceFields).SetValue(exporter, storage);
         using var cts = new CancellationTokenSource();
         SetField(exporter, "_cts", cts);
         typeof(ConveyorCellAdapter).GetField("transferAmount", InstanceFields).SetValue(exporter, 3);
         var send = (UniTask)typeof(ConveyorCellAdapter).GetMethod("StoreResourceAsync", InstanceFields)
             .Invoke(exporter, new object[] { cts.Token });
         send.Forget();
-        var take = (UniTask)typeof(ExportConveyorCellAdapter).GetMethod("TakeResourceAsync", InstanceFields)
+        var take = (UniTask)typeof(ConveyorCellAdapter).GetMethod("TakeResourceAsync", InstanceFields)
             .Invoke(exporter, new object[] { cts.Token });
         take.Forget();
         await UniTask.Delay(120);
