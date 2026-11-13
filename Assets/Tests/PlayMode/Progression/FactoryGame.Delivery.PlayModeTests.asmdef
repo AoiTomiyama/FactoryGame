@@ -1,6 +1,7 @@
 {
   "name": "FactoryGame.Delivery.PlayModeTests",
   "references": [
+    "FactoryGame.TestSupport",
     "FactoryGame.Runtime",
     "UniTask",
     "UnityEngine.UI"

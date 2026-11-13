@@ -66,6 +66,17 @@ public static class TestScenes
         throw new InvalidOperationException("No existing extraction site for "+type);
     }
     public static void UseGrid(GridFieldDatabaseAdapter grid) => SetSingleton(typeof(GridFieldDatabaseAdapter), grid);
+    public static void GenerateFixedTerrain(int seed)
+    {
+        var generator = Find<GridFieldGeneratorAdapter>();
+        if (generator == null || generator.TargetField == null) throw new InvalidOperationException("Test terrain requires the scene generator and field.");
+        // SceneのStart前に検証用の地形だけを生成する。作業中のSceneと生成アセットは保存しない。
+        var settings = new UnityEditor.SerializedObject(generator);
+        settings.FindProperty("seedValue").intValue = seed;
+        settings.ApplyModifiedPropertiesWithoutUndo();
+        generator.GenerateGrid(generator.TargetField.transform);
+        if (generator.TargetField.GenerationSeed != seed) throw new InvalidOperationException("Test terrain seed was not recorded.");
+    }
     private static FieldInfo Singleton(Type type) => typeof(SingletonMonoBehaviourAdapter<>).MakeGenericType(type).GetField("_instance", BindingFlags.NonPublic | BindingFlags.Static);
     private static void SetSingleton(Type type, object value) => Singleton(type).SetValue(null, value);
 

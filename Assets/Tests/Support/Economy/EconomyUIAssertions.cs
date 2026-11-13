@@ -68,12 +68,12 @@ public static class EconomyUIAssertions
             expense.TryCancel();
             Require(!balanceMotion.IsAnimating, "reservation-only refresh does not replay balance animation");
 
-            var storage = Install(grid, "Storage", 20, 20);
+            var storage = Install(grid, "Storage");
             view.UpdateUIStatusWindow(storage);
             Require(!panel.EquipmentView.Heading.text.Contains("("), "equipment heading omits coordinates");
             Require(!panel.UpgradeInteractable && !panel.EquipmentView.UpgradeRoot.gameObject.activeSelf && panel.EquipmentView.Heading.text.Contains("保管庫"), "cell status is read-only and shows shared type level");
             Require(view.SelectedCell == storage, "selection switches from shipping to storage");
-            var conveyor = Install(grid, "Conveyor", 21, 20);
+            var conveyor = Install(grid, "Conveyor");
             view.UpdateUIStatusWindow(conveyor);
             Require(ReferenceEquals(view.SelectedCell, conveyor) && !panel.UpgradeInteractable && panel.EquipmentView.Heading.text.Contains("搬送路"), "equipment without legacy provider is selectable");
             Require(Subscribers(storage, "StatusChanged") == 0, "switch releases storage subscriptions");
@@ -149,6 +149,12 @@ public static class EconomyUIAssertions
             Require(!panel.IsSubscribed, "disabled panel unsubscribes");
             panel.enabled = true;
             view.UpdateUIStatusWindow(conveyor);
+            // 削除後も占有を有効に保ち、後続の空きセル探索が破棄済みの隣接参照へ接続しないようにする。
+            var empty = AssetDatabase.LoadAssetAtPath<CellBaseAdapter>("Assets/Prefabs/Field/General/F_EmptyCell.prefab");
+            var replacement = TestScenes.Clone(empty,conveyor.transform.position,Quaternion.identity,grid.transform);
+            var previous = grid.CaptureCells(conveyor.OccupiedCoordinates);
+            Require(grid.TryReplaceCells(new[] {replacement},previous),"deleted UI fixture restores empty occupancy");
+            ((ConnectableCellBaseAdapter)conveyor).OnDisconnect();
             UnityEngine.Object.Destroy(conveyor.gameObject);
             await UniTask.DelayFrame(2);
             Require(view.SelectedCell == null && !panel.UpgradeInteractable, "deleted equipment closes selection");
@@ -180,7 +186,7 @@ public static class EconomyUIAssertions
             Require(wallet.Current.Balance == before, "selection and menu changes do not pay");
             VerifyInputCancellation(placer, raycaster, point, wallet, grid);
             var operation = TestScenes.Find<OperationBarAdapter>();
-            var target = grid.GetCell(30, 30);
+            var target = EmptyTarget(grid);
             foreach (var page in new[] { 1, 2 })
             {
                 panel.ShowPage(0);
@@ -191,13 +197,14 @@ public static class EconomyUIAssertions
                 Require(target.CellModel.activeSelf, "tab switch restores hovered cell model");
                 placer.PointerBegin(); placer.PointerDrag(); placer.PointerEnd();
                 panel.ShowPage(0); placer.PointerDrag(); placer.PointerEnd();
-                Require(ReferenceEquals(grid.GetCell(30, 30), target) && wallet.Current.Balance == before, "tab return cannot confirm old gesture");
+                Require(ReferenceEquals(grid.GetCell(target.XIndex, target.ZIndex), target) && wallet.Current.Balance == before, "tab return cannot confirm old gesture");
             }
             panel.SetExpanded(false);
             Require(!placer.PlacementEnabled && !operation.Bar.gameObject.activeInHierarchy, "closed placement tab disables placement and lower window");
             Require(target.CellModel.activeSelf, "closing placement tab restores cursor cell");
-            placer.SelectGrid(grid.GetCell(30, 31).gameObject);
-            Require(grid.GetCell(30, 31).CellModel.activeSelf, "hover outside placement mode keeps cell visible");
+            var otherEmpty = grid.Owners.OfType<EmptyCellAdapter>().First(c => c != target);
+            placer.SelectGrid(otherEmpty.gameObject);
+            Require(otherEmpty.CellModel.activeSelf, "hover outside placement mode keeps cell visible");
             panel.ShowPage(0);
             Require(placer.PlacementEnabled && operation.Bar.gameObject.activeInHierarchy && operation.PlacementInfo.transform.IsChildOf(operation.Bar), "placement information belongs to lower window");
             Require(!panel.PlacementButtons.GetComponentsInChildren<Text>().Any(text => text == operation.PlacementInfo), "placement tab contains selection without placement information");
@@ -428,7 +435,7 @@ public static class EconomyUIAssertions
         placer.SetSelectedCellType(CellTypeDomain.Crafter);
         cursor.RotatePlacement();
         var direction = cursor.transform.rotation;
-        var storage = (StorageCellAdapter)Install(grid, "Storage", 25, 25);
+        var storage = (StorageCellAdapter)Install(grid, "Storage");
         Require(storage.AllocateStorage(1, 3, ResourceTypeDomain.Wood), "prepare selected inventory");
         storage.StoreResource(1, 3);
         view.UpdateUIStatusWindow(storage);
@@ -539,7 +546,7 @@ public static class EconomyUIAssertions
             "non-upgrade cell shows status without upgrade controls");
         view.CloseButton.onClick.Invoke();
         Require(view.SelectedCell == null && !panel.UpgradeInteractable, "right close button releases selection");
-        var crafter = (CrafterCellAdapter)Install(grid, "Crafter", 26, 25);
+        var crafter = (CrafterCellAdapter)Install(grid, "Crafter");
         view.UpdateUIStatusWindow(crafter);
         Require(panel.EquipmentView.Heading.text.Contains("加工設備") && panel.EquipmentView.Heading.text.Contains("待機"), "crafter name operating state and next capacity");
         var progressRow = view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>(true).Single(row => row.GetComponentsInChildren<Text>(true).Any(text => text.text == "残り時間"));
@@ -548,7 +555,7 @@ public static class EconomyUIAssertions
         Require(progressRow.gameObject.activeSelf, "progress row returns when work starts");
         progressRow.RenderUIByData(new GaugeElementDataApplication("残り時間", 2) { Current = 0, GaugeText = "0 秒" });
         Require(!progressRow.gameObject.activeSelf, "completed progress hides zero-second row");
-        var advanced = (CrafterCellAdapter)Install(grid, "AdvancedCrafter", 32, 30, 90);
+        var advanced = (CrafterCellAdapter)Install(grid, "AdvancedCrafter", 90);
         foreach (var candidate in new[] { crafter, advanced })
         foreach (var resolution in new[] { new Vector2(1600, 900), new Vector2(1366, 768) })
         {
@@ -672,7 +679,7 @@ public static class EconomyUIAssertions
     {
         var cursor = TestScenes.Find<PlayerCursorBehaviourAdapter>();
         var flags = BindingFlags.Instance | BindingFlags.NonPublic;
-        var cell = grid.GetCell(30, 30);
+        var cell = EmptyTarget(grid);
         var before = wallet.Current.Balance;
         placer.SetSelectedCellType(CellTypeDomain.Storage);
         placer.SelectGrid(cell.gameObject); placer.PointerBegin(); placer.PointerDrag();
@@ -680,10 +687,10 @@ public static class EconomyUIAssertions
         var callback = default(UnityEngine.InputSystem.InputAction.CallbackContext);
         typeof(PlayerCursorBehaviourAdapter).GetMethod("OnLeftClickDown", flags).Invoke(cursor, new object[] { callback });
         typeof(PlayerCursorBehaviourAdapter).GetMethod("OnLeftClickUp", flags).Invoke(cursor, new object[] { callback });
-        Require(ReferenceEquals(grid.GetCell(30, 30), cell) && wallet.Current.Balance == before, "UI click does not confirm pending placement");
+        Require(ReferenceEquals(grid.GetCell(cell.XIndex, cell.ZIndex), cell) && wallet.Current.Balance == before, "UI click does not confirm pending placement");
         typeof(PlayerCursorBehaviourAdapter).GetField("_isLeftClickPressed", flags).SetValue(cursor, true);
         typeof(PlayerCursorBehaviourAdapter).GetMethod("OnLeftClickUp", flags).Invoke(cursor, new object[] { callback });
-        Require(placer.PreviewCount == 0 && wallet.Current.Balance == before && ReferenceEquals(grid.GetCell(30, 30), cell), "drag release over UI cancels without payment");
+        Require(placer.PreviewCount == 0 && wallet.Current.Balance == before && ReferenceEquals(grid.GetCell(cell.XIndex, cell.ZIndex), cell), "drag release over UI cancels without payment");
     }
 
     private static async UniTask VerifyOperationBar(CellPlacerAdapter placer, UIRaycasterAdapter raycaster,
@@ -864,9 +871,18 @@ public static class EconomyUIAssertions
         }
         throw new Exception("Missing event: " + name);
     }
-    private static CellBaseAdapter Install(GridFieldDatabaseAdapter grid, string name, int x, int z, float rotation = 0)
+    private static EmptyCellAdapter EmptyTarget(GridFieldDatabaseAdapter grid)
+        => grid.Owners.OfType<EmptyCellAdapter>().OrderBy(c => c.XIndex).ThenBy(c => c.ZIndex).First();
+
+    private static CellBaseAdapter Install(GridFieldDatabaseAdapter grid, string name, float rotation = 0)
     {
         var source = AssetDatabase.LoadAssetAtPath<GameObject>($"Assets/Prefabs/Field/General/F_{name}Cell.prefab");
+        var prefab = source.GetComponent<CellBaseAdapter>();
+        var turns = Mathf.RoundToInt(rotation / 90);
+        // 設備の占有範囲すべてが空いている位置を使い、生成地形の資源や既設セルを壊さない。
+        var anchor = grid.Owners.OfType<EmptyCellAdapter>().OrderBy(c => c.XIndex).ThenBy(c => c.ZIndex).First(c =>
+            prefab.Footprint.Coordinates(c.XIndex,c.ZIndex,turns).All(p => grid.IsWithinBounds(p.x,p.z) && grid.GetCell(p.x,p.z) is EmptyCellAdapter));
+        var x = anchor.XIndex; var z = anchor.ZIndex;
         var cell = TestScenes.Clone(source, new Vector3(x, 0, z), Quaternion.Euler(0, rotation, 0), grid.transform).GetComponent<CellBaseAdapter>();
         var previous = grid.CaptureCells(cell.Footprint.Coordinates(x, z, cell.QuarterTurns));
         if (!grid.TryReplaceCells(new[] { cell }, previous)) throw new InvalidOperationException("UI fixture replacement failed.");

@@ -6,17 +6,16 @@ using System.Reflection;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
-/// <summary>保存済みSceneの納品とHUDを個別に実行する。Sceneと音量は各テストの後に片付ける。</summary>
+/// <summary>HUDとの接続と収容を検証する。納品そのものはUIを持たないDeliveryCorePlayModeTestsで確認する。</summary>
 [TestFixture, Category("Delivery")]
-public sealed class DeliveryGoalsPlayModeTests
+public sealed class DeliveryGoalsPlayModeTests : FactoryPlayModeScope
 {
+    protected override bool NeedsMainScene => true;
     private GameInitializerAdapter _initializer;
     private SingularityCellAdapter _core;
     private EconomyPanelAdapter _panel;
@@ -24,34 +23,16 @@ public sealed class DeliveryGoalsPlayModeTests
     private HudLayoutAdapter _layout;
     private CellPlacerAdapter _placer;
     private DeliveryProgressApplication App => _initializer.Deliveries;
-    private Scene _scene;
-    private bool _muted;
-    private float _volume, _timeScale;
 
     [UnitySetUp]
     public IEnumerator LoadSavedScene()
     {
-        _muted = EditorUtility.audioMasterMute; _volume = AudioListener.volume; _timeScale = Time.timeScale;
-        EditorUtility.audioMasterMute = true; AudioListener.volume = 0; Time.timeScale = 1;
-        _scene = EditorSceneManager.LoadSceneInPlayMode("Assets/Scenes/MainScene.unity", new LoadSceneParameters(LoadSceneMode.Single));
-        for (var i = 0; i < 5; i++) yield return null;
-        _initializer = Object.FindAnyObjectByType<GameInitializerAdapter>();
-        Assert.That(_initializer.TryStartGame(),Is.True);
-        for(var i=0;i<3;i++) yield return null;
+        _initializer = TestScenes.Find<GameInitializerAdapter>();
         _core = Object.FindAnyObjectByType<SingularityCellAdapter>();
         _panel = Object.FindAnyObjectByType<EconomyPanelAdapter>(); _view = Object.FindAnyObjectByType<CellStatusViewAdapter>();
         _layout = Object.FindAnyObjectByType<HudLayoutAdapter>(); _placer = Object.FindAnyObjectByType<CellPlacerAdapter>();
         Assert.That(_initializer, Is.Not.Null); Assert.That(App, Is.Not.Null); Assert.That(_core, Is.Not.Null);
-    }
-
-    [UnityTearDown]
-    public IEnumerator UnloadTestScene()
-    {
-        // 失敗したテストでもScene・購読・複製UIを残さず、次のケースを初期状態から始める。
-        var empty = SceneManager.CreateScene("DeliveryTestsCleanup"); SceneManager.SetActiveScene(empty);
-        if (_scene.IsValid() && _scene.isLoaded) yield return SceneManager.UnloadSceneAsync(_scene);
-        Time.timeScale = _timeScale; AudioListener.volume = _volume; EditorUtility.audioMasterMute = _muted;
-        Cursor.lockState = CursorLockMode.None; Cursor.visible = true;
+        yield return null;
     }
 
     private void Receive(ResourceTypeDomain resource, int amount, int port = 0)
@@ -72,16 +53,6 @@ public sealed class DeliveryGoalsPlayModeTests
         Assert.That(App.Current.CompletedStages, Is.EqualTo(1)); Assert.That(_panel.EquipmentText, Does.Contain("加工投入"));
         Assert.That(_panel.SummaryView.Items[0].GetComponent<HudMotionAdapter>().IsAnimating, Is.True);
         Assert.That(_initializer.Wallet.Current.Balance, Is.EqualTo(balance));
-    }
-
-    [Test]
-    public void CoreDisableCancelsPendingInputsAndKeepsCommittedDeliveries()
-    {
-        Receive(ResourceTypeDomain.Wood, 2);
-        Assert.That(_core.AllocateStorage(1, 5, ResourceTypeDomain.Wood), Is.True);
-        _core.gameObject.SetActive(false); _core.gameObject.SetActive(true); _core.StoreResource(1, 5);
-        Assert.That(App.Current.Count(ResourceTypeDomain.Wood), Is.EqualTo(2));
-        Receive(ResourceTypeDomain.Wood, 1); Assert.That(App.Current.Count(ResourceTypeDomain.Wood), Is.EqualTo(3));
     }
 
     [Test]

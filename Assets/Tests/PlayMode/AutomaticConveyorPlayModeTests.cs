@@ -145,7 +145,7 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
         Object.DestroyImmediate(bad.transform.Find("Model").GetChild(0).gameObject);
         typeof(ConveyorCellAdapter).GetField("exportDefinition",Fields).SetValue(core,bad);
         Assert.That(core.AllocateStorage(0,2,ResourceTypeDomain.Wood));var id=_pool.CreateIdFromResourceData(ResourceTypeDomain.Wood,2);core.Reuse(0,id);core.StoreResource(0,2);
-        Assert.Throws<TargetInvocationException>(()=>typeof(ConveyorCellAdapter).GetMethod("EnableExportMode",Fields).Invoke(core,null));
+        Assert.Throws<TargetInvocationException>(()=>typeof(ConveyorCellAdapter).GetMethod("EnableExportMode",Fields).Invoke(core,new object[] {true}));
         Assert.That(core.IsExportConveyor,Is.False);Assert.That(Id(core),Is.EqualTo(id));Assert.That(_pool.Resources.TryGet(id,out var held));Assert.That(held.Amount,Is.EqualTo(2));
         Object.Destroy(bad.gameObject);await UniTask.Yield();
     }
