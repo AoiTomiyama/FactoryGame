@@ -61651,6 +61651,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7942a810e71f1e649be763afe08c715b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GridFieldDatabaseAdapter
+  generatedSize: 100
+  generationSeed: 423794866
 --- !u!1001 &201425881
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -379952,6 +379954,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 25670a5858e9b3b41b4caee1777c2c61, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  targetField: {fileID: 201425880}
   initialLayout: {fileID: 11400000, guid: 70c0b5380dc99c740a2b4a6ae8fe02b4, type: 2}
   skillTree: {fileID: 11400000, guid: 3fa1b6aa9b9243b696bb0e808dd76b17, type: 2}
   economyPanel: {fileID: 1279850227}

@@ -5,6 +5,40 @@ using UnityEngine;
 
 public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<GridFieldDatabaseAdapter>
 {
+    [SerializeField, InspectorReadOnlyAttributeAdapter] private int generatedSize;
+    [SerializeField, InspectorReadOnlyAttributeAdapter] private int generationSeed;
+    public int GeneratedSize => generatedSize;
+    public int GenerationSeed => generationSeed;
+
+    // 入力設定の編集と、保存済み地形の生成結果を区別する。
+    public void RecordGeneratedField(int size, int seed)
+    {
+        if (size <= 0) throw new ArgumentOutOfRangeException(nameof(size));
+        generatedSize = size; generationSeed = seed;
+    }
+    public void InvalidateGeneratedField() { generatedSize = 0; generationSeed = 0; }
+
+    public StartSiteRulesDomain.Terrain[,] CaptureTerrain()
+    {
+        if (generatedSize <= 0) throw new InvalidOperationException("Field has no completed generation.");
+        var map = new StartSiteRulesDomain.Terrain[generatedSize, generatedSize];
+        var occupied = new HashSet<(int x, int z)>();
+        foreach (var cell in GetComponentsInChildren<CellBaseAdapter>())
+        {
+            var anchor = Vector3Int.RoundToInt(cell.transform.position);
+            foreach (var p in cell.Footprint.Coordinates(anchor.x, anchor.z, cell.QuarterTurns))
+            {
+                if (p.x < 0 || p.z < 0 || p.x >= generatedSize || p.z >= generatedSize || !occupied.Add(p))
+                    throw new InvalidOperationException("Saved field has invalid occupancy.");
+                if (cell is EmptyCellAdapter) map[p.x, p.z] = new StartSiteRulesDomain.Terrain(true);
+                else if (cell is ResourceCellAdapter raw) map[p.x, p.z] = new StartSiteRulesDomain.Terrain(false, raw.ResourceTypeDomain);
+            }
+        }
+        if (occupied.Count != checked(generatedSize * generatedSize))
+            throw new InvalidOperationException("Saved field is incomplete.");
+        return map;
+    }
+
     private CellBaseAdapter[,] _gridCells;
     private int _gridSize;
     public SharedStatEffectsApplication StatEffects { get; private set; } = new();

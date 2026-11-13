@@ -1,72 +1,35 @@
-﻿using Unity.VisualScripting;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 [CustomEditor(typeof(GridFieldGeneratorAdapter))]
 public class GridGeneratorEditor : Editor
 {
-    private Transform _anchorTransform;
-
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
-
-        var fieldGenerator = (GridFieldGeneratorAdapter)target;
-
-        if (GUILayout.Button("Generate Grid"))
+        var generator = (GridFieldGeneratorAdapter)target;
+        var field = generator.TargetField;
+        if (field == null) EditorGUILayout.HelpBox("生成先のGridを割り当ててください。", MessageType.Info);
+        using (new EditorGUI.DisabledScope(field == null || Application.isPlaying))
         {
-            Generate(fieldGenerator);
+            if (GUILayout.Button("Generate Grid"))
+            {
+                generator.GenerateGrid(field.transform);
+                generator.GenerateGridLine(field.transform);
+                EditorSceneManager.MarkSceneDirty(field.gameObject.scene);
+            }
+            if (GUILayout.Button("Clear Grid"))
+            {
+                // 起動側が保持する参照を維持し、生成物だけを消す。
+                GridFieldGeneratorAdapter.ClearGrid(field.transform);
+                EditorSceneManager.MarkSceneDirty(field.gameObject.scene);
+            }
         }
-
-        if (GUILayout.Button("Clear Grid"))
-        {
-            Clear();
-        }
-
         if (GUILayout.Button("Generate Seed Value"))
         {
-            fieldGenerator.GenerateRandomSeedValue();
+            generator.GenerateRandomSeedValue();
+            EditorUtility.SetDirty(generator);
         }
-    }
-
-    private void Clear()
-    {
-        if (_anchorTransform == null)
-        {
-            // 割り当てがnullかつ、Databaseがある場合は破棄
-            var database = FindAnyObjectByType<GridFieldDatabaseAdapter>();
-            if (database != null)
-            {
-                _anchorTransform = database.transform;
-            }
-        }
-
-        GridFieldGeneratorAdapter.ClearGrid(_anchorTransform);
-        DestroyImmediate(_anchorTransform.gameObject);
-    }
-
-    private void Generate(GridFieldGeneratorAdapter fieldGenerator)
-    {
-        if (_anchorTransform == null)
-        {
-            // Databaseを元に検索して、なければ新規に作成
-            var database = FindAnyObjectByType<GridFieldDatabaseAdapter>();
-            if (database != null)
-            {
-                _anchorTransform = database.transform;
-            }
-            else
-            {
-                const string anchorName = "===== [Field] =====";
-
-                _anchorTransform = new GameObject(anchorName).transform;
-
-                _anchorTransform.SetParent(fieldGenerator.transform.parent);
-                _anchorTransform.AddComponent<GridFieldDatabaseAdapter>();
-            }
-        }
-
-        fieldGenerator.GenerateGrid(_anchorTransform);
-        fieldGenerator.GenerateGridLine(_anchorTransform);
     }
 }

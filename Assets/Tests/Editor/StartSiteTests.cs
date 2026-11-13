@@ -77,4 +77,50 @@ public sealed class StartSiteGenerationTests : FactoryEditModeScope
         if(threshold==1) { Assert.That(generator.StartSites,Is.Empty);Assert.That(before.All(c=>c is EmptyCellAdapter)); }
     }
 }
+[TestFixture, Category("Grid")]
+public sealed class FieldGenerationMetadataTests : FactoryEditModeScope
+{
+    protected override bool NeedsMainScene => true;
+
+    [Test] public void SavedGenerationResultIsIndependentFromEditedInputs()
+    {
+        var generator = TestScenes.Find<GridFieldGeneratorAdapter>();
+        var field = TestScenes.Find<GridFieldDatabaseAdapter>();
+        Assert.That(generator.TargetField, Is.SameAs(field));
+        Assert.That(field.GeneratedSize, Is.EqualTo(100));
+        Assert.That(field.GenerationSeed, Is.EqualTo(423794866));
+        var edit = new SerializedObject(generator);
+        edit.FindProperty("gridSize").intValue = 14;
+        edit.FindProperty("seedValue").intValue = 1;
+        edit.ApplyModifiedPropertiesWithoutUndo();
+        Assert.That(field.GeneratedSize, Is.EqualTo(100));
+        Assert.That(field.GenerationSeed, Is.EqualTo(423794866));
+        Assert.That(field.CaptureTerrain().Length, Is.EqualTo(10000));
+    }
+
+    [Test] public void ClearAndRegenerateKeepTheTargetAndNeedNoEconomyDefinition()
+    {
+        var generator = TestScenes.Clone(TestScenes.Find<GridFieldGeneratorAdapter>());
+        var field = TestScenes.NewObject("StableGenerationTarget").AddComponent<GridFieldDatabaseAdapter>();
+        var edit = new SerializedObject(generator);
+        edit.FindProperty("targetField").objectReferenceValue = field;
+        edit.FindProperty("initialLayout").objectReferenceValue = null;
+        edit.FindProperty("gridSize").intValue = 14;
+        edit.FindProperty("seedValue").intValue = 3;
+        edit.ApplyModifiedPropertiesWithoutUndo();
+        generator.GenerateGrid(field.transform);
+        Assert.That(field.GeneratedSize, Is.EqualTo(14));
+        Assert.That(field.GenerationSeed, Is.EqualTo(3));
+        Assert.That(field.CaptureTerrain().Length, Is.EqualTo(196));
+        GridFieldGeneratorAdapter.ClearGrid(field.transform);
+        Assert.That(field != null && generator.TargetField == field, Is.True);
+        Assert.That(field.transform.childCount, Is.Zero);
+        Assert.That(field.GeneratedSize, Is.Zero);
+        Assert.Throws<System.InvalidOperationException>(() => field.CaptureTerrain());
+        generator.GenerateGrid(field.transform);
+        Assert.That(generator.TargetField, Is.SameAs(field));
+        Assert.That(field.GeneratedSize, Is.EqualTo(14));
+        Assert.That(field.CaptureTerrain().Length, Is.EqualTo(196));
+    }
+}
 #endif

@@ -9,6 +9,8 @@ using System.Linq;
 
 public class GridFieldGeneratorAdapter : MonoBehaviour
 {
+    [SerializeField] private GridFieldDatabaseAdapter targetField;
+    public GridFieldDatabaseAdapter TargetField => targetField;
     [SerializeField] private SingularityStartDefinition initialLayout;
     [SerializeField] private SkillTreeDefinition skillTree;
     [SerializeField] private EconomyPanelAdapter economyPanel;
@@ -199,6 +201,8 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     /// </summary>
     public static void ClearGrid(Transform parent)
     {
+        if (parent == null) throw new ArgumentNullException(nameof(parent));
+        if (parent.TryGetComponent<GridFieldDatabaseAdapter>(out var field)) field.InvalidateGeneratedField();
         for (int i = parent.childCount - 1; i >= 0; i--)
         {
             var target = parent.GetChild(i).gameObject;
@@ -213,7 +217,8 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     /// </summary>
     public void GenerateGrid(Transform parent)
     {
-        if (initialLayout != null) initialLayout.Validate(gridSize);
+        if (parent == null) throw new ArgumentNullException(nameof(parent));
+        if (gridSize <= 0 || emptyCellPrefab == null) throw new InvalidOperationException("Assign terrain size and empty prefab.");
         var candidates = (propPrefabs ?? Array.Empty<PropPrefab>()).OrderBy(p =>
             p.prefab != null && p.prefab.TryGetComponent<ResourceCellAdapter>(out var resource) ? (int)resource.ResourceTypeDomain : -1).ToArray();
         var identities = new System.Collections.Generic.HashSet<ResourceTypeDomain>();
@@ -260,7 +265,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
                 tile.name = $"Tile_{x}_{z}";
             }
         }
-
+        if (parent.TryGetComponent<GridFieldDatabaseAdapter>(out var field)) field.RecordGeneratedField(gridSize, seedValue);
     }
 
     /// <summary>
