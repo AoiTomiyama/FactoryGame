@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Linq;
 using System.Reflection;
@@ -23,8 +23,8 @@ public static class EconomyUIAssertions
         try
         {
             await UniTask.DelayFrame(3);
-            var generator = TestScenes.Find<GridFieldGeneratorAdapter>();
-            var wallet = generator.Wallet;
+            var initializer = TestScenes.Find<GameInitializerAdapter>();
+            var wallet = initializer.Wallet;
             var cameraController = TestScenes.Find<CameraControllerAdapter>();
             var followTarget = (Transform)typeof(CameraControllerAdapter).GetField("followTarget", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(cameraController);
             var initialSingularity = TestScenes.Find<SingularityCellAdapter>();
@@ -38,7 +38,7 @@ public static class EconomyUIAssertions
             Require(Vector3.Distance(followTarget.position, initialSingularity.transform.position + Vector3.right) < .001f,
                 "startup focus does not overwrite later camera movement");
             cameraController.FocusOn(initialSingularity.transform.position);
-            var panel = generator.GetComponent<EconomyPanelAdapter>();
+            var panel = TestScenes.Find<EconomyPanelAdapter>();
             var view = TestScenes.Find<CellStatusViewAdapter>();
             await WaitForSlide(panel);
             HudPrefabAssertions.VerifyRuntime(panel);
@@ -85,8 +85,8 @@ public static class EconomyUIAssertions
             Require(!panel.UpgradeInteractable, "reactivated equipment has no individual purchase");
             panel.ShowPage(2);
             await UniTask.DelayFrame(4);
-            var root = generator.Skills.Catalog.Nodes.Single(n => n.Prerequisite == null);
-            var branch = generator.Skills.Catalog.Nodes.First(n => n.Prerequisite == root.Uid);
+            var root = initializer.Skills.Catalog.Nodes.Single(n => n.Prerequisite == null);
+            var branch = initializer.Skills.Catalog.Nodes.First(n => n.Prerequisite == root.Uid);
             var lockedButton = panel.SkillButton(branch.Uid);
             Require(lockedButton.colors.normalColor == new Color(.18f, .18f, .18f), "locked skill uses dark gray");
             var beforeSkill = wallet.Current.Balance;
@@ -109,7 +109,7 @@ public static class EconomyUIAssertions
             await UniTask.DelayFrame(1);
             Require(lockedButton.targetGraphic.canvasRenderer.GetColor() == grayBefore, "unrelated locked node tint stays stable after selection");
             Require(panel.EquipmentView.UpgradeButton.targetGraphic.canvasRenderer.GetColor() == applyBefore, "apply button tint stays stable after repeated selection");
-            Require(!generator.Skills.IsOwned(root.Uid) && wallet.Current.Balance == beforeSkill, "node selection never purchases");
+            Require(!initializer.Skills.IsOwned(root.Uid) && wallet.Current.Balance == beforeSkill, "node selection never purchases");
             wallet.TryReserveExpense(wallet.Current.AvailableBalance, out expense);
             Require(!panel.UpgradeInteractable && panel.EquipmentView.Feedback.Contains("残高不足") && panel.SkillButton(root.Uid).interactable, "unaffordable node remains readable and apply disabled");
             Require(panel.SkillButton(root.Uid).colors.normalColor != lockedButton.colors.normalColor && panel.SkillButton(root.Uid).GetComponent<CanvasGroup>().alpha == 1, "insufficient funds remains distinct from locked gray");
@@ -117,7 +117,7 @@ public static class EconomyUIAssertions
             wallet.TryReserveIncome(1000, out var income); income.TryCommit();
             Require(panel.UpgradeInteractable, "balance change enables selected skill action");
             panel.EquipmentView.UpgradeButton.onClick.Invoke();
-            Require(generator.Skills.IsOwned(root.Uid) && !panel.UpgradeInteractable && panel.SkillButton(root.Uid).transform.Find("Applied").gameObject.activeSelf, "detail action applies root and marks owned node");
+            Require(initializer.Skills.IsOwned(root.Uid) && !panel.UpgradeInteractable && panel.SkillButton(root.Uid).transform.Find("Applied").gameObject.activeSelf, "detail action applies root and marks owned node");
             var appliedMotion = panel.SkillButton(root.Uid).transform.Find("Applied").GetComponent<HudMotionAdapter>();
             Require(appliedMotion != null && appliedMotion.IsAnimating, "newly applied skill pulses its mark");
             await UniTask.Delay(260, ignoreTimeScale: true);
@@ -129,9 +129,9 @@ public static class EconomyUIAssertions
             Require(wallet.Current.Balance == paidBalance, "repeat apply never pays twice");
             Require(lockedButton.colors.normalColor == panel.GetComponentInChildren<HudLayoutAdapter>().IdleTabColor, "unlock restores normal color");
             panel.SkillButton(branch.Uid).onClick.Invoke();
-            Require(panel.UpgradeInteractable && !generator.Skills.IsOwned(branch.Uid), "unlocked branch waits for detail action");
+            Require(panel.UpgradeInteractable && !initializer.Skills.IsOwned(branch.Uid), "unlocked branch waits for detail action");
             panel.EquipmentView.UpgradeButton.onClick.Invoke();
-            Require(generator.Skills.IsOwned(branch.Uid) && panel.EquipmentView.Heading.text == branch.Label, "branch applies from right details");
+            Require(initializer.Skills.IsOwned(branch.Uid) && panel.EquipmentView.Heading.text == branch.Label, "branch applies from right details");
             view.CloseButton.onClick.Invoke();
             Require(panel.SelectedSkill == null, "right close clears skill selection");
             view.UpdateUIStatusWindow(storage);
@@ -156,7 +156,7 @@ public static class EconomyUIAssertions
             Canvas.ForceUpdateCanvases();
             var canvas = panel.GetComponentInChildren<Canvas>();
             var buttons = canvas.GetComponentsInChildren<Button>(true);
-            Require(buttons.Length >= generator.Skills.Catalog.Nodes.Count + 5, "placement, navigation, skill and upgrade buttons exist");
+            Require(buttons.Length >= initializer.Skills.Catalog.Nodes.Count + 5, "placement, navigation, skill and upgrade buttons exist");
             Require(canvas.GetComponentsInChildren<Text>(true).First().font.HasCharacter('換'), "Japanese glyph available");
             var raycaster = TestScenes.Find<UIRaycasterAdapter>();
             var header = panel.GetComponentInChildren<HudLayoutAdapter>().Close;
@@ -233,8 +233,8 @@ public static class EconomyUIAssertions
                     if (page == 2)
                     {
                         var tree = panel.SkillButton(root.Uid).transform.parent;
-                        Require(tree.GetComponentsInChildren<Image>().Count(image => image.name.StartsWith("Prerequisite_")) == generator.Skills.Catalog.Nodes.Count - 1, "tree connects every prerequisite " + resolution);
-                        foreach (var node in generator.Skills.Catalog.Nodes.Where(node => node.Prerequisite != null))
+                        Require(tree.GetComponentsInChildren<Image>().Count(image => image.name.StartsWith("Prerequisite_")) == initializer.Skills.Catalog.Nodes.Count - 1, "tree connects every prerequisite " + resolution);
+                        foreach (var node in initializer.Skills.Catalog.Nodes.Where(node => node.Prerequisite != null))
                         {
                             var childRect = (RectTransform)panel.SkillButton(node.Uid).transform;
                             var parentRect = (RectTransform)panel.SkillButton(node.Prerequisite).transform;
@@ -257,7 +257,7 @@ public static class EconomyUIAssertions
                         var treeScroll = tree.GetComponentInParent<ScrollRect>();
                         Require(treeScroll.horizontal && treeScroll.vertical && treeScroll.content.rect.width >= 8 * 64, "compact type branches retain spacing " + resolution);
                         Require(treeScroll.horizontalScrollbar != null && treeScroll.horizontalScrollbar.gameObject.activeInHierarchy, "ability branches expose horizontal scrolling " + resolution);
-                        foreach (var node in generator.Skills.Catalog.Nodes)
+                        foreach (var node in initializer.Skills.Catalog.Nodes)
                         {
                             var button = panel.SkillButton(node.Uid);
                             var size = ((RectTransform)button.transform).rect.size;
@@ -297,7 +297,7 @@ public static class EconomyUIAssertions
                 panel.SelectSkill(branch.Uid);
                 await CaptureHud(panel, view, canvas, 2, "skill-tree");
             }
-            Require(wallet.LastNotificationException == null && generator.Skills.LastNotificationException == null, "notification handlers succeed");
+            Require(wallet.LastNotificationException == null && initializer.Skills.LastNotificationException == null, "notification handlers succeed");
             UnityEngine.Object.Destroy(panel);
             await UniTask.DelayFrame(2);
             Require(canvas != null && !canvas.gameObject.activeSelf && view != null &&

@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -117,10 +117,10 @@ public static class SkillTreeAssertions
             _checks = 0;
             AudioListener.volume = 0;
             await UniTask.Yield();
-            var generator = TestScenes.Find<GridFieldGeneratorAdapter>();
+            var initializer = TestScenes.Find<GameInitializerAdapter>();
             var grid = GridFieldDatabaseAdapter.Instance;
-            var tree = generator.Skills;
-            generator.Wallet.TryReserveIncome(tree.Catalog.Nodes.Sum(node => node.Price) + 250, out var income); income.TryCommit();
+            var tree = initializer.Skills;
+            initializer.Wallet.TryReserveIncome(tree.Catalog.Nodes.Sum(node => node.Price) + 250, out var income); income.TryCommit();
             var names = new[] { "ExtractorWood", "ExtractorStone", "Storage", "Crafter", "ExportConveyor", "AdvancedCrafter" };
             var existing = new List<CellBaseAdapter>(); var inactive = new List<CellBaseAdapter>();
             for (var index = 0; index < names.Length; index++)
@@ -202,8 +202,8 @@ public static class SkillTreeAssertions
             Require(!crossing.SupportsProgression && ReferenceEquals(pending[Vector3Int.right], transfer) && receiver.AllocatedAmount == 5 && receiver.Capacity == 150, "crossing keeps upstream reservation while receiver grows");
             crossing.CancelStorage(1, 5, ResourceTypeDomain.Stone);
             Require(receiver.AllocatedAmount == 0 && pending.Count == 0, "crossing reservation cancels after type purchases");
-            Require(generator.Wallet.Current.Balance == 350 && generator.Wallet.Current.ReservedExpense == 0, "scene type purchases charged once");
-            Require(generator.Wallet.LastNotificationException == null && tree.LastNotificationException == null && grid.StatEffects.LastNotificationException == null, "scene notifications succeed");
+            Require(initializer.Wallet.Current.Balance == 350 && initializer.Wallet.Current.ReservedExpense == 0, "scene type purchases charged once");
+            Require(initializer.Wallet.LastNotificationException == null && tree.LastNotificationException == null && grid.StatEffects.LastNotificationException == null, "scene notifications succeed");
             Debug.Log($"Skill tree checks passed: {_checks} assertions; type definitions, transactions, notifications, all six types, existing/inactive/new cells, extraction, export, crafting and reservations.");
         }
         catch (Exception exception) { throw; }

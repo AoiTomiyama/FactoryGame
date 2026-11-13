@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -88,9 +88,9 @@ public sealed class ConstructionGameplayPlayModeTests : FactoryPlayModeScope
     [UnityTest] public IEnumerator MiningCraftingDepotAdvancedConstructionAndNewShipping() => Gameplay().ToCoroutine();
     private static async UniTask Gameplay()
     {
-        var generator = Object.FindAnyObjectByType<GridFieldGeneratorAdapter>(); var grid = GridFieldDatabaseAdapter.Instance;
+        var initializer = Object.FindAnyObjectByType<GameInitializerAdapter>(); var grid = GridFieldDatabaseAdapter.Instance;
         var placer = Object.FindAnyObjectByType<CellPlacerAdapter>(); var panel = Object.FindAnyObjectByType<EconomyPanelAdapter>();
-        var pool = ResourceItemObjectPoolAdapter.Instance; var stock = generator.ConstructionStock;
+        var pool = ResourceItemObjectPoolAdapter.Instance; var stock = initializer.ConstructionStock;
         panel.ShowPage(0); Time.timeScale = 20;
         void Place(CellTypeDomain type, int x, int z, float angle=0)
         {
@@ -104,8 +104,8 @@ public sealed class ConstructionGameplayPlayModeTests : FactoryPlayModeScope
                 if(Enumerable.Range(0,width).All(dx => Enumerable.Range(0,depth).All(dz => grid.GetCell(x+dx,z+dz) is EmptyCellAdapter))) return (x,z);
             throw new InvalidOperationException("No construction test area.");
         }
-        async UniTask Funds(long amount) => await ConstructionTestRoute.Until(() => generator.Wallet.Current.AvailableBalance >= amount, "残高 " + amount);
-        var commands=TestScenes.StarterPlacements(generator).ToArray();var first=commands[0];
+        async UniTask Funds(long amount) => await ConstructionTestRoute.Until(() => initializer.Wallet.Current.AvailableBalance >= amount, "残高 " + amount);
+        var commands=TestScenes.StarterPlacements(initializer.Session.Selected).ToArray();var first=commands[0];
         Place(first.Type,first.X,first.Z,first.Yaw);
         // 換金経路をつなぐ前に、最初の板材用の木材を採る。
         await Mine((ExtractorCellAdapter)grid.GetCell(first.X,first.Z),4);
@@ -145,8 +145,8 @@ public sealed class ConstructionGameplayPlayModeTests : FactoryPlayModeScope
         await Funds(90);
         await Produce(basic,ResourceTypeDomain.Plank,2,(ResourceTypeDomain.Wood,4)); await Deposit(ResourceTypeDomain.Plank,2);
         await Mine(iron,4); await Produce(basic,ResourceTypeDomain.IronIngot,2,(ResourceTypeDomain.Iron,4)); await Deposit(ResourceTypeDomain.IronIngot,2);
-        var advancedSite=Area(3,2); var before=generator.Wallet.Current.Balance; Place(CellTypeDomain.AdvancedCrafter,advancedSite.x,advancedSite.z);
-        Assert.That(generator.Wallet.Current.Balance,Is.EqualTo(before-90)); Assert.That(stock.Stored(ResourceTypeDomain.Plank),Is.Zero); Assert.That(stock.Stored(ResourceTypeDomain.IronIngot),Is.Zero);
+        var advancedSite=Area(3,2); var before=initializer.Wallet.Current.Balance; Place(CellTypeDomain.AdvancedCrafter,advancedSite.x,advancedSite.z);
+        Assert.That(initializer.Wallet.Current.Balance,Is.EqualTo(before-90)); Assert.That(stock.Stored(ResourceTypeDomain.Plank),Is.Zero); Assert.That(stock.Stored(ResourceTypeDomain.IronIngot),Is.Zero);
         var advanced=(CrafterCellAdapter)grid.GetCell(advancedSite.x,advancedSite.z);
         await Funds(55);var copperSite=TestScenes.ExtractorSite(ResourceTypeDomain.Copper);Place(CellTypeDomain.ExtractorCopper,copperSite.X,copperSite.Z,copperSite.Yaw);
         var coalSite=TestScenes.ExtractorSite(ResourceTypeDomain.Coal);Place(CellTypeDomain.ExtractorCoal,coalSite.X,coalSite.Z,coalSite.Yaw);
@@ -159,7 +159,7 @@ public sealed class ConstructionGameplayPlayModeTests : FactoryPlayModeScope
         await Produce(advanced,ResourceTypeDomain.MachineParts,1,(ResourceTypeDomain.Steel,1),(ResourceTypeDomain.CopperWire,2));
         await Deposit(ResourceTypeDomain.MachineParts,1); await Funds(30);
         var shippingSite=Area(1,1); Place(CellTypeDomain.Shipping,shippingSite.x,shippingSite.z); Assert.That(stock.Stored(ResourceTypeDomain.MachineParts),Is.Zero);
-        Assert.That(generator.Deliveries.Current.Delivered.Values.Sum(),Is.Zero,"建設用納品は特異点の目標を増やさない");
+        Assert.That(initializer.Deliveries.Current.Delivered.Values.Sum(),Is.Zero,"建設用納品は特異点の目標を増やさない");
         // 最大品目数と長い数量を既存の詳細スクロールへ表示する。
         foreach(var resource in ConstructionTestRoute.Resources.GetAllResources()) { Assert.That(stock.TryReserveDeposit(resource.ResourceTypeDomain,1234567890,out var ticket)); ticket.TryCommit(); }
         var view=CellStatusViewAdapter.Instance; view.UpdateUIStatusWindow(depot);

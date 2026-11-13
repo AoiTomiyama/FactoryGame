@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +9,7 @@ using UnityEngine;
 public sealed class DeliveryFactoryAssertions
 {
     private readonly GridFieldDatabaseAdapter _grid = GridFieldDatabaseAdapter.Instance;
-    private readonly GridFieldGeneratorAdapter _generator = TestScenes.Find<GridFieldGeneratorAdapter>();
+    private readonly GameInitializerAdapter _initializer = TestScenes.Find<GameInitializerAdapter>();
     private readonly CellPlacerAdapter _placer = TestScenes.Find<CellPlacerAdapter>();
     private readonly EconomyPanelAdapter _panel = TestScenes.Find<EconomyPanelAdapter>();
     private static readonly Vector3Int[] Directions = { Vector3Int.forward, Vector3Int.right, Vector3Int.back, Vector3Int.left };
@@ -34,13 +34,13 @@ public sealed class DeliveryFactoryAssertions
     private async UniTask Funds(long price)
     {
         var start = Time.time;
-        await Until(() => _generator.Wallet.Current.AvailableBalance >= price, "資金待ち " + price);
+        await Until(() => _initializer.Wallet.Current.AvailableBalance >= price, "資金待ち " + price);
         _fundingWait += Time.time - start;
     }
     private async UniTask<CellBaseAdapter> Place(CellTypeDomain type, Vector3Int position, Vector3Int forward)
     {
         var price=0L;
-        Require(type==CellTypeDomain.Empty || _generator.Prices.TryGetPlacementAmount(type, 1, out price), "購入価格 " + type);
+        Require(type==CellTypeDomain.Empty || _initializer.Prices.TryGetPlacementAmount(type, 1, out price), "購入価格 " + type);
         await Funds(price);
         _placer.transform.rotation = Quaternion.LookRotation(forward);
         _placer.SetSelectedCellType(type);
@@ -134,29 +134,29 @@ public sealed class DeliveryFactoryAssertions
     private static bool Loaded(ConveyorCellAdapter cell)
         => (bool)typeof(ConveyorCellAdapter).GetProperty("HasResource",System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic).GetValue(cell);
     private void Record(string phase)
-        => Debug.Log($"Delivery factory phase: {phase}, gameSeconds={Time.time-_start:F1}, fundingWait={_fundingWait:F1}, earned={_earned}, spent={_spent}, balance={_generator.Wallet.Current.Balance}, purchases={_purchases}, beltTiles={_belts}");
+        => Debug.Log($"Delivery factory phase: {phase}, gameSeconds={Time.time-_start:F1}, fundingWait={_fundingWait:F1}, earned={_earned}, spent={_spent}, balance={_initializer.Wallet.Current.Balance}, purchases={_purchases}, beltTiles={_belts}");
 
     private async UniTask Play()
     {
-        _start=Time.time; Require(_generator.Wallet.Current.Balance==100,"初期資金100");
+        _start=Time.time; Require(_initializer.Wallet.Current.Balance==100,"初期資金100");
         Require(UnityEditor.EditorUtility.audioMasterMute,"消音"); _panel.ShowPage(0);
         var last=100L;
-        _generator.Wallet.Changed+=s=>{ if(s.Balance>last)_earned+=s.Balance-last; last=s.Balance; };
-        foreach(var command in TestScenes.StarterPlacements(_generator))
+        _initializer.Wallet.Changed+=s=>{ if(s.Balance>last)_earned+=s.Balance-last; last=s.Balance; };
+        foreach(var command in TestScenes.StarterPlacements(_initializer.Session.Selected))
             await Place(command.Type,new Vector3Int(command.X,0,command.Z),Vector3Int.RoundToInt(Quaternion.Euler(0,command.Yaw,0)*Vector3.forward));
         await Until(()=>_earned>0,"初回換金"); Record("初回換金");
         Time.timeScale=20;
         foreach(var uid in new[]{"basic-research","wood-extraction-1"})
         {
-            var price=_generator.Skills.Catalog.Nodes.Single(n=>n.Uid==uid).Price; await Funds(price);
+            var price=_initializer.Skills.Catalog.Nodes.Single(n=>n.Uid==uid).Price; await Funds(price);
             Require(_panel.PurchaseSkill(uid)==SkillPurchaseResultApplication.Success,"収益からの研究購入");_spent+=price;
         }
         await Funds(1400); Record("工場への再投資資金");
-        var core=TestScenes.Find<SingularityCellAdapter>(); var stock=_generator.ConstructionStock;
+        var core=TestScenes.Find<SingularityCellAdapter>(); var stock=_initializer.ConstructionStock;
         var wood=await Mine(ResourceTypeDomain.Wood,CellTypeDomain.ExtractorWood,new Vector3Int(58,0,44));
         var stone=await Mine(ResourceTypeDomain.Stone,CellTypeDomain.ExtractorStone,new Vector3Int(54,0,54));
         var rawWood=await Connect(wood,core);var rawStone=await Connect(stone,core);
-        await Until(()=>_generator.Deliveries.Current.CompletedStages>=1,"原料目標の達成");Record("原料目標達成");
+        await Until(()=>_initializer.Deliveries.Current.CompletedStages>=1,"原料目標の達成");Record("原料目標達成");
         wood.gameObject.SetActive(false);stone.gameObject.SetActive(false);
         await Remove(rawWood);await Remove(rawStone);
         var plank=await Equipment<CrafterCellAdapter>(CellTypeDomain.Crafter,58,46);
@@ -172,19 +172,19 @@ public sealed class DeliveryFactoryAssertions
         plank.gameObject.SetActive(false);await Remove(plankStock);
         var advanced=await Equipment<CrafterCellAdapter>(CellTypeDomain.AdvancedCrafter,59,50);Record("材料を使って上位加工を建設");
         var planks=await Connect(plank,core);var bricks=await Connect(brick,core);plank.gameObject.SetActive(true);
-        await Until(()=>_generator.Deliveries.Current.CompletedStages>=2,"加工品目標の達成");Record("加工品目標達成");
+        await Until(()=>_initializer.Deliveries.Current.CompletedStages>=2,"加工品目標の達成");Record("加工品目標達成");
         plank.gameObject.SetActive(false);brick.gameObject.SetActive(false);
         await Remove(planks);await Remove(bricks);
         await Connect(plank,advanced,0);await Connect(brick,advanced,1);await Connect(advanced,core);
         plank.gameObject.SetActive(true);brick.gameObject.SetActive(true);
-        await Until(()=>_generator.Deliveries.Current.IsComplete,"最終目標の達成");Record("最終目標達成");
-        var delivered=_generator.Deliveries.Current.Count(ResourceTypeDomain.BuildingParts);var balance=_generator.Wallet.Current.Balance;
+        await Until(()=>_initializer.Deliveries.Current.IsComplete,"最終目標の達成");Record("最終目標達成");
+        var delivered=_initializer.Deliveries.Current.Count(ResourceTypeDomain.BuildingParts);var balance=_initializer.Wallet.Current.Balance;
         var camera=TestScenes.Find<CameraControllerAdapter>();Require(camera.SetFirstPerson(true),"達成後の散策");
         await UniTask.Delay(650,ignoreTimeScale:true);
-        await Until(()=>_generator.Deliveries.Current.Count(ResourceTypeDomain.BuildingParts)>delivered && _generator.Wallet.Current.Balance>balance,"達成後の生産・換金・吸収");
+        await Until(()=>_initializer.Deliveries.Current.Count(ResourceTypeDomain.BuildingParts)>delivered && _initializer.Wallet.Current.Balance>balance,"達成後の生産・換金・吸収");
         Require(camera.SetFirstPerson(false),"散策から復帰");await UniTask.Delay(650,ignoreTimeScale:true);
         Require(_panel.SummaryView.Items[0].text=="目標達成","達成表示の復帰");
-        Require(_generator.Wallet.Current.Balance==100+_earned-_spent,"収益と購入の照合");Record("達成後も継続稼働");
+        Require(_initializer.Wallet.Current.Balance==100+_earned-_spent,"収益と購入の照合");Record("達成後も継続稼働");
     }
 }
 #endif

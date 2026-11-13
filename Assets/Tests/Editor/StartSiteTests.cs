@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
@@ -7,7 +7,7 @@ using UnityEngine;
 [TestFixture,Category("StartSite")]
 public sealed class StartSiteRulesTests
 {
-    private static StartSiteRulesDomain.Terrain[,] Map()
+    internal static StartSiteRulesDomain.Terrain[,] Map()
     {
         var map=new StartSiteRulesDomain.Terrain[100,100];
         for(var x=0;x<100;x++) for(var z=0;z<100;z++) map[x,z]=new StartSiteRulesDomain.Terrain(true);
@@ -55,8 +55,8 @@ public sealed class StartSiteGenerationTests : FactoryEditModeScope
         var cells=field.GetComponentsInChildren<CellBaseAdapter>();
         Assert.That(cells.Length,Is.EqualTo(10000));Assert.That(cells.OfType<SingularityCellAdapter>(),Is.Empty);Assert.That(cells.OfType<ShippingCellAdapter>(),Is.Empty);
         var positions=cells.ToDictionary(c=>c,c=>c.transform.position);
-        generator.PrepareStartSites(field.transform);
-        Assert.That(generator.StartSites.Count,Is.InRange(1,3));
+        var candidates=GameInitializerAdapter.DiscoverStartSites(field,UnityEditor.AssetDatabase.LoadAssetAtPath<SingularityStartDefinition>("Assets/Scripts/ScriptableObject/SingularityStart.asset"));
+        Assert.That(candidates.Count,Is.InRange(1,3));
         Assert.That(field.GetComponentsInChildren<CellBaseAdapter>(),Is.EquivalentTo(cells));
         foreach(var p in positions) Assert.That(p.Key.transform.position,Is.EqualTo(p.Value));
     }
@@ -69,12 +69,12 @@ public sealed class StartSiteGenerationTests : FactoryEditModeScope
         var props=serialized.FindProperty("propPrefabs");
         for(var i=0;i<props.arraySize;i++) props.GetArrayElementAtIndex(i).FindPropertyRelative("threshold").floatValue=threshold;
         serialized.ApplyModifiedPropertiesWithoutUndo();
-        var field=TestScenes.NewObject("NaturalField").transform;generator.GenerateGrid(field);
+        var field=TestScenes.NewObject("NaturalField").AddComponent<GridFieldDatabaseAdapter>();generator.GenerateGrid(field.transform);
         var before=field.GetComponentsInChildren<CellBaseAdapter>();var positions=before.ToDictionary(c=>c,c=>c.transform.position);
-        generator.PrepareStartSites(field);
+        var candidates=GameInitializerAdapter.DiscoverStartSites(field,UnityEditor.AssetDatabase.LoadAssetAtPath<SingularityStartDefinition>("Assets/Scripts/ScriptableObject/SingularityStart.asset"));
         Assert.That(before.Length,Is.EqualTo(196));Assert.That(field.GetComponentsInChildren<CellBaseAdapter>(),Is.EquivalentTo(before));
         foreach(var pair in positions) Assert.That(pair.Key.transform.position,Is.EqualTo(pair.Value));
-        if(threshold==1) { Assert.That(generator.StartSites,Is.Empty);Assert.That(before.All(c=>c is EmptyCellAdapter)); }
+        if(threshold==1) { Assert.That(candidates,Is.Empty);Assert.That(before.All(c=>c is EmptyCellAdapter)); }
     }
 }
 [TestFixture, Category("Grid")]
@@ -104,7 +104,6 @@ public sealed class FieldGenerationMetadataTests : FactoryEditModeScope
         var field = TestScenes.NewObject("StableGenerationTarget").AddComponent<GridFieldDatabaseAdapter>();
         var edit = new SerializedObject(generator);
         edit.FindProperty("targetField").objectReferenceValue = field;
-        edit.FindProperty("initialLayout").objectReferenceValue = null;
         edit.FindProperty("gridSize").intValue = 14;
         edit.FindProperty("seedValue").intValue = 3;
         edit.ApplyModifiedPropertiesWithoutUndo();
@@ -121,6 +120,35 @@ public sealed class FieldGenerationMetadataTests : FactoryEditModeScope
         Assert.That(generator.TargetField, Is.SameAs(field));
         Assert.That(field.GeneratedSize, Is.EqualTo(14));
         Assert.That(field.CaptureTerrain().Length, Is.EqualTo(196));
+    }
+}
+
+[TestFixture, Category("StartSite")]
+public sealed class GameStartSessionTests
+{
+    [Test] public void SelectionAndStartHaveOneOwnerAndRejectReentry()
+    {
+        var candidates = StartSiteRulesDomain.Candidates(StartSiteRulesTests.Map(), 0, new CellFootprintDomain(5,5,-2,-2), (0,-3), 100,20,5).ToList();
+        var session = new GameStartApplication(); session.Prepare(candidates);
+        var count = candidates.Count; candidates.Clear();
+        Assert.That(session.Candidates.Count, Is.EqualTo(count));
+        Assert.That(session.TrySelect(-1), Is.False); Assert.That(session.TrySelect(count), Is.False);
+        Assert.That(session.TrySelect(count-1), Is.True);
+        Assert.That(session.TryBegin(out var selected), Is.True);
+        Assert.That(selected, Is.SameAs(session.Selected));
+        Assert.That(session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Starting));
+        Assert.That(session.TryBegin(out _), Is.False); Assert.That(session.TrySelect(0), Is.False);
+        session.Complete();
+        Assert.That(session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Running));
+        Assert.That(session.TryBegin(out _), Is.False);
+    }
+    [Test] public void EmptyAndFailedSessionsNeverBeginOrReprepare()
+    {
+        var session = new GameStartApplication(); session.Prepare(System.Array.Empty<StartSiteRulesDomain.Candidate>());
+        Assert.That(session.CanChoose, Is.False); Assert.That(session.TryBegin(out _), Is.False);
+        session.Fail();
+        Assert.That(session.TryBegin(out _), Is.False); Assert.That(session.TrySelect(0), Is.False);
+        Assert.Throws<System.InvalidOperationException>(() => session.Prepare(System.Array.Empty<StartSiteRulesDomain.Candidate>()));
     }
 }
 #endif

@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.IO;
 using System.Linq;
@@ -42,7 +42,7 @@ public static class FirstPersonAssertions
             var cine = (CinemachineCamera)typeof(CameraControllerAdapter).GetField("virtualCamera", Private).GetValue(controller);
             var body = cine.GetCinemachineComponent(CinemachineCore.Stage.Body);
             var grid = GridFieldDatabaseAdapter.Instance;
-            var wallet = TestScenes.Find<GridFieldGeneratorAdapter>().Wallet;
+            var wallet = TestScenes.Find<GameInitializerAdapter>().Wallet;
             Require(body != null && body.enabled, "saved camera has an active Body component");
             Debug.Log("First person saved Body: " + body.GetType().Name);
             previousDevices = InputSystem.devices.Where(d => d.enabled && d is Keyboard or Mouse).ToArray();

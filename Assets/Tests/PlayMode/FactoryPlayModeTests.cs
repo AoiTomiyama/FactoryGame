@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections;
 using Cysharp.Threading.Tasks;
@@ -48,11 +48,27 @@ public abstract class FactoryPlayModeScope
             // 開始Sceneを破棄するとTest Runner自身も停止する。作成したSceneだけをTearDownで閉じる。
         }
         yield return null; yield return null; yield return null;
-        if(NeedsMainScene && ChooseDefaultStart)
+        if (NeedsMainScene)
         {
-            Assert.That(TestScenes.Find<GridFieldGeneratorAdapter>().ConfirmStartSite(),Is.True,"confirm default start for this fixture");
-            yield return null; yield return null; yield return null;
+            var initializer = TestScenes.Find<GameInitializerAdapter>();
+            yield return UniTask.WaitUntil(() => initializer.Session.CurrentStage != GameStartApplication.Stage.Uninitialized)
+                .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime).ToCoroutine();
+            Assert.That(initializer.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Choosing));
+            if (ChooseDefaultStart)
+            {
+                Assert.That(initializer.TryStartGame(), Is.True, "confirm default start for this fixture");
+                Assert.That(initializer.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Running));
+                yield return null; yield return null; yield return null;
+            }
         }
+    }
+    protected IEnumerator ReloadMainScene()
+    {
+        _scene = EditorSceneManager.LoadSceneInPlayMode("Assets/Scenes/MainScene.unity", new LoadSceneParameters(LoadSceneMode.Single));
+        yield return null;
+        var initializer = TestScenes.Find<GameInitializerAdapter>();
+        yield return UniTask.WaitUntil(() => initializer.Session.CurrentStage != GameStartApplication.Stage.Uninitialized)
+            .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime).ToCoroutine();
     }
     [UnityTearDown]
     public IEnumerator CloseScope()

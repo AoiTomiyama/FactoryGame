@@ -103,7 +103,7 @@ public static class HudPrefabAssertions
         foreach (var button in hud.GetComponentsInChildren<Button>(true).Concat(bar.GetComponentsInChildren<Button>(true)))
         {
             Require(button.targetGraphic.color == Color.white, "no double color multiplication");
-            var locked = button.name.StartsWith("SkillNode_") && panel.GetComponent<GridFieldGeneratorAdapter>().Skills.CanPurchase(button.name.Substring("SkillNode_".Length)) == SkillPurchaseResultApplication.PrerequisiteMissing;
+            var locked = button.name.StartsWith("SkillNode_") && TestScenes.Find<GameInitializerAdapter>().Skills.CanPurchase(button.name.Substring("SkillNode_".Length)) == SkillPurchaseResultApplication.PrerequisiteMissing;
             Require(button.colors.normalColor == (locked ? new Color(.18f, .18f, .18f) : button == hud.Tabs[0] ? hud.SelectedTabColor : hud.IdleTabColor) &&
                 button.colors.selectedColor == (locked ? new Color(.18f, .18f, .18f) : hud.SelectedTabColor), "buttons share palette with locked-skill gray exception");
         }
@@ -119,9 +119,9 @@ public static class HudPrefabAssertions
         var fixedObjects = new[] { hud.Close.gameObject, hud.Navigation.gameObject, hud.Body.gameObject,
             hud.Tabs[0].gameObject, hud.Tabs[1].gameObject, hud.Tabs[2].gameObject, bar.RotateButton.gameObject, bar.ViewButton.gameObject };
         var ids = fixedObjects.Select(o => o.GetInstanceID()).ToArray();
-        var generator = panel.GetComponent<GridFieldGeneratorAdapter>();
-        panel.Configure(generator.Wallet, generator.Skills,
-            TestScenes.Find<CellStatusViewAdapter>(), TestScenes.Find<CellPlacerAdapter>(), generator.Deliveries);
+        var initializer = TestScenes.Find<GameInitializerAdapter>();
+        panel.Configure(initializer.Wallet, initializer.Skills,
+            TestScenes.Find<CellStatusViewAdapter>(), TestScenes.Find<CellPlacerAdapter>(), initializer.Deliveries);
         Require(ids.SequenceEqual(fixedObjects.Select(o => o.GetInstanceID())), "reconfigure preserves static instances");
         Require(TestScenes.All<HudLayoutAdapter>(FindObjectsInactive.Include).Length == 1,
             "no replacement HUD or hidden restore tree");

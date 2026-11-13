@@ -28,16 +28,24 @@ public sealed class OperationBarAdapter : MonoBehaviour
             foreach(var pair in _savedStartText)
                 if(pair.Key!=placementInfo && pair.Key.GetComponentInParent<Button>()==null)
                     pair.Key.text=line++==0 ? "候補地をクリックして選択\n中ドラッグ：移動　ホイール：拡大・縮小" : "";
-            rotateButton.interactable=viewButton.interactable=walkButton.interactable=selection.Count>0;walkingHelp.gameObject.SetActive(false);
+            walkingHelp.gameObject.SetActive(false);
         }
         else
         {
             foreach(var pair in _savedStartText) if(pair.Key!=null) pair.Key.text=pair.Value;
             _savedStartText.Clear();
-            rotateButton.interactable=walkButton.interactable=true;viewButton.interactable=_cameraController!=null;
         }
         BindButtons();
+        RefreshStartAvailability();
         if(bar!=null) bar.gameObject.SetActive(selection!=null || _placementActive && !_firstPerson);
+    }
+    public void RefreshStartAvailability()
+    {
+        // 入力側のConfigureが後でも、候補の操作可否を上書きしない。
+        if (_startSelection != null)
+            rotateButton.interactable = viewButton.interactable = walkButton.interactable = _startSelection.CanChoose;
+        else
+        { rotateButton.interactable = walkButton.interactable = true; viewButton.interactable = _cameraController != null; }
     }
     private void BindButtons()
     {
@@ -72,7 +80,7 @@ public sealed class OperationBarAdapter : MonoBehaviour
         rotateButton.onClick.AddListener(Rotate);
         viewButton.onClick.AddListener(SwitchView);
         walkButton.onClick.AddListener(Walk);
-        viewButton.interactable = cameraController != null;
+        RefreshStartAvailability();
         foreach (var root in gameObject.scene.GetRootGameObjects())
         {
             var hud = root.GetComponentInChildren<HudLayoutAdapter>(true);

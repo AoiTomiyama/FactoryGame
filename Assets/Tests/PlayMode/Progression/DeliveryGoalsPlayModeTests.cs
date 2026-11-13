@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections;
 using System.Linq;
@@ -17,13 +17,13 @@ using Object = UnityEngine.Object;
 [TestFixture, Category("Delivery")]
 public sealed class DeliveryGoalsPlayModeTests
 {
-    private GridFieldGeneratorAdapter _generator;
+    private GameInitializerAdapter _initializer;
     private SingularityCellAdapter _core;
     private EconomyPanelAdapter _panel;
     private CellStatusViewAdapter _view;
     private HudLayoutAdapter _layout;
     private CellPlacerAdapter _placer;
-    private DeliveryProgressApplication App => _generator.Deliveries;
+    private DeliveryProgressApplication App => _initializer.Deliveries;
     private Scene _scene;
     private bool _muted;
     private float _volume, _timeScale;
@@ -35,13 +35,13 @@ public sealed class DeliveryGoalsPlayModeTests
         EditorUtility.audioMasterMute = true; AudioListener.volume = 0; Time.timeScale = 1;
         _scene = EditorSceneManager.LoadSceneInPlayMode("Assets/Scenes/MainScene.unity", new LoadSceneParameters(LoadSceneMode.Single));
         for (var i = 0; i < 5; i++) yield return null;
-        _generator = Object.FindAnyObjectByType<GridFieldGeneratorAdapter>();
-        Assert.That(_generator.ConfirmStartSite(),Is.True);
+        _initializer = Object.FindAnyObjectByType<GameInitializerAdapter>();
+        Assert.That(_initializer.TryStartGame(),Is.True);
         for(var i=0;i<3;i++) yield return null;
         _core = Object.FindAnyObjectByType<SingularityCellAdapter>();
         _panel = Object.FindAnyObjectByType<EconomyPanelAdapter>(); _view = Object.FindAnyObjectByType<CellStatusViewAdapter>();
         _layout = Object.FindAnyObjectByType<HudLayoutAdapter>(); _placer = Object.FindAnyObjectByType<CellPlacerAdapter>();
-        Assert.That(_generator, Is.Not.Null); Assert.That(App, Is.Not.Null); Assert.That(_core, Is.Not.Null);
+        Assert.That(_initializer, Is.Not.Null); Assert.That(App, Is.Not.Null); Assert.That(_core, Is.Not.Null);
     }
 
     [UnityTearDown]
@@ -62,7 +62,7 @@ public sealed class DeliveryGoalsPlayModeTests
     [Test, Description("特異点とHUDが同じ累計を読み、納品で段階表示を更新する")]
     public void DeliveryUpdatesSharedProgressAndHudWithoutPayingCurrency()
     {
-        var balance = _generator.Wallet.Current.Balance;
+        var balance = _initializer.Wallet.Current.Balance;
         Assert.That(_core.Deliveries, Is.SameAs(App)); Assert.That(_panel.SummaryView.Items[0].text, Does.Contain("段階 1/3"));
         _view.UpdateUIStatusWindow(_core); Assert.That(_panel.EquipmentText, Does.Contain("0/40"));
         Assert.That(_panel.EquipmentView.UpgradeButton.gameObject.activeSelf, Is.False);
@@ -71,7 +71,7 @@ public sealed class DeliveryGoalsPlayModeTests
         Receive(ResourceTypeDomain.Stone, 40);
         Assert.That(App.Current.CompletedStages, Is.EqualTo(1)); Assert.That(_panel.EquipmentText, Does.Contain("加工投入"));
         Assert.That(_panel.SummaryView.Items[0].GetComponent<HudMotionAdapter>().IsAnimating, Is.True);
-        Assert.That(_generator.Wallet.Current.Balance, Is.EqualTo(balance));
+        Assert.That(_initializer.Wallet.Current.Balance, Is.EqualTo(balance));
     }
 
     [Test]
@@ -93,10 +93,10 @@ public sealed class DeliveryGoalsPlayModeTests
         Assert.That(App.Current.IsComplete, Is.True); Assert.That(_panel.SummaryView.Items[0].text, Is.EqualTo("目標達成"));
         Assert.That(_panel.EquipmentText, Does.Contain("目標達成")); Receive(ResourceTypeDomain.Wood, 1);
         Assert.That(App.Current.Count(ResourceTypeDomain.Wood), Is.EqualTo(41)); Assert.That(final, Is.EqualTo(1));
-        var balance = _generator.Wallet.Current.Balance;
+        var balance = _initializer.Wallet.Current.Balance;
         var shipping = Object.FindAnyObjectByType<ShippingCellAdapter>();
         Assert.That(shipping.AllocateStorage(0, 5, ResourceTypeDomain.Wood), Is.True); shipping.StoreResource(0, 5);
-        Assert.That(_generator.Wallet.Current.Balance, Is.EqualTo(balance + 5)); Assert.That(App.Current.Count(ResourceTypeDomain.Wood), Is.EqualTo(41));
+        Assert.That(_initializer.Wallet.Current.Balance, Is.EqualTo(balance + 5)); Assert.That(App.Current.Count(ResourceTypeDomain.Wood), Is.EqualTo(41));
     }
 
     [Test]
@@ -105,7 +105,7 @@ public sealed class DeliveryGoalsPlayModeTests
         _panel.enabled = false; Deliver(App, ResourceTypeDomain.Wood, 3);
         Assert.That(Subscribers(App, "Changed"), Is.Zero); _panel.enabled = true; _view.UpdateUIStatusWindow(_core);
         Assert.That(_panel.EquipmentText, Does.Contain("3/40"));
-        _panel.Configure(_generator.Wallet, _generator.Skills, _view, _placer, App);
+        _panel.Configure(_initializer.Wallet, _initializer.Skills, _view, _placer, App);
         Assert.That(Subscribers(App, "Changed"), Is.EqualTo(1)); Assert.That(Subscribers(App, "StageCompleted"), Is.EqualTo(1));
         _panel.enabled = false; Assert.That(Subscribers(App, "Changed"), Is.Zero); Assert.That(Subscribers(App, "StageCompleted"), Is.Zero);
     }
@@ -119,7 +119,7 @@ public sealed class DeliveryGoalsPlayModeTests
 
     [UnityTest, Category("Delivery.Layout")]
     public IEnumerator SevenLongResourceNamesAndLargeCountsWrapAndScrollToLastRequirement()
-        => VerifyLargeGoals(_panel, _view, _layout, _generator, _placer, _core).ToCoroutine();
+        => VerifyLargeGoals(_panel, _view, _layout, _initializer, _placer, _core).ToCoroutine();
 
     [UnityTest]
     public IEnumerator WalkingHidesGoalsAndReturnRestoresLatestProgress() => VerifyWalk().ToCoroutine();
@@ -141,7 +141,7 @@ public sealed class DeliveryGoalsPlayModeTests
     private static DeliveryGoalCatalogDomain Catalog(params DeliveryGoalCatalogDomain.Stage[] stages) => new(stages);
     private static void Require(bool condition, string message) => Assert.That(condition, Is.True, message);
     private static async UniTask VerifyLargeGoals(EconomyPanelAdapter panel, CellStatusViewAdapter view, HudLayoutAdapter layout,
-        GridFieldGeneratorAdapter generator, CellPlacerAdapter placer, SingularityCellAdapter core)
+        GameInitializerAdapter initializer, CellPlacerAdapter placer, SingularityCellAdapter core)
     {
         var originalResources = layout.Resources;
         var resources = UnityEngine.Object.Instantiate(originalResources);
@@ -158,7 +158,7 @@ public sealed class DeliveryGoalsPlayModeTests
         try
         {
             layout.Resources = resources;
-            panel.Configure(generator.Wallet, generator.Skills, view, placer, app); view.UpdateUIStatusWindow(core);
+            panel.Configure(initializer.Wallet, initializer.Skills, view, placer, app); view.UpdateUIStatusWindow(core);
             var canvas = layout.GetComponent<Canvas>(); canvas.renderMode = RenderMode.WorldSpace; canvas.GetComponent<CanvasScaler>().enabled = false;
             foreach (var resolution in new[] { new Vector2(1600, 900), new Vector2(1366, 768) })
             {
@@ -188,7 +188,7 @@ public sealed class DeliveryGoalsPlayModeTests
         finally
         {
             layout.Resources = originalResources;
-            panel.Configure(generator.Wallet, generator.Skills, view, placer, generator.Deliveries); view.UpdateUIStatusWindow(core);
+            panel.Configure(initializer.Wallet, initializer.Skills, view, placer, initializer.Deliveries); view.UpdateUIStatusWindow(core);
             UnityEngine.Object.Destroy(resources);
         }
     }

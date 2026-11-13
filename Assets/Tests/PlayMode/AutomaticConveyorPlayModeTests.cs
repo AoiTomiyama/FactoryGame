@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections;
 using System.Linq;
@@ -158,7 +158,7 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
     [UnityTest] public IEnumerator UnifiedToolMatchesPreviewAndChargesOnePrice()=>VerifyPlacement().ToCoroutine();
     private static async UniTask VerifyPlacement()
     {
-        var generator=Object.FindAnyObjectByType<GridFieldGeneratorAdapter>();var placer=Object.FindAnyObjectByType<CellPlacerAdapter>();var grid=GridFieldDatabaseAdapter.Instance;
+        var initializer=Object.FindAnyObjectByType<GameInitializerAdapter>();var placer=Object.FindAnyObjectByType<CellPlacerAdapter>();var grid=GridFieldDatabaseAdapter.Instance;
         var panel=Object.FindAnyObjectByType<EconomyPanelAdapter>();panel.ShowPage(0);
         void Place(CellTypeDomain type,int x,int z,float angle=0)
         { placer.transform.rotation=Quaternion.Euler(0,angle,0);placer.SetSelectedCellType(type);placer.SelectGrid(grid.GetCell(x,z).gameObject);placer.PointerBegin();placer.PointerDrag();placer.PointerEnd();Assert.That(placer.LastPlacedCount,Is.EqualTo(1)); }
@@ -170,7 +170,7 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
         var preview=(GameObject)typeof(CellPlacerAdapter).GetField("_placeholderCell",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(placer);
         Assert.That(preview.name,Does.Contain("ExportConveyor"));
         placer.PointerBegin();placer.SelectGrid(grid.GetCell(x,z+2).gameObject);placer.PointerDrag();placer.PointerEnd();
-        Assert.That(placer.LastPlacedCount,Is.EqualTo(2));Assert.That(placer.LastPlacementCost,Is.EqualTo(10));Assert.That(generator.Wallet.Current.Balance,Is.EqualTo(70));
+        Assert.That(placer.LastPlacedCount,Is.EqualTo(2));Assert.That(placer.LastPlacementCost,Is.EqualTo(10));Assert.That(initializer.Wallet.Current.Balance,Is.EqualTo(70));
         Assert.That(((ConveyorCellAdapter)grid.GetCell(x,z+1)).IsExportConveyor);Assert.That(((ConveyorCellAdapter)grid.GetCell(x,z+2)).IsExportConveyor,Is.False);
         Assert.That(placer.SelectedType,Is.EqualTo(CellTypeDomain.Conveyor));
         Assert.That(panel.PlacementButtons.GetComponentsInChildren<CellSelectButtonUIAdapter>(true).Any(b=>b.name=="ExportConveyorButton"),Is.False);

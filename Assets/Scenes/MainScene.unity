@@ -379955,10 +379955,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   targetField: {fileID: 201425880}
-  initialLayout: {fileID: 11400000, guid: 70c0b5380dc99c740a2b4a6ae8fe02b4, type: 2}
-  skillTree: {fileID: 11400000, guid: 3fa1b6aa9b9243b696bb0e808dd76b17, type: 2}
-  economyPanel: {fileID: 1279850227}
-  resources: {fileID: 11400000, guid: 5f6a275ee023b01479c5af4732e290af, type: 2}
   emptyCellPrefab: {fileID: 5589804250963055731, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
   gridSize: 100
   lineWidth: 0.03
@@ -636474,6 +636470,87 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 9028744536133712409, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}
   m_PrefabInstance: {fileID: 2147473289}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &870000000000001001
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 870000000000001002}
+  - component: {fileID: 870000000000001003}
+  - component: {fileID: 870000000000001004}
+  m_Layer: 0
+  m_Name: GameInitializer
+  m_TagString: Untagged
+  m_IsActive: 1
+--- !u!4 &870000000000001002
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 870000000000001001}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &870000000000001003
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 870000000000001001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2dbac6cfbfa1463b9a7064e0d2352775, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FactoryGame.Runtime::GameInitializerAdapter
+  field: {fileID: 201425880}
+  initialLayout: {fileID: 11400000, guid: 70c0b5380dc99c740a2b4a6ae8fe02b4, type: 2}
+  skillTree: {fileID: 11400000, guid: 3fa1b6aa9b9243b696bb0e808dd76b17, type: 2}
+  resources: {fileID: 11400000, guid: 5f6a275ee023b01479c5af4732e290af, type: 2}
+  economyPanel: {fileID: 1279850227}
+  placer: {fileID: 1114964332}
+  statusView: {fileID: 870000000000001005}
+  cameraController: {fileID: 1256464689}
+  cursor: {fileID: 1114964330}
+  selection: {fileID: 870000000000001004}
+--- !u!114 &870000000000001004
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 870000000000001001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 080e6558d06e4f51ab8e85dad06168bd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FactoryGame.Runtime::StartSiteSelectionAdapter
+  cameraController: {fileID: 1256464689}
+  hud: {fileID: 1025091595}
+  bar: {fileID: 855129350}
+  placer: {fileID: 1114964332}
+  statusView: {fileID: 870000000000001005}
+  frameMaterial: {fileID: 10306, guid: 0000000000000000f000000000000000, type: 0}
+--- !u!114 &870000000000001005 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 4032386388975503306, guid: 2179b37b96bd01c4d8fb4ca0af145bb0, type: 3}
+  m_PrefabInstance: {fileID: 1025091593}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1af50538b2828fc4a99d10ff1af694fc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: FactoryGame.Runtime::CellStatusViewAdapter
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -636489,3 +636566,4 @@ SceneRoots:
   - {fileID: 928514411}
   - {fileID: 1429682538}
   - {fileID: 13030801}
+  - {fileID: 870000000000001002}

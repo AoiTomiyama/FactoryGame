@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 #if UNITY_EDITOR
 using System.Security.Cryptography;
 using UnityEditor;
@@ -11,16 +11,6 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
 {
     [SerializeField] private GridFieldDatabaseAdapter targetField;
     public GridFieldDatabaseAdapter TargetField => targetField;
-    [SerializeField] private SingularityStartDefinition initialLayout;
-    [SerializeField] private SkillTreeDefinition skillTree;
-    [SerializeField] private EconomyPanelAdapter economyPanel;
-    [SerializeField] private ResourceDefinition resources;
-    public ConstructionStockApplication ConstructionStock { get; private set; }
-    public SkillTreeApplication Skills { get; private set; }
-    public CurrencyWalletApplication Wallet { get; private set; }
-    public DeliveryProgressApplication Deliveries { get; private set; }
-    public CurrencyPriceCatalogDomain Prices { get; private set; }
-
     [Header("基本設定")]
     [SerializeField] private GameObject emptyCellPrefab;
     [SerializeField] private int gridSize = 30;
@@ -64,130 +54,8 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
         public Vector2Int NoiseOffset { get; set; }
     }
 
-    public bool IsChoosingStart { get; private set; }
-    public bool HasStarted { get; private set; }
-    public System.Collections.Generic.IReadOnlyList<Vector2Int> StartSites { get; private set; } = Array.Empty<Vector2Int>();
-    public int SelectedStartSite { get; private set; }
-    public Vector2Int StartAnchor { get; private set; }
-    private StartSiteSelectionAdapter _selection;
-    public Material GridLineMaterial => lineMaterial;
-    public System.Collections.Generic.IReadOnlyList<StartSiteRulesDomain.Candidate> StartCandidates { get; private set; } = Array.Empty<StartSiteRulesDomain.Candidate>();
-
-    private void Start()
-    {
-        if (initialLayout == null) { GridFieldDatabaseAdapter.Instance.InitializeCells(gridSize); return; }
-        PrepareStartSites(GridFieldDatabaseAdapter.Instance.transform);
-        IsChoosingStart = true;
-        _selection = gameObject.AddComponent<StartSiteSelectionAdapter>();
-        _selection.Begin(this);
-    }
-    public bool SelectStartSite(int index)
-    {
-        if (!IsChoosingStart || index<0 || index>=StartSites.Count) return false;
-        SelectedStartSite=index;
-        _selection.RefreshSelection();
-        return true;
-    }
-    public bool SelectStartSiteAt(Vector3 point)
-    {
-        for(var i=0;i<StartSites.Count;i++)
-            if (initialLayout.SingularityPrefab.Footprint.Coordinates(StartSites[i].x,StartSites[i].y,0)
-                .Contains((Mathf.RoundToInt(point.x),Mathf.RoundToInt(point.z)))) return SelectStartSite(i);
-        return false;
-    }
-    public bool ConfirmStartSite()
-    {
-        if (!IsChoosingStart || HasStarted || StartSites.Count==0) return false;
-        StartAnchor=StartSites[SelectedStartSite];
-        initialLayout.ValidateAt(gridSize,StartAnchor);
-        var grid=GridFieldDatabaseAdapter.Instance;
-        PlaceInitialCells(grid.transform,StartAnchor);
-        grid.InitializeCells(gridSize);
-        Prices = initialLayout.CreateCatalog();
-        Wallet = new CurrencyWalletApplication(Prices.InitialBalance);
-        if (resources == null) throw new InvalidOperationException("Assign registered resources for construction stock.");
-        ConstructionStock = new ConstructionStockApplication(resources.GetAllResources().Select(r => r.ResourceTypeDomain));
-        Deliveries = new DeliveryProgressApplication(initialLayout.CreateDeliveryCatalog());
-        if (skillTree == null) throw new InvalidOperationException("Skill tree definition must be assigned.");
-        Skills = new SkillTreeApplication(skillTree.CreateCatalog(), Wallet, grid.StatEffects);
-        FindAnyObjectByType<CellPlacerAdapter>()?.Configure(Wallet, Prices, ConstructionStock, resources);
-        var singularities = grid.Owners.OfType<SingularityCellAdapter>().ToArray();
-        if (singularities.Length != 1) throw new InvalidOperationException("Initial field requires exactly one singularity.");
-        var singularity = singularities[0];
-        singularity.Configure(Deliveries);
-        // 登録と共有残高の構成後に接続を開始する。
-        singularity.InitializeSystem();
-        foreach (var shipping in grid.Owners.OfType<ShippingCellAdapter>())
-        { shipping.Configure(Wallet, Prices); shipping.InitializeSystem(); }
-        foreach (var depot in grid.Owners.OfType<ConstructionDepotCellAdapter>())
-        { depot.Configure(ConstructionStock); depot.InitializeSystem(); }
-        FindAnyObjectByType<CameraControllerAdapter>()?.FocusOn(singularity.WorldCenter);
-        _selection.Finish();
-        economyPanel.Configure(Wallet, Skills, FindAnyObjectByType<CellStatusViewAdapter>(), FindAnyObjectByType<CellPlacerAdapter>(), Deliveries);
-
-        IsChoosingStart=false; HasStarted=true;
-        return true;
-    }
-    public Vector2Int ShippingPreviewPosition(Vector2Int anchor)
-    {
-        var point=initialLayout.ShippingCell(anchor);return new Vector2Int(point.x,point.z);
-    }
-
-    private void PlaceInitialCells(Transform parent,Vector2Int anchor)
-    {
-        var occupied=initialLayout.SingularityPrefab.Footprint.Coordinates(anchor.x,anchor.y,0).ToHashSet();
-        var sale=initialLayout.ShippingCell(anchor);
-        var cells=parent.GetComponentsInChildren<CellBaseAdapter>().ToDictionary(c=>(Mathf.RoundToInt(c.transform.position.x),Mathf.RoundToInt(c.transform.position.z)));
-        if(occupied.Any(p=>!cells.TryGetValue(p,out var c) || c is not EmptyCellAdapter && c is not ResourceCellAdapter) ||
-            !cells.TryGetValue(sale,out var target) || target is not EmptyCellAdapter)
-            throw new InvalidOperationException("Selected start site is no longer available.");
-        // 初期配置で作るのは、この2設備だけ。範囲外の地形と資源は変更しない。
-        foreach(var point in occupied.Append(sale)) RetireInitialCell(cells[point]);
-        CreateInitialCell(initialLayout.SingularityPrefab,parent,anchor.x,anchor.y);
-        CreateInitialCell(initialLayout.ShippingPrefab,parent,sale.x,sale.z);
-    }
-    private static CellBaseAdapter CreateInitialCell(CellBaseAdapter prefab, Transform parent, int x, int z)
-    {
-        CellBaseAdapter cell;
 #if UNITY_EDITOR
-        if (!Application.isPlaying) cell = ((GameObject)PrefabUtility.InstantiatePrefab(prefab.gameObject, parent)).GetComponent<CellBaseAdapter>();
-        else
-#endif
-            cell = Instantiate(prefab, parent);
-        cell.transform.SetPositionAndRotation(new Vector3(x, 0, z), Quaternion.identity);
-        cell.name = $"Tile_{x}_{z}";
-        return cell;
-    }
-    private static void RetireInitialCell(CellBaseAdapter cell)
-    {
-        if (cell is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
-        cell.gameObject.SetActive(false);
-        if (Application.isPlaying) Destroy(cell.gameObject); else DestroyImmediate(cell.gameObject);
-    }
-
-    /// <summary>保存済み地形を読み取る。候補を成立させるための配置・削除は行わない。</summary>
-    public void PrepareStartSites(Transform parent)
-    {
-        initialLayout.Validate(gridSize);
-        var map=new StartSiteRulesDomain.Terrain[gridSize,gridSize];
-        foreach(var cell in parent.GetComponentsInChildren<CellBaseAdapter>())
-        {
-            var p=Vector3Int.RoundToInt(cell.transform.position);
-            if(p.x<0 || p.z<0 || p.x>=gridSize || p.z>=gridSize) continue;
-            if(cell is EmptyCellAdapter) map[p.x,p.z]=new StartSiteRulesDomain.Terrain(true);
-            else if(cell is ResourceCellAdapter raw) map[p.x,p.z]=new StartSiteRulesDomain.Terrain(false,raw.ResourceTypeDomain);
-        }
-        var prices=initialLayout.CreateCatalog();
-        prices.TryGetPlacementAmount(CellTypeDomain.ExtractorWood,1,out var extractor);
-        prices.TryGetPlacementAmount(CellTypeDomain.Conveyor,1,out var belt);
-        var origin=initialLayout.ShippingCell(Vector2Int.zero);
-        StartCandidates=StartSiteRulesDomain.Candidates(map,seedValue,initialLayout.SingularityPrefab.Footprint,origin,prices.InitialBalance,extractor,belt);
-        StartSites=Array.AsReadOnly(StartCandidates.Select(p=>new Vector2Int(p.X,p.Z)).ToArray());
-    }
-
-#if UNITY_EDITOR
-    // 生成処理は既存シーンのシリアライズ参照を保つため同じコンポーネントに置き、
-    // プレイヤーへは初期化処理だけを含める。
+    // 生成の設定とGUIDを保持し、実行時のゲーム開始はInitializerへ委ねる。
     /// <summary>
     /// シード値をランダムに設定
     /// </summary>

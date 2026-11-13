@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,9 +43,8 @@ public static class TestScenes
         return Object.FindObjectsByType<T>(inactive, FindObjectsSortMode.None).Where(item =>
             item is Component component && component.gameObject.scene == scene || item is GameObject gameObject && gameObject.scene == scene).ToArray();
     }
-    public static IEnumerable<(CellTypeDomain Type,int X,int Z,float Yaw)> StarterPlacements(GridFieldGeneratorAdapter generator)
+    public static IEnumerable<(CellTypeDomain Type,int X,int Z,float Yaw)> StarterPlacements(StartSiteRulesDomain.Candidate plan)
     {
-        var plan=generator.StartCandidates[generator.SelectedStartSite];
         float Yaw((int x,int z) a,(int x,int z) b)=>Quaternion.LookRotation(new Vector3(b.x-a.x,0,b.z-a.z)).eulerAngles.y;
         yield return (CellTypeDomain.ExtractorWood,plan.Extractor.x,plan.Extractor.z,Yaw(plan.Extractor,plan.Wood));
         for(var i=0;i<plan.Belts.Count;i++)

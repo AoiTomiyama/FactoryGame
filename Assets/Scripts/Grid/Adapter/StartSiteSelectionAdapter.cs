@@ -1,88 +1,125 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
-/// <summary>開始候補の地形プレビューと既存操作帯。確定後は通常のHUDへ操作を返す。</summary>
+/// <summary>開始候補の表示と操作。ゲーム開始の構成は呼出側へ通知する。</summary>
 public sealed class StartSiteSelectionAdapter : MonoBehaviour
 {
-    private GridFieldGeneratorAdapter _generator;
-    private CameraControllerAdapter _camera;
-    private HudLayoutAdapter _hud;
-    private OperationBarAdapter _bar;
+    [SerializeField] private CameraControllerAdapter cameraController;
+    [SerializeField] private HudLayoutAdapter hud;
+    [SerializeField] private OperationBarAdapter bar;
+    [SerializeField] private CellPlacerAdapter placer;
+    [SerializeField] private CellStatusViewAdapter statusView;
+    [SerializeField] private Material frameMaterial;
+    private GameStartApplication _session;
+    private CellFootprintDomain _footprint;
+    private Action _confirm;
     private readonly List<GameObject> _roots = new();
     private readonly List<GameObject> _previews = new();
     private readonly List<LineRenderer> _frames = new();
     private GameObject _shipping;
     private bool _finished;
-    public int SelectedIndex => _generator.SelectedStartSite;
-    public int Count => _generator.StartSites.Count;
-    public void Begin(GridFieldGeneratorAdapter generator)
+    public int SelectedIndex => _session?.SelectedIndex ?? 0;
+    public int Count => _session?.Candidates.Count ?? 0;
+    public bool CanChoose => _session != null && _session.CanChoose;
+
+    public void ValidateBindings()
     {
-        _generator=generator;
-        _camera=FindAnyObjectByType<CameraControllerAdapter>();
-        _hud=FindAnyObjectByType<HudLayoutAdapter>(FindObjectsInactive.Include);
-        _bar=FindAnyObjectByType<OperationBarAdapter>(FindObjectsInactive.Include);
-        var placer=FindAnyObjectByType<CellPlacerAdapter>();
+        if (cameraController == null || hud == null || bar == null || placer == null || statusView == null || frameMaterial == null ||
+            placer.PlaceholderPrefab(CellTypeDomain.Singularity) == null || placer.PlaceholderPrefab(CellTypeDomain.Shipping) == null)
+            throw new InvalidOperationException("Assign start-site presentation references.");
+    }
+    public void Begin(GameStartApplication session, CellFootprintDomain footprint, Action confirm)
+    {
+        ValidateBindings();
+        _session = session; _footprint = footprint; _confirm = confirm;
         placer.SetPlacementEnabled(false);
-        FindAnyObjectByType<CellStatusViewAdapter>()?.SetStatusWindowActive(false);
-        // 開始前は購入用HUDを構成せず、保存済み操作帯の3ボタンを使う。
-        _hud.gameObject.SetActive(false);
-        _camera?.SetStartSelection(true);
-        foreach(var anchor in generator.StartSites)
+        statusView.SetStatusWindowActive(false);
+        hud.gameObject.SetActive(false);
+        cameraController.SetStartSelection(true);
+        foreach (var candidate in session.Candidates)
         {
-            var root=new GameObject("StartSitePreview");_roots.Add(root);
-            var frame=root.AddComponent<LineRenderer>();
-            frame.sharedMaterial=generator.GridLineMaterial;
-            frame.useWorldSpace=true;frame.positionCount=4;frame.loop=true;frame.widthMultiplier=.12f;
-            frame.SetPositions(new[]{new Vector3(anchor.x-2.5f,.55f,anchor.y-2.5f),new Vector3(anchor.x-2.5f,.55f,anchor.y+2.5f),
-                new Vector3(anchor.x+2.5f,.55f,anchor.y+2.5f),new Vector3(anchor.x+2.5f,.55f,anchor.y-2.5f)});
+            var root = new GameObject("StartSitePreview"); _roots.Add(root);
+            root.transform.SetParent(transform, false);
+            var frame = root.AddComponent<LineRenderer>();
+            frame.sharedMaterial = frameMaterial;
+            frame.useWorldSpace = true; frame.positionCount = 4; frame.loop = true; frame.widthMultiplier = .12f;
+            var occupied = footprint.Coordinates(candidate.X, candidate.Z, 0).ToArray();
+            var left = occupied.Min(p => p.x) - .5f; var right = occupied.Max(p => p.x) + .5f;
+            var back = occupied.Min(p => p.z) - .5f; var front = occupied.Max(p => p.z) + .5f;
+            frame.SetPositions(new[] { new Vector3(left,.55f,back), new Vector3(left,.55f,front),
+                new Vector3(right,.55f,front), new Vector3(right,.55f,back) });
             _frames.Add(frame);
-            var preview=Instantiate(placer.PlaceholderPrefab(CellTypeDomain.Singularity),new Vector3(anchor.x,.02f,anchor.y),Quaternion.identity,root.transform);
-            DisablePreviewInput(preview);_previews.Add(preview);
+            var preview = Instantiate(placer.PlaceholderPrefab(CellTypeDomain.Singularity), new Vector3(candidate.X,.02f,candidate.Z), Quaternion.identity, root.transform);
+            DisablePreviewInput(preview); _previews.Add(preview);
         }
-        _shipping=Instantiate(placer.PlaceholderPrefab(CellTypeDomain.Shipping));
-        DisablePreviewInput(_shipping);_roots.Add(_shipping);
-        _bar.SetStartSelection(this);
+        _shipping = Instantiate(placer.PlaceholderPrefab(CellTypeDomain.Shipping), transform);
+        DisablePreviewInput(_shipping); _roots.Add(_shipping);
+        bar.SetStartSelection(this);
         RefreshSelection();
     }
     private static void DisablePreviewInput(GameObject preview)
     {
-        foreach(var collider in preview.GetComponentsInChildren<Collider>()) collider.enabled=false;
-        foreach(var script in preview.GetComponentsInChildren<MonoBehaviour>()) script.enabled=false;
+        foreach (var collider in preview.GetComponentsInChildren<Collider>()) collider.enabled = false;
+        foreach (var script in preview.GetComponentsInChildren<MonoBehaviour>()) script.enabled = false;
     }
-    public void Step(int delta) { if(Count>0) _generator.SelectStartSite((SelectedIndex+delta+Count)%Count); }
-    public void Confirm() => _generator.ConfirmStartSite();
+    public bool SelectAt(Vector3 point)
+    {
+        if (!CanChoose) return false;
+        for (var i = 0; i < Count; i++)
+        {
+            var candidate = _session.Candidates[i];
+            if (_footprint.Coordinates(candidate.X,candidate.Z,0).Contains((Mathf.RoundToInt(point.x),Mathf.RoundToInt(point.z))) && _session.TrySelect(i))
+            { RefreshSelection(); return true; }
+        }
+        return false;
+    }
+    public void Step(int delta)
+    {
+        if (CanChoose && _session.TrySelect((SelectedIndex + delta + Count) % Count)) RefreshSelection();
+    }
+    public void Confirm() { if (CanChoose) _confirm?.Invoke(); }
     public void RefreshSelection()
     {
-        if(Count==0)
+        bar.RefreshStartAvailability();
+        if (Count == 0)
         {
-            _shipping.SetActive(false);_bar.PlacementInfo.text="開始できる候補がありません";return;
+            _shipping.SetActive(false); bar.PlacementInfo.text = "開始できる候補がありません"; return;
         }
-        for(var i=0;i<_previews.Count;i++)
+        for (var i = 0; i < _previews.Count; i++)
         {
-            _previews[i].SetActive(i==SelectedIndex);
-            var color=i==SelectedIndex ? _hud.SelectedTabColor : _hud.IdleTabColor;
-            _frames[i].startColor=_frames[i].endColor=color;
-            var properties=new MaterialPropertyBlock();
-            properties.SetColor("_BaseColor",color);properties.SetColor("_Color",color);_frames[i].SetPropertyBlock(properties);
+            _previews[i].SetActive(i == SelectedIndex);
+            var color = i == SelectedIndex ? hud.SelectedTabColor : hud.IdleTabColor;
+            _frames[i].startColor = _frames[i].endColor = color;
+            var properties = new MaterialPropertyBlock();
+            properties.SetColor("_BaseColor",color); properties.SetColor("_Color",color); _frames[i].SetPropertyBlock(properties);
         }
-        var anchor=_generator.StartSites[SelectedIndex];
-        var shipping=_generator.ShippingPreviewPosition(anchor);
-        _shipping.transform.position=new Vector3(shipping.x,.02f,shipping.y);
-        _bar.PlacementInfo.text=$"候補 {SelectedIndex+1} / {Count}";
-        _camera?.FocusOn(new Vector3(anchor.x,0,anchor.y));
+        var selected = _session.Selected;
+        _shipping.transform.position = new Vector3(selected.Shipping.x,.02f,selected.Shipping.z);
+        bar.PlacementInfo.text = $"候補 {SelectedIndex + 1} / {Count}";
+        cameraController.FocusOn(new Vector3(selected.X,0,selected.Z));
     }
     public void Finish()
     {
-        if(_finished) return;_finished=true;
-        _bar.SetStartSelection(null);
-        _camera?.SetStartSelection(false);
-        _hud.gameObject.SetActive(true);
-        ClearPreviews();Destroy(this);
+        if (_finished) return; _finished = true; _confirm = null;
+        bar.SetStartSelection(null);
+        cameraController.SetStartSelection(false);
+        hud.gameObject.SetActive(true);
+        DisposePreviews(); Destroy(this);
     }
-    private void ClearPreviews()
+    public void StopAfterFailure()
     {
-        foreach(var root in _roots) if(root!=null) {root.SetActive(false);Destroy(root);}
-        _roots.Clear();
+        _confirm = null;
+        if (hud != null) hud.gameObject.SetActive(false);
+        if (bar != null) bar.SetStartSelection(this);
+        DisposePreviews();
     }
-    private void OnDestroy() => ClearPreviews();
+    public void DisposePreviews()
+    {
+        _confirm = null;
+        foreach (var root in _roots) if (root != null) { root.SetActive(false); Destroy(root); }
+        _roots.Clear(); _previews.Clear(); _frames.Clear();
+    }
+    private void OnDestroy() => DisposePreviews();
 }

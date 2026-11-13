@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -25,10 +25,10 @@ public static class EconomyLoopAssertions
         {
             await UniTask.DelayFrame(3);
             Require(EditorUtility.audioMasterMute, "muted before playback");
-            var generator = TestScenes.Find<GridFieldGeneratorAdapter>();
+            var initializer = TestScenes.Find<GameInitializerAdapter>();
             var grid = GridFieldDatabaseAdapter.Instance;
-            var wallet = generator.Wallet;
-            var panel = generator.GetComponent<EconomyPanelAdapter>();
+            var wallet = initializer.Wallet;
+            var panel = TestScenes.Find<EconomyPanelAdapter>();
             var view = TestScenes.Find<CellStatusViewAdapter>();
             var placer = TestScenes.Find<CellPlacerAdapter>();
             Require(wallet.Current.Balance == 100 && panel.BalanceText.Contains("残高 100"), "initial shared balance");
@@ -40,7 +40,7 @@ public static class EconomyLoopAssertions
             };
             void Place(int x, int z, CellTypeDomain type, float rotation = 0)
             {
-                Require(generator.Prices.TryGetPlacementAmount(type, 1, out var price), "defined equipment price");
+                Require(initializer.Prices.TryGetPlacementAmount(type, 1, out var price), "defined equipment price");
                 var balance = wallet.Current.Balance;
                 placer.transform.rotation = Quaternion.Euler(0, rotation, 0);
                 placer.SetSelectedCellType(type);
@@ -49,8 +49,8 @@ public static class EconomyLoopAssertions
                 Require(wallet.Current.Balance == balance - price, "placement charged once");
                 spent += price;
             }
-            var plan=generator.StartCandidates[generator.SelectedStartSite];
-            foreach(var command in TestScenes.StarterPlacements(generator)) Place(command.X,command.Z,command.Type,command.Yaw);
+            var plan=initializer.Session.Selected;
+            foreach(var command in TestScenes.StarterPlacements(initializer.Session.Selected)) Place(command.X,command.Z,command.Type,command.Yaw);
             Require(wallet.Current.Balance==100-spent,"starter route stays within initial budget");
             var extractor=grid.GetCell(plan.Extractor.x,plan.Extractor.z) as ExtractorCellAdapter;
             var tail=plan.Belts[plan.Belts.Count-1];var conveyor=grid.GetCell(tail.x,tail.z) as ConveyorCellAdapter;
@@ -74,12 +74,12 @@ public static class EconomyLoopAssertions
                 foreach (var branch in new[] { "wood-extraction", "wood-capacity", "stone-extraction", "stone-capacity", "storage-capacity", "crafter-input", "crafter-output", "export-transfer" })
                 {
                     var uid = branch + "-" + tier;
-                    var node = generator.Skills.Catalog.Nodes.Single(n => n.Uid == uid);
+                    var node = initializer.Skills.Catalog.Nodes.Single(n => n.Uid == uid);
                     await Funds(node.Price);
                     Require(panel.SkillButton(uid).interactable, "earned funds enable skill button");
                     panel.SkillButton(uid).onClick.Invoke();
                     panel.EquipmentView.UpgradeButton.onClick.Invoke();
-                    Require(generator.Skills.IsOwned(uid) && !panel.UpgradeInteractable, "detail action applies type skill once");
+                    Require(initializer.Skills.IsOwned(uid) && !panel.UpgradeInteractable, "detail action applies type skill once");
                     spent += node.Price;
                 }
                 Require(extractor.ExtractionAmount == baseExtraction * (tier + 1) &&
@@ -97,7 +97,7 @@ public static class EconomyLoopAssertions
             await Funds(before + 1);
             Require(wallet.Current.Balance == 100 + earned - spent && wallet.Current.ReservedExpense == 0,
                 "all purchases reconcile with actual conversion income");
-            Require(wallet.LastNotificationException == null && generator.Skills.LastNotificationException == null,
+            Require(wallet.LastNotificationException == null && initializer.Skills.LastNotificationException == null,
                 "UI and ability notifications succeed");
             Debug.Log($"Economy loop passed: {_checks} assertions; earned={earned}, spent={spent}, balance={wallet.Current.Balance}; initial100, actual sale, Lv3, all I/II, new equipment and continued income.");
             Time.timeScale = originalScale;
@@ -112,7 +112,7 @@ public static class EconomyLoopAssertions
     private static async UniTask Funds(long amount)
     {
         var deadline = Time.realtimeSinceStartup + 180;
-        while (TestScenes.Find<GridFieldGeneratorAdapter>().Wallet.Current.AvailableBalance < amount)
+        while (TestScenes.Find<GameInitializerAdapter>().Wallet.Current.AvailableBalance < amount)
         {
             if (Time.realtimeSinceStartup > deadline) throw new TimeoutException("Actual production did not fund next purchase: " + amount);
             await UniTask.Yield();

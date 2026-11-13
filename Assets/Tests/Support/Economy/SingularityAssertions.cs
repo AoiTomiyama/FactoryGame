@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Linq;
 using System.Reflection;
@@ -70,7 +70,7 @@ public static class SingularityAssertions
         var scene = TestScenes.CurrentScene;
         var source = TestScenes.Find<GridFieldGeneratorAdapter>();
         var generator = TestScenes.Clone(source);
-        var anchor = TestScenes.NewObject("GenerationVerification").transform;
+        var anchor = TestScenes.NewObject("GenerationVerification").AddComponent<GridFieldDatabaseAdapter>();
         try
         {
             Set(generator, "gridSize", 14);
@@ -78,10 +78,10 @@ public static class SingularityAssertions
             for (var seed = 0; seed < 3; seed++)
             {
                 Set(generator, "seedValue", seed);
-                generator.GenerateGrid(anchor);
+                generator.GenerateGrid(anchor.transform);
                 var cells=anchor.GetComponentsInChildren<CellBaseAdapter>();
                 Require(cells.Length==196 && cells.All(c=>c is EmptyCellAdapter || c is ResourceCellAdapter),"generation contains terrain only");
-                generator.PrepareStartSites(anchor);
+                GameInitializerAdapter.DiscoverStartSites(anchor, layout);
                 Require(anchor.GetComponentsInChildren<CellBaseAdapter>().SequenceEqual(cells),"candidate discovery preserves the generated terrain");
             }
             var rejected = false;
@@ -112,8 +112,8 @@ public static class SingularityAssertions
             _checks = 0;
             AudioListener.volume = 0;
             await UniTask.Yield();
-            var generator = TestScenes.Find<GridFieldGeneratorAdapter>();
-            var wallet = generator.Wallet;
+            var initializer = TestScenes.Find<GameInitializerAdapter>();
+            var wallet = initializer.Wallet;
             var grid = GridFieldDatabaseAdapter.Instance;
             var singularity = grid.Owners.OfType<SingularityCellAdapter>().Single();
             Require(singularity != null && wallet.Current.Balance == 100, "MainScene central singularity and shared wallet");
@@ -140,8 +140,8 @@ public static class SingularityAssertions
             var protectedResource=grid.Owners.OfType<ResourceCellAdapter>().First();
             Place(placer,protectedResource,CellTypeDomain.Empty,0);
             Require(protectedResource!=null,"resource deletion protected");
-            var plan=generator.StartCandidates[generator.SelectedStartSite];
-            foreach(var command in TestScenes.StarterPlacements(generator)) Place(placer,grid.GetCell(command.X,command.Z),command.Type,command.Yaw);
+            var plan=initializer.Session.Selected;
+            foreach(var command in TestScenes.StarterPlacements(initializer.Session.Selected)) Place(placer,grid.GetCell(command.X,command.Z),command.Type,command.Yaw);
             var miner=(ExtractorCellAdapter)grid.GetCell(plan.Extractor.x,plan.Extractor.z);
             var tail=plan.Belts[plan.Belts.Count-1];var conveyor=(ConveyorCellAdapter)grid.GetCell(tail.x,tail.z);
             var pool=ResourceItemObjectPoolAdapter.Instance;var scale=Time.timeScale;Time.timeScale=20;
@@ -151,7 +151,7 @@ public static class SingularityAssertions
             Time.timeScale=scale;
             var empty = grid.Owners.OfType<EmptyCellAdapter>().First(c => c.XIndex > 5 && c.XIndex < 40 && c.ZIndex > 5 && c.ZIndex < 40);
             var x = empty.XIndex; var z = empty.ZIndex; var purchaseBalance = wallet.Current.Balance;
-            TestScenes.Find<GridFieldGeneratorAdapter>().ConstructionStock.TryReserveDeposit(ResourceTypeDomain.MachineParts, 1, out var parts); parts.TryCommit();
+            TestScenes.Find<GameInitializerAdapter>().ConstructionStock.TryReserveDeposit(ResourceTypeDomain.MachineParts, 1, out var parts); parts.TryCommit();
             Place(placer, empty, CellTypeDomain.Shipping, 90);
             var added = grid.GetCell(x, z) as ShippingCellAdapter;
             Require(added != null && wallet.Current.Balance == purchaseBalance - 30, "additional shipping purchased through existing placement transaction");
@@ -204,7 +204,7 @@ public static class SingularityAssertions
         {
             var clone = TestScenes.Clone(singularity);
             var localWallet = new CurrencyWalletApplication(0);
-            clone.Configure(localWallet, TestScenes.Find<GridFieldGeneratorAdapter>().Prices);
+            clone.Configure(localWallet, TestScenes.Find<GameInitializerAdapter>().Prices);
             clone.XIndex = 0; clone.ZIndex = 0;
             clone.InitializeSystem();
             var resources = new ResourceTransitStoreApplication();

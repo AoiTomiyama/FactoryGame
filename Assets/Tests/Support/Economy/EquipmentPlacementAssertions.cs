@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Reflection;
 using System.IO;
@@ -73,12 +73,12 @@ public static class EquipmentPlacementAssertions
             await UniTask.Yield();
             var grid = GridFieldDatabaseAdapter.Instance;
             AudioListener.volume = 0;
-            var generator = TestScenes.Find<GridFieldGeneratorAdapter>();
+            var initializer = TestScenes.Find<GameInitializerAdapter>();
             // このケースは配置の復元を扱う。材料不足はConstructionStockTestsで独立して確認する。
             foreach (var type in new[] { ResourceTypeDomain.Plank, ResourceTypeDomain.IronIngot })
-            { generator.ConstructionStock.TryReserveDeposit(type, 200, out var ticket); ticket.TryCommit(); }
+            { initializer.ConstructionStock.TryReserveDeposit(type, 200, out var ticket); ticket.TryCommit(); }
             var placer = TestScenes.Find<CellPlacerAdapter>();
-            var wallet = generator.Wallet;
+            var wallet = initializer.Wallet;
             Require(wallet.Current.Balance == 100, "shared starting balance");
             // 初回経路は課金後も100以内で成立する。
             var strip=grid.Owners.OfType<EmptyCellAdapter>().First(c=>c.ZIndex>0 && grid.IsWithinBounds(c.XIndex,c.ZIndex+2) &&
@@ -115,7 +115,7 @@ public static class EquipmentPlacementAssertions
             placer.SelectGrid(grid.GetCell(testX, testZ+2).gameObject); placer.PointerBegin();
             placer.SelectGrid(grid.GetCell(testX, testZ).gameObject); placer.PointerDrag();
             Require(placer.PreviewCount == 3 && placer.PreviewCost == 15 && placer.PreviewText.Contains("15"), "range preview quantity and cost");
-            var panel = generator.GetComponent<EconomyPanelAdapter>();
+            var panel = TestScenes.Find<EconomyPanelAdapter>();
             var availableBeforeToggle = wallet.Current.AvailableBalance;
             panel.ShowPage(1); panel.ShowPage(2); panel.ShowPage(0);
             panel.SetExpanded(false); panel.SetExpanded(true);
