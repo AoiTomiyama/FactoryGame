@@ -17,22 +17,12 @@ public sealed class InitialCellPlacementAdapter
             !cells.TryGetValue(sale, out var target) || target is not EmptyCellAdapter)
             throw new InvalidOperationException("Selected start site is no longer available.");
 
-        SingularityCellAdapter core = null; ShippingCellAdapter shipping = null;
-        try
-        {
-            // 作成が失敗しても地形を失わないよう、2設備を先に揃える。
-            core = UnityEngine.Object.Instantiate(definition.SingularityPrefab, field.transform);
-            shipping = UnityEngine.Object.Instantiate(definition.ShippingPrefab, field.transform);
-            core.transform.SetPositionAndRotation(new Vector3(anchor.x, 0, anchor.y), Quaternion.identity);
-            shipping.transform.SetPositionAndRotation(new Vector3(sale.x, 0, sale.z), Quaternion.identity);
-            core.name = $"Tile_{anchor.x}_{anchor.y}"; shipping.name = $"Tile_{sale.x}_{sale.z}";
-        }
-        catch
-        {
-            if (core != null) Retire(core);
-            if (shipping != null) Retire(shipping);
-            throw;
-        }
+        // 作成を先に済ませる。例外時は呼出側へ伝え、作成途中の状態を調査用に残す。
+        var core = UnityEngine.Object.Instantiate(definition.SingularityPrefab, field.transform);
+        var shipping = UnityEngine.Object.Instantiate(definition.ShippingPrefab, field.transform);
+        core.transform.SetPositionAndRotation(new Vector3(anchor.x, 0, anchor.y), Quaternion.identity);
+        shipping.transform.SetPositionAndRotation(new Vector3(sale.x, 0, sale.z), Quaternion.identity);
+        core.name = $"Tile_{anchor.x}_{anchor.y}"; shipping.name = $"Tile_{sale.x}_{sale.z}";
         // 初期配置で作るセルはこの2設備だけ。範囲外は触らない。
         foreach (var p in occupied.Append(sale)) Retire(cells[p]);
         return (core, shipping);

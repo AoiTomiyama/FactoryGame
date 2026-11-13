@@ -26,10 +26,20 @@ public sealed class StartSiteSelectionAdapter : MonoBehaviour
 
     public void ValidateBindings()
     {
-        if (cameraController == null || hud == null || bar == null || placer == null || statusView == null || frameMaterial == null ||
-            placer.PlaceholderPrefab(CellTypeDomain.Singularity) == null || placer.PlaceholderPrefab(CellTypeDomain.Shipping) == null)
-            throw new InvalidOperationException("Assign start-site presentation references.");
+        var missing = new List<string>();
+        if (cameraController == null) missing.Add(nameof(cameraController));
+        if (hud == null) missing.Add(nameof(hud));
+        if (bar == null) missing.Add(nameof(bar));
+        if (placer == null) missing.Add(nameof(placer));
+        if (statusView == null) missing.Add(nameof(statusView));
+        if (frameMaterial == null) missing.Add(nameof(frameMaterial));
+        if (missing.Count > 0) ReportMissingReferences(missing);
+        if (placer.PlaceholderPrefab(CellTypeDomain.Singularity) == null) missing.Add("placer.PlaceholderPrefab(Singularity)");
+        if (placer.PlaceholderPrefab(CellTypeDomain.Shipping) == null) missing.Add("placer.PlaceholderPrefab(Shipping)");
+        if (missing.Count > 0) ReportMissingReferences(missing);
     }
+    private void ReportMissingReferences(List<string> missing)
+        => throw new MissingReferenceException($"{nameof(StartSiteSelectionAdapter)}: missing references [{string.Join(", ", missing)}] on '{name}' (Scene: '{gameObject.scene.path}').");
     public void Begin(GameStartApplication session, CellFootprintDomain footprint, Action confirm)
     {
         ValidateBindings();
@@ -107,13 +117,6 @@ public sealed class StartSiteSelectionAdapter : MonoBehaviour
         cameraController.SetStartSelection(false);
         hud.gameObject.SetActive(true);
         DisposePreviews(); Destroy(this);
-    }
-    public void StopAfterFailure()
-    {
-        _confirm = null;
-        if (hud != null) hud.gameObject.SetActive(false);
-        if (bar != null) bar.SetStartSelection(this);
-        DisposePreviews();
     }
     public void DisposePreviews()
     {

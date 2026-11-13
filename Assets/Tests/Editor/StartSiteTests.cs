@@ -151,4 +151,56 @@ public sealed class GameStartSessionTests
         Assert.Throws<System.InvalidOperationException>(() => session.Prepare(System.Array.Empty<StartSiteRulesDomain.Candidate>()));
     }
 }
+[TestFixture, Category("Startup")]
+public sealed class StartupReferenceDiagnosticsTests : FactoryEditModeScope
+{
+    protected override bool NeedsMainScene => true;
+
+    [Test] public void MissingInitializerReferencesIncludeMemberAndContext()
+    {
+        var source = TestScenes.Find<GameInitializerAdapter>();
+        foreach (var member in new[] { "field", "initialLayout", "skillTree", "resources", "economyPanel", "placer", "statusView", "cameraController", "cursor", "selection" })
+        {
+            var target = TestScenes.NewObject("Missing_" + member).AddComponent<GameInitializerAdapter>();
+            EditorUtility.CopySerialized(source, target);
+            var edit = new SerializedObject(target);
+            edit.FindProperty(member).objectReferenceValue = null; edit.ApplyModifiedPropertiesWithoutUndo();
+            ExpectMissing(nameof(GameInitializerAdapter), member, target.name);
+            Assert.That(target.TryPrepareNewGame(), Is.False);
+            Assert.That(target.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Failed));
+        }
+    }
+    [Test] public void MissingPresentationReferencesIncludeMemberAndContext()
+    {
+        foreach (var member in new[] { "cameraController", "hud", "bar", "placer", "statusView", "frameMaterial" })
+        {
+            var view = TestScenes.NewObject("MissingView_" + member).AddComponent<StartSiteSelectionAdapter>();
+            EditorUtility.CopySerialized(TestScenes.Find<StartSiteSelectionAdapter>(), view);
+            var edit = new SerializedObject(view);
+            edit.FindProperty(member).objectReferenceValue = null; edit.ApplyModifiedPropertiesWithoutUndo();
+            var target = TestScenes.NewObject("DiagnosticInitializer_" + member).AddComponent<GameInitializerAdapter>();
+            EditorUtility.CopySerialized(TestScenes.Find<GameInitializerAdapter>(), target);
+            edit = new SerializedObject(target); edit.FindProperty("selection").objectReferenceValue = view; edit.ApplyModifiedPropertiesWithoutUndo();
+            ExpectMissing(nameof(StartSiteSelectionAdapter), member, view.name);
+            Assert.That(target.TryPrepareNewGame(), Is.False);
+        }
+    }
+    [Test] public void MultipleMissingReferencesAreReportedTogether()
+    {
+        var target = TestScenes.NewObject("MultipleMissing").AddComponent<GameInitializerAdapter>();
+        EditorUtility.CopySerialized(TestScenes.Find<GameInitializerAdapter>(), target);
+        var edit = new SerializedObject(target);
+        edit.FindProperty("resources").objectReferenceValue = null;
+        edit.FindProperty("skillTree").objectReferenceValue = null; edit.ApplyModifiedPropertiesWithoutUndo();
+        ExpectMissing(nameof(GameInitializerAdapter), "skillTree, resources", target.name);
+        Assert.That(target.TryPrepareNewGame(), Is.False);
+    }
+    private static void ExpectMissing(string component, string members, string owner)
+    {
+        var escape = new System.Func<string,string>(System.Text.RegularExpressions.Regex.Escape);
+        var pattern = "Game initialization failed during preparation:[\\s\\S]*" + escape(component) +
+            ": missing references \\[" + escape(members) + "\\] on '" + escape(owner) + "' \\(Scene: '[^']*'\\)[\\s\\S]*ValidateConfiguration";
+        UnityEngine.TestTools.LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex(pattern));
+    }
+}
 #endif

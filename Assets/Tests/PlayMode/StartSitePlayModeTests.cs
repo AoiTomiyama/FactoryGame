@@ -22,17 +22,20 @@ public sealed class StartSitePlayModeTests : FactoryPlayModeScope
         var initializer = TestScenes.Find<GameInitializerAdapter>();
         var grid = GridFieldDatabaseAdapter.Instance;
         var before = grid.GetComponentsInChildren<CellBaseAdapter>().ToDictionary(c=>c,c=>c.transform.position);
+        var previews = initializer.GetComponentsInChildren<LineRenderer>().ToArray();
+        var bar = TestScenes.Find<OperationBarAdapter>(); var wasInteractable = bar.WalkButton.interactable;
         var edit = new UnityEditor.SerializedObject(initializer);
         edit.FindProperty("resources").objectReferenceValue = null; edit.ApplyModifiedPropertiesWithoutUndo();
-        LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("Game initialization failed during start"));
+        LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("Game initialization failed during start:[\\s\\S]*GameInitializerAdapter: missing references \\[resources\\][\\s\\S]*ValidateConfiguration"));
         Assert.That(initializer.TryStartGame(), Is.False);
         Assert.That(initializer.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Failed));
         Assert.That(initializer.Wallet, Is.Null);
         Assert.That(grid.GetComponentsInChildren<CellBaseAdapter>(), Is.EquivalentTo(before.Keys));
         foreach (var pair in before) Assert.That(pair.Key.transform.position, Is.EqualTo(pair.Value));
         Assert.That(initializer.TryStartGame(), Is.False);
-        Assert.That(TestScenes.Find<OperationBarAdapter>().WalkButton.interactable, Is.False);
         yield return null;
+        Assert.That(bar.WalkButton.interactable, Is.EqualTo(wasInteractable), "failure preserves the UI state for inspection");
+        foreach (var preview in previews) Assert.That(preview != null, Is.True, "failure preserves the preview objects");
     }
     [UnityTest] public IEnumerator FailureAfterPlacementRejectsAnotherPlacement()
     {

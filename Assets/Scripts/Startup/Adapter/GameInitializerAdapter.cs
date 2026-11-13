@@ -57,9 +57,9 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         if (!Session.TryBegin(out var candidate)) return false;
         try
         {
-            selection.RefreshSelection();
             // 予測できる設定不足を、地形を置き換える前に検出する。
             ValidateConfiguration();
+            selection.RefreshSelection();
             var prices = initialLayout.CreateCatalog();
             var wallet = new CurrencyWalletApplication(prices.InitialBalance);
             var stock = new ConstructionStockApplication(resources.GetAllResources().Select(r => r.ResourceTypeDomain));
@@ -92,9 +92,19 @@ public sealed class GameInitializerAdapter : MonoBehaviour
 
     private void ValidateConfiguration()
     {
-        if (field == null || initialLayout == null || skillTree == null || resources == null ||
-            economyPanel == null || placer == null || statusView == null || cameraController == null || cursor == null || selection == null)
-            throw new InvalidOperationException("Assign all game startup references.");
+        var missing = new List<string>();
+        if (field == null) missing.Add(nameof(field));
+        if (initialLayout == null) missing.Add(nameof(initialLayout));
+        if (skillTree == null) missing.Add(nameof(skillTree));
+        if (resources == null) missing.Add(nameof(resources));
+        if (economyPanel == null) missing.Add(nameof(economyPanel));
+        if (placer == null) missing.Add(nameof(placer));
+        if (statusView == null) missing.Add(nameof(statusView));
+        if (cameraController == null) missing.Add(nameof(cameraController));
+        if (cursor == null) missing.Add(nameof(cursor));
+        if (selection == null) missing.Add(nameof(selection));
+        if (missing.Count > 0)
+            throw new MissingReferenceException($"{nameof(GameInitializerAdapter)}: missing references [{string.Join(", ", missing)}] on '{name}' (Scene: '{gameObject.scene.path}').");
         initialLayout.Validate(field.GeneratedSize);
         _ = skillTree.CreateCatalog();
         _ = new ConstructionStockApplication(resources.GetAllResources().Select(r => r.ResourceTypeDomain));
@@ -102,11 +112,9 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     }
     private void Fail(string stage, Exception exception)
     {
-        Session.Fail();
-        if (placer != null) placer.SetPlacementEnabled(false);
-        if (cameraController != null) cameraController.SetStartSelection(true);
-        if (selection != null) selection.StopAfterFailure();
+        // 最初の例外を先に記録し、調査対象のSceneとUIはそのまま残す。
         Debug.LogError($"Game initialization failed during {stage}: {exception}", this);
+        Session.Fail();
     }
     private void OnDestroy() { if (selection != null) selection.DisposePreviews(); }
 }
