@@ -32,6 +32,33 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     public override CellTypeDomain ProgressionType => IsExportConveyor ? CellTypeDomain.ExportConveyor : CellTypeDomain.Conveyor;
     protected override void ValidateBaseStats() => ValidateStat(transferAmount, EquipmentStatDomain.TransferAmount);
     protected bool HasResource { get; set; }
+    public SaveGameApplication.Slot[] CaptureBatches(Action<int> registerOwner)
+    {
+        if (ResourceId == 0 || _incomingReservationAmount != 0 || _activeTransfer?.CurrentStage == ResourceTransferOperationApplication.Stage.Completed)
+            return Array.Empty<SaveGameApplication.Slot>();
+        if (_resourceOwner == null || !_resourceOwner.Resources.TryGet(ResourceId,out var data))
+            throw new InvalidOperationException("Conveyor owns a missing resource batch.");
+        registerOwner(ResourceId);
+        return new[] {SaveGameApplication.SlotValue(0,data.Type,data.Amount)};
+    }
+    public void RestoreExportRole(bool exporter)
+    {
+        if (exporter && !IsExportConveyor) EnableExportMode(false);
+    }
+    public void ValidateSavedRole(bool exporter, SharedStatEffectsApplication effects)
+    {
+        var amount = exporter && exportDefinition != null ? exportDefinition.BaseTransferAmount : transferAmount;
+        EffectiveStatsRulesDomain.Calculate(amount,effects.GetModifier(exporter ? CellTypeDomain.ExportConveyor : CellTypeDomain.Conveyor,EquipmentStatDomain.TransferAmount));
+    }
+    public void RestoreBatches(SaveGameApplication.Slot[] batches)
+    {
+        if (_cts != null || ResourceId != 0 || HasResource) throw new InvalidOperationException("Restore requires fresh conveyor.");
+        if (batches.Length == 0) return;
+        var slot = batches[0];
+        ResourceId = ResourceItemObjectPoolAdapter.Instance.CreateIdFromResourceData(SaveKeysApplication.Resource(slot.resource),slot.amount);
+        HasResource = true; _readyToSend = true;
+        _resourceOwner.SetPosition(ResourceId,transform.position + Vector3.up * 1.1f);
+    }
 
     /// <summary>
     /// 保持しているリソースのID値。
@@ -172,13 +199,13 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         catch (OperationCanceledException) when(token.IsCancellationRequested) { }
         finally { _modeEvaluationQueued = false; }
     }
-    private void EnableExportMode()
+    private void EnableExportMode(bool bindProgression = true)
     {
         GameObject prepared = null;
         var amount = exportDefinition != null ? exportDefinition.BaseTransferAmount : transferAmount;
         var grid = GridFieldDatabaseAdapter.Instance;
         // 状態を変える前に能力値と見た目を用意し、失敗時は元の搬送を保つ。
-        EffectiveStatsRulesDomain.Calculate(amount,grid.StatEffects.GetModifier(CellTypeDomain.ExportConveyor,EquipmentStatDomain.TransferAmount));
+        if (bindProgression) EffectiveStatsRulesDomain.Calculate(amount,grid.StatEffects.GetModifier(CellTypeDomain.ExportConveyor,EquipmentStatDomain.TransferAmount));
         var model = transform.Find("Model");
         try
         {
@@ -194,7 +221,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         }
         catch { if (prepared != null) Destroy(prepared); throw; }
         _exportMode = true; transferAmount = amount;
-        ConfigureProgression(grid.StatEffects);
+        if (bindProgression) ConfigureProgression(grid.StatEffects);
         if (prepared != null)
         {
             foreach (Transform child in model)
@@ -263,6 +290,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         _transferLoopStarted = true;
         try
         {
+            await UniTask.Yield(PlayerLoopTiming.Update,token);
             while (!token.IsCancellationRequested)
             {
                 _status = TransferStatus.CheckForStorage;

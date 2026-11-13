@@ -22,6 +22,9 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     private bool _isActivate;
     private bool _runnerActive;
     private CancellationTokenSource _cts;
+    private int _cycleAmount;
+    private float _cycleSeconds;
+    private SaveGameApplication.Job _resumeJob;
 
     public int CurrentLoad { get; private set; }
     public float ElapsedTime { get; private set; }
@@ -40,6 +43,28 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     protected override void OnStatsChanged() => UpdateUI();
 
     public IUIDataProviderApplication GetDataProvider() => CellStatusProviderAdapter.Create(this, extractorProvider);
+    public SaveGameApplication.Slot[] CaptureInventory() => CurrentLoad == 0 ? Array.Empty<SaveGameApplication.Slot>() :
+        new[] { SaveGameApplication.SlotValue(0,resourceType,CurrentLoad) };
+    public SaveGameApplication.Job CaptureJob() => _cycleAmount == 0 ? _resumeJob : new()
+        {amount = _cycleAmount, seconds = _cycleSeconds, elapsed = ElapsedTime, result = SaveKeysApplication.Key(resourceType), inputs = Array.Empty<SaveGameApplication.Slot>()};
+    public void ValidateSavedState(SaveGameApplication.Cell data, SharedStatEffectsApplication effects)
+    {
+        var limit = EffectiveStatsRulesDomain.Calculate(storageCapacity,effects.GetModifier(ProgressionType,EquipmentStatDomain.Capacity));
+        var amountLimit = EffectiveStatsRulesDomain.Calculate(extractionAmount,effects.GetModifier(ProgressionType,EquipmentStatDomain.ExtractionAmount));
+        if (data.inventory.Length > 1 || data.inventory.Length == 1 && (data.inventory[0].port != 0 ||
+            SaveKeysApplication.Resource(data.inventory[0].resource) != resourceType || data.inventory[0].amount > limit))
+            throw new InvalidOperationException("Invalid saved extraction inventory.");
+        var load = data.inventory.Length == 0 ? 0 : data.inventory[0].amount;
+        if (data.job != null && (data.job.inputs.Length != 0 || SaveKeysApplication.Resource(data.job.result) != resourceType ||
+            data.job.seconds <= 0 || data.job.amount > amountLimit || data.job.amount > limit - load))
+            throw new InvalidOperationException("Invalid saved extraction cycle.");
+    }
+    public void RestoreState(SaveGameApplication.Cell data)
+    {
+        if (_initialized || CurrentLoad != 0) throw new InvalidOperationException("Restore requires fresh extractor.");
+        CurrentLoad = data.inventory.Length == 0 ? 0 : data.inventory[0].amount;
+        _resumeJob = data.job;
+    }
 
     public override void InitializeSystem()
     {
@@ -117,6 +142,7 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
         _cts = null;
         _forwardCell = null;
         source?.Cancel();
+        _cycleAmount = 0;
         if (ElapsedTime != 0)
         {
             ElapsedTime = 0;
@@ -132,21 +158,26 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
         Tween tween = null;
         try
         {
+            await UniTask.Yield(PlayerLoopTiming.Update,token);
             while (_isActivate && !token.IsCancellationRequested)
             {
                 await UniTask.WaitUntil(() => CurrentLoad < StorageCapacity, cancellationToken: token);
                 // 周期開始時の空きと抽出量を固定し、途中の強化は次周期へ反映する。
-                var cycleAmount = Mathf.Min(StorageCapacity - CurrentLoad, ExtractionAmount);
+                _cycleAmount = _resumeJob?.amount ?? Mathf.Min(StorageCapacity - CurrentLoad, ExtractionAmount);
+                _cycleSeconds = _resumeJob?.seconds ?? ExtractionSecond;
+                ElapsedTime = _resumeJob?.elapsed ?? 0;
+                _resumeJob = null;
                 var completed = false;
                 tween = DOTween.To(() => ElapsedTime, x => ElapsedTime = x,
-                        ExtractionSecond, ExtractionSecond)
+                        _cycleSeconds, Mathf.Max(0,_cycleSeconds - ElapsedTime))
                     .OnUpdate(UpdateUI).OnComplete(() => completed = true).SetEase(Ease.Linear);
                 await tween.ToUniTask(TweenCancelBehaviour.CancelAwait, token);
                 // Tween完了と資源確定は別。取消・削除・交換・外部Killでは未完了分を増やさない。
                 if (token.IsCancellationRequested || !completed || !_isActivate || !isActiveAndEnabled ||
                     !_initialized || target == null || ResolveForwardResource() != target) return;
                 ElapsedTime = 0;
-                CurrentLoad += cycleAmount;
+                CurrentLoad += _cycleAmount;
+                _cycleAmount = 0;
                 UpdateUI();
                 tween = null;
             }
@@ -161,6 +192,7 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
             if (ReferenceEquals(_cts, source))
             {
                 _cts = null;
+                _cycleAmount = 0;
                 ElapsedTime = 0;
                 UpdateUI();
             }

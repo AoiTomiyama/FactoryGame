@@ -17,6 +17,20 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
     public event Action StatusChanged;
     public ResourceTypeDomain StoredResourceType { get; private set; } = ResourceTypeDomain.None;
     public IUIDataProviderApplication GetDataProvider() => CellStatusProviderAdapter.Create(this, dataProvider);
+    public SaveGameApplication.Slot[] CaptureInventory() => CurrentLoad == 0 ? Array.Empty<SaveGameApplication.Slot>() :
+        new[] { SaveGameApplication.SlotValue(0,StoredResourceType,CurrentLoad) };
+    public void ValidateSavedInventory(SaveGameApplication.Slot[] values, SharedStatEffectsApplication effects)
+    {
+        var limit = EffectiveStatsRulesDomain.Calculate(capacity,effects.GetModifier(ProgressionType,EquipmentStatDomain.Capacity));
+        if (values.Length > 1 || values.Length == 1 && (values[0].port != 0 || values[0].amount > limit))
+            throw new InvalidOperationException("Saved storage exceeds capacity or has invalid slots.");
+    }
+    public void RestoreInventory(SaveGameApplication.Slot[] values)
+    {
+        if (CurrentLoad != 0 || AllocatedAmount != 0) throw new InvalidOperationException("Restore requires fresh storage.");
+        if (values.Length == 0) return;
+        StoredResourceType = SaveKeysApplication.Resource(values[0].resource); CurrentLoad = values[0].amount;
+    }
 
     private ResourceStorageRulesDomain.Stock Stock => new(StoredResourceType, CurrentLoad, AllocatedAmount);
 

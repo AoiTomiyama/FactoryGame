@@ -16,6 +16,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     [SerializeField] private CameraControllerAdapter cameraController;
     [SerializeField] private PlayerCursorBehaviourAdapter cursor;
     [SerializeField] private StartSiteSelectionAdapter selection;
+    [SerializeField] private GameSaveAdapter saves;
 
     public GameStartApplication Session { get; } = new();
     public CurrencyWalletApplication Wallet { get; private set; }
@@ -23,12 +24,25 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     public ConstructionStockApplication ConstructionStock { get; private set; }
     public DeliveryProgressApplication Deliveries { get; private set; }
     public SkillTreeApplication Skills { get; private set; }
+    public GameSaveAdapter Saves => saves;
+    public IEnumerable<ResourceTypeDomain> RegisteredResources => resources.GetAllResources().Select(r => r.ResourceTypeDomain);
 
-    private void Start() => TryPrepareNewGame();
+    private void Start()
+    {
+        try
+        {
+            ValidateConfiguration();
+            cursor.ConfigureStartup(Session,selection,cameraController);
+            saves.Configure(this,new SaveWorldAdapter(field,placer),selection.Layout.Save);
+            Session.ShowMenu();
+            selection.BeginMenu(() => TryPrepareNewGame(),() => TryRestoreGame(),saves.Storage.Exists);
+        }
+        catch (Exception exception) { Fail("preparation",exception); }
+    }
 
     public bool TryPrepareNewGame()
     {
-        if (Session.CurrentStage != GameStartApplication.Stage.Uninitialized) return false;
+        if (Session.CurrentStage is not (GameStartApplication.Stage.Uninitialized or GameStartApplication.Stage.Menu)) return false;
         try
         {
             ValidateConfiguration();
@@ -39,6 +53,36 @@ public sealed class GameInitializerAdapter : MonoBehaviour
             return true;
         }
         catch (Exception exception) { Fail("preparation", exception); return false; }
+    }
+
+    public bool TryRestoreGame()
+    {
+        if (Session.CurrentStage != GameStartApplication.Stage.Menu) return false;
+        try
+        {
+            ValidateConfiguration();
+            var data = saves.Read();
+            var world = new SaveWorldAdapter(field,placer);
+            var catalog = skillTree.CreateCatalog();
+            // ファイルと定義の検査を終えるまで、Sceneの地形を変更しない。
+            world.Validate(data,catalog,RegisteredResources);
+            if (!Session.TryBeginRestore()) return false;
+            var cells = world.BuildCells(data);
+            Prices = initialLayout.CreateCatalog(); Wallet = new CurrencyWalletApplication(data.balance);
+            ConstructionStock = new ConstructionStockApplication(RegisteredResources);
+            ConstructionStock.RestoreStored(SaveGameApplication.StockValues(data.construction));
+            Deliveries = new DeliveryProgressApplication(initialLayout.CreateDeliveryCatalog());
+            Deliveries.RestoreDelivered(SaveGameApplication.StockValues(data.deliveries));
+            Skills = new SkillTreeApplication(catalog,Wallet,field.StatEffects);
+            Skills.RestoreOwned(data.skills);
+            world.RestoreCellStates(data,cells);
+            var core = cells.OfType<SingularityCellAdapter>().Single();
+            ConfigureGameplay(core);
+            cameraController.FocusOn(core.WorldCenter);
+            Session.Complete(); selection.Finish();
+            return true;
+        }
+        catch (Exception exception) { Fail("load",exception); return false; }
     }
 
     public static IReadOnlyList<StartSiteRulesDomain.Candidate> DiscoverStartSites(
@@ -82,11 +126,13 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     private void ConfigureGameplay(SingularityCellAdapter core)
     {
         placer.Configure(Wallet, Prices, ConstructionStock, resources);
-        core.Configure(Deliveries); core.InitializeSystem();
+        core.Configure(Deliveries);
         foreach (var shipping in field.Owners.OfType<ShippingCellAdapter>())
-        { shipping.Configure(Wallet, Prices); shipping.InitializeSystem(); }
+        { shipping.Configure(Wallet, Prices); }
         foreach (var depot in field.Owners.OfType<ConstructionDepotCellAdapter>())
-        { depot.Configure(ConstructionStock); depot.InitializeSystem(); }
+        { depot.Configure(ConstructionStock); }
+        // 全在庫・能力・受入先が揃ってから接続と非同期処理を開始する。
+        foreach (var cell in field.Owners) cell.InitializeSystem();
         economyPanel.Configure(Wallet, Skills, statusView, placer, Deliveries);
     }
 
@@ -103,6 +149,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         if (cameraController == null) missing.Add(nameof(cameraController));
         if (cursor == null) missing.Add(nameof(cursor));
         if (selection == null) missing.Add(nameof(selection));
+        if (saves == null) missing.Add(nameof(saves));
         if (missing.Count > 0)
             throw new MissingReferenceException($"{nameof(GameInitializerAdapter)}: missing references [{string.Join(", ", missing)}] on '{name}' (Scene: '{gameObject.scene.path}').");
         initialLayout.Validate(field.GeneratedSize);

@@ -5,16 +5,26 @@ using System.Linq;
 /// <summary>開始地点の選択と、開始処理の一回性を管理する。Scene操作は呼出側が担当する。</summary>
 public sealed class GameStartApplication
 {
-    public enum Stage { Uninitialized, Choosing, Starting, Running, Failed }
+    public enum Stage { Uninitialized, Menu, Choosing, Starting, Running, Failed }
     public Stage CurrentStage { get; private set; }
     public IReadOnlyList<StartSiteRulesDomain.Candidate> Candidates { get; private set; } = Array.Empty<StartSiteRulesDomain.Candidate>();
     public int SelectedIndex { get; private set; }
     public StartSiteRulesDomain.Candidate Selected => Candidates.Count == 0 ? null : Candidates[SelectedIndex];
     public bool CanChoose => CurrentStage == Stage.Choosing && Candidates.Count > 0;
+    public void ShowMenu()
+    {
+        if (CurrentStage != Stage.Uninitialized) throw new InvalidOperationException("Start menu has already been prepared.");
+        CurrentStage = Stage.Menu;
+    }
+    public bool TryBeginRestore()
+    {
+        if (CurrentStage != Stage.Menu) return false;
+        CurrentStage = Stage.Starting; return true;
+    }
 
     public void Prepare(IEnumerable<StartSiteRulesDomain.Candidate> candidates)
     {
-        if (CurrentStage != Stage.Uninitialized) throw new InvalidOperationException("Start session has already been prepared.");
+        if (CurrentStage is not (Stage.Uninitialized or Stage.Menu)) throw new InvalidOperationException("Start session has already been prepared.");
         var copy = (candidates ?? throw new ArgumentNullException(nameof(candidates))).ToArray();
         if (copy.Any(c => c == null)) throw new ArgumentException("Start candidates must be valid.");
         Candidates = Array.AsReadOnly(copy);

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 public enum SkillPurchaseResultApplication { Success, Busy, UnknownNode, AlreadyOwned, PrerequisiteMissing, InsufficientFunds, EffectsChanged, InvalidEffect }
 
@@ -24,6 +25,35 @@ public sealed class SkillTreeApplication
     }
 
     public bool IsOwned(string uid) => uid != null && _owned.Contains(uid);
+    public string[] CaptureOwned() => _owned.OrderBy(s => s,StringComparer.Ordinal).ToArray();
+    public void RestoreOwned(IEnumerable<string> values)
+    {
+        if (_owned.Count != 0 || _purchasing || !EffectsMatch()) throw new InvalidOperationException("Restore requires fresh skills.");
+        var list = values?.ToArray() ?? throw new ArgumentNullException(nameof(values));
+        var pending = new HashSet<string>(list,StringComparer.Ordinal);
+        if (pending.Count != list.Length || list.Any(s => !Catalog.TryGet(s,out _))) throw new ArgumentException("Invalid saved skill IDs.");
+        foreach (var id in pending)
+        {
+            Catalog.TryGet(id,out var node);
+            if (node.Prerequisite != null && !pending.Contains(node.Prerequisite)) throw new ArgumentException("Saved skill prerequisite is missing.");
+        }
+        // 前提順に能力を戻す。Purchaseを使うと残高を再度消費するため、復元では通知もしない。
+        while (pending.Count > 0)
+        {
+            var ready = pending.Where(id => { Catalog.TryGet(id,out var n); return n.Prerequisite == null || _owned.Contains(n.Prerequisite); }).ToArray();
+            if (ready.Length == 0) throw new ArgumentException("Saved skills contain a prerequisite cycle.");
+            foreach (var id in ready)
+            {
+                Catalog.TryGet(id,out var node);
+                if (node.CellType.HasValue)
+                {
+                    _effects.ApplyWithoutNotification(node.CellType.Value,node.Stat,node.Modifier);
+                    _modifiers[(node.CellType.Value,node.Stat)] = node.Modifier;
+                }
+                _owned.Add(id); pending.Remove(id);
+            }
+        }
+    }
 
     // 通知中も確定済みの取得条件を返し、UIが次の操作可否を読み取れるようにする。
     public SkillPurchaseResultApplication CanPurchase(string uid) => Check(uid);

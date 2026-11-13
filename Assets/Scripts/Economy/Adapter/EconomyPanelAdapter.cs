@@ -312,7 +312,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         }
         _closeAction = () => SetExpanded(!_expanded);
         layout.Close.onClick.AddListener(_closeAction);
-        _summaryView = new PersistentSummaryViewAdapter(layout.Summary, _font, layout.WalletItems, layout.TextRow);
+        _summaryView = new PersistentSummaryViewAdapter(layout.Summary, _font, layout.WalletItems, layout.TextRow, layout.Save != null ? (RectTransform)layout.Save.transform : null);
         layout.PlacementBuilder.Configure(_font);
         RecipeView = new RecipeReferenceViewAdapter(_pages[1].transform, _font, layout.RecipeHeading, layout.ResourceRow);
         RecipeView.Render(layout.Recipes, layout.Resources);

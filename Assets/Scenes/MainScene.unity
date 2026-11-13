@@ -636481,6 +636481,7 @@ GameObject:
   - component: {fileID: 870000000000001002}
   - component: {fileID: 870000000000001003}
   - component: {fileID: 870000000000001004}
+  - component: {fileID: 870000000000001006}
   m_Layer: 0
   m_Name: GameInitializer
   m_TagString: Untagged
@@ -636522,6 +636523,7 @@ MonoBehaviour:
   cameraController: {fileID: 1256464689}
   cursor: {fileID: 1114964330}
   selection: {fileID: 870000000000001004}
+  saves: {fileID: 870000000000001006}
 --- !u!114 &870000000000001004
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -636551,6 +636553,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1af50538b2828fc4a99d10ff1af694fc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: FactoryGame.Runtime::CellStatusViewAdapter
+--- !u!114 &870000000000001006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 870000000000001001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ea62ea34af749b8ae0dd7b09f0e8d7f, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: FactoryGame.Runtime::GameSaveAdapter
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

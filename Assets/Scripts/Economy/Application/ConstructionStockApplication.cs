@@ -31,6 +31,13 @@ public sealed class ConstructionStockApplication
         => values.TryGetValue(resource, out var amount) ? amount : 0;
     public long Stored(ResourceTypeDomain resource) => Count(_stored, resource);
     public long Available(ResourceTypeDomain resource) => Stored(resource) - Count(_expenses, resource);
+    public IReadOnlyDictionary<ResourceTypeDomain,long> CaptureStored() => new Dictionary<ResourceTypeDomain,long>(_stored);
+    public void RestoreStored(IReadOnlyDictionary<ResourceTypeDomain,long> values)
+    {
+        if (_stored.Count != 0 || _incoming.Count != 0 || _expenses.Count != 0) throw new InvalidOperationException("Restore requires fresh construction stock.");
+        if (values == null || values.Any(p => !_accepted.Contains(p.Key) || p.Value <= 0)) throw new ArgumentException("Invalid saved construction stock.");
+        foreach (var pair in values) _stored.Add(pair.Key, pair.Value);
+    }
     public bool TryReserveDeposit(ResourceTypeDomain resource, long amount, out Reservation reservation)
     {
         reservation = null;

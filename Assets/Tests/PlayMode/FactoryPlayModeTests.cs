@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections;
+using System.IO;
 using Cysharp.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
@@ -19,28 +20,33 @@ public abstract class FactoryPlayModeScope
     protected virtual bool NeedsMainScene => false;
     protected virtual bool PrepareHud => false;
     protected virtual bool ChooseDefaultStart => true;
+    protected virtual bool ChooseNewGame => true;
+    protected string SaveTestDirectory { get; private set; }
+    private Exception _preparationError;
+    private void BeforeStart(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.path != "Assets/Scenes/MainScene.unity") return;
+        try
+        {
+            SceneManager.SetActiveScene(scene);
+            TestScenes.Find<GameSaveAdapter>().SetStorage(new SaveFileApplication(Path.Combine(SaveTestDirectory,"factory.json")));
+            if (PrepareHud) HudPrefabAssertions.Prepare();
+        }
+        catch (Exception exception) { _preparationError = exception; }
+    }
     [UnitySetUp]
     public IEnumerator OpenScope()
     {
         _muted = EditorUtility.audioMasterMute; _volume = AudioListener.volume; _scale = Time.timeScale;
         EditorUtility.audioMasterMute = true; AudioListener.volume = 0; Time.timeScale = 1;
+        _preparationError = null;
+        SaveTestDirectory = Path.Combine(Path.GetTempPath(),"FactorySaveTests",Guid.NewGuid().ToString("N"));
+        SceneManager.sceneLoaded += BeforeStart;
         if (NeedsMainScene)
         {
-            Exception preparationError = null;
-            void BeforeStart(Scene scene, LoadSceneMode mode)
-            {
-                if (!PrepareHud || scene.path != "Assets/Scenes/MainScene.unity") return;
-                try { SceneManager.SetActiveScene(scene); HudPrefabAssertions.Prepare(); }
-                catch (Exception exception) { preparationError = exception; }
-            }
-            SceneManager.sceneLoaded += BeforeStart;
-            try
-            {
-                _scene = EditorSceneManager.LoadSceneInPlayMode("Assets/Scenes/MainScene.unity", new LoadSceneParameters(LoadSceneMode.Single));
-                yield return null; yield return null; yield return null;
-            }
-            finally { SceneManager.sceneLoaded -= BeforeStart; }
-            if (preparationError != null) throw preparationError;
+            _scene = EditorSceneManager.LoadSceneInPlayMode("Assets/Scenes/MainScene.unity", new LoadSceneParameters(LoadSceneMode.Single));
+            yield return null; yield return null; yield return null;
+            if (_preparationError != null) throw _preparationError;
         }
         else
         {
@@ -53,6 +59,9 @@ public abstract class FactoryPlayModeScope
             var initializer = TestScenes.Find<GameInitializerAdapter>();
             yield return UniTask.WaitUntil(() => initializer.Session.CurrentStage != GameStartApplication.Stage.Uninitialized)
                 .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime).ToCoroutine();
+            Assert.That(initializer.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Menu));
+            if (!ChooseNewGame) yield break;
+            Assert.That(initializer.TryPrepareNewGame(),Is.True);
             Assert.That(initializer.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Choosing));
             if (ChooseDefaultStart)
             {
@@ -69,12 +78,16 @@ public abstract class FactoryPlayModeScope
         var initializer = TestScenes.Find<GameInitializerAdapter>();
         yield return UniTask.WaitUntil(() => initializer.Session.CurrentStage != GameStartApplication.Stage.Uninitialized)
             .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime).ToCoroutine();
+        if (_preparationError != null) throw _preparationError;
+        if (ChooseNewGame) Assert.That(initializer.TryPrepareNewGame(),Is.True);
     }
     [UnityTearDown]
     public IEnumerator CloseScope()
     {
+        SceneManager.sceneLoaded -= BeforeStart;
         var empty = SceneManager.CreateScene("FactoryTestCleanup_" + Guid.NewGuid().ToString("N")); SceneManager.SetActiveScene(empty);
         if (_scene.IsValid() && _scene.isLoaded) yield return SceneManager.UnloadSceneAsync(_scene);
+        if (Directory.Exists(SaveTestDirectory)) Directory.Delete(SaveTestDirectory,true);
         Time.timeScale = _scale; AudioListener.volume = _volume; EditorUtility.audioMasterMute = _muted;
         Cursor.lockState = CursorLockMode.None; Cursor.visible = true; TestScenes.CaptureImages = false;
     }

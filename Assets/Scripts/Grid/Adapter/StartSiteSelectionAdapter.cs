@@ -23,6 +23,14 @@ public sealed class StartSiteSelectionAdapter : MonoBehaviour
     public int SelectedIndex => _session?.SelectedIndex ?? 0;
     public int Count => _session?.Candidates.Count ?? 0;
     public bool CanChoose => _session != null && _session.CanChoose;
+    public HudLayoutAdapter Layout => hud;
+    public void BeginMenu(Action newGame, Action resume, bool canResume)
+    {
+        ValidateBindings();
+        placer.SetPlacementEnabled(false); statusView.SetStatusWindowActive(false);
+        hud.gameObject.SetActive(false); cameraController.SetStartSelection(true);
+        bar.SetStartMenu(newGame,resume,canResume);
+    }
 
     public void ValidateBindings()
     {
@@ -33,6 +41,7 @@ public sealed class StartSiteSelectionAdapter : MonoBehaviour
         if (placer == null) missing.Add(nameof(placer));
         if (statusView == null) missing.Add(nameof(statusView));
         if (frameMaterial == null) missing.Add(nameof(frameMaterial));
+        if (hud != null && hud.Save == null) missing.Add("hud.Save");
         if (missing.Count > 0) ReportMissingReferences(missing);
         if (placer.PlaceholderPrefab(CellTypeDomain.Singularity) == null) missing.Add("placer.PlaceholderPrefab(Singularity)");
         if (placer.PlaceholderPrefab(CellTypeDomain.Shipping) == null) missing.Add("placer.PlaceholderPrefab(Shipping)");

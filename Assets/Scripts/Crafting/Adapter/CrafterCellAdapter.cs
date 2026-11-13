@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using DG.Tweening;
@@ -22,6 +23,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
     private bool _isActivate;
     private bool _isInitialized;
     private CraftingOperationApplication _operation;
+    private SaveGameApplication.Job _resumeJob;
 
     public int ExportStorageAmount { get; private set; }
     public float ProcessTime { get; private set; }
@@ -44,6 +46,54 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
     protected override void OnStatsChanged() => UpdateUI();
 
     public IUIDataProviderApplication GetDataProvider() => CellStatusProviderAdapter.Create(this, crafterProvider);
+    public SaveGameApplication.Slot[] CaptureInventory()
+    {
+        var values = _resourceInputs.Where(p => p.Value.Amount > 0)
+            .Select(p => SaveGameApplication.SlotValue(p.Key,p.Value.Type,p.Value.Amount)).ToList();
+        // 出力は入力ポートIDと区別する専用スロットに保存する。
+        if (ExportStorageAmount > 0) values.Add(SaveGameApplication.SlotValue(int.MaxValue,ExportResourceType,ExportStorageAmount));
+        return values.OrderBy(s => s.port).ToArray();
+    }
+    public SaveGameApplication.Job CaptureJob() => _operation?.CurrentStage == CraftingOperationApplication.Stage.Processing ? new()
+    {
+        seconds = ProcessTime, elapsed = ElapsedProcessTime, result = SaveKeysApplication.Key(_operation.Plan.ResultType), amount = _operation.Plan.ResultAmount,
+        inputs = _operation.Plan.Consumptions.Select(c => SaveGameApplication.SlotValue(c.InputId,c.Type,c.Amount)).ToArray()
+    } : _resumeJob;
+    private static RecipePlanDomain SavedPlan(SaveGameApplication.Job job) => new(job.inputs.Select(s =>
+        new RecipePlanDomain.Consumption(s.port,SaveKeysApplication.Resource(s.resource),s.amount)).ToArray(),SaveKeysApplication.Resource(job.result),job.amount);
+    public void ValidateSavedState(SaveGameApplication.Cell data, SharedStatEffectsApplication effects)
+    {
+        var inputCapacity = EffectiveStatsRulesDomain.Calculate(ingredientCapacity,effects.GetModifier(ProgressionType,EquipmentStatDomain.InputCapacity));
+        var outputCapacity = EffectiveStatsRulesDomain.Calculate(exporterCapacity,effects.GetModifier(ProgressionType,EquipmentStatDomain.OutputCapacity));
+        foreach (var slot in data.inventory)
+            if (slot.port == int.MaxValue ? slot.amount > outputCapacity : !HasPort(slot.port,CellPortUseDomain.Input) || slot.amount > inputCapacity)
+                throw new InvalidOperationException("Invalid saved crafting inventory.");
+        if (data.job == null) return;
+        var plan = SavedPlan(data.job);
+        var inputs = Ports.Where(p => (p.Use & CellPortUseDomain.Input) != 0).Select(p =>
+        {
+            var s = data.inventory.FirstOrDefault(i => i.port == p.Id);
+            return new RecipeRulesDomain.Input(p.Id,s == null ? ResourceTypeDomain.None : SaveKeysApplication.Resource(s.resource),s?.amount ?? 0,0);
+        }).ToArray();
+        var output = data.inventory.FirstOrDefault(s => s.port == int.MaxValue);
+        if (!RecipeRulesDomain.TryApply(plan,inputs,new RecipeRulesDomain.Output(output == null ? ResourceTypeDomain.None : SaveKeysApplication.Resource(output.resource),output?.amount ?? 0),outputCapacity,out _))
+            throw new InvalidOperationException("Saved crafting plan cannot complete with its inventory.");
+        var ingredients = plan.Consumptions.GroupBy(c => c.Type).ToDictionary(g => g.Key,g => g.Sum(c => (long)c.Amount));
+        if (recipeDatabase == null || !recipeDatabase.recipes.Any(r => r != null && r.CraftSecond == data.job.seconds &&
+            r.Result == plan.ResultType && r.ResultAmount == plan.ResultAmount && r.Ingredients != null &&
+            r.Ingredients.GroupBy(i => i.resourceType).ToDictionary(g => g.Key,g => g.Sum(i => (long)i.requiredAmount)) is var required &&
+            required.Count == ingredients.Count && required.All(p => ingredients.TryGetValue(p.Key,out var n) && n == p.Value)))
+            throw new InvalidOperationException("Saved crafting plan no longer matches a recipe.");
+    }
+    public void RestoreState(SaveGameApplication.Cell data)
+    {
+        if (_isInitialized || _resourceInputs.Count != 0) throw new InvalidOperationException("Restore requires fresh crafter.");
+        InitAccessPoint();
+        foreach (var slot in data.inventory)
+            if (slot.port == int.MaxValue) { ExportResourceType = SaveKeysApplication.Resource(slot.resource); ExportStorageAmount = slot.amount; }
+            else _resourceInputs[slot.port] = new ResourceInputData {Type = SaveKeysApplication.Resource(slot.resource),Amount = slot.amount};
+        _resumeJob = data.job;
+    }
 
     private CancellationTokenSource _cts;
 
@@ -174,15 +224,19 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
     {
         try
         {
+            await UniTask.Yield(PlayerLoopTiming.Update,token);
             while (_isActivate && !token.IsCancellationRequested)
             {
                 CraftingOperationApplication operation = null;
                 var seconds = 0f;
-                await UniTask.WaitUntil(() => TryStartOperation(out operation, out seconds), cancellationToken: token);
+                var resumed = _resumeJob;
+                _resumeJob = null;
+                if (resumed != null) { operation = new CraftingOperationApplication(SavedPlan(resumed)); seconds = resumed.seconds; }
+                else await UniTask.WaitUntil(() => TryStartOperation(out operation, out seconds), cancellationToken: token);
                 token.ThrowIfCancellationRequested();
                 _operation = operation;
                 ProcessTime = seconds;
-                ElapsedProcessTime = 0;
+                ElapsedProcessTime = resumed?.elapsed ?? 0;
                 Tween tween = null;
                 var finished = seconds == 0;
                 var killed = false;
@@ -191,7 +245,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
                     if (!finished)
                     {
                         tween = DOTween.To(() => ElapsedProcessTime, t => ElapsedProcessTime = t,
-                                seconds, seconds).OnUpdate(UpdateUI).SetEase(Ease.Linear)
+                                seconds, Mathf.Max(0,seconds - ElapsedProcessTime)).OnUpdate(UpdateUI).SetEase(Ease.Linear)
                             .OnComplete(() => finished = true).OnKill(() => killed = true);
                         // 待機を取り消してから finally で停止する。外部停止も成功として扱わない。
                         await tween.ToUniTask(TweenCancelBehaviour.CancelAwait, token);

@@ -13,14 +13,35 @@ public sealed class OperationBarAdapter : MonoBehaviour
     public Button WalkButton => walkButton;
     private bool _placementActive, _firstPerson;
     private StartSiteSelectionAdapter _startSelection;
+    private System.Action _newGame, _continue;
+    private bool _canContinue;
+    private bool InMenu => _newGame != null;
     private readonly System.Collections.Generic.Dictionary<Text,string> _savedStartText = new();
+    private void RememberStartText()
+    {
+        if (_savedStartText.Count == 0)
+            foreach (var text in bar.GetComponentsInChildren<Text>(true)) _savedStartText[text] = text.text;
+    }
+    public void SetStartMenu(System.Action newGame, System.Action resume, bool canResume)
+    {
+        RememberStartText();
+        _newGame = newGame; _continue = resume; _canContinue = canResume;
+        rotateButton.GetComponentInChildren<Text>(true).text = "新規開始";
+        viewButton.GetComponentInChildren<Text>(true).text = "続きから";
+        walkButton.gameObject.SetActive(false);
+        foreach (var pair in _savedStartText)
+            if (pair.Key.GetComponentInParent<Button>() == null) pair.Key.text = "";
+        walkingHelp.gameObject.SetActive(false); bar.gameObject.SetActive(true);
+        BindButtons(); RefreshStartAvailability();
+    }
     public void SetStartSelection(StartSiteSelectionAdapter selection)
     {
         _startSelection=selection;
+        _newGame = _continue = null;
+        walkButton.gameObject.SetActive(true);
         if(selection!=null)
         {
-            if(_savedStartText.Count==0)
-                foreach(var text in bar.GetComponentsInChildren<Text>(true)) _savedStartText[text]=text.text;
+            RememberStartText();
             rotateButton.GetComponentInChildren<Text>(true).text="前の候補";
             viewButton.GetComponentInChildren<Text>(true).text="次の候補";
             walkButton.GetComponentInChildren<Text>(true).text="ここから開始";
@@ -44,6 +65,7 @@ public sealed class OperationBarAdapter : MonoBehaviour
         // 入力側のConfigureが後でも、候補の操作可否を上書きしない。
         if (_startSelection != null)
             rotateButton.interactable = viewButton.interactable = walkButton.interactable = _startSelection.CanChoose;
+        else if (InMenu) { rotateButton.interactable = true; viewButton.interactable = _canContinue; }
         else
         { rotateButton.interactable = walkButton.interactable = true; viewButton.interactable = _cameraController != null; }
     }
@@ -56,13 +78,13 @@ public sealed class OperationBarAdapter : MonoBehaviour
     {
         // シーン終了時は操作帯が先に破棄される場合もある。
         _placementActive = active;
-        if (bar != null) bar.gameObject.SetActive(_startSelection!=null || active && !_firstPerson);
+        if (bar != null) bar.gameObject.SetActive(InMenu || _startSelection!=null || active && !_firstPerson);
     }
     public void SetFirstPersonMode(bool active)
     {
         _firstPerson = active;
         if (walkingHelp != null) walkingHelp.gameObject.SetActive(active);
-        if (bar != null) bar.gameObject.SetActive(_startSelection!=null || _placementActive && !active);
+        if (bar != null) bar.gameObject.SetActive(InMenu || _startSelection!=null || _placementActive && !active);
     }
     private PlayerCursorBehaviourAdapter _cursor;
     private CameraControllerAdapter _cameraController;
@@ -93,8 +115,8 @@ public sealed class OperationBarAdapter : MonoBehaviour
     {
         hud.StyleButton(rotateButton); hud.StyleButton(viewButton); hud.StyleButton(walkButton);
     }
-    private void Rotate() { if(_startSelection!=null) _startSelection.Step(-1); else _cursor?.RotatePlacement(); }
-    private void SwitchView() { if(_startSelection!=null) _startSelection.Step(1); else _cameraController?.SwitchCameraAngle(); }
+    private void Rotate() { if(InMenu) _newGame(); else if(_startSelection!=null) _startSelection.Step(-1); else _cursor?.RotatePlacement(); }
+    private void SwitchView() { if(InMenu) { if(_canContinue) _continue(); } else if(_startSelection!=null) _startSelection.Step(1); else _cameraController?.SwitchCameraAngle(); }
     private void Walk() { if(_startSelection!=null) _startSelection.Confirm(); else _cameraController?.ToggleFirstPerson(); }
     private void OnDestroy()
     {

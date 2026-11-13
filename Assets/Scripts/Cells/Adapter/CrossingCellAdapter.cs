@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -11,6 +12,27 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     private readonly Dictionary<Vector3Int, PendingTransfer> _pending = new();
     private CancellationTokenSource _cts;
     private bool _isDisconnected;
+    private SaveGameApplication.Slot[] _restoredBatches;
+    public SaveGameApplication.Slot[] CaptureBatches(Action<int> registerOwner)
+    {
+        var values = new List<SaveGameApplication.Slot>();
+        foreach (var pair in _pending)
+        {
+            var transfer = pair.Value; var operation = transfer.Operation;
+            if (!transfer.Started || operation.CurrentStage == ResourceTransferOperationApplication.Stage.Completed) continue;
+            if (!ResourceItemObjectPoolAdapter.Instance.Resources.TryGet(operation.ResourceId,out var data) || data.Type != operation.Type || data.Amount != operation.Amount)
+                throw new InvalidOperationException("Crossing owns a missing resource batch.");
+            registerOwner(operation.ResourceId);
+            var port = Ports.Single(p => -PortDirection(p.Id) == pair.Key && (p.Use & CellPortUseDomain.Input) != 0);
+            values.Add(SaveGameApplication.SlotValue(port.Id,operation.Type,operation.Amount));
+        }
+        return values.OrderBy(v => v.port).ToArray();
+    }
+    public void RestoreBatches(SaveGameApplication.Slot[] batches)
+    {
+        if (_cts != null || _pending.Count != 0) throw new InvalidOperationException("Restore requires fresh crossing.");
+        _restoredBatches = batches;
+    }
 
     private sealed class PendingTransfer
     {
@@ -19,6 +41,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         public ResourceReservationApplication Reservation => Coordinator.Reservation;
         public bool Started;
         public CancellationTokenSource ActiveCts;
+        public ResourceItemObjectPoolAdapter ResourceOwner;
     }
 
     public override void InitializeSystem()
@@ -28,6 +51,22 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         OnLostConnectedCell += OnConnectionLost;
         OnDisconnected += Shutdown;
         base.InitializeSystem();
+        if (_restoredBatches != null)
+        {
+            foreach (var slot in _restoredBatches)
+            {
+                var type = SaveKeysApplication.Resource(slot.resource);
+                var pool = ResourceItemObjectPoolAdapter.Instance;
+                var id = pool.CreateIdFromResourceData(type,slot.amount);
+                var direction = -PortDirection(slot.port);
+                var transfer = new PendingTransfer {Started = true,ResourceOwner = pool,
+                    Coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(this,id,type,slot.amount))};
+                _pending.Add(direction,transfer);
+                pool.SetPosition(id,transform.position + Vector3.up * 1.1f);
+                StoreResourceAsync(direction,transfer,_cts.Token).Forget();
+            }
+            _restoredBatches = null;
+        }
     }
 
     protected override void OnDestroy() { base.OnDestroy(); Shutdown(); }
@@ -48,7 +87,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             if (operation.CurrentStage == ResourceTransferOperationApplication.Stage.Completed) continue;
             transfer.Coordinator.Cancel();
             // 取消通知が先に非同期処理へ届いても、ID の所有者である交差セルが返却する。
-            if (operation.ResourceId != 0) ResourceItemObjectPoolAdapter.Instance.DisposeId(operation.ResourceId);
+            if (operation.ResourceId != 0 && transfer.ResourceOwner != null) transfer.ResourceOwner.DisposeId(operation.ResourceId);
         }
         _cts?.Dispose();
         _cts = null;
@@ -109,7 +148,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         _pending.Remove(dir);
         transfer.ActiveCts?.Cancel();
         transfer.Coordinator.Cancel();
-        if (operation.ResourceId != 0) ResourceItemObjectPoolAdapter.Instance.DisposeId(operation.ResourceId);
+        if (operation.ResourceId != 0 && transfer.ResourceOwner != null) transfer.ResourceOwner.DisposeId(operation.ResourceId);
     }
 
     public void StoreResource(int portId, int amount)
@@ -127,6 +166,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         var operation = transfer.Operation;
         try
         {
+            await UniTask.Yield(PlayerLoopTiming.Update,token);
             while (!token.IsCancellationRequested)
             {
                 using var activeCts = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -175,8 +215,8 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                 if (operation.CurrentStage != ResourceTransferOperationApplication.Stage.Completed)
                 {
                     transfer.Coordinator.Cancel();
-                    if (operation.ResourceId != 0)
-                        ResourceItemObjectPoolAdapter.Instance.DisposeId(operation.ResourceId);
+                    if (operation.ResourceId != 0 && transfer.ResourceOwner != null)
+                        transfer.ResourceOwner.DisposeId(operation.ResourceId);
                 }
                 _pending.Remove(dir);
             }
@@ -188,6 +228,6 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         if (!HasPort(portId, CellPortUseDomain.Input)) return;
         var dir = -PortDirection(portId);
         if (!_pending.TryGetValue(dir, out var transfer)) return;
-        transfer.Operation.TryAttachId(id);
+        if (transfer.Operation.TryAttachId(id)) transfer.ResourceOwner = ResourceItemObjectPoolAdapter.Instance;
     }
 }

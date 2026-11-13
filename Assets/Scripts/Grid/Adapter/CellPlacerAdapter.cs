@@ -36,6 +36,9 @@ public class CellPlacerAdapter : MonoBehaviour
     private ConstructionStockApplication _stock;
     private ResourceDefinition _resources;
     public ConstructionStockApplication ConstructionStock => _stock;
+    public bool IsPlacementTransactionActive => _placing;
+    public CellBaseAdapter FieldPrefab(CellTypeDomain type)
+        => TryGetDefinition(type,out var info) && info.FieldCellPrefab != null ? info.FieldCellPrefab : throw new InvalidOperationException($"Missing field definition: {type}");
     public CellTypeDomain SelectedType => _selectedType;
     public int PreviewCount => _selectedRangeCells.Count(t => t.placeholder.activeSelf);
     public long PreviewCost => _prices != null && _prices.TryGetPlacementAmount(_selectedType, PreviewCount, out var cost) ? cost : 0;

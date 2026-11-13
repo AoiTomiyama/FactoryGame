@@ -37,6 +37,18 @@ public sealed class DeliveryProgressApplication
     public event Action Completed;
     public DeliveryProgressApplication(DeliveryGoalCatalogDomain catalog)
     { Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog)); Current = new Snapshot(_delivered, 0, catalog.Stages.Count); }
+    public void RestoreDelivered(IReadOnlyDictionary<ResourceTypeDomain,long> values)
+    {
+        if (_delivered.Count != 0 || _reserved.Count != 0) throw new InvalidOperationException("Restore requires fresh delivery progress.");
+        if (values == null || values.Any(p => p.Key == ResourceTypeDomain.None || !Enum.IsDefined(typeof(ResourceTypeDomain),p.Key) || p.Value <= 0))
+            throw new ArgumentException("Invalid saved delivery progress.");
+        foreach (var pair in values) _delivered.Add(pair.Key,pair.Value);
+        var completed = 0;
+        while (completed < Catalog.Stages.Count && Catalog.Stages[completed].Requirements.All(r =>
+            _delivered.TryGetValue(r.Resource,out var count) && count >= r.Amount)) completed++;
+        // 過去の納品や達成演出を再実行せず、累計から状態だけを復元する。
+        Current = new Snapshot(_delivered,completed,Catalog.Stages.Count);
+    }
     public bool TryReserve(ResourceTypeDomain type, long amount, out Reservation reservation)
     {
         reservation = null;

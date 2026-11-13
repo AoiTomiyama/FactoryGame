@@ -22,12 +22,19 @@ public sealed class ResourceTransferOperationApplication
 
     public ResourceTransferOperationApplication(IResourceTransferEndpointApplication source, IContainableApplication target, int resourceId,
         ResourceTypeDomain type, int amount)
+        : this(source,resourceId,type,amount)
     {
-        if (source == null || !source.IsAlive || source.Identity == null ||
-            target == null || !target.IsAlive || target.Identity == null || type == ResourceTypeDomain.None || amount <= 0)
+        if (target == null || !target.IsAlive || target.Identity == null)
             throw new ArgumentException("搬送元・先と資源の種別・数量を指定してください。");
-        Source = source;
         Target = target;
+    }
+    /// <summary>保持資源を復元した直後は、接続先と予約を改めて取得する。</summary>
+    public ResourceTransferOperationApplication(IResourceTransferEndpointApplication source, int resourceId,
+        ResourceTypeDomain type, int amount)
+    {
+        if (source == null || !source.IsAlive || source.Identity == null || type == ResourceTypeDomain.None || amount <= 0)
+            throw new ArgumentException("Valid transfer source and resource are required.");
+        Source = source;
         ResourceId = resourceId;
         Type = type;
         Amount = amount;

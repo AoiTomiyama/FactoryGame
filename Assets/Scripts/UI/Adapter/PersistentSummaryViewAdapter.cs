@@ -14,6 +14,7 @@ public sealed class PersistentSummaryViewAdapter
     public IReadOnlyList<Text> WalletItems => _walletItems;
     public IReadOnlyList<Text> Items => _items;
     private readonly Text _rowPrefab;
+    private readonly RectTransform _actions;
     private bool _firstPerson;
     private int _itemCount;
     private bool _walletRendered;
@@ -23,12 +24,13 @@ public sealed class PersistentSummaryViewAdapter
         for (var i = 0; i < _items.Count; i++) _items[i].gameObject.SetActive(!active && i < _itemCount);
         UpdateLayout();
     }
-    public PersistentSummaryViewAdapter(RectTransform root, Font font, Text[] walletItems, Text rowPrefab)
+    public PersistentSummaryViewAdapter(RectTransform root, Font font, Text[] walletItems, Text rowPrefab, RectTransform actions)
     {
         _font = font;
         Rect = root;
         _rowPrefab = rowPrefab;
         _walletItems = walletItems;
+        _actions = actions;
     }
     public void RenderWallet(CurrencyWalletApplication.Snapshot wallet)
     {
@@ -65,7 +67,7 @@ public sealed class PersistentSummaryViewAdapter
     public void UpdateLayout()
     {
         // 全項目を通常の表示領域へ置き、画面幅に応じて行を増やす。
-        var available = Mathf.Max(1, Rect.rect.width - 24);
+        var available = Mathf.Max(1, Rect.rect.width - 24 - (_actions != null ? _actions.rect.width + 12 : 0));
         var x = 0f; var y = 8f; var rowHeight = 0f;
         foreach (var text in _walletItems.Concat(_items).Where(text => text.gameObject.activeSelf))
         {
