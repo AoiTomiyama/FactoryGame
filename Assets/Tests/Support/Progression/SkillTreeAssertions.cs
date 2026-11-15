@@ -68,10 +68,11 @@ public static class SkillTreeAssertions
 
     private static void VerifyTypeRules(SkillTreeCatalogDomain catalog)
     {
-        Require(catalog.Nodes.Count == 28, "root, ability chains and clearing unlock");
+        Require(catalog.Nodes.Count == 34, "root, ability chains and clearing unlock");
         foreach (var node in catalog.Nodes)
         {
             Require(node.Price == (node.Uid == TerrainClearingApplication.SkillUid ? 500 :
+                EffectiveStatsRulesDomain.IsSpeed(node.Stat) && node.CellType.HasValue ? new long[] {100,200,400}[int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-')+1))-1] :
                 node.CellType.HasValue ? int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-') + 1)) * 50 : 50), "initial ability price");
             if (node.CellType.HasValue) Require(SkillTreeCatalogDomain.SupportsStat(node.CellType.Value, node.Stat), "ability belongs to target type");
         }
@@ -130,7 +131,7 @@ public static class SkillTreeAssertions
             var initializer = TestScenes.Find<GameInitializerAdapter>();
             var grid = GridFieldDatabaseAdapter.Instance;
             var tree = initializer.Skills;
-            initializer.Wallet.TryReserveIncome(tree.Catalog.Nodes.Where(node => node.CellType.HasValue || node.Uid == "basic-research")
+            initializer.Wallet.TryReserveIncome(tree.Catalog.Nodes.Where(node => node.CellType.HasValue && !EffectiveStatsRulesDomain.IsSpeed(node.Stat) || node.Uid == "basic-research")
                 .Sum(node => node.Price) + 250, out var income); income.TryCommit();
             var names = new[] { "ExtractorWood", "ExtractorStone", "Storage", "Crafter", "ExportConveyor", "AdvancedCrafter" };
             var existing = new List<CellBaseAdapter>(); var inactive = new List<CellBaseAdapter>();
@@ -190,7 +191,7 @@ public static class SkillTreeAssertions
             activeCrafter.StoreResource(1, 2);
             Require(activeCrafter.GetInput(1).Amount == 2, "old crafting reservation commits");
 
-            foreach (var node in tree.Catalog.Nodes.Where(node => node.CellType.HasValue))
+            foreach (var node in tree.Catalog.Nodes.Where(node => node.CellType.HasValue && !EffectiveStatsRulesDomain.IsSpeed(node.Stat)))
             {
                 var before = existing.Select(Stats).ToArray();
                 if (!tree.IsOwned(node.Uid)) Require(tree.Purchase(node.Uid) == SkillPurchaseResultApplication.Success, "scene ability " + node.Uid);

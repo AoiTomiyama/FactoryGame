@@ -10,7 +10,7 @@ public sealed class SaveGameTests
 {
     private static SaveGameApplication Data() => new()
     {
-        formatVersion = 1, revision = 1, savedUtc = DateTime.UtcNow.ToString("O"),size = 1, seed = int.MinValue, balance = long.MaxValue,
+        formatVersion = SaveGameApplication.CurrentFormat, revision = 1, savedUtc = DateTime.UtcNow.ToString("O"),size = 1, seed = int.MinValue, balance = long.MaxValue,
         construction = Enum.GetValues(typeof(ResourceTypeDomain)).Cast<ResourceTypeDomain>().Where(t => t != ResourceTypeDomain.None)
             .Select(t => new SaveGameApplication.Stock {resource = SaveKeysApplication.Key(t),amount = long.MaxValue}).ToArray(),
         deliveries = Array.Empty<SaveGameApplication.Stock>(), skills = Array.Empty<string>(),skillRules = Array.Empty<string>(),
@@ -30,7 +30,7 @@ public sealed class SaveGameTests
         var json = SaveJsonAdapter.Encode(Data());
         Assert.Throws<ArgumentException>(() => SaveJsonAdapter.Decode(json.Substring(0,json.Length/2)));
         Assert.Throws<InvalidOperationException>(() => SaveJsonAdapter.Decode(json.Replace("empty","unregistered")));
-        var data = Data(); data.formatVersion = 2;
+        var data = Data(); data.formatVersion = 999;
         Assert.Throws<InvalidOperationException>(() => SaveJsonAdapter.Encode(data));
         data = Data(); data.cells[0].kind = "unregistered";
         Assert.Throws<InvalidOperationException>(() => data.ValidateShape());

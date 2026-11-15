@@ -41,7 +41,7 @@ public sealed class SaveWorldAdapter
         }
         if (ResourceItemObjectPoolAdapter.Instance.Resources.Count != ids.Count) throw new InvalidOperationException("A transit resource has no saved owner.");
         var skills = game.Skills.CaptureOwned();
-        var result = new SaveGameApplication {formatVersion = 1, revision = revision, savedUtc = DateTime.UtcNow.ToString("O"),
+        var result = new SaveGameApplication {formatVersion = SaveGameApplication.CurrentFormat, revision = revision, savedUtc = DateTime.UtcNow.ToString("O"),
             size = _field.GeneratedSize, seed = _field.GenerationSeed, balance = game.Wallet.Current.Balance,
             construction = SaveGameApplication.Stocks(game.ConstructionStock.CaptureStored()),
             deliveries = SaveGameApplication.Stocks(game.Deliveries.Current.Delivered), skills = skills,

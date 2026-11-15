@@ -45,6 +45,16 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
 
     protected int EffectiveStat(int baseValue, EquipmentStatDomain stat)
         => EffectiveStatsRulesDomain.Calculate(baseValue, _statEffects?.GetModifier(ProgressionType, stat) ?? StatModifierDomain.Default);
+    protected float EffectiveDuration(float baseSeconds, EquipmentStatDomain stat)
+    {
+        _statEffects?.RegisterDurationBase(ProgressionType,stat,baseSeconds);
+        return EffectiveStatsRulesDomain.CalculateDuration(baseSeconds,_statEffects?.GetModifier(ProgressionType,stat) ?? StatModifierDomain.Default);
+    }
+    protected void ValidateDuration(float baseSeconds, EquipmentStatDomain stat)
+    {
+        EffectiveStatsRulesDomain.CalculateDuration(baseSeconds,StatModifierDomain.Default);
+        _statEffects?.RegisterDurationBase(ProgressionType,stat,baseSeconds);
+    }
     protected void ValidateStat(int baseValue, EquipmentStatDomain stat)
     {
         EffectiveStatsRulesDomain.Calculate(baseValue, StatModifierDomain.Default);

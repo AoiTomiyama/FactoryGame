@@ -24,6 +24,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
     private bool _isInitialized;
     private CraftingOperationApplication _operation;
     private SaveGameApplication.Job _resumeJob;
+    private float _recipeSeconds;
 
     public int ExportStorageAmount { get; private set; }
     public float ProcessTime { get; private set; }
@@ -42,6 +43,8 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
             throw new InvalidOperationException("Unsupported crafting equipment type.");
         ValidateStat(ingredientCapacity, EquipmentStatDomain.InputCapacity);
         ValidateStat(exporterCapacity, EquipmentStatDomain.OutputCapacity);
+        if (recipeDatabase != null && recipeDatabase.recipes != null)
+            foreach (var recipe in recipeDatabase.recipes.Where(r => r != null)) ValidateDuration(recipe.CraftSecond,EquipmentStatDomain.CraftingSpeed);
     }
     protected override void OnStatsChanged() => UpdateUI();
 
@@ -56,7 +59,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
     }
     public SaveGameApplication.Job CaptureJob() => _operation?.CurrentStage == CraftingOperationApplication.Stage.Processing ? new()
     {
-        seconds = ProcessTime, elapsed = ElapsedProcessTime, result = SaveKeysApplication.Key(_operation.Plan.ResultType), amount = _operation.Plan.ResultAmount,
+        seconds = ProcessTime, recipeSeconds = _recipeSeconds, elapsed = ElapsedProcessTime, result = SaveKeysApplication.Key(_operation.Plan.ResultType), amount = _operation.Plan.ResultAmount,
         inputs = _operation.Plan.Consumptions.Select(c => SaveGameApplication.SlotValue(c.InputId,c.Type,c.Amount)).ToArray()
     } : _resumeJob;
     private static RecipePlanDomain SavedPlan(SaveGameApplication.Job job) => new(job.inputs.Select(s =>
@@ -69,6 +72,9 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
             if (slot.port == int.MaxValue ? slot.amount > outputCapacity : !HasPort(slot.port,CellPortUseDomain.Input) || slot.amount > inputCapacity)
                 throw new InvalidOperationException("Invalid saved crafting inventory.");
         if (data.job == null) return;
+        var fastest = EffectiveStatsRulesDomain.CalculateDuration(data.job.recipeSeconds,effects.GetModifier(ProgressionType,EquipmentStatDomain.CraftingSpeed));
+        if (data.job.seconds < fastest || data.job.seconds > data.job.recipeSeconds)
+            throw new InvalidOperationException("Saved crafting time is outside the acquired speed range.");
         var plan = SavedPlan(data.job);
         var inputs = Ports.Where(p => (p.Use & CellPortUseDomain.Input) != 0).Select(p =>
         {
@@ -79,7 +85,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
         if (!RecipeRulesDomain.TryApply(plan,inputs,new RecipeRulesDomain.Output(output == null ? ResourceTypeDomain.None : SaveKeysApplication.Resource(output.resource),output?.amount ?? 0),outputCapacity,out _))
             throw new InvalidOperationException("Saved crafting plan cannot complete with its inventory.");
         var ingredients = plan.Consumptions.GroupBy(c => c.Type).ToDictionary(g => g.Key,g => g.Sum(c => (long)c.Amount));
-        if (recipeDatabase == null || !recipeDatabase.recipes.Any(r => r != null && r.CraftSecond == data.job.seconds &&
+        if (recipeDatabase == null || !recipeDatabase.recipes.Any(r => r != null && r.CraftSecond == data.job.recipeSeconds &&
             r.Result == plan.ResultType && r.ResultAmount == plan.ResultAmount && r.Ingredients != null &&
             r.Ingredients.GroupBy(i => i.resourceType).ToDictionary(g => g.Key,g => g.Sum(i => (long)i.requiredAmount)) is var required &&
             required.Count == ingredients.Count && required.All(p => ingredients.TryGetValue(p.Key,out var n) && n == p.Value)))
@@ -202,7 +208,8 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
             if (!RecipeRulesDomain.TryCreatePlan(recipe, inputs, CaptureOutput(), ExporterCapacity, out var plan))
                 continue;
             operation = new CraftingOperationApplication(plan);
-            seconds = definition.CraftSecond;
+            _recipeSeconds = definition.CraftSecond;
+            seconds = EffectiveDuration(_recipeSeconds,EquipmentStatDomain.CraftingSpeed);
             return true;
         }
         return false;
@@ -231,7 +238,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
                 var seconds = 0f;
                 var resumed = _resumeJob;
                 _resumeJob = null;
-                if (resumed != null) { operation = new CraftingOperationApplication(SavedPlan(resumed)); seconds = resumed.seconds; }
+                if (resumed != null) { operation = new CraftingOperationApplication(SavedPlan(resumed)); seconds = resumed.seconds; _recipeSeconds = resumed.recipeSeconds; }
                 else await UniTask.WaitUntil(() => TryStartOperation(out operation, out seconds), cancellationToken: token);
                 token.ThrowIfCancellationRequested();
                 _operation = operation;

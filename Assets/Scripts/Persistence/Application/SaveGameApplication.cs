@@ -6,6 +6,7 @@ using System.Linq;
 [Serializable]
 public sealed class SaveGameApplication
 {
+    public const int CurrentFormat = 2;
     public int formatVersion;
     public long revision;
     public string savedUtc;
@@ -27,7 +28,7 @@ public sealed class SaveGameApplication
     }
     [Serializable] public sealed class Job
     {
-        public float seconds, elapsed;
+        public float seconds, elapsed, recipeSeconds;
         public int amount;
         public string result;
         public Slot[] inputs;
@@ -45,7 +46,7 @@ public sealed class SaveGameApplication
 
     public void ValidateShape()
     {
-        if (formatVersion != 1) throw new InvalidOperationException("Unsupported save format.");
+        if (formatVersion != CurrentFormat) throw new InvalidOperationException("Unsupported save format.");
         if (revision <= 0 || !DateTime.TryParse(savedUtc, null, System.Globalization.DateTimeStyles.RoundtripKind, out _) ||
             size <= 0 || size > 512 || balance < 0 || cells == null || cells.Length == 0 ||
             cells.Length > checked(size * size) || construction == null || deliveries == null || skills == null ||
@@ -65,6 +66,7 @@ public sealed class SaveGameApplication
             if (c.job == null) continue;
             var j = c.job;
             if (float.IsNaN(j.seconds) || float.IsInfinity(j.seconds) || j.seconds < 0 ||
+                float.IsNaN(j.recipeSeconds) || float.IsInfinity(j.recipeSeconds) || j.recipeSeconds < 0 ||
                 float.IsNaN(j.elapsed) || float.IsInfinity(j.elapsed) || j.elapsed < 0 || j.elapsed > j.seconds ||
                 j.amount <= 0 || j.inputs == null)
                 throw new InvalidOperationException("Invalid saved production job.");

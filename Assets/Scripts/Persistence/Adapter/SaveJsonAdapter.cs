@@ -19,6 +19,15 @@ public static class SaveJsonAdapter
             envelope.sha256 != Digest(envelope.payload)) throw new InvalidOperationException("Save file is incomplete, corrupt or unsupported.");
         var data = JsonUtility.FromJson<SaveGameApplication>(envelope.payload);
         if (data == null) throw new InvalidOperationException("Missing save payload.");
+        if (data.formatVersion == 1)
+        {
+            // 速度スキル導入前の保存時間はレシピの基準時間と同じ。既存の進捗を保って一度変換する。
+            if (data.cells != null)
+                foreach (var cell in data.cells)
+                    if (cell?.job != null && SaveKeysApplication.Cell(cell.kind) is CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter)
+                        cell.job.recipeSeconds = cell.job.seconds;
+            data.formatVersion = SaveGameApplication.CurrentFormat;
+        }
         data.ValidateShape(); return data;
     }
     private static string Digest(string value)

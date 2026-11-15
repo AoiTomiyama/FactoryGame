@@ -238,3 +238,51 @@ MonoBehaviour:
     stat: 0
     multiplier: 1
     addition: 0
+  - uid: crafter-speed-1
+    label: 基本加工・速度 I
+    price: 100
+    prerequisite: basic-research
+    cellType: 8
+    stat: 5
+    multiplier: 1.25
+    addition: 0
+  - uid: crafter-speed-2
+    label: 基本加工・速度 II
+    price: 200
+    prerequisite: crafter-speed-1
+    cellType: 8
+    stat: 5
+    multiplier: 1.5
+    addition: 0
+  - uid: crafter-speed-3
+    label: 基本加工・速度 III
+    price: 400
+    prerequisite: crafter-speed-2
+    cellType: 8
+    stat: 5
+    multiplier: 2
+    addition: 0
+  - uid: advanced-crafter-speed-1
+    label: 上位加工・速度 I
+    price: 100
+    prerequisite: basic-research
+    cellType: 13
+    stat: 5
+    multiplier: 1.25
+    addition: 0
+  - uid: advanced-crafter-speed-2
+    label: 上位加工・速度 II
+    price: 200
+    prerequisite: advanced-crafter-speed-1
+    cellType: 13
+    stat: 5
+    multiplier: 1.5
+    addition: 0
+  - uid: advanced-crafter-speed-3
+    label: 上位加工・速度 III
+    price: 400
+    prerequisite: advanced-crafter-speed-2
+    cellType: 13
+    stat: 5
+    multiplier: 2
+    addition: 0

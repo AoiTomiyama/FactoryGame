@@ -33,7 +33,7 @@ public sealed class SkillTreeCatalogDomain
         CellTypeDomain.ExtractorWood or CellTypeDomain.ExtractorStone or CellTypeDomain.ExtractorIron or
         CellTypeDomain.ExtractorCopper or CellTypeDomain.ExtractorCoal => stat is EquipmentStatDomain.ExtractionAmount or EquipmentStatDomain.Capacity,
         CellTypeDomain.Storage => stat == EquipmentStatDomain.Capacity,
-        CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter => stat is EquipmentStatDomain.InputCapacity or EquipmentStatDomain.OutputCapacity,
+        CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter => stat is EquipmentStatDomain.InputCapacity or EquipmentStatDomain.OutputCapacity or EquipmentStatDomain.CraftingSpeed,
         CellTypeDomain.ExportConveyor => stat == EquipmentStatDomain.TransferAmount,
         _ => false
     };
@@ -68,6 +68,8 @@ public sealed class SkillTreeCatalogDomain
                 throw new ArgumentException("Invalid or duplicate skill node.");
             if (node.CellType.HasValue && !SupportsStat(node.CellType.Value, node.Stat))
                 throw new ArgumentException("Unsupported ability for cell type.");
+            if (node.CellType.HasValue && EffectiveStatsRulesDomain.IsSpeed(node.Stat))
+                EffectiveStatsRulesDomain.CalculateDuration(1,node.Modifier);
             if (!node.CellType.HasValue && (node.Modifier.Multiplier != 1 || node.Modifier.Addition != 0))
                 throw new ArgumentException("Unlock node cannot modify an ability.");
             if (node.RequiredDeliveryStage != null && string.IsNullOrWhiteSpace(node.RequiredDeliveryStage))
