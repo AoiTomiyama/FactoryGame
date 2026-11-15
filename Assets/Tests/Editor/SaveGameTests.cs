@@ -62,7 +62,7 @@ public sealed class SaveGameTests
     [Test] public void RestoreRebuildsSkillsAndDeliveryWithoutSpendingOrNotifications()
     {
         var catalog = new SkillTreeCatalogDomain(new[] {new SkillNodeDomain("root","Root",1,null),
-            new SkillNodeDomain("capacity","Capacity",10,"root",CellTypeDomain.Storage,EquipmentStatDomain.Capacity,2,5)});
+            new SkillNodeDomain("capacity","Capacity",10,"root",new[] {CellTypeDomain.Storage},EquipmentStatDomain.Capacity,2,5)});
         var wallet = new CurrencyWalletApplication(77); var effects = new SharedStatEffectsApplication();
         var tree = new SkillTreeApplication(catalog,wallet,effects); var notifications = 0;
         tree.Changed += () => notifications++; wallet.Changed += _ => notifications++; effects.Changed += () => notifications++;

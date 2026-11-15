@@ -100,7 +100,7 @@ public static class SingularityAssertions
     {
         public readonly UniTaskCompletionSource<ResourceAnimationResultApplication> Completion = new();
         public int Releases;
-        public UniTask<ResourceAnimationResultApplication> Transfer(CancellationToken token, Vector3 from, Vector3 to, int id) => Completion.Task;
+        public UniTask<ResourceAnimationResultApplication> Transfer(CancellationToken token, Vector3 from, Vector3 to, int id, float seconds) => Completion.Task;
         public void SetPosition(int id, Vector3 position) { }
         public bool ReleaseVisual(int id) { Releases++; return Releases == 1; }
     }
@@ -220,7 +220,7 @@ public static class SingularityAssertions
             };
             using var cts = new CancellationTokenSource();
             var transfer = coordinator.RunAsync(() => 0, Vector3.zero, Vector3.right, () => clone,
-                endpoint => clone != null && clone.isActiveAndEnabled, resources, presentation, cts.Token);
+                endpoint => clone != null && clone.isActiveAndEnabled, resources, presentation, () => .2f, cts.Token);
             await UniTask.WaitUntil(() => localWallet.Current.ReservedIncome == 2).Timeout(TimeSpan.FromSeconds(3));
             Require(localWallet.Current.ReservedIncome == 2, "coordinator fixes sale before presentation");
             if (scenario == 2) { clone.gameObject.SetActive(false); coordinator.WaitForNewTarget(); }

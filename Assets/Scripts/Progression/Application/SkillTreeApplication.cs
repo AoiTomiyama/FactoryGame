@@ -51,10 +51,12 @@ public sealed class SkillTreeApplication
             foreach (var id in ready)
             {
                 Catalog.TryGet(id,out var node);
-                if (node.CellType.HasValue)
+                if (node.TargetCellTypes.Any(t => !_effects.CanApply(t,node.Stat,node.Modifier)))
+                    throw new ArgumentException("Saved skill contains an invalid effect.");
+                foreach (var type in node.TargetCellTypes)
                 {
-                    _effects.ApplyWithoutNotification(node.CellType.Value,node.Stat,node.Modifier);
-                    _modifiers[(node.CellType.Value,node.Stat)] = node.Modifier;
+                    _effects.ApplyWithoutNotification(type,node.Stat,node.Modifier);
+                    _modifiers[(type,node.Stat)] = node.Modifier;
                 }
                 _owned.Add(id); pending.Remove(id);
             }
@@ -71,7 +73,7 @@ public sealed class SkillTreeApplication
         if (node.Prerequisite != null && !IsOwned(node.Prerequisite)) return SkillPurchaseResultApplication.PrerequisiteMissing;
         if (node.RequiredDeliveryStage != null && !_deliveries.HasCompletedStage(node.RequiredDeliveryStage)) return SkillPurchaseResultApplication.DeliveryStageMissing;
         if (!EffectsMatch()) return SkillPurchaseResultApplication.EffectsChanged;
-        if (node.CellType.HasValue && !_effects.CanApply(node.CellType.Value, node.Stat, node.Modifier)) return SkillPurchaseResultApplication.InvalidEffect;
+        if (node.TargetCellTypes.Any(type => !_effects.CanApply(type,node.Stat,node.Modifier))) return SkillPurchaseResultApplication.InvalidEffect;
         return _wallet.Current.AvailableBalance < node.Price
             ? SkillPurchaseResultApplication.InsufficientFunds : SkillPurchaseResultApplication.Success;
     }
@@ -92,16 +94,17 @@ public sealed class SkillTreeApplication
             if (node.Prerequisite != null && !IsOwned(node.Prerequisite)) return SkillPurchaseResultApplication.PrerequisiteMissing;
             if (node.RequiredDeliveryStage != null && !_deliveries.HasCompletedStage(node.RequiredDeliveryStage)) return SkillPurchaseResultApplication.DeliveryStageMissing;
             if (!EffectsMatch()) return SkillPurchaseResultApplication.EffectsChanged;
-            if (node.CellType.HasValue)
+            if (node.TargetCellTypes.Any(type => !_effects.CanApply(type,node.Stat,node.Modifier))) return SkillPurchaseResultApplication.InvalidEffect;
+            // 全対象を検査してから通知なしで反映し、3種類の途中状態を購読者へ見せない。
+            foreach (var type in node.TargetCellTypes)
             {
-                if (!_effects.CanApply(node.CellType.Value, node.Stat, node.Modifier)) return SkillPurchaseResultApplication.InvalidEffect;
-                _effects.ApplyWithoutNotification(node.CellType.Value, node.Stat, node.Modifier);
-                _modifiers[(node.CellType.Value, node.Stat)] = node.Modifier;
+                _effects.ApplyWithoutNotification(type,node.Stat,node.Modifier);
+                _modifiers[(type,node.Stat)] = node.Modifier;
             }
             _owned.Add(uid);
             // 残高の確定通知でも取得状態と能力が揃う。全通知が終わるまで購入の再入を拒否する。
             expense.TryCommit();
-            if (node.CellType.HasValue) _effects.NotifyChanged();
+            if (node.TargetCellTypes.Count > 0) _effects.NotifyChanged();
             var handlers = Changed;
             if (handlers != null)
                 foreach (Action handler in handlers.GetInvocationList())

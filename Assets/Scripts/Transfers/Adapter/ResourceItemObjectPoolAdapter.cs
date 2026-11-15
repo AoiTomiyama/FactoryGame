@@ -12,6 +12,8 @@ public sealed class ResourceItemObjectPoolAdapter : SingletonMonoBehaviourAdapte
     [SerializeField] private int defaultPoolCapacity = 100;
     [SerializeField] private int maxPoolCapacity = 500;
     [SerializeField] private float transferSecond = 0.2f;
+    public float BaseTransferSeconds => !float.IsNaN(transferSecond) && !float.IsInfinity(transferSecond) && transferSecond > 0
+        ? transferSecond : throw new System.InvalidOperationException("Transfer base time must be finite and positive.");
 
     private Dictionary<ResourceTypeDomain, ObjectPool<GameObject>> _pool;
     private bool _isInitialized;
@@ -155,12 +157,14 @@ public sealed class ResourceItemObjectPoolAdapter : SingletonMonoBehaviourAdapte
     /// <param name="from">アニメーションの始点</param>
     /// <param name="to">アニメーションの終点</param>
     /// <param name="id">アニメーションの対象</param>
-    public UniTask<ResourceAnimationResultApplication> Transfer(CancellationToken token, Vector3 from, Vector3 to, int id)
+    public UniTask<ResourceAnimationResultApplication> Transfer(CancellationToken token, Vector3 from, Vector3 to, int id, float seconds)
     {
         if (token.IsCancellationRequested) return UniTask.FromResult(ResourceAnimationResultApplication.Cancelled);
         if (!_rentedObjectDict.TryGetValue(id, out var rentedObject))
             return UniTask.FromResult(ResourceAnimationResultApplication.MissingVisual);
-        return rentedObject.Animation.MoveAsync(rentedObject.Prefab, token, from, to, transferSecond);
+        if (float.IsNaN(seconds) || float.IsInfinity(seconds) || seconds <= 0)
+            throw new System.ArgumentOutOfRangeException(nameof(seconds));
+        return rentedObject.Animation.MoveAsync(rentedObject.Prefab, token, from, to, seconds);
     }
 
     public void SetPosition(int id, Vector3 position)

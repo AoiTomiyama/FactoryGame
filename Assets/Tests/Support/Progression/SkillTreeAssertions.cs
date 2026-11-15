@@ -56,7 +56,7 @@ public static class SkillTreeAssertions
         effects.Changed += () => throw new InvalidOperationException("expected effect subscriber failure");
         effects.Changed += () => { effectNotifications++; callbacksValid &= wallet.Current.ReservedExpense == 0; };
         foreach (var node in catalog.Nodes) Require(tree.Purchase(node.Uid) == SkillPurchaseResultApplication.Success, "type transaction " + node.Uid);
-        Require(notifications == catalog.Nodes.Count && effectNotifications == catalog.Nodes.Count(node => node.CellType.HasValue) && reentries == catalog.Nodes.Count * 2 && wallet.Current.Balance == 750 && wallet.Current.ReservedExpense == 0, "type transaction total and notification isolation");
+        Require(notifications == catalog.Nodes.Count && effectNotifications == catalog.Nodes.Count(node => node.TargetCellTypes.Count > 0) && reentries == catalog.Nodes.Count * 2 && wallet.Current.Balance == 750 && wallet.Current.ReservedExpense == 0, "type transaction total and notification isolation");
         Require(callbacksValid && wallet.LastNotificationException == null && tree.LastNotificationException != null && effects.LastNotificationException != null, "callbacks and exceptions recorded");
         var poor = new CurrencyWalletApplication(49);
         Require(new SkillTreeApplication(catalog, poor, new SharedStatEffectsApplication(), Deliveries()).Purchase("basic-research") == SkillPurchaseResultApplication.InsufficientFunds && poor.Current.Balance == 49, "insufficient funds");
@@ -68,16 +68,16 @@ public static class SkillTreeAssertions
 
     private static void VerifyTypeRules(SkillTreeCatalogDomain catalog)
     {
-        Require(catalog.Nodes.Count == 34, "root, ability chains and clearing unlock");
+        Require(catalog.Nodes.Count == 37, "root, ability chains and clearing unlock");
         foreach (var node in catalog.Nodes)
         {
             Require(node.Price == (node.Uid == TerrainClearingApplication.SkillUid ? 500 :
-                EffectiveStatsRulesDomain.IsSpeed(node.Stat) && node.CellType.HasValue ? new long[] {100,200,400}[int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-')+1))-1] :
-                node.CellType.HasValue ? int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-') + 1)) * 50 : 50), "initial ability price");
-            if (node.CellType.HasValue) Require(SkillTreeCatalogDomain.SupportsStat(node.CellType.Value, node.Stat), "ability belongs to target type");
+                EffectiveStatsRulesDomain.IsSpeed(node.Stat) && node.TargetCellTypes.Count > 0 ? new long[] {100,200,400}[int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-')+1))-1] :
+                node.TargetCellTypes.Count > 0 ? int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-') + 1)) * 50 : 50), "initial ability price");
+            if (node.TargetCellTypes.Count > 0) Require(SkillTreeCatalogDomain.SupportsStat(node.TargetCellTypes[0], node.Stat), "ability belongs to target type");
         }
         SkillNodeDomain Effect(string uid, CellTypeDomain type, EquipmentStatDomain stat, decimal multiplier = 2, int addition = 0, string previous = null)
-            => new(uid, uid, 50, previous, type, stat, multiplier, addition);
+            => new(uid, uid, 50, previous, new[] {type}, stat, multiplier, addition);
         Invalid(() => new SkillTreeCatalogDomain(new[] { Effect("a", CellTypeDomain.Crossing, EquipmentStatDomain.TransferAmount) }));
         Invalid(() => new SkillTreeCatalogDomain(new[] { Effect("a", CellTypeDomain.Storage, EquipmentStatDomain.InputCapacity) }));
         Invalid(() => new SkillTreeCatalogDomain(new[] { Effect("a", CellTypeDomain.Storage, EquipmentStatDomain.Capacity, -1) }));
@@ -86,8 +86,8 @@ public static class SkillTreeAssertions
         var wallet = new CurrencyWalletApplication(catalog.Nodes.Sum(node => node.Price) + 750); var effects = new SharedStatEffectsApplication(); var tree = new SkillTreeApplication(catalog, wallet, effects, Deliveries(true));
         var changed = 0; var commits = 0;
         tree.Changed += () => { changed++; Require(tree.Purchase("wood-extraction-1") == SkillPurchaseResultApplication.Busy, "ability change reentry guarded"); };
-        wallet.Changed += state => { if (state.ReservedExpense == 0) { commits++; foreach (var node in catalog.Nodes.Where(n => n.CellType.HasValue && tree.IsOwned(n.Uid)))
-            Require(effects.GetModifier(node.CellType.Value, node.Stat).Multiplier >= node.Modifier.Multiplier, "commit sees configured ability"); } };
+        wallet.Changed += state => { if (state.ReservedExpense == 0) { commits++; foreach (var node in catalog.Nodes.Where(n => n.TargetCellTypes.Count > 0 && tree.IsOwned(n.Uid)))
+            Require(effects.GetModifier(node.TargetCellTypes[0], node.Stat).Multiplier >= node.Modifier.Multiplier, "commit sees configured ability"); } };
         Require(tree.Purchase("wood-extraction-2") == SkillPurchaseResultApplication.PrerequisiteMissing, "ability prerequisite");
         foreach (var node in catalog.Nodes)
         {
@@ -131,7 +131,7 @@ public static class SkillTreeAssertions
             var initializer = TestScenes.Find<GameInitializerAdapter>();
             var grid = GridFieldDatabaseAdapter.Instance;
             var tree = initializer.Skills;
-            initializer.Wallet.TryReserveIncome(tree.Catalog.Nodes.Where(node => node.CellType.HasValue && !EffectiveStatsRulesDomain.IsSpeed(node.Stat) || node.Uid == "basic-research")
+            initializer.Wallet.TryReserveIncome(tree.Catalog.Nodes.Where(node => node.TargetCellTypes.Count > 0 && !EffectiveStatsRulesDomain.IsSpeed(node.Stat) || node.Uid == "basic-research")
                 .Sum(node => node.Price) + 250, out var income); income.TryCommit();
             var names = new[] { "ExtractorWood", "ExtractorStone", "Storage", "Crafter", "ExportConveyor", "AdvancedCrafter" };
             var existing = new List<CellBaseAdapter>(); var inactive = new List<CellBaseAdapter>();
@@ -191,7 +191,7 @@ public static class SkillTreeAssertions
             activeCrafter.StoreResource(1, 2);
             Require(activeCrafter.GetInput(1).Amount == 2, "old crafting reservation commits");
 
-            foreach (var node in tree.Catalog.Nodes.Where(node => node.CellType.HasValue && !EffectiveStatsRulesDomain.IsSpeed(node.Stat)))
+            foreach (var node in tree.Catalog.Nodes.Where(node => node.TargetCellTypes.Count > 0 && !EffectiveStatsRulesDomain.IsSpeed(node.Stat)))
             {
                 var before = existing.Select(Stats).ToArray();
                 if (!tree.IsOwned(node.Uid)) Require(tree.Purchase(node.Uid) == SkillPurchaseResultApplication.Success, "scene ability " + node.Uid);
@@ -199,7 +199,7 @@ public static class SkillTreeAssertions
                 {
                     var after = Stats(existing[index]);
                     foreach (var pair in after)
-                        if (existing[index].ProgressionType != node.CellType || pair.Key != node.Stat)
+                        if (!node.TargetCellTypes.Contains(existing[index].ProgressionType) || pair.Key != node.Stat)
                             Require(pair.Value == before[index][pair.Key], "unrelated type and ability remain unchanged");
                     VerifyStats(existing[index], grid.StatEffects); inactive[index].gameObject.SetActive(true); VerifyStats(inactive[index], grid.StatEffects); inactive[index].gameObject.SetActive(false);
                 }
@@ -211,7 +211,7 @@ public static class SkillTreeAssertions
             VerifyStats(promoted,grid.StatEffects);
             Require(storage.CurrentLoad == 20 && storage.AllocatedAmount == 10 && ReferenceEquals(identity, storage.Identity), "stock reservation and instance preserved");
             storage.StoreResource(3, 10); Require(storage.CurrentLoad == 30 && storage.AllocatedAmount == 0, "old stock reservation commits");
-            Require(!crossing.SupportsProgression && ReferenceEquals(pending[Vector3Int.right], transfer) && receiver.AllocatedAmount == 5 && receiver.Capacity == 150, "crossing keeps upstream reservation while receiver grows");
+            Require(!SkillTreeCatalogDomain.SupportsStat(CellTypeDomain.Crossing,EquipmentStatDomain.TransferAmount) && ReferenceEquals(pending[Vector3Int.right], transfer) && receiver.AllocatedAmount == 5 && receiver.Capacity == 150, "crossing keeps upstream reservation while receiver grows");
             crossing.CancelStorage(1, 5, ResourceTypeDomain.Stone);
             Require(receiver.AllocatedAmount == 0 && pending.Count == 0, "crossing reservation cancels after type purchases");
             Require(initializer.Wallet.Current.Balance == 350 && initializer.Wallet.Current.ReservedExpense == 0, "scene type purchases charged once");

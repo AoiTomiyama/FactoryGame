@@ -160,7 +160,6 @@ MonoBehaviour:
     Cell: {x: 0, y: 0}
     Facing: 2
     Use: 3
-  transferSecond: 0.1
   transferAmount: 5
 --- !u!4 &7160944560747574814 stripped
 Transform:

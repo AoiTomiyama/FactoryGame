@@ -21,7 +21,7 @@ public sealed class SpeedSkillTests
         var effects = new SharedStatEffectsApplication();
         effects.RegisterDurationBase(CellTypeDomain.Crafter,EquipmentStatDomain.CraftingSpeed,10);
         var catalog = new SkillTreeCatalogDomain(new[] {
-            new SkillNodeDomain("speed","Speed",1,null,CellTypeDomain.Crafter,EquipmentStatDomain.CraftingSpeed,1.25m) });
+            new SkillNodeDomain("speed","Speed",1,null,new[] {CellTypeDomain.Crafter},EquipmentStatDomain.CraftingSpeed,1.25m) });
         var skills = new SkillTreeApplication(catalog,new CurrencyWalletApplication(1),effects);
         Assert.That(skills.Purchase("speed"),Is.EqualTo(SkillPurchaseResultApplication.Success));
         Assert.That(effects.CanApply(CellTypeDomain.Crafter,EquipmentStatDomain.CraftingSpeed,new StatModifierDomain(1,0)),Is.False);
@@ -56,6 +56,42 @@ public sealed class SpeedSkillTests
             Assert.That(chain.Select(n => n.Modifier.Multiplier),Is.EqualTo(new[] {1.25m,1.5m,2m}));
             Assert.That(chain.Select(n => n.Price),Is.EqualTo(new long[] {100,200,400}));
         }
+    }
+    [Test] public void TransportNodeUpdatesAllThreeKindsAndRestoresThemWithoutAnotherPayment()
+    {
+        var kinds = new[] {CellTypeDomain.Conveyor,CellTypeDomain.ExportConveyor,CellTypeDomain.Crossing};
+        var node = new SkillNodeDomain("transport","Transport",100,null,kinds,EquipmentStatDomain.TransportSpeed,1.5m);
+        kinds[0] = CellTypeDomain.Storage;
+        var effects = new SharedStatEffectsApplication(); var wallet = new CurrencyWalletApplication(100);
+        var catalog = new SkillTreeCatalogDomain(new[] {node}); var skills = new SkillTreeApplication(catalog,wallet,effects);
+        var notifications = 0; var observersSawAllKinds = false;
+        effects.Changed += () => { notifications++; observersSawAllKinds = node.TargetCellTypes.All(t => effects.GetModifier(t,EquipmentStatDomain.TransportSpeed).Multiplier==1.5m); };
+        Assert.That(skills.Purchase(node.Uid),Is.EqualTo(SkillPurchaseResultApplication.Success));
+        Assert.That(observersSawAllKinds); Assert.That(notifications,Is.EqualTo(1)); Assert.That(wallet.Current.Balance,Is.Zero);
+        Assert.That(node.TargetCellTypes.Contains(CellTypeDomain.Storage),Is.False);
+        var restoredEffects = new SharedStatEffectsApplication();
+        new SkillTreeApplication(catalog,wallet,restoredEffects).RestoreOwned(skills.CaptureOwned());
+        foreach(var type in node.TargetCellTypes) Assert.That(restoredEffects.GetModifier(type,EquipmentStatDomain.TransportSpeed).Multiplier,Is.EqualTo(1.5m));
+        Assert.That(wallet.Current.Balance,Is.Zero);
+    }
+    [Test] public void InvalidOneOfMultipleTargetsPreventsEveryEffectAndThePayment()
+    {
+        var effects = new SharedStatEffectsApplication();
+        effects.RegisterDurationBase(CellTypeDomain.Crossing,EquipmentStatDomain.TransportSpeed,float.Epsilon);
+        var kinds = new[] {CellTypeDomain.Conveyor,CellTypeDomain.ExportConveyor,CellTypeDomain.Crossing};
+        var catalog = new SkillTreeCatalogDomain(new[] {new SkillNodeDomain("transport","Transport",100,null,kinds,EquipmentStatDomain.TransportSpeed,2)});
+        var wallet = new CurrencyWalletApplication(100); var skills = new SkillTreeApplication(catalog,wallet,effects);
+        Assert.That(skills.Purchase("transport"),Is.EqualTo(SkillPurchaseResultApplication.InvalidEffect));
+        foreach(var type in kinds) Assert.That(effects.GetModifier(type,EquipmentStatDomain.TransportSpeed).Multiplier,Is.EqualTo(1));
+        Assert.That(wallet.Current.Balance,Is.EqualTo(100)); Assert.That(wallet.Current.ReservedExpense,Is.Zero);
+    }
+    [Test] public void PartiallyOverlappingTargetListsRequireTheSamePrerequisiteChain()
+    {
+        var first = new SkillNodeDomain("a","A",100,null,new[] {CellTypeDomain.Conveyor,CellTypeDomain.ExportConveyor},EquipmentStatDomain.TransportSpeed,1.25m);
+        var second = new SkillNodeDomain("b","B",100,null,new[] {CellTypeDomain.ExportConveyor,CellTypeDomain.Crossing},EquipmentStatDomain.TransportSpeed,1.5m);
+        Assert.Throws<ArgumentException>(() => new SkillTreeCatalogDomain(new[] {first,second}));
+        var chained = new SkillNodeDomain("b","B",100,"a",second.TargetCellTypes,EquipmentStatDomain.TransportSpeed,1.5m);
+        Assert.DoesNotThrow(() => new SkillTreeCatalogDomain(new[] {first,chained}));
     }
 }
 #endif

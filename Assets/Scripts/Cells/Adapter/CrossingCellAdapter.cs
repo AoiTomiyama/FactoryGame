@@ -7,7 +7,8 @@ using UnityEngine;
 
 public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableApplication, IResourceReusableApplication
 {
-    // 独立した数量能力は持たず、購入レベルだけを保持して中継中の数量を維持する。
+    // 方向ごとの数量と所有者を保持し、速度だけを共有効果から読む。
+    public override CellTypeDomain ProgressionType => CellTypeDomain.Crossing;
     private readonly Dictionary<Vector3Int, IContainableApplication> _adjacentContainers = new();
     private readonly Dictionary<Vector3Int, PendingTransfer> _pending = new();
     private CancellationTokenSource _cts;
@@ -174,13 +175,15 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                 try
                 {
                     var startPos = transform.position + Vector3.up * 1.1f;
+                    var pool = transfer.ResourceOwner;
+                    if (pool == null) throw new InvalidOperationException("Crossing transfer lost its resource owner.");
                     var result = await transfer.Coordinator.RunAsync(
                         () => _adjacentContainers.TryGetValue(dir, out var portTarget) ? TargetPortId(portTarget.Identity as CellBaseAdapter, dir) : -1, startPos,
                         transform.position + dir + Vector3.up * 1.1f,
                         () => _adjacentContainers.TryGetValue(dir, out var adjacent) ? adjacent : null,
                         endpoint => _adjacentContainers.TryGetValue(dir, out var adjacent) &&
-                                ReferenceEquals(adjacent.Identity, endpoint.Identity), ResourceItemObjectPoolAdapter.Instance.Resources,
-                        ResourceItemObjectPoolAdapter.Instance, activeCts.Token);
+                                ReferenceEquals(adjacent.Identity, endpoint.Identity), pool.Resources,
+                        pool, () => EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed), activeCts.Token);
                     if (result != ResourceAnimationResultApplication.Completed)
                     {
                         await UniTask.Delay(100, cancellationToken: token);

@@ -19,6 +19,7 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
     public Vector3 WorldCenter => transform.TransformPoint(new Vector3(
         footprintOffset.x + (footprintWidth - 1) * .5f, 0, footprintOffset.y + (footprintDepth - 1) * .5f));
     private SharedStatEffectsApplication _statEffects;
+    private CellTypeDomain _configuredProgressionType;
     public virtual CellTypeDomain ProgressionType => CellTypeDomain.None;
     public bool SupportsProgression => SkillTreeCatalogDomain.SupportsType(ProgressionType);
 
@@ -26,7 +27,7 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
     {
         if (!SupportsProgression) return;
         if (effects == null) throw new ArgumentNullException(nameof(effects));
-        if (ReferenceEquals(_statEffects, effects)) return;
+        if (ReferenceEquals(_statEffects, effects) && _configuredProgressionType == ProgressionType) return;
         // 構成を替える場合も現在の能力を減らさず、成立済みの在庫と予約を保つ。
         foreach (EquipmentStatDomain stat in Enum.GetValues(typeof(EquipmentStatDomain)))
         {
@@ -38,6 +39,7 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
         var previousEffects = _statEffects;
         _statEffects = effects;
         try { ValidateBaseStats(); } catch { _statEffects = previousEffects; throw; }
+        _configuredProgressionType = ProgressionType;
         if (previousEffects != null) previousEffects.Changed -= OnStatsChanged;
         _statEffects.Changed += OnStatsChanged;
         OnStatsChanged();

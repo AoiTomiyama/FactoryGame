@@ -89,7 +89,7 @@ public static class ResourceTransferAssertions
         var coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, target, id,
             ResourceTypeDomain.Stone, 5));
         Require(await coordinator.RunAsync(() => 0, Vector3.zero, Vector3.right, () => target,
-                    endpoint => ReferenceEquals(endpoint.Identity, target.Identity), pool.Resources, pool, CancellationToken.None) ==
+                    endpoint => ReferenceEquals(endpoint.Identity, target.Identity), pool.Resources, pool, () => pool.BaseTransferSeconds, CancellationToken.None) ==
                 ResourceAnimationResultApplication.Completed && target.Amount == 5 && target.Reserved == 0 &&
                 target.CommitCalls == 1 && !ContainsId(pool, id) && !pool.ReleaseVisual(id) &&
                 !coordinator.Operation.TryComplete() && !coordinator.Operation.TryCancel(),
@@ -105,7 +105,7 @@ public static class ResourceTransferAssertions
                 ResourceTypeDomain.Stone, 5));
             using var cts = new CancellationTokenSource();
             var transfer = coordinator.RunAsync(() => 0, Vector3.zero, Vector3.right, () => current,
-                endpoint => ReferenceEquals(endpoint.Identity, current.Identity), pool.Resources, pool, cts.Token);
+                endpoint => ReferenceEquals(endpoint.Identity, current.Identity), pool.Resources, pool, () => pool.BaseTransferSeconds, cts.Token);
             await UniTask.Delay(120);
             Require(oldTarget.Reserved == 5, "non-cell transfer enters reserved animation");
             if (scenario == 0) current = new EndpointFixture();
@@ -126,7 +126,7 @@ public static class ResourceTransferAssertions
                 coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, current, id,
                     ResourceTypeDomain.Stone, 5));
                 await coordinator.RunAsync(() => 0, Vector3.zero, Vector3.right, () => current,
-                    endpoint => ReferenceEquals(endpoint.Identity, current.Identity), pool.Resources, pool, CancellationToken.None);
+                    endpoint => ReferenceEquals(endpoint.Identity, current.Identity), pool.Resources, pool, () => pool.BaseTransferSeconds, CancellationToken.None);
                 Require(((EndpointFixture)current).Amount == 5 && !ContainsId(pool, id), "retained ID delivers once to replacement");
             }
             pool.DisposeId(id);
@@ -138,7 +138,7 @@ public static class ResourceTransferAssertions
         coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(source, reusable, id,
             ResourceTypeDomain.Stone, 5));
         await coordinator.RunAsync(() => 0, Vector3.zero, Vector3.right, () => reusable,
-            endpoint => ReferenceEquals(endpoint.Identity, reusable.Identity), pool.Resources, pool, CancellationToken.None);
+            endpoint => ReferenceEquals(endpoint.Identity, reusable.Identity), pool.Resources, pool, () => pool.BaseTransferSeconds, CancellationToken.None);
         Require(reusable.Amount == 5 && reusable.ReuseCalls == 1 && ContainsId(pool, id),
             "reusable non-cell target retains the transferred ID and visual");
         pool.DisposeId(id);
@@ -150,20 +150,20 @@ public static class ResourceTransferAssertions
         var id = pool.CreateIdFromResourceData(ResourceTypeDomain.Stone, 5);
         var visual = GetVisual(pool, id);
         using var cts = new CancellationTokenSource();
-        var move = pool.Transfer(cts.Token, Vector3.zero, Vector3.right, id);
+        var move = pool.Transfer(cts.Token, Vector3.zero, Vector3.right, id, pool.BaseTransferSeconds);
         await UniTask.Delay(120);
         cts.Cancel();
         Require(await move == ResourceAnimationResultApplication.Cancelled &&
                 pool.Resources.TryGet(id, out var data) && data.Amount == 5,
             "animation cancellation does not change the transit data");
 
-        move = pool.Transfer(CancellationToken.None, Vector3.zero, Vector3.right, id);
+        move = pool.Transfer(CancellationToken.None, Vector3.zero, Vector3.right, id, pool.BaseTransferSeconds);
         await UniTask.Delay(120);
         DOTween.Kill(visual.transform);
         Require(await move == ResourceAnimationResultApplication.Cancelled && ContainsId(pool, id),
             "an externally killed tween is not a successful delivery");
 
-        move = pool.Transfer(CancellationToken.None, Vector3.zero, Vector3.right, id);
+        move = pool.Transfer(CancellationToken.None, Vector3.zero, Vector3.right, id, pool.BaseTransferSeconds);
         await UniTask.Delay(120);
         Require(pool.ReleaseVisual(id) && !pool.ReleaseVisual(id), "visual returns exactly once");
         var nextId = pool.CreateIdFromResourceData(ResourceTypeDomain.Stone, 3);
@@ -177,7 +177,7 @@ public static class ResourceTransferAssertions
         await UniTask.Delay(900);
         Require(reused.transform.position == parked,
             "the old tween cannot move a reused visual");
-        Require(await pool.Transfer(CancellationToken.None, Vector3.zero, Vector3.right, id) ==
+        Require(await pool.Transfer(CancellationToken.None, Vector3.zero, Vector3.right, id, pool.BaseTransferSeconds) ==
                 ResourceAnimationResultApplication.MissingVisual && ContainsId(pool, id),
             "a missing visual reports failure without removing data");
         pool.DisposeId(id);

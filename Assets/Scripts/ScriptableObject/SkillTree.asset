@@ -17,7 +17,7 @@ MonoBehaviour:
     label: 基礎研究
     price: 50
     prerequisite:
-    cellType: 0
+    cellTypes: []
     stat: 0
     multiplier: 1
     addition: 0
@@ -25,7 +25,8 @@ MonoBehaviour:
     label: 木材採取・抽出量 I
     price: 50
     prerequisite: basic-research
-    cellType: 6
+    cellTypes:
+    - 6
     stat: 0
     multiplier: 2
     addition: 0
@@ -33,7 +34,8 @@ MonoBehaviour:
     label: 木材採取・抽出量 II
     price: 100
     prerequisite: wood-extraction-1
-    cellType: 6
+    cellTypes:
+    - 6
     stat: 0
     multiplier: 3
     addition: 0
@@ -41,7 +43,8 @@ MonoBehaviour:
     label: 木材採取・抽出量 III
     price: 150
     prerequisite: wood-extraction-2
-    cellType: 6
+    cellTypes:
+    - 6
     stat: 0
     multiplier: 4
     addition: 0
@@ -49,7 +52,8 @@ MonoBehaviour:
     label: 木材採取・抽出量 IV
     price: 200
     prerequisite: wood-extraction-3
-    cellType: 6
+    cellTypes:
+    - 6
     stat: 0
     multiplier: 5
     addition: 0
@@ -57,7 +61,8 @@ MonoBehaviour:
     label: 木材採取・抽出量 V
     price: 250
     prerequisite: wood-extraction-4
-    cellType: 6
+    cellTypes:
+    - 6
     stat: 0
     multiplier: 6
     addition: 0
@@ -65,7 +70,8 @@ MonoBehaviour:
     label: 木材採取・抽出量 VI
     price: 300
     prerequisite: wood-extraction-5
-    cellType: 6
+    cellTypes:
+    - 6
     stat: 0
     multiplier: 7
     addition: 0
@@ -73,7 +79,8 @@ MonoBehaviour:
     label: 木材採取・抽出量 VII
     price: 350
     prerequisite: wood-extraction-6
-    cellType: 6
+    cellTypes:
+    - 6
     stat: 0
     multiplier: 8
     addition: 0
@@ -81,7 +88,8 @@ MonoBehaviour:
     label: 木材採取・抽出量 VIII
     price: 400
     prerequisite: wood-extraction-7
-    cellType: 6
+    cellTypes:
+    - 6
     stat: 0
     multiplier: 9
     addition: 0
@@ -89,7 +97,8 @@ MonoBehaviour:
     label: 木材採取・在庫容量 I
     price: 50
     prerequisite: basic-research
-    cellType: 6
+    cellTypes:
+    - 6
     stat: 1
     multiplier: 2
     addition: 0
@@ -97,7 +106,8 @@ MonoBehaviour:
     label: 木材採取・在庫容量 II
     price: 100
     prerequisite: wood-capacity-1
-    cellType: 6
+    cellTypes:
+    - 6
     stat: 1
     multiplier: 3
     addition: 0
@@ -105,7 +115,8 @@ MonoBehaviour:
     label: 石材採取・抽出量 I
     price: 50
     prerequisite: basic-research
-    cellType: 5
+    cellTypes:
+    - 5
     stat: 0
     multiplier: 2
     addition: 0
@@ -113,7 +124,8 @@ MonoBehaviour:
     label: 石材採取・抽出量 II
     price: 100
     prerequisite: stone-extraction-1
-    cellType: 5
+    cellTypes:
+    - 5
     stat: 0
     multiplier: 3
     addition: 0
@@ -121,7 +133,8 @@ MonoBehaviour:
     label: 石材採取・在庫容量 I
     price: 50
     prerequisite: basic-research
-    cellType: 5
+    cellTypes:
+    - 5
     stat: 1
     multiplier: 2
     addition: 0
@@ -129,7 +142,8 @@ MonoBehaviour:
     label: 石材採取・在庫容量 II
     price: 100
     prerequisite: stone-capacity-1
-    cellType: 5
+    cellTypes:
+    - 5
     stat: 1
     multiplier: 3
     addition: 0
@@ -137,7 +151,8 @@ MonoBehaviour:
     label: 保管庫・容量 I
     price: 50
     prerequisite: basic-research
-    cellType: 7
+    cellTypes:
+    - 7
     stat: 1
     multiplier: 2
     addition: 0
@@ -145,7 +160,8 @@ MonoBehaviour:
     label: 保管庫・容量 II
     price: 100
     prerequisite: storage-capacity-1
-    cellType: 7
+    cellTypes:
+    - 7
     stat: 1
     multiplier: 3
     addition: 0
@@ -153,7 +169,8 @@ MonoBehaviour:
     label: 加工設備・入力容量 I
     price: 50
     prerequisite: basic-research
-    cellType: 8
+    cellTypes:
+    - 8
     stat: 2
     multiplier: 2
     addition: 0
@@ -161,7 +178,8 @@ MonoBehaviour:
     label: 加工設備・入力容量 II
     price: 100
     prerequisite: crafter-input-1
-    cellType: 8
+    cellTypes:
+    - 8
     stat: 2
     multiplier: 3
     addition: 0
@@ -169,7 +187,8 @@ MonoBehaviour:
     label: 加工設備・出力容量 I
     price: 50
     prerequisite: basic-research
-    cellType: 8
+    cellTypes:
+    - 8
     stat: 3
     multiplier: 2
     addition: 0
@@ -177,7 +196,8 @@ MonoBehaviour:
     label: 加工設備・出力容量 II
     price: 100
     prerequisite: crafter-output-1
-    cellType: 8
+    cellTypes:
+    - 8
     stat: 3
     multiplier: 3
     addition: 0
@@ -185,7 +205,8 @@ MonoBehaviour:
     label: 搬出路・搬出量 I
     price: 50
     prerequisite: basic-research
-    cellType: 10
+    cellTypes:
+    - 10
     stat: 4
     multiplier: 2
     addition: 0
@@ -193,7 +214,8 @@ MonoBehaviour:
     label: 搬出路・搬出量 II
     price: 100
     prerequisite: export-transfer-1
-    cellType: 10
+    cellTypes:
+    - 10
     stat: 4
     multiplier: 3
     addition: 0
@@ -201,7 +223,8 @@ MonoBehaviour:
     label: 上位加工設備・入力容量 I
     price: 50
     prerequisite: basic-research
-    cellType: 13
+    cellTypes:
+    - 13
     stat: 2
     multiplier: 2
     addition: 0
@@ -209,7 +232,8 @@ MonoBehaviour:
     label: 上位加工設備・入力容量 II
     price: 100
     prerequisite: advanced-crafter-input-1
-    cellType: 13
+    cellTypes:
+    - 13
     stat: 2
     multiplier: 3
     addition: 0
@@ -217,7 +241,8 @@ MonoBehaviour:
     label: 上位加工設備・出力容量 I
     price: 50
     prerequisite: basic-research
-    cellType: 13
+    cellTypes:
+    - 13
     stat: 3
     multiplier: 2
     addition: 0
@@ -225,7 +250,8 @@ MonoBehaviour:
     label: 上位加工設備・出力容量 II
     price: 100
     prerequisite: advanced-crafter-output-1
-    cellType: 13
+    cellTypes:
+    - 13
     stat: 3
     multiplier: 3
     addition: 0
@@ -234,7 +260,7 @@ MonoBehaviour:
     price: 500
     prerequisite: basic-research
     requiredDeliveryStage: processed
-    cellType: 0
+    cellTypes: []
     stat: 0
     multiplier: 1
     addition: 0
@@ -242,7 +268,8 @@ MonoBehaviour:
     label: 基本加工・速度 I
     price: 100
     prerequisite: basic-research
-    cellType: 8
+    cellTypes:
+    - 8
     stat: 5
     multiplier: 1.25
     addition: 0
@@ -250,7 +277,8 @@ MonoBehaviour:
     label: 基本加工・速度 II
     price: 200
     prerequisite: crafter-speed-1
-    cellType: 8
+    cellTypes:
+    - 8
     stat: 5
     multiplier: 1.5
     addition: 0
@@ -258,7 +286,8 @@ MonoBehaviour:
     label: 基本加工・速度 III
     price: 400
     prerequisite: crafter-speed-2
-    cellType: 8
+    cellTypes:
+    - 8
     stat: 5
     multiplier: 2
     addition: 0
@@ -266,7 +295,8 @@ MonoBehaviour:
     label: 上位加工・速度 I
     price: 100
     prerequisite: basic-research
-    cellType: 13
+    cellTypes:
+    - 13
     stat: 5
     multiplier: 1.25
     addition: 0
@@ -274,7 +304,8 @@ MonoBehaviour:
     label: 上位加工・速度 II
     price: 200
     prerequisite: advanced-crafter-speed-1
-    cellType: 13
+    cellTypes:
+    - 13
     stat: 5
     multiplier: 1.5
     addition: 0
@@ -282,7 +313,41 @@ MonoBehaviour:
     label: 上位加工・速度 III
     price: 400
     prerequisite: advanced-crafter-speed-2
-    cellType: 13
+    cellTypes:
+    - 13
     stat: 5
+    multiplier: 2
+    addition: 0
+  - uid: transport-speed-1
+    label: 輸送速度 I
+    price: 100
+    prerequisite: basic-research
+    cellTypes:
+    - 9
+    - 10
+    - 11
+    stat: 6
+    multiplier: 1.25
+    addition: 0
+  - uid: transport-speed-2
+    label: 輸送速度 II
+    price: 200
+    prerequisite: transport-speed-1
+    cellTypes:
+    - 9
+    - 10
+    - 11
+    stat: 6
+    multiplier: 1.5
+    addition: 0
+  - uid: transport-speed-3
+    label: 輸送速度 III
+    price: 400
+    prerequisite: transport-speed-2
+    cellTypes:
+    - 9
+    - 10
+    - 11
+    stat: 6
     multiplier: 2
     addition: 0

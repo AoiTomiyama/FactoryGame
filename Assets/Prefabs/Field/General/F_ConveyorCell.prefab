@@ -160,7 +160,6 @@ MonoBehaviour:
     Cell: {x: 0, y: 0}
     Facing: 2
     Use: 3
-  transferSecond: 0.2
   transferAmount: 5
   exportDefinition: {fileID: -6418179465880099695, guid: 96acf1e9aebc93d41a2804eeca4df6bd, type: 3}
 --- !u!4 &8156743863919811959 stripped

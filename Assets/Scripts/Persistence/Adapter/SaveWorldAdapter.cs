@@ -166,6 +166,6 @@ public sealed class SaveWorldAdapter
         return $"{f.Width},{f.Depth},{f.OffsetX},{f.OffsetZ}|" + (cell is ConnectableCellBaseAdapter c ?
             string.Join(";",c.Ports.OrderBy(p => p.Id).Select(p => $"{p.Id},{p.Cell.x},{p.Cell.y},{p.Facing},{p.Use}")) : "");
     }
-    private static string SkillRule(SkillNodeDomain node) => $"{node.Prerequisite}|{node.CellType}|{node.Stat}|{node.Modifier.Multiplier.ToString(CultureInfo.InvariantCulture)}|{node.Modifier.Addition}" +
+    private static string SkillRule(SkillNodeDomain node) => $"{node.Prerequisite}|{string.Join(",",node.TargetCellTypes.OrderBy(t => t))}|{node.Stat}|{node.Modifier.Multiplier.ToString(CultureInfo.InvariantCulture)}|{node.Modifier.Addition}" +
         (node.RequiredDeliveryStage == null ? "" : $"|delivery:{node.RequiredDeliveryStage}");
 }

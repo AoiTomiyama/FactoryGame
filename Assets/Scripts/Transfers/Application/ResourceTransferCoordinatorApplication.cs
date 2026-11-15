@@ -39,7 +39,7 @@ public sealed class ResourceTransferCoordinatorApplication
     public async UniTask<ResourceAnimationResultApplication> RunAsync(Func<int> getPortId, Vector3 from, Vector3 to,
         Func<IContainableApplication> getTarget, Func<IContainableApplication, bool> isCurrentTarget,
         ResourceTransitStoreApplication resources, IResourceTransferPresentationApplication presentation,
-        CancellationToken token, Action onAnimating = null)
+        Func<float> getDuration, CancellationToken token, Action onAnimating = null)
     {
         try
         {
@@ -58,8 +58,12 @@ public sealed class ResourceTransferCoordinatorApplication
                 info.Amount != Operation.Amount || info.Type != Operation.Type)
                 throw new InvalidOperationException("搬送記録と資源データが一致しません。");
             if (!Operation.TryMarkAnimating()) throw new OperationCanceledException();
+            // 受入待ち中の強化は反映し、移動開始後の時間はこの試行で固定する。
+            var seconds = getDuration();
+            if (float.IsNaN(seconds) || float.IsInfinity(seconds) || seconds <= 0)
+                throw new ArgumentOutOfRangeException(nameof(getDuration), "Transfer duration must be finite and positive.");
             onAnimating?.Invoke();
-            var result = await presentation.Transfer(token, from, to, Operation.ResourceId);
+            var result = await presentation.Transfer(token, from, to, Operation.ResourceId, seconds);
             token.ThrowIfCancellationRequested();
             if (result != ResourceAnimationResultApplication.Completed)
             {

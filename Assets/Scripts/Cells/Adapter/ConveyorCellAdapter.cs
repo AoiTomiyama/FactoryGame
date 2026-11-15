@@ -6,7 +6,6 @@ using UnityEngine;
 
 public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableApplication, IResourceReusableApplication
 {
-    [SerializeField] protected float transferSecond;
     [SerializeField] private int transferAmount;
     [SerializeField] private ExportConveyorCellAdapter exportDefinition;
     private bool _exportMode, _modeEvaluationQueued, _takeLoopStarted;
@@ -30,7 +29,10 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     private ResourceTypeDomain _incomingReservationType;
     public int TransferAmount => EffectiveStat(transferAmount, EquipmentStatDomain.TransferAmount);
     public override CellTypeDomain ProgressionType => IsExportConveyor ? CellTypeDomain.ExportConveyor : CellTypeDomain.Conveyor;
-    protected override void ValidateBaseStats() => ValidateStat(transferAmount, EquipmentStatDomain.TransferAmount);
+    protected override void ValidateBaseStats()
+    {
+        if (IsExportConveyor) ValidateStat(transferAmount,EquipmentStatDomain.TransferAmount);
+    }
     protected bool HasResource { get; set; }
     public SaveGameApplication.Slot[] CaptureBatches(Action<int> registerOwner)
     {
@@ -262,7 +264,8 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                 var end = transform.position + Vector3.up * 1.1f;
                 while (true)
                 {
-                    var result = await ResourceItemObjectPoolAdapter.Instance.Transfer(token,start,end,ResourceId);
+                    var pool = ResourceItemObjectPoolAdapter.Instance;
+                    var result = await pool.Transfer(token,start,end,ResourceId,EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed));
                     token.ThrowIfCancellationRequested();
                     if (result == ResourceAnimationResultApplication.Completed) break;
                     await UniTask.Delay(100,cancellationToken:token);
@@ -347,7 +350,8 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             _status = TransferStatus.WaitingForStorage;
             var result = await coordinator.RunAsync(() => TargetPortId(targetCell, dir), startPos, transform.position + dir + Vector3.up * 1.1f,
                 () => targetCell != null && _forwardCellBase == targetCell ? target : null,
-                endpoint => ReferenceEquals(_forwardCellBase, endpoint.Identity), pool.Resources, pool, transferCts.Token,
+                endpoint => ReferenceEquals(_forwardCellBase, endpoint.Identity), pool.Resources, pool,
+                () => EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed), transferCts.Token,
                 () => _status = TransferStatus.Storing);
             if (result != ResourceAnimationResultApplication.Completed)
             {

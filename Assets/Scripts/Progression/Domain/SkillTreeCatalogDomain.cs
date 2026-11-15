@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>固定uidで参照する不変のノード。解放ノードは能力補正を持たない。</summary>
 public sealed class SkillNodeDomain
@@ -9,17 +10,18 @@ public sealed class SkillNodeDomain
     public long Price { get; }
     public string Prerequisite { get; }
     public string RequiredDeliveryStage { get; }
-    public CellTypeDomain? CellType { get; }
+    public IReadOnlyList<CellTypeDomain> TargetCellTypes { get; }
     public EquipmentStatDomain Stat { get; }
     public StatModifierDomain Modifier { get; }
 
     public SkillNodeDomain(string uid, string label, long price, string prerequisite,
-        CellTypeDomain? cellType = null, EquipmentStatDomain stat = EquipmentStatDomain.ExtractionAmount, decimal multiplier = 1, int addition = 0,
+        IEnumerable<CellTypeDomain> cellTypes = null, EquipmentStatDomain stat = EquipmentStatDomain.ExtractionAmount, decimal multiplier = 1, int addition = 0,
         string requiredDeliveryStage = null)
     {
         Uid = uid; Label = label; Price = price; Prerequisite = prerequisite;
         RequiredDeliveryStage = requiredDeliveryStage;
-        CellType = cellType; Stat = stat; Modifier = new StatModifierDomain(multiplier, addition);
+        TargetCellTypes = Array.AsReadOnly(cellTypes?.ToArray() ?? Array.Empty<CellTypeDomain>());
+        Stat = stat; Modifier = new StatModifierDomain(multiplier, addition);
     }
 }
 
@@ -27,14 +29,15 @@ public sealed class SkillNodeDomain
 public sealed class SkillTreeCatalogDomain
 {
     public static bool SupportsType(CellTypeDomain type) => ResourceCellRulesDomain.IsExtractor(type) || type is
-        CellTypeDomain.Storage or CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter or CellTypeDomain.ExportConveyor;
+        CellTypeDomain.Storage or CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter or CellTypeDomain.ExportConveyor or CellTypeDomain.Conveyor or CellTypeDomain.Crossing;
     public static bool SupportsStat(CellTypeDomain type, EquipmentStatDomain stat) => type switch
     {
         CellTypeDomain.ExtractorWood or CellTypeDomain.ExtractorStone or CellTypeDomain.ExtractorIron or
         CellTypeDomain.ExtractorCopper or CellTypeDomain.ExtractorCoal => stat is EquipmentStatDomain.ExtractionAmount or EquipmentStatDomain.Capacity,
         CellTypeDomain.Storage => stat == EquipmentStatDomain.Capacity,
         CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter => stat is EquipmentStatDomain.InputCapacity or EquipmentStatDomain.OutputCapacity or EquipmentStatDomain.CraftingSpeed,
-        CellTypeDomain.ExportConveyor => stat == EquipmentStatDomain.TransferAmount,
+        CellTypeDomain.ExportConveyor => stat is EquipmentStatDomain.TransferAmount or EquipmentStatDomain.TransportSpeed,
+        CellTypeDomain.Conveyor or CellTypeDomain.Crossing => stat == EquipmentStatDomain.TransportSpeed,
         _ => false
     };
     private readonly Dictionary<string, SkillNodeDomain> _nodes = new(StringComparer.Ordinal);
@@ -66,11 +69,11 @@ public sealed class SkillTreeCatalogDomain
             if (node == null || string.IsNullOrWhiteSpace(node.Uid) || string.IsNullOrWhiteSpace(node.Label) ||
                 node.Price <= 0 || !_nodes.TryAdd(node.Uid, node))
                 throw new ArgumentException("Invalid or duplicate skill node.");
-            if (node.CellType.HasValue && !SupportsStat(node.CellType.Value, node.Stat))
+            if (node.TargetCellTypes.Count != node.TargetCellTypes.Distinct().Count() || node.TargetCellTypes.Any(t => !SupportsStat(t,node.Stat)))
                 throw new ArgumentException("Unsupported ability for cell type.");
-            if (node.CellType.HasValue && EffectiveStatsRulesDomain.IsSpeed(node.Stat))
+            if (node.TargetCellTypes.Count > 0 && EffectiveStatsRulesDomain.IsSpeed(node.Stat))
                 EffectiveStatsRulesDomain.CalculateDuration(1,node.Modifier);
-            if (!node.CellType.HasValue && (node.Modifier.Multiplier != 1 || node.Modifier.Addition != 0))
+            if (node.TargetCellTypes.Count == 0 && (node.Modifier.Multiplier != 1 || node.Modifier.Addition != 0))
                 throw new ArgumentException("Unlock node cannot modify an ability.");
             if (node.RequiredDeliveryStage != null && string.IsNullOrWhiteSpace(node.RequiredDeliveryStage))
                 throw new ArgumentException("Delivery prerequisite must have an id.");
@@ -96,7 +99,7 @@ public sealed class SkillTreeCatalogDomain
             return false;
         }
         for (var i = 0; i < ordered.Count; i++) for (var j = i + 1; j < ordered.Count; j++)
-            if (ordered[i].CellType.HasValue && ordered[i].CellType == ordered[j].CellType && ordered[i].Stat == ordered[j].Stat &&
+            if (ordered[i].TargetCellTypes.Intersect(ordered[j].TargetCellTypes).Any() && ordered[i].Stat == ordered[j].Stat &&
                 !Ancestor(ordered[i], ordered[j]) && !Ancestor(ordered[j], ordered[i]))
                 throw new ArgumentException("Skills for the same ability must share a prerequisite chain.");
         Nodes = ordered.AsReadOnly();

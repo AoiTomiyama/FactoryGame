@@ -28,7 +28,7 @@ public sealed class SkillDetailsPresenterAdapter : IDisposable
         var state = _skills.CanPurchase(node.Uid);
         _view.Heading.text = node.Label;
         _view.EquipmentText = node.Uid == TerrainClearingApplication.SkillUid ? "木・石を整地して空き地にする\n" + _clearingPrices() :
-            node.CellType.HasValue ? EffectText(node) : "能力別の強化を解放";
+            node.TargetCellTypes.Count > 0 ? EffectText(node) : "能力別の強化を解放";
         _view.Feedback = state == SkillPurchaseResultApplication.PrerequisiteMissing && _skills.Catalog.TryGet(node.Prerequisite, out var parent) ? parent.Label + "が必要" :
             state == SkillPurchaseResultApplication.DeliveryStageMissing ? _deliveries.Catalog.Stages.First(s => s.Id == node.RequiredDeliveryStage).Label + "の達成が必要" :
             state == SkillPurchaseResultApplication.InsufficientFunds ? "残高不足" : "";
@@ -52,8 +52,8 @@ public sealed class SkillDetailsPresenterAdapter : IDisposable
     private string EffectText(SkillNodeDomain node)
     {
         string Value(StatModifierDomain modifier) => $"×{modifier.Multiplier:0.###}" + (modifier.Addition == 0 ? "" : $" ＋{modifier.Addition}");
-        var current = _effects.GetModifier(node.CellType.Value,node.Stat);
-        return StatName(node.Stat) + " " + (_skills.IsOwned(node.Uid) ? Value(node.Modifier) : Value(current)+" → "+Value(node.Modifier)) + "\n同種セルすべてに適用";
+        var current = _effects.GetModifier(node.TargetCellTypes[0],node.Stat);
+        return StatName(node.Stat) + " " + (_skills.IsOwned(node.Uid) ? Value(node.Modifier) : Value(current)+" → "+Value(node.Modifier)) + (node.TargetCellTypes.Count > 1 ? "\n全搬送路に適用" : "\n同種セルすべてに適用");
     }
     public void Dispose() { if (_view.UpgradeButton != null) _view.UpgradeButton.onClick.RemoveListener(Apply); }
 }
