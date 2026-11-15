@@ -24,6 +24,9 @@ public sealed class CurrencyEconomyDefinition : ScriptableObject
     }
 
     [SerializeField] private long initialBalance = 100;
+    [SerializeField] private long woodClearingPrice = 20;
+    [SerializeField] private long stoneClearingPrice = 40;
+    public TerrainClearingRulesDomain CreateClearingRules() => new(woodClearingPrice, stoneClearingPrice);
     [SerializeField] private SalePrice[] salePrices =
     {
         new() { resource = ResourceTypeDomain.Wood, price = 1 },

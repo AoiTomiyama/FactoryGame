@@ -19,6 +19,14 @@ public class CellPlacerAdapter : MonoBehaviour
     private CellTypeDomain _selectedType;
     private EquipmentPlacementApplication _placement;
     private CurrencyPriceCatalogDomain _prices;
+    private TerrainClearingAdapter _clearing;
+    private TerrainClearingAdapter.Preview _clearingPreview;
+    private bool _clearingMode;
+    public bool IsClearingSelected => _clearingMode;
+    public bool ClearingAvailable => _clearing != null && _clearing.IsUnlocked;
+    public string ClearingPriceText => _clearing == null ? "" : $"木 {_clearing.Rules.WoodPrice}・石 {_clearing.Rules.StonePrice} / マス";
+    public TerrainClearingApplication.Result LastClearingResult { get; private set; }
+    public void ConfigureClearing(TerrainClearingAdapter clearing) => _clearing = clearing;
     private bool _placing;
     private bool _placementEnabled, _dragging, _overlap;
     private string _placementNotice = "";
@@ -41,7 +49,8 @@ public class CellPlacerAdapter : MonoBehaviour
         => TryGetDefinition(type,out var info) && info.FieldCellPrefab != null ? info.FieldCellPrefab : throw new InvalidOperationException($"Missing field definition: {type}");
     public CellTypeDomain SelectedType => _selectedType;
     public int PreviewCount => _selectedRangeCells.Count(t => t.placeholder.activeSelf);
-    public long PreviewCost => _prices != null && _prices.TryGetPlacementAmount(_selectedType, PreviewCount, out var cost) ? cost : 0;
+    public long PreviewCost => _clearingMode ? _clearingPreview?.Quote.Cost ?? 0 :
+        _prices != null && _prices.TryGetPlacementAmount(_selectedType, PreviewCount, out var cost) ? cost : 0;
     public int LastPlacedCount { get; private set; }
     public long LastPlacementCost { get; private set; }
     public EquipmentPlacementApplication.Result LastPlacementResult { get; private set; }
@@ -83,10 +92,12 @@ public class CellPlacerAdapter : MonoBehaviour
     public void PointerBegin()
     {
         if (!_placementEnabled || _placing || _selectedCell == null) return;
+        if (_clearingMode && !ClearingAvailable) return;
         _placementNotice = "";
         _dragging = true;
         _dragBeginPos = _selectedCoordinate;
         _dragEndPos = _dragBeginPos;
+        if (_clearingMode) FindRangedGrid(_dragBeginPos, _dragEndPos);
     }
 
     public void PointerDrag()
@@ -160,6 +171,11 @@ public class CellPlacerAdapter : MonoBehaviour
             if (!GridFieldDatabaseAdapter.Instance.IsWithinBounds(x, z)) continue;
             var cell = GridFieldDatabaseAdapter.Instance.GetCell(x, z);
             if (cell == null) continue;
+            if (_clearingMode)
+            {
+                if (cell is ResourceCellAdapter raw && _clearing.Rules.CanClear(raw.ResourceTypeDomain)) newSelection.Add(cell);
+                continue;
+            }
             if (_cachedCell is not EmptyCellAdapter && !CanPlaceAt(x, z)) { _overlap = true; continue; }
             // 撤去は設備だけ、設置は空セルだけを対象にする。
             if (cell is not ResourceCellAdapter && cell is not SingularityCellAdapter &&
@@ -172,6 +188,7 @@ public class CellPlacerAdapter : MonoBehaviour
         }
 
         SelectRangedGrid(newSelection);
+        if (_clearingMode) _clearingPreview = _clearing.CreatePreview(newSelection.Select(c => (c.XIndex, c.ZIndex)));
     }
 
     private void SelectRangedGrid(HashSet<CellBaseAdapter> newSelection)
@@ -216,6 +233,11 @@ public class CellPlacerAdapter : MonoBehaviour
     private void ReplaceRangedCells()
     {
         if (_placing || _selectedRangeCells.Count == 0) return;
+        if (_clearingMode)
+        {
+            if (PreviewCount == 0) { ClearRange(); return; }
+            ClearRangedResources(); return;
+        }
         _placing = true;
         LastPlacedCount = 0;
         LastPlacementCost = 0;
@@ -250,6 +272,7 @@ public class CellPlacerAdapter : MonoBehaviour
             if (placeholder != null) Destroy(placeholder);
         }
         _selectedRangeCells.Clear(); _rangePreviewKinds.Clear();
+        _clearingPreview = null;
         _overlap = false;
     }
 
@@ -406,6 +429,8 @@ public class CellPlacerAdapter : MonoBehaviour
         {
             if (!database.TryGetCellInfo(cellType, out var cellInfo)) continue;
             ClearRange();
+            _dragging = false;
+            _clearingMode = false;
             _placementNotice = "";
             _selectedType = cellType; _idlePreviewKind = cellType;
 
@@ -431,10 +456,48 @@ public class CellPlacerAdapter : MonoBehaviour
 
     private void OnDisable() { if (!_placing) ClearRange(); }
 
+    public void SelectClearing()
+    {
+        if (_placing || !ClearingAvailable) return;
+        SetSelectedCellType(CellTypeDomain.Empty);
+        _clearingMode = true;
+    }
+
+    private void ClearRangedResources()
+    {
+        _placing = true;
+        LastPlacedCount = 0; LastPlacementCost = 0;
+        try
+        {
+            var preview = _clearingPreview;
+            LastClearingResult = _clearing.Execute(preview);
+            if (LastClearingResult == TerrainClearingApplication.Result.Success)
+            {
+                LastPlacedCount = preview.Quote.Targets.Count; LastPlacementCost = preview.Quote.Cost;
+                var grid = GridFieldDatabaseAdapter.Instance;
+                if (grid.IsWithinBounds(_selectedCoordinate.x, _selectedCoordinate.z))
+                    _selectedCell = grid.GetCell(_selectedCoordinate.x, _selectedCoordinate.z);
+                if (FindAnyObjectByType<CellStatusViewAdapter>() is { } status) status.SetStatusWindowActive(false);
+            }
+            _placementNotice = LastClearingResult == TerrainClearingApplication.Result.InsufficientFunds ? "残高不足" : "";
+            if (_clearing.LastException != null) Debug.LogException(_clearing.LastException, this);
+            else if (LastClearingResult is TerrainClearingApplication.Result.InvalidTarget or TerrainClearingApplication.Result.Busy)
+                Debug.LogWarning($"整地失敗：{LastClearingResult}", this);
+        }
+        finally { ClearRange(); _placing = false; }
+    }
+
     public string PreviewText
     {
         get
         {
+            if (_clearingMode)
+            {
+                var cost = PreviewCost;
+                return PreviewCount > 0 ? $"整地予定 {PreviewCount}マス / 費用 {cost}" +
+                    (cost > (_wallet?.Current.AvailableBalance ?? 0) ? " / 残高不足" : "") + "\n採取元は消失します" :
+                    $"整地 / {ClearingPriceText}\n採取元は消失します";
+            }
             if (_selectedType == CellTypeDomain.Empty) return PreviewCount > 0 ? $"撤去予定 {PreviewCount}個 / 無料・返金なし" : "撤去 / 無料・返金なし";
             if (_prices == null || !_prices.TryGetPlacementAmount(_selectedType, 1, out var unit)) return "設置価格が無効です";
             if (PreviewCount == 0) return $"{_selectedType} 単価 {unit}" + MaterialCostText;

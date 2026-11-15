@@ -22,6 +22,8 @@ public sealed class SingularityStartDefinition : ScriptableObject
     }
     public CurrencyPriceCatalogDomain CreateCatalog() => economy != null ? economy.CreateCatalog() :
         throw new InvalidOperationException("Assign economy definition.");
+    public TerrainClearingRulesDomain CreateClearingRules() => economy != null ? economy.CreateClearingRules() :
+        throw new InvalidOperationException("Assign economy definition.");
 
     public void Validate(int size) => ValidateAt(size,new Vector2Int(size/2,size/2));
     public void ValidateAt(int size, Vector2Int anchor)

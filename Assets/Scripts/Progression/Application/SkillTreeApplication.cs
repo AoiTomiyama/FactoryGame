@@ -2,13 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 
-public enum SkillPurchaseResultApplication { Success, Busy, UnknownNode, AlreadyOwned, PrerequisiteMissing, InsufficientFunds, EffectsChanged, InvalidEffect }
+public enum SkillPurchaseResultApplication { Success, Busy, UnknownNode, AlreadyOwned, PrerequisiteMissing, InsufficientFunds, EffectsChanged, InvalidEffect, DeliveryStageMissing }
 
 /// <summary>一プレイの取得状態と共有残高の支出をまとめて確定する。</summary>
 public sealed class SkillTreeApplication
 {
     private readonly CurrencyWalletApplication _wallet;
     private readonly SharedStatEffectsApplication _effects;
+    private readonly DeliveryProgressApplication _deliveries;
     private readonly HashSet<string> _owned = new(StringComparer.Ordinal);
     private readonly Dictionary<(CellTypeDomain, EquipmentStatDomain), StatModifierDomain> _modifiers = new();
     private bool _purchasing;
@@ -16,11 +17,14 @@ public sealed class SkillTreeApplication
     public event Action Changed;
     public Exception LastNotificationException { get; private set; }
 
-    public SkillTreeApplication(SkillTreeCatalogDomain catalog, CurrencyWalletApplication wallet, SharedStatEffectsApplication effects)
+    public SkillTreeApplication(SkillTreeCatalogDomain catalog, CurrencyWalletApplication wallet, SharedStatEffectsApplication effects,
+        DeliveryProgressApplication deliveries = null)
     {
         Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
         _effects = effects ?? throw new ArgumentNullException(nameof(effects));
+        _deliveries = deliveries;
+        catalog.ValidateDeliveryPrerequisites(deliveries?.Catalog);
         if (!EffectsMatch()) throw new ArgumentException("Skill tree requires fresh shared effects.");
     }
 
@@ -36,6 +40,8 @@ public sealed class SkillTreeApplication
         {
             Catalog.TryGet(id,out var node);
             if (node.Prerequisite != null && !pending.Contains(node.Prerequisite)) throw new ArgumentException("Saved skill prerequisite is missing.");
+            if (node.RequiredDeliveryStage != null && !_deliveries.HasCompletedStage(node.RequiredDeliveryStage))
+                throw new ArgumentException("Saved skill delivery prerequisite is missing.");
         }
         // 前提順に能力を戻す。Purchaseを使うと残高を再度消費するため、復元では通知もしない。
         while (pending.Count > 0)
@@ -63,6 +69,7 @@ public sealed class SkillTreeApplication
         if (!Catalog.TryGet(uid, out var node)) return SkillPurchaseResultApplication.UnknownNode;
         if (IsOwned(uid)) return SkillPurchaseResultApplication.AlreadyOwned;
         if (node.Prerequisite != null && !IsOwned(node.Prerequisite)) return SkillPurchaseResultApplication.PrerequisiteMissing;
+        if (node.RequiredDeliveryStage != null && !_deliveries.HasCompletedStage(node.RequiredDeliveryStage)) return SkillPurchaseResultApplication.DeliveryStageMissing;
         if (!EffectsMatch()) return SkillPurchaseResultApplication.EffectsChanged;
         if (node.CellType.HasValue && !_effects.CanApply(node.CellType.Value, node.Stat, node.Modifier)) return SkillPurchaseResultApplication.InvalidEffect;
         return _wallet.Current.AvailableBalance < node.Price
@@ -83,6 +90,7 @@ public sealed class SkillTreeApplication
             // 支出予約通知から戻った後に取得状態・前提・共有状態を再確認する。
             if (IsOwned(uid)) return SkillPurchaseResultApplication.AlreadyOwned;
             if (node.Prerequisite != null && !IsOwned(node.Prerequisite)) return SkillPurchaseResultApplication.PrerequisiteMissing;
+            if (node.RequiredDeliveryStage != null && !_deliveries.HasCompletedStage(node.RequiredDeliveryStage)) return SkillPurchaseResultApplication.DeliveryStageMissing;
             if (!EffectsMatch()) return SkillPurchaseResultApplication.EffectsChanged;
             if (node.CellType.HasValue)
             {

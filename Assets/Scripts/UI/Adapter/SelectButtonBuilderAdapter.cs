@@ -12,6 +12,7 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
     [SerializeField] private CellTypeDomain[] subMenuInfos;
 
     private Font _font;
+    private CellSelectButtonUIAdapter _clearingButton;
     public static string PlacementLabel(CellTypeDomain type) => type switch
     {
         CellTypeDomain.Empty => "撤去", CellTypeDomain.ExtractorWood => "木材採取",
@@ -52,6 +53,7 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (_clearingButton != null) _clearingButton.gameObject.SetActive(placer != null && placer.ClearingAvailable);
         if (_font == null) return;
         var grid = GetComponent<UnityEngine.UI.GridLayoutGroup>();
         if (grid != null && grid.constraint == UnityEngine.UI.GridLayoutGroup.Constraint.FixedColumnCount)
@@ -108,5 +110,12 @@ public class SelectButtonBuilderAdapter : MonoBehaviour
                 buttonParam.SetColor(defaultBackgroundColor);
             }
         }
+        // 整地はセル種類を増やさず、既存の行Prefabから操作ボタンを作る。
+        _clearingButton = Instantiate(buttonPrefab, transform);
+        _clearingButton.name = "TerrainClearingButton";
+        if (_font != null) _clearingButton.ApplyStyle(_font);
+        _clearingButton.Set("整地", () => placer.SelectClearing());
+        _clearingButton.SetColor(defaultBackgroundColor);
+        _clearingButton.gameObject.SetActive(placer != null && placer.ClearingAvailable);
     }
 }

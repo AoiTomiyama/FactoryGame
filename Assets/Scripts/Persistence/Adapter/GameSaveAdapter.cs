@@ -53,7 +53,7 @@ public sealed class GameSaveAdapter : MonoBehaviour
         {
             // awaitより前に全状態を写す。通知中の要求はLateUpdateへ集約される。
             var data = _world.Capture(_game,Math.Max(DateTime.UtcNow.Ticks,SavedRevision + 1));
-            _world.Validate(data,_game.Skills.Catalog,_game.RegisteredResources);
+            _world.Validate(data,_game.Skills.Catalog,_game.RegisteredResources,_game.Deliveries.Catalog);
             var json = SaveJsonAdapter.Encode(data);
             var storage = Storage;
             await Task.Run(() => storage.Write(json));

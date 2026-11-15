@@ -11,6 +11,7 @@ public sealed class SkillTreeDefinition : ScriptableObject
         public string label;
         public long price;
         public string prerequisite;
+        public string requiredDeliveryStage;
         public CellTypeDomain cellType;
         public EquipmentStatDomain stat;
         public float multiplier;
@@ -29,7 +30,8 @@ public sealed class SkillTreeDefinition : ScriptableObject
             if (float.IsNaN(node.multiplier) || float.IsInfinity(node.multiplier)) throw new InvalidOperationException("Skill multiplier must be finite.");
             snapshot[index] = new SkillNodeDomain(node.uid, node.label, node.price,
                 string.IsNullOrEmpty(node.prerequisite) ? null : node.prerequisite,
-                node.cellType == CellTypeDomain.None ? null : node.cellType, node.stat, (decimal)node.multiplier, node.addition);
+                node.cellType == CellTypeDomain.None ? null : node.cellType, node.stat, (decimal)node.multiplier, node.addition,
+                string.IsNullOrEmpty(node.requiredDeliveryStage) ? null : node.requiredDeliveryStage);
         }
         return new SkillTreeCatalogDomain(snapshot);
     }

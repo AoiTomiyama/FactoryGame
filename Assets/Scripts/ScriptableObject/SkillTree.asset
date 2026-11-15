@@ -229,3 +229,12 @@ MonoBehaviour:
     stat: 3
     multiplier: 3
     addition: 0
+  - uid: terrain-clearing
+    label: 整地
+    price: 500
+    prerequisite: basic-research
+    requiredDeliveryStage: processed
+    cellType: 0
+    stat: 0
+    multiplier: 1
+    addition: 0

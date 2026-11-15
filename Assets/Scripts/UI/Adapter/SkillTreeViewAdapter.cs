@@ -127,7 +127,7 @@ public sealed class SkillTreeViewAdapter : IDisposable
             var chosen = node.Uid == selected;
             var state = _skills.CanPurchase(node.Uid);
             // 前提不足は固有のグレーで示す。残高不足は通常色を保ち、選択は白枠で伝える。
-            if (state == SkillPurchaseResultApplication.PrerequisiteMissing)
+            if (state is SkillPurchaseResultApplication.PrerequisiteMissing or SkillPurchaseResultApplication.DeliveryStageMissing)
             {
                 button.targetGraphic.color = Color.white;
                 var colors = button.colors;

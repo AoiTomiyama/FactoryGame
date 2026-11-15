@@ -175,7 +175,7 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
     {
         var game = StartNew(); var world = new SaveWorldAdapter(GridFieldDatabaseAdapter.Instance,TestScenes.Find<CellPlacerAdapter>());
         var data = world.Capture(game,1); data.cells[1].x = data.cells[0].x; data.cells[1].z = data.cells[0].z;
-        Assert.Throws<InvalidOperationException>(() => world.Validate(data,game.Skills.Catalog,game.RegisteredResources));
+        Assert.Throws<InvalidOperationException>(() => world.Validate(data,game.Skills.Catalog,game.RegisteredResources,game.Deliveries.Catalog));
         yield return ReloadMainScene(); game = TestScenes.Find<GameInitializerAdapter>();
         var terrain = GridFieldDatabaseAdapter.Instance.GetComponentsInChildren<CellBaseAdapter>();
         Directory.CreateDirectory(SaveTestDirectory);

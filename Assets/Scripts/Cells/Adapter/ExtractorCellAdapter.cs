@@ -86,6 +86,12 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     }
 
     private void Update() => RefreshExtraction();
+    public void RefreshResourceSource()
+    {
+        // 復元した周期がまだ再開していないフレームでも、消えた採取元のジョブを保存しない。
+        if (ResolveForwardResource() == null) _resumeJob = null;
+        RefreshExtraction();
+    }
 
     private void OnDisable()
     {

@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: CurrencyEconomy
   m_EditorClassIdentifier: Assembly-CSharp::CurrencyEconomyDefinition
   initialBalance: 100
+  woodClearingPrice: 20
+  stoneClearingPrice: 40
   salePrices:
   - resource: 2
     price: 1

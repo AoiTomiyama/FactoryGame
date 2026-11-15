@@ -30,6 +30,12 @@ public sealed class DeliveryProgressApplication
     private readonly Queue<Action> _notifications = new();
     private bool _notifying;
     public DeliveryGoalCatalogDomain Catalog { get; }
+    public bool HasCompletedStage(string id)
+    {
+        for (var index = 0; index < Current.CompletedStages; index++)
+            if (Catalog.Stages[index].Id == id) return true;
+        return false;
+    }
     public Snapshot Current { get; private set; }
     public Exception LastNotificationException { get; private set; }
     public event Action<Snapshot> Changed;

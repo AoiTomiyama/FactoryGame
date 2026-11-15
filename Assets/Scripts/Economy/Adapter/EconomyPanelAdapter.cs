@@ -139,7 +139,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     private void DeliveryChanged(DeliveryProgressApplication.Snapshot snapshot)
     {
         _summaryView.SetItems(_deliveryView.Summary(snapshot));
-        if (_selected is SingularityCellAdapter && _selectedSkill == null) Refresh();
+        // 納品達成で購入条件が変わるスキルも、次の選択操作を待たず更新する。
+        Refresh();
     }
     private void DeliveryStageCompleted(DeliveryGoalCatalogDomain.Stage _)
     {
@@ -163,7 +164,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         var result = _skills.Purchase(uid);
         if (result != SkillPurchaseResultApplication.Success && result != SkillPurchaseResultApplication.InsufficientFunds &&
-            result != SkillPurchaseResultApplication.PrerequisiteMissing && result != SkillPurchaseResultApplication.AlreadyOwned) Debug.LogWarning($"スキル適用失敗 ({uid})：{SkillReason(result)}", this);
+            result != SkillPurchaseResultApplication.PrerequisiteMissing && result != SkillPurchaseResultApplication.DeliveryStageMissing &&
+            result != SkillPurchaseResultApplication.AlreadyOwned) Debug.LogWarning($"スキル適用失敗 ({uid})：{SkillReason(result)}", this);
         Refresh();
         return result;
     }
@@ -190,13 +192,16 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
             var state = _skills.CanPurchase(node.Uid);
             var prerequisite = node.Prerequisite != null && _skills.Catalog.TryGet(node.Prerequisite, out var parent)
                 ? parent.Label : "なし";
-            var effect = node.CellType.HasValue ? $"同種セルすべて\n{StatName(node.Stat)} ×{node.Modifier.Multiplier:0.###}" + (node.Modifier.Addition == 0 ? "" : $" ＋{node.Modifier.Addition}") : "能力別の強化を解放";
+            var effect = node.Uid == TerrainClearingApplication.SkillUid ? "木・石を整地して空き地にする\n" + _placer.ClearingPriceText :
+                node.CellType.HasValue ? $"同種セルすべて\n{StatName(node.Stat)} ×{node.Modifier.Multiplier:0.###}" + (node.Modifier.Addition == 0 ? "" : $" ＋{node.Modifier.Addition}") : "能力別の強化を解放";
             _equipmentView.Heading.gameObject.SetActive(true); _equipmentView.UpgradeRoot.gameObject.SetActive(true);
             _equipmentView.UpgradeButton.gameObject.SetActive(true);
             _equipmentView.Heading.text = node.Label;
             layout.EquipmentText.GetComponent<LayoutElement>().minHeight = 64;
             _equipmentView.EquipmentText = effect;
             _equipmentView.Feedback = state == SkillPurchaseResultApplication.PrerequisiteMissing ? prerequisite + "が必要"
+                : state == SkillPurchaseResultApplication.DeliveryStageMissing ?
+                    _deliveries.Catalog.Stages.First(s => s.Id == node.RequiredDeliveryStage).Label + "の達成が必要"
                 : state == SkillPurchaseResultApplication.InsufficientFunds ? SkillReason(state) : "";
             layout.EquipmentFeedback.gameObject.SetActive(!string.IsNullOrEmpty(_equipmentView.Feedback));
             _equipmentView.UpgradeButton.GetComponentInChildren<Text>(true).text = _skills.IsOwned(node.Uid) ? "適用済み" : $"適用する　{node.Price}";
@@ -241,6 +246,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         SkillPurchaseResultApplication.UnknownNode => "スキルが見つかりません",
         SkillPurchaseResultApplication.AlreadyOwned => "取得済み",
         SkillPurchaseResultApplication.PrerequisiteMissing => "前提スキルが必要です",
+        SkillPurchaseResultApplication.DeliveryStageMissing => "納品目標の達成が必要です",
         SkillPurchaseResultApplication.InsufficientFunds => "残高不足",
         SkillPurchaseResultApplication.InvalidEffect => "強化値が現在値を下回るか上限を超えています",
         _ => "共有効果が変わりました"

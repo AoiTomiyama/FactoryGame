@@ -1,21 +1,24 @@
 using System;
 using System.Collections.Generic;
 
-/// <summary>固定uidで参照する不変のノード。根は効果を持たない。</summary>
+/// <summary>固定uidで参照する不変のノード。解放ノードは能力補正を持たない。</summary>
 public sealed class SkillNodeDomain
 {
     public string Uid { get; }
     public string Label { get; }
     public long Price { get; }
     public string Prerequisite { get; }
+    public string RequiredDeliveryStage { get; }
     public CellTypeDomain? CellType { get; }
     public EquipmentStatDomain Stat { get; }
     public StatModifierDomain Modifier { get; }
 
     public SkillNodeDomain(string uid, string label, long price, string prerequisite,
-        CellTypeDomain? cellType = null, EquipmentStatDomain stat = EquipmentStatDomain.ExtractionAmount, decimal multiplier = 1, int addition = 0)
+        CellTypeDomain? cellType = null, EquipmentStatDomain stat = EquipmentStatDomain.ExtractionAmount, decimal multiplier = 1, int addition = 0,
+        string requiredDeliveryStage = null)
     {
         Uid = uid; Label = label; Price = price; Prerequisite = prerequisite;
+        RequiredDeliveryStage = requiredDeliveryStage;
         CellType = cellType; Stat = stat; Modifier = new StatModifierDomain(multiplier, addition);
     }
 }
@@ -42,6 +45,18 @@ public sealed class SkillTreeCatalogDomain
         return uid != null && _nodes.TryGetValue(uid, out node);
     }
 
+    public void ValidateDeliveryPrerequisites(DeliveryGoalCatalogDomain deliveries)
+    {
+        foreach (var node in Nodes)
+        {
+            if (node.RequiredDeliveryStage == null) continue;
+            var found = false;
+            if (deliveries != null)
+                foreach (var stage in deliveries.Stages) if (stage.Id == node.RequiredDeliveryStage) { found = true; break; }
+            if (!found) throw new ArgumentException($"Unknown delivery prerequisite '{node.RequiredDeliveryStage}' for skill '{node.Uid}'.");
+        }
+    }
+
     public SkillTreeCatalogDomain(IEnumerable<SkillNodeDomain> nodes)
     {
         if (nodes == null) throw new ArgumentNullException(nameof(nodes));
@@ -55,6 +70,8 @@ public sealed class SkillTreeCatalogDomain
                 throw new ArgumentException("Unsupported ability for cell type.");
             if (!node.CellType.HasValue && (node.Modifier.Multiplier != 1 || node.Modifier.Addition != 0))
                 throw new ArgumentException("Unlock node cannot modify an ability.");
+            if (node.RequiredDeliveryStage != null && string.IsNullOrWhiteSpace(node.RequiredDeliveryStage))
+                throw new ArgumentException("Delivery prerequisite must have an id.");
             ordered.Add(node);
         }
         if (ordered.Count == 0) throw new ArgumentException("Skill tree is empty.");

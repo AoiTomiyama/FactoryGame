@@ -50,7 +50,8 @@ public sealed class SaveWorldAdapter
         result.ValidateShape(); return result;
     }
 
-    public void Validate(SaveGameApplication data, SkillTreeCatalogDomain skills, IEnumerable<ResourceTypeDomain> registered)
+    public void Validate(SaveGameApplication data, SkillTreeCatalogDomain skills, IEnumerable<ResourceTypeDomain> registered,
+        DeliveryGoalCatalogDomain deliveryGoals)
     {
         data.ValidateShape();
         if (data.size != _field.GeneratedSize) throw new InvalidOperationException("Saved field dimensions differ from the scene grid.");
@@ -59,7 +60,9 @@ public sealed class SaveWorldAdapter
         for (var i = 0; i < data.skills.Length; i++)
             if (!skills.TryGet(data.skills[i],out var node) || data.skillRules[i] != SkillRule(node)) throw new InvalidOperationException("A saved skill definition has changed.");
         var effects = new SharedStatEffectsApplication();
-        new SkillTreeApplication(skills,new CurrencyWalletApplication(data.balance),effects).RestoreOwned(data.skills);
+        var progress = new DeliveryProgressApplication(deliveryGoals);
+        progress.RestoreDelivered(SaveGameApplication.StockValues(data.deliveries));
+        new SkillTreeApplication(skills,new CurrencyWalletApplication(data.balance),effects,progress).RestoreOwned(data.skills);
         var layouts = new Dictionary<string,string>(StringComparer.Ordinal);
         foreach (var definition in data.definitions)
             if (definition == null || string.IsNullOrEmpty(definition.layout) || !layouts.TryAdd(definition.kind,definition.layout))
@@ -163,5 +166,6 @@ public sealed class SaveWorldAdapter
         return $"{f.Width},{f.Depth},{f.OffsetX},{f.OffsetZ}|" + (cell is ConnectableCellBaseAdapter c ?
             string.Join(";",c.Ports.OrderBy(p => p.Id).Select(p => $"{p.Id},{p.Cell.x},{p.Cell.y},{p.Facing},{p.Use}")) : "");
     }
-    private static string SkillRule(SkillNodeDomain node) => $"{node.Prerequisite}|{node.CellType}|{node.Stat}|{node.Modifier.Multiplier.ToString(CultureInfo.InvariantCulture)}|{node.Modifier.Addition}";
+    private static string SkillRule(SkillNodeDomain node) => $"{node.Prerequisite}|{node.CellType}|{node.Stat}|{node.Modifier.Multiplier.ToString(CultureInfo.InvariantCulture)}|{node.Modifier.Addition}" +
+        (node.RequiredDeliveryStage == null ? "" : $"|delivery:{node.RequiredDeliveryStage}");
 }

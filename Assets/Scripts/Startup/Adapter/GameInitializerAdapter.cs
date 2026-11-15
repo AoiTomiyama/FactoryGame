@@ -65,7 +65,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
             var world = new SaveWorldAdapter(field,placer);
             var catalog = skillTree.CreateCatalog();
             // ファイルと定義の検査を終えるまで、Sceneの地形を変更しない。
-            world.Validate(data,catalog,RegisteredResources);
+            world.Validate(data,catalog,RegisteredResources,initialLayout.CreateDeliveryCatalog());
             if (!Session.TryBeginRestore()) return false;
             var cells = world.BuildCells(data);
             Prices = initialLayout.CreateCatalog(); Wallet = new CurrencyWalletApplication(data.balance);
@@ -73,7 +73,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
             ConstructionStock.RestoreStored(SaveGameApplication.StockValues(data.construction));
             Deliveries = new DeliveryProgressApplication(initialLayout.CreateDeliveryCatalog());
             Deliveries.RestoreDelivered(SaveGameApplication.StockValues(data.deliveries));
-            Skills = new SkillTreeApplication(catalog,Wallet,field.StatEffects);
+            Skills = new SkillTreeApplication(catalog,Wallet,field.StatEffects,Deliveries);
             Skills.RestoreOwned(data.skills);
             world.RestoreCellStates(data,cells);
             var core = cells.OfType<SingularityCellAdapter>().Single();
@@ -112,7 +112,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
             var cells = new InitialCellPlacementAdapter().Place(field, initialLayout, new Vector2Int(candidate.X, candidate.Z));
             field.InitializeCells(field.GeneratedSize);
             Prices = prices; Wallet = wallet; ConstructionStock = stock; Deliveries = deliveries;
-            Skills = new SkillTreeApplication(skillCatalog, Wallet, field.StatEffects);
+            Skills = new SkillTreeApplication(skillCatalog, Wallet, field.StatEffects, Deliveries);
             ConfigureGameplay(cells.core);
             cameraController.FocusOn(cells.core.WorldCenter);
             Session.Complete();
@@ -126,6 +126,8 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     private void ConfigureGameplay(SingularityCellAdapter core)
     {
         placer.Configure(Wallet, Prices, ConstructionStock, resources);
+        placer.ConfigureClearing(new TerrainClearingAdapter(field, (EmptyCellAdapter)placer.FieldPrefab(CellTypeDomain.Empty),
+            initialLayout.CreateClearingRules(), Wallet, () => Skills.IsOwned(TerrainClearingApplication.SkillUid)));
         core.Configure(Deliveries);
         foreach (var shipping in field.Owners.OfType<ShippingCellAdapter>())
         { shipping.Configure(Wallet, Prices); }
@@ -153,7 +155,8 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         if (missing.Count > 0)
             throw new MissingReferenceException($"{nameof(GameInitializerAdapter)}: missing references [{string.Join(", ", missing)}] on '{name}' (Scene: '{gameObject.scene.path}').");
         initialLayout.Validate(field.GeneratedSize);
-        _ = skillTree.CreateCatalog();
+        skillTree.CreateCatalog().ValidateDeliveryPrerequisites(initialLayout.CreateDeliveryCatalog());
+        _ = initialLayout.CreateClearingRules();
         _ = new ConstructionStockApplication(resources.GetAllResources().Select(r => r.ResourceTypeDomain));
         selection.ValidateBindings();
     }
