@@ -14,7 +14,10 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
 
     private GameStartApplication _startSession;
     private StartSiteSelectionAdapter _startSelection;
-    private bool GameplayBlocked => _startSession == null || _startSession.CurrentStage != GameStartApplication.Stage.Running;
+    private System.Func<bool> _inputBlocked;
+    private bool GameplayBlocked => (_inputBlocked?.Invoke() ?? false) || _startSession == null || _startSession.CurrentStage != GameStartApplication.Stage.Running;
+    public void ConfigureInputGate(System.Func<bool> blocked) => _inputBlocked = blocked;
+    public void CancelCurrentGesture() { _isLeftClickPressed = false; placer.CancelPlacementPreview(); }
     private Camera _camera;
     private Vector2 _mousePosition;
     private bool _isLeftClickPressed;
@@ -40,7 +43,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
 
     private void Update()
     {
-        if (_isLeftClickPressed)
+        if (_isLeftClickPressed && !GameplayBlocked)
         {
             OnLeftClickPressed();
         }
@@ -90,6 +93,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
 
     private void OnLeftClickDown(InputAction.CallbackContext context)
     {
+        if (_inputBlocked?.Invoke() == true) return;
         if (_firstPerson) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
         if (_startSession != null && _startSession.CurrentStage == GameStartApplication.Stage.Choosing)
@@ -110,6 +114,7 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
 
     private void OnLeftClickUp(InputAction.CallbackContext context)
     {
+        if (GameplayBlocked) { CancelCurrentGesture(); return; }
         if (!_isLeftClickPressed) return;
         _isLeftClickPressed = false;
         // UI上で離したドラッグは取消し、ボタン操作から配置を確定しない。

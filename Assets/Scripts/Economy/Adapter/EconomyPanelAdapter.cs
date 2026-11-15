@@ -9,7 +9,6 @@ using UnityEngine.EventSystems;
 public sealed class EconomyPanelAdapter : MonoBehaviour
 {
     private CurrencyWalletApplication _wallet;
-    private SkillTreeApplication _skills;
     private DeliveryProgressApplication _deliveries;
     private DeliveryGoalsViewAdapter _deliveryView;
     private CellStatusViewAdapter _view;
@@ -43,7 +42,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     public Transform RecipeContent => _pages[1].transform;
     public RecipeReferenceViewAdapter RecipeView { get; private set; }
     public void SetSummaryItems(params string[] items) => _summaryView.SetItems(items);
-    private readonly GameObject[] _pages = new GameObject[3];
+    private readonly GameObject[] _pages = new GameObject[2];
     private readonly Button[] _tabs = new Button[3];
     private readonly UnityAction[] _tabActions = new UnityAction[3];
     private UnityAction _closeAction;
@@ -57,8 +56,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         if (index < 0 || index >= _pages.Length) throw new ArgumentOutOfRangeException(nameof(index));
         SelectedPage = index;
-        // スキルは樹形図自身が縦横の移動を扱い、親ページとの二重スクロールを避ける。
-        layout.Body.vertical = index != 2;
+        layout.Body.vertical = true;
         SetExpanded(true);
         _body.GetComponent<ScrollRect>().verticalNormalizedPosition = 1;
         for (var i = 0; i < _pages.Length; i++)
@@ -69,22 +67,20 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     }
     private OperationBarAdapter _operation;
     private Text _placement;
-    private SkillTreeViewAdapter _skillView;
-    private string _selectedSkill, _equipmentActionLabel;
+    private string _equipmentActionLabel;
     private float _equipmentTextMinHeight;
-    public string SelectedSkill => _selectedSkill;
     public string BalanceText => _summaryView != null ? _summaryView.BalanceText : "";
     public string EquipmentText => _equipmentView != null ? _equipmentView.EquipmentText : "";
     public bool UpgradeInteractable => _equipmentView != null && _equipmentView.Interactable;
     public bool IsSubscribed => _bound;
-    public Button SkillButton(string uid) => _skillView.Buttons[uid];
+    public SkillScreenAdapter SkillScreen => layout.SkillScreen;
+    public OperationBarAdapter Operation => _operation;
 
-    public void Configure(CurrencyWalletApplication wallet, SkillTreeApplication skills,
+    public void Configure(CurrencyWalletApplication wallet,
         CellStatusViewAdapter view, CellPlacerAdapter placer, DeliveryProgressApplication deliveries)
     {
         Unbind();
         _wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
-        _skills = skills ?? throw new ArgumentNullException(nameof(skills));
         _deliveries = deliveries ?? throw new ArgumentNullException(nameof(deliveries));
         _view = view;
         _placer = placer;
@@ -99,7 +95,6 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         _bound = true;
         UpdatePlacementMode();
         _wallet.Changed += WalletChanged;
-        _skills.Changed += Refresh;
         _deliveries.Changed += DeliveryChanged;
         _deliveries.StageCompleted += DeliveryStageCompleted;
         DeliveryChanged(_deliveries.Current);
@@ -112,7 +107,6 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         if (!_bound) return;
         _wallet.Changed -= WalletChanged;
-        _skills.Changed -= Refresh;
         _deliveries.Changed -= DeliveryChanged;
         _deliveries.StageCompleted -= DeliveryStageCompleted;
         if (_view != null) _view.SelectionChanged -= Select;
@@ -122,7 +116,6 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
 
     private void Select(CellBaseAdapter cell)
     {
-        _selectedSkill = null;
         if (_source != null) _source.StatusChanged -= Refresh;
         if (_selected is ConveyorCellAdapter previousConveyor) previousConveyor.KindChanged -= Refresh;
         if (_selected is ConstructionDepotCellAdapter previousDepot) previousDepot.StatusChanged -= Refresh;
@@ -160,54 +153,12 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         // 常時表示の残高と右側の強化欄は、左ページを閉じても更新する。
     }
 
-    public SkillPurchaseResultApplication PurchaseSkill(string uid)
-    {
-        var result = _skills.Purchase(uid);
-        if (result != SkillPurchaseResultApplication.Success && result != SkillPurchaseResultApplication.InsufficientFunds &&
-            result != SkillPurchaseResultApplication.PrerequisiteMissing && result != SkillPurchaseResultApplication.DeliveryStageMissing &&
-            result != SkillPurchaseResultApplication.AlreadyOwned) Debug.LogWarning($"スキル適用失敗 ({uid})：{SkillReason(result)}", this);
-        Refresh();
-        return result;
-    }
-    public void SelectSkill(string uid)
-    {
-        if (!_skills.Catalog.TryGet(uid, out _)) return;
-        // スキル間の切替では右枠を閉じ直さず、ボタンの有効状態と色の瞬間的な初期化を避ける。
-        if (_selectedSkill == null) _view.ShowDetails();
-        _selectedSkill = uid;
-        Refresh();
-    }
-    private void ApplyDetails()
-    {
-        if (_selectedSkill != null) PurchaseSkill(_selectedSkill);
-    }
-
     private void Refresh()
     {
         if (_summaryView == null || _wallet == null) return;
         var current = _wallet.Current;
         _summaryView.RenderWallet(current);
-        if (_selectedSkill != null && _skills.Catalog.TryGet(_selectedSkill, out var node))
-        {
-            var state = _skills.CanPurchase(node.Uid);
-            var prerequisite = node.Prerequisite != null && _skills.Catalog.TryGet(node.Prerequisite, out var parent)
-                ? parent.Label : "なし";
-            var effect = node.Uid == TerrainClearingApplication.SkillUid ? "木・石を整地して空き地にする\n" + _placer.ClearingPriceText :
-                node.CellType.HasValue ? $"同種セルすべて\n{StatName(node.Stat)} ×{node.Modifier.Multiplier:0.###}" + (node.Modifier.Addition == 0 ? "" : $" ＋{node.Modifier.Addition}") : "能力別の強化を解放";
-            _equipmentView.Heading.gameObject.SetActive(true); _equipmentView.UpgradeRoot.gameObject.SetActive(true);
-            _equipmentView.UpgradeButton.gameObject.SetActive(true);
-            _equipmentView.Heading.text = node.Label;
-            layout.EquipmentText.GetComponent<LayoutElement>().minHeight = 64;
-            _equipmentView.EquipmentText = effect;
-            _equipmentView.Feedback = state == SkillPurchaseResultApplication.PrerequisiteMissing ? prerequisite + "が必要"
-                : state == SkillPurchaseResultApplication.DeliveryStageMissing ?
-                    _deliveries.Catalog.Stages.First(s => s.Id == node.RequiredDeliveryStage).Label + "の達成が必要"
-                : state == SkillPurchaseResultApplication.InsufficientFunds ? SkillReason(state) : "";
-            layout.EquipmentFeedback.gameObject.SetActive(!string.IsNullOrEmpty(_equipmentView.Feedback));
-            _equipmentView.UpgradeButton.GetComponentInChildren<Text>(true).text = _skills.IsOwned(node.Uid) ? "適用済み" : $"適用する　{node.Price}";
-            _equipmentView.UpgradeButton.interactable = state == SkillPurchaseResultApplication.Success;
-        }
-        else if (_selected is ConstructionDepotCellAdapter depot)
+        if (_selected is ConstructionDepotCellAdapter depot)
         {
             _equipmentPresenter.Refresh(_selected);
             layout.EquipmentText.GetComponent<LayoutElement>().minHeight = _equipmentTextMinHeight;
@@ -230,31 +181,13 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
             _equipmentPresenter.Refresh(_selected);
             layout.EquipmentFeedback.gameObject.SetActive(!string.IsNullOrEmpty(_equipmentView.Feedback));
         }
-        _skillView.Refresh(_selectedSkill);
         RefreshPlacement();
     }
 
-    public static string StatName(EquipmentStatDomain stat) => stat switch
-    {
-        EquipmentStatDomain.ExtractionAmount => "抽出量", EquipmentStatDomain.Capacity => "容量",
-        EquipmentStatDomain.InputCapacity => "入力容量", EquipmentStatDomain.OutputCapacity => "出力容量", _ => "搬出量"
-    };
-    public static string SkillReason(SkillPurchaseResultApplication result) => result switch
-    {
-        SkillPurchaseResultApplication.Success => "取得できます",
-        SkillPurchaseResultApplication.Busy => "購入処理中",
-        SkillPurchaseResultApplication.UnknownNode => "スキルが見つかりません",
-        SkillPurchaseResultApplication.AlreadyOwned => "取得済み",
-        SkillPurchaseResultApplication.PrerequisiteMissing => "前提スキルが必要です",
-        SkillPurchaseResultApplication.DeliveryStageMissing => "納品目標の達成が必要です",
-        SkillPurchaseResultApplication.InsufficientFunds => "残高不足",
-        SkillPurchaseResultApplication.InvalidEffect => "強化値が現在値を下回るか上限を超えています",
-        _ => "共有効果が変わりました"
-    };
-
+    private void SkillVisibilityChanged(bool _) => UpdatePlacementMode();
     private void UpdatePlacementMode()
     {
-        var active = isActiveAndEnabled && !_firstPerson && _expanded && SelectedPage == 0;
+        var active = isActiveAndEnabled && !_firstPerson && !SkillScreen.IsOpen && _expanded && SelectedPage == 0;
         _placer?.SetPlacementEnabled(active);
         _operation?.SetPlacementActive(active);
     }
@@ -278,7 +211,6 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         if (active != _selectedActive) { _selectedActive = active; Refresh(); }
         RefreshPlacement();
         _equipmentView.UpdateLayout();
-        _skillView.UpdateLayout();
     }
     private void OnEnable() { if (_canvas != null) _canvas.SetActive(true); Bind(); }
     private void OnDisable() { UpdatePlacementMode(); Unbind(); _equipmentPresenter?.SetActive(false); if (_canvas != null) _canvas.SetActive(false); }
@@ -287,11 +219,10 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         if (_cameraController != null) _cameraController.FirstPersonChanged -= SetFirstPersonMode;
         _placer?.SetPlacementEnabled(false); _operation?.SetPlacementActive(false);
         Unbind();
-        _equipmentPresenter?.Dispose();
+        if (layout != null && SkillScreen != null) SkillScreen.VisibilityChanged -= SkillVisibilityChanged;
         for (var i = 0; i < _tabs.Length; i++)
             if (_tabs[i] != null && _tabActions[i] != null) _tabs[i].onClick.RemoveListener(_tabActions[i]);
         if (layout != null && _closeAction != null) layout.Close.onClick.RemoveListener(_closeAction);
-        _skillView?.Dispose();
         RecipeView?.Dispose();
         _summaryView?.Dispose();
     }
@@ -312,8 +243,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         {
             var page = i;
             _tabs[i] = layout.Tabs[i];
-            _pages[i] = layout.Pages[i].gameObject;
-            _tabActions[i] = () => { if (_expanded && SelectedPage == page) SetExpanded(false); else ShowPage(page); };
+            if (i < _pages.Length) _pages[i] = layout.Pages[i].gameObject;
+            _tabActions[i] = i == 2 ? () => SkillScreen.Open() : () => { if (_expanded && SelectedPage == page) SetExpanded(false); else ShowPage(page); };
             _tabs[i].onClick.AddListener(_tabActions[i]);
         }
         _closeAction = () => SetExpanded(!_expanded);
@@ -327,8 +258,8 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
             layout.EquipmentText, layout.Upgrade, layout.EquipmentFeedback);
         _equipmentActionLabel = layout.Upgrade.GetComponentInChildren<Text>(true).text;
         _equipmentTextMinHeight = layout.EquipmentText.GetComponent<LayoutElement>().minHeight;
-        _equipmentPresenter = new EquipmentDetailsPresenterAdapter(_equipmentView, ApplyDetails);
-        _skillView = new SkillTreeViewAdapter(_pages[2].transform, layout, _skills, SelectSkill);
+        _equipmentPresenter = new EquipmentDetailsPresenterAdapter(_equipmentView);
+        SkillScreen.VisibilityChanged += SkillVisibilityChanged;
         ShowPage(0);
     }
 }

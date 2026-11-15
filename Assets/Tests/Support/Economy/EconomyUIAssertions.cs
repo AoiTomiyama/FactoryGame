@@ -83,57 +83,28 @@ public static class EconomyUIAssertions
             conveyor.gameObject.SetActive(true);
             await UniTask.DelayFrame(2);
             Require(!panel.UpgradeInteractable, "reactivated equipment has no individual purchase");
-            panel.ShowPage(2);
-            await UniTask.DelayFrame(4);
+            var screen = panel.SkillScreen;
+            screen.Open(); await UniTask.DelayFrame(4);
             var root = initializer.Skills.Catalog.Nodes.Single(n => n.Prerequisite == null);
             var branch = initializer.Skills.Catalog.Nodes.First(n => n.Prerequisite == root.Uid);
-            var lockedButton = panel.SkillButton(branch.Uid);
-            Require(lockedButton.colors.normalColor == new Color(.18f, .18f, .18f), "locked skill uses dark gray");
+            Require(!screen.IsNodeVisible(branch.Uid), "unreleased nodes are hidden");
             var beforeSkill = wallet.Current.Balance;
-            panel.SkillButton(branch.Uid).onClick.Invoke();
-            Require(panel.SelectedSkill == branch.Uid && !panel.UpgradeInteractable && panel.EquipmentView.Feedback.Contains(root.Label), "locked node opens prerequisite detail");
-            Require(lockedButton.colors.normalColor == lockedButton.colors.selectedColor && lockedButton.colors.normalColor == lockedButton.colors.highlightedColor, "locked gray persists through selection and hover");
-            Require(view.SelectedCell == null && view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>().Length == 0 && wallet.Current.Balance == beforeSkill, "skill selection releases equipment without purchase");
-            var detailResets = 0;
-            Action<CellBaseAdapter> countDetailReset = _ => detailResets++;
-            view.SelectionChanged += countDetailReset;
-            panel.SkillButton(root.Uid).onClick.Invoke();
-            panel.SkillButton(branch.Uid).onClick.Invoke();
-            panel.SkillButton(root.Uid).onClick.Invoke();
-            Require(detailResets == 0, "skill selection keeps detail panel active without intermediate cell reset");
-            view.SelectionChanged -= countDetailReset;
-            await UniTask.Delay(200);
-            var grayBefore = lockedButton.targetGraphic.canvasRenderer.GetColor();
-            var applyBefore = panel.EquipmentView.UpgradeButton.targetGraphic.canvasRenderer.GetColor();
-            panel.SkillButton(root.Uid).onClick.Invoke();
-            await UniTask.DelayFrame(1);
-            Require(lockedButton.targetGraphic.canvasRenderer.GetColor() == grayBefore, "unrelated locked node tint stays stable after selection");
-            Require(panel.EquipmentView.UpgradeButton.targetGraphic.canvasRenderer.GetColor() == applyBefore, "apply button tint stays stable after repeated selection");
-            Require(!initializer.Skills.IsOwned(root.Uid) && wallet.Current.Balance == beforeSkill, "node selection never purchases");
+            screen.Select(root.Uid);
+            Require(ReferenceEquals(view.SelectedCell, conveyor) && wallet.Current.Balance == beforeSkill, "full-screen selection preserves the field selection");
             wallet.TryReserveExpense(wallet.Current.AvailableBalance, out expense);
-            Require(!panel.UpgradeInteractable && panel.EquipmentView.Feedback.Contains("残高不足") && panel.SkillButton(root.Uid).interactable, "unaffordable node remains readable and apply disabled");
-            Require(panel.SkillButton(root.Uid).colors.normalColor != lockedButton.colors.normalColor && panel.SkillButton(root.Uid).GetComponent<CanvasGroup>().alpha == 1, "insufficient funds remains distinct from locked gray");
+            Require(!screen.Details.Interactable && screen.Details.Feedback.Contains("残高不足") && screen.IsNodeVisible(root.Uid), "unaffordable candidate remains visible");
             expense.TryCancel();
             wallet.TryReserveIncome(1000, out var income); income.TryCommit();
-            Require(panel.UpgradeInteractable, "balance change enables selected skill action");
-            panel.EquipmentView.UpgradeButton.onClick.Invoke();
-            Require(initializer.Skills.IsOwned(root.Uid) && !panel.UpgradeInteractable && panel.SkillButton(root.Uid).transform.Find("Applied").gameObject.activeSelf, "detail action applies root and marks owned node");
-            var appliedMotion = panel.SkillButton(root.Uid).transform.Find("Applied").GetComponent<HudMotionAdapter>();
-            Require(appliedMotion != null && appliedMotion.IsAnimating, "newly applied skill pulses its mark");
-            await UniTask.Delay(260, ignoreTimeScale: true);
-            panel.SelectSkill(branch.Uid); panel.SelectSkill(root.Uid);
-            Require(!appliedMotion.IsAnimating && lockedButton.GetComponent<CanvasGroup>().alpha == 1,
-                "selection refresh does not flash owned marks or locked nodes");
+            Require(screen.Details.Interactable, "balance updates the selected action");
+            screen.Details.UpgradeButton.onClick.Invoke();
+            Require(initializer.Skills.IsOwned(root.Uid) && !screen.Details.Interactable && screen.IsNodeVisible(branch.Uid), "purchase reveals the next candidates");
             var paidBalance = wallet.Current.Balance;
-            panel.EquipmentView.UpgradeButton.onClick.Invoke();
-            Require(wallet.Current.Balance == paidBalance, "repeat apply never pays twice");
-            Require(lockedButton.colors.normalColor == panel.GetComponentInChildren<HudLayoutAdapter>().IdleTabColor, "unlock restores normal color");
-            panel.SkillButton(branch.Uid).onClick.Invoke();
-            Require(panel.UpgradeInteractable && !initializer.Skills.IsOwned(branch.Uid), "unlocked branch waits for detail action");
-            panel.EquipmentView.UpgradeButton.onClick.Invoke();
-            Require(initializer.Skills.IsOwned(branch.Uid) && panel.EquipmentView.Heading.text == branch.Label, "branch applies from right details");
-            view.CloseButton.onClick.Invoke();
-            Require(panel.SelectedSkill == null, "right close clears skill selection");
+            screen.Details.UpgradeButton.onClick.Invoke();
+            Require(wallet.Current.Balance == paidBalance, "repeat purchase does not pay twice");
+            screen.Select(branch.Uid); screen.Details.UpgradeButton.onClick.Invoke();
+            Require(initializer.Skills.IsOwned(branch.Uid) && screen.Details.Heading.text == branch.Label, "full-screen details buy the selected node");
+            screen.Close(); await UniTask.DelayFrame(1);
+            Require(ReferenceEquals(view.SelectedCell, conveyor), "closing restores the original field selection");
             view.UpdateUIStatusWindow(storage);
             view.SetStatusWindowActive(false);
             Require(Subscribers(storage, "StatusChanged") == 0 && !panel.UpgradeInteractable, "hide selection releases subscriptions");
@@ -162,7 +133,7 @@ public static class EconomyUIAssertions
             Canvas.ForceUpdateCanvases();
             var canvas = panel.GetComponentInChildren<Canvas>();
             var buttons = canvas.GetComponentsInChildren<Button>(true);
-            Require(buttons.Length >= initializer.Skills.Catalog.Nodes.Count + 5, "placement, navigation, skill and upgrade buttons exist");
+            Require(buttons.Length >= screen.NodeButtons.Count + 5, "placement, navigation, skill and upgrade buttons exist");
             Require(canvas.GetComponentsInChildren<Text>(true).First().font.HasCharacter('換'), "Japanese glyph available");
             var raycaster = TestScenes.Find<UIRaycasterAdapter>();
             var header = panel.GetComponentInChildren<HudLayoutAdapter>().Close;
@@ -187,12 +158,12 @@ public static class EconomyUIAssertions
             VerifyInputCancellation(placer, raycaster, point, wallet, grid);
             var operation = TestScenes.Find<OperationBarAdapter>();
             var target = EmptyTarget(grid);
-            foreach (var page in new[] { 1, 2 })
+            foreach (var page in new[] { 1 })
             {
                 panel.ShowPage(0);
                 placer.SelectGrid(target.gameObject); placer.PointerBegin(); placer.PointerDrag();
                 Require(placer.PreviewCount > 0, "placement tab enables preview");
-                panel.ShowPage(page);
+                if (page == 2) panel.SkillScreen.Open(); else panel.ShowPage(page);
                 Require(!placer.PlacementEnabled && !operation.Bar.gameObject.activeInHierarchy && placer.PreviewCount == 0, "other tab hides lower window and cancels preview");
                 Require(target.CellModel.activeSelf, "tab switch restores hovered cell model");
                 placer.PointerBegin(); placer.PointerDrag(); placer.PointerEnd();
@@ -210,7 +181,7 @@ public static class EconomyUIAssertions
             Require(!panel.PlacementButtons.GetComponentsInChildren<Text>().Any(text => text == operation.PlacementInfo), "placement tab contains selection without placement information");
             await VerifyOperationBar(placer, raycaster, wallet, grid);
             await VerifySlide(panel, raycaster);
-            for (var page = 0; page < 3; page++)
+            for (var page = 0; page < 2; page++)
             {
                 var subscribers = Subscribers(wallet, "Changed");
                 panel.PageButton(page).onClick.Invoke();
@@ -222,9 +193,9 @@ public static class EconomyUIAssertions
             foreach (var resolution in new[] { new Vector2(1600, 900), new Vector2(1366, 768) })
             {
                 canvas.GetComponent<RectTransform>().sizeDelta = new Vector2(resolution.x * 720 / resolution.y, 720);
-                for (var page = 0; page < 3; page++)
+                for (var page = 0; page < 2; page++)
                 {
-                    panel.ShowPage(page);
+                    if (page == 2) panel.SkillScreen.Open(); else panel.ShowPage(page);
                     if (page == 0)
                     {
                         // 広い枠で保存された列幅を引き継いでも、現在の表示枠へ戻せることを確認する。
@@ -237,63 +208,7 @@ public static class EconomyUIAssertions
                     var leftFrame = panel.GetComponentInChildren<HudLayoutAdapter>().Body.GetComponent<RectTransform>();
                     Require(Mathf.Abs(leftFrame.rect.width - 280) < 1,
                         "side panel is narrower without reducing text size " + resolution);
-                    if (page == 2)
-                    {
-                        var tree = panel.SkillButton(root.Uid).transform.parent;
-                        Require(tree.GetComponentsInChildren<Image>().Count(image => image.name.StartsWith("Prerequisite_")) == initializer.Skills.Catalog.Nodes.Count - 1, "tree connects every prerequisite " + resolution);
-                        foreach (var node in initializer.Skills.Catalog.Nodes.Where(node => node.Prerequisite != null))
-                        {
-                            var childRect = (RectTransform)panel.SkillButton(node.Uid).transform;
-                            var parentRect = (RectTransform)panel.SkillButton(node.Prerequisite).transform;
-                            Require(childRect.anchoredPosition.y < parentRect.anchoredPosition.y - parentRect.rect.height, "tree child below parent " + node.Uid + resolution);
-                        }
-                        panel.SelectSkill(branch.Uid);
-                        await UniTask.DelayFrame(4);
-                        Canvas.ForceUpdateCanvases();
-                        Require(tree.Find("SelectionFrame").gameObject.activeSelf && panel.EquipmentView.Heading.text == branch.Label, "selection matches right detail " + resolution);
-                        Require(Inside(canvas.GetComponent<RectTransform>(), panel.EquipmentView.UpgradeButton.GetComponent<RectTransform>(), view.StatusScroll.viewport), "skill apply fits right viewport " + resolution);
-                        var applyBounds = BoundsIn(canvas.GetComponent<RectTransform>(), panel.EquipmentView.UpgradeButton.GetComponent<RectTransform>());
-                        var detailsBounds = BoundsIn(canvas.GetComponent<RectTransform>(), view.StatusScroll.viewport);
-                        Require(Mathf.Abs(applyBounds.yMin - detailsBounds.yMin) < 2,
-                            "skill apply stays at bottom of detail viewport " + resolution);
-                        view.CloseButton.onClick.Invoke();
-                        var scroll = canvas.GetComponentInChildren<ScrollRect>();
-                        scroll.verticalNormalizedPosition = 0;
-                        await UniTask.DelayFrame(2);
-                        Canvas.ForceUpdateCanvases();
-                        var treeScroll = tree.GetComponentInParent<ScrollRect>();
-                        Require(treeScroll.horizontal && treeScroll.vertical && treeScroll.content.rect.width >= 8 * 64, "compact type branches retain spacing " + resolution);
-                        Require(treeScroll.horizontalScrollbar != null && treeScroll.horizontalScrollbar.gameObject.activeInHierarchy, "ability branches expose horizontal scrolling " + resolution);
-                        foreach (var node in initializer.Skills.Catalog.Nodes)
-                        {
-                            var button = panel.SkillButton(node.Uid);
-                            var size = ((RectTransform)button.transform).rect.size;
-                            Require(size == new Vector2(40, 40) && !button.GetComponentsInChildren<Text>().Any(text => text.text == node.Label), "small nodes omit skill names " + node.Uid + resolution);
-                        }
-                        Require(treeScroll.verticalScrollbar != null && treeScroll.verticalScrollbar.gameObject.activeInHierarchy,
-                            "deep skill chain exposes vertical scrollbar " + resolution);
-                        Require(!panel.GetComponentInChildren<HudLayoutAdapter>().Body.vertical,
-                            "skill page avoids parent vertical scrolling " + resolution);
-                        treeScroll.verticalNormalizedPosition = 1;
-                        treeScroll.OnScroll(new PointerEventData(EventSystem.current) { scrollDelta = new Vector2(0, -3) });
-                        await UniTask.DelayFrame(2);
-                        Require(treeScroll.verticalNormalizedPosition < 1, "wheel moves skill tree vertically " + resolution);
-                        panel.SelectSkill("wood-extraction-8");
-                        await UniTask.DelayFrame(4);
-                        Canvas.ForceUpdateCanvases();
-                        var deepest = panel.SkillButton("wood-extraction-8").GetComponent<RectTransform>();
-                        Require(Inside(canvas.GetComponent<RectTransform>(), deepest, treeScroll.viewport),
-                            "eighth skill node reachable inside tree viewport " + resolution);
-                        var kept = treeScroll.verticalNormalizedPosition;
-                        await UniTask.DelayFrame(2);
-                        Require(Mathf.Abs(treeScroll.verticalNormalizedPosition - kept) < .001f,
-                            "layout preserves vertical scroll position " + resolution);
-                        treeScroll.verticalScrollbar.value = 1;
-                        treeScroll.horizontalScrollbar.value = .5f;
-                        await UniTask.DelayFrame(2);
-                        Require(Inside(canvas.GetComponent<RectTransform>(), panel.SkillButton(root.Uid).GetComponent<RectTransform>(), treeScroll.viewport),
-                            "vertical scrollbar returns to root " + resolution);
-                    }
+
                 }
             }
             await VerifySideTabs(panel, view, canvas, wallet, grid);
@@ -301,7 +216,7 @@ public static class EconomyUIAssertions
             {
                 await CaptureHud(panel, view, canvas);
                 await CaptureHud(panel, view, canvas, 0, "placement-tab");
-                panel.SelectSkill(branch.Uid);
+                screen.Open(); screen.Select(branch.Uid);
                 await CaptureHud(panel, view, canvas, 2, "skill-tree");
             }
             Require(wallet.LastNotificationException == null && initializer.Skills.LastNotificationException == null, "notification handlers succeed");
@@ -411,7 +326,7 @@ public static class EconomyUIAssertions
                     "Ease Out Cubic advances faster than a linear slide before decelerating");
             Require(!body.gameObject.activeSelf && !group.blocksRaycasts && !raycaster.IsPointerOverUI(point), "closed frame releases field input");
             Require(hud.Navigation.gameObject.activeInHierarchy && hud.Tabs[0].IsInteractable(), "tabs remain available outside moving frame");
-            panel.ShowPage(page);
+            if (page == 2) panel.SkillScreen.Open(); else panel.ShowPage(page);
             await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate);
             panel.SetExpanded(false);
             panel.enabled = false;
@@ -419,7 +334,7 @@ public static class EconomyUIAssertions
             Require(!hud.gameObject.activeSelf, "disabled controller cannot leave an animated frame visible");
             panel.enabled = true;
             await WaitForSlide(panel);
-            panel.ShowPage(page);
+            if (page == 2) panel.SkillScreen.Open(); else panel.ShowPage(page);
             await WaitForSlide(panel);
             Require(panel.SelectedPage == page && Vector2.Distance(body.anchoredPosition, open) < .01f, "enable and reopen retain page and saved position");
             Debug.Log("HUD slide checks passed: movement, reversal, paused time, input, persistent tabs and disable/reopen.");
@@ -442,7 +357,7 @@ public static class EconomyUIAssertions
         var balance = wallet.Current.Balance;
         var capacity = storage.Capacity;
         Require(panel.EquipmentView.Heading.text.Contains("保管庫") && !panel.EquipmentView.UpgradeRoot.gameObject.activeSelf, "cell status shows type level without individual purchase");
-        for (var page = 0; page < 3; page++)
+        for (var page = 0; page < 2; page++)
         {
             panel.SetExpanded(false);
             panel.PageButton(page).onClick.Invoke();
@@ -455,8 +370,8 @@ public static class EconomyUIAssertions
         }
         Require(storage.Capacity == capacity && storage.CurrentLoad == 3 && storage.Capacity == capacity && wallet.Current.Balance == balance,
             "preview and navigation preserve level inventory and money");
-        panel.SelectSkill("storage-capacity-1");
-        panel.EquipmentView.UpgradeButton.onClick.Invoke();
+        panel.SkillScreen.Open(); panel.SkillScreen.Select("storage-capacity-1");
+        panel.SkillScreen.PurchaseButton.onClick.Invoke(); panel.SkillScreen.Close();
         view.UpdateUIStatusWindow(storage);
         Require(storage.Capacity == capacity * 2 && storage.CurrentLoad == 3,
             "right-hand button upgrades same selected cell and preserves inventory");
@@ -633,7 +548,7 @@ public static class EconomyUIAssertions
             var target = new RenderTexture(resolution.x, resolution.y, 24);
             camera.targetTexture = target;
             foreach (var c in canvases) c.GetComponent<CanvasScaler>().enabled = true;
-            panel.ShowPage(page);
+            if (page == 2) panel.SkillScreen.Open(); else panel.ShowPage(page);
             view.StatusScroll.verticalNormalizedPosition = 1;
             await WaitForSlide(panel);
             await UniTask.DelayFrame(5);

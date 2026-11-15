@@ -117,7 +117,7 @@ public static class EquipmentPlacementAssertions
             Require(placer.PreviewCount == 3 && placer.PreviewCost == 15 && placer.PreviewText.Contains("15"), "range preview quantity and cost");
             var panel = TestScenes.Find<EconomyPanelAdapter>();
             var availableBeforeToggle = wallet.Current.AvailableBalance;
-            panel.ShowPage(1); panel.ShowPage(2); panel.ShowPage(0);
+            panel.ShowPage(1); panel.SkillScreen.Open(); panel.SkillScreen.Close(); panel.ShowPage(0);
             panel.SetExpanded(false); panel.SetExpanded(true);
             panel.enabled = false; panel.enabled = true;
             Require(wallet.Current.AvailableBalance == availableBeforeToggle && placer.PreviewCount == 0,

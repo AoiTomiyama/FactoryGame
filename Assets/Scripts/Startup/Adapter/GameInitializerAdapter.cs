@@ -135,7 +135,13 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         { depot.Configure(ConstructionStock); }
         // 全在庫・能力・受入先が揃ってから接続と非同期処理を開始する。
         foreach (var cell in field.Owners) cell.InitializeSystem();
-        economyPanel.Configure(Wallet, Skills, statusView, placer, Deliveries);
+        economyPanel.Configure(Wallet, statusView, placer, Deliveries);
+        var hud = selection.Layout;
+        var screen = economyPanel.SkillScreen;
+        screen.Configure(Wallet, Skills, Deliveries, field.StatEffects, hud, () => placer.ClearingPriceText,
+            cursor.CancelCurrentGesture, new[] { hud.GameplayRoot, statusView.transform, economyPanel.Operation.transform });
+        cursor.ConfigureInputGate(() => screen.BlocksGameplayInput);
+        cameraController.ConfigureInputGate(() => screen.BlocksGameplayInput);
     }
 
     private void ValidateConfiguration()
@@ -159,6 +165,9 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         _ = initialLayout.CreateClearingRules();
         _ = new ConstructionStockApplication(resources.GetAllResources().Select(r => r.ResourceTypeDomain));
         selection.ValidateBindings();
+        if (economyPanel.SkillScreen == null || selection.Layout.GameplayRoot == null)
+            throw new MissingReferenceException("GameInitializerAdapter: assign the full-screen skill UI and gameplay HUD root.");
+        economyPanel.SkillScreen.ValidateBindings();
     }
     private void Fail(string stage, Exception exception)
     {

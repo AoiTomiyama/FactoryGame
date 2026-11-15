@@ -1,17 +1,10 @@
-using System;
 using UnityEngine;
-using UnityEngine.Events;
 
-/// <summary>選択セルの状態を読み、スキルと共用する詳細枠の適用リスナーを保持する。</summary>
-public sealed class EquipmentDetailsPresenterAdapter : IDisposable
+/// <summary>選択セルの状態を読み、設備詳細へ表示する。</summary>
+public sealed class EquipmentDetailsPresenterAdapter
 {
     private readonly EquipmentDetailsViewAdapter _view;
-    private readonly UnityAction _apply;
-    public EquipmentDetailsPresenterAdapter(EquipmentDetailsViewAdapter view, UnityAction apply)
-    {
-        _view = view; _apply = apply;
-        _view.UpgradeButton.onClick.AddListener(_apply);
-    }
+    public EquipmentDetailsPresenterAdapter(EquipmentDetailsViewAdapter view) => _view = view;
     public void Refresh(CellBaseAdapter selected)
     {
         _view.Feedback = "";
@@ -19,7 +12,7 @@ public sealed class EquipmentDetailsPresenterAdapter : IDisposable
         var state = selected == null ? "" : !selected.isActiveAndEnabled ? "停止中" :
             selected is CrafterCellAdapter crafter ? crafter.ProcessTime > 0 ? "加工中" : "材料・空き容量を待機" : "";
         _view.Heading.text = selected == null ? "" : $"{CellName(selected)}\n{state}".TrimEnd();
-        // セル選択は読み取り専用。購入ボタンはスキルを選択したときだけ表示する。
+        // セル選択は読み取り専用。設備情報に購入操作を表示しない。
         _view.UpgradeRoot.gameObject.SetActive(false);
         _view.EquipmentText = "";
         _view.UpgradeButton.interactable = false;
@@ -27,7 +20,6 @@ public sealed class EquipmentDetailsPresenterAdapter : IDisposable
     }
     public void UpdateLayout() => _view.UpdateLayout();
     public void SetActive(bool active) { _view.Heading.gameObject.SetActive(active); _view.UpgradeRoot.gameObject.SetActive(false); }
-    public void Dispose() { if (_view.UpgradeButton != null) _view.UpgradeButton.onClick.RemoveListener(_apply); }
     public static string CellName(CellBaseAdapter cell) => cell switch
     {
         ExtractorCellAdapter extractor => SelectButtonBuilderAdapter.PlacementLabel(extractor.ProgressionType),

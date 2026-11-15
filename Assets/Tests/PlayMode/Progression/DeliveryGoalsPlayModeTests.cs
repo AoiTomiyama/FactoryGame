@@ -76,7 +76,7 @@ public sealed class DeliveryGoalsPlayModeTests : FactoryPlayModeScope
         _panel.enabled = false; Deliver(App, ResourceTypeDomain.Wood, 3);
         Assert.That(Subscribers(App, "Changed"), Is.Zero); _panel.enabled = true; _view.UpdateUIStatusWindow(_core);
         Assert.That(_panel.EquipmentText, Does.Contain("3/40"));
-        _panel.Configure(_initializer.Wallet, _initializer.Skills, _view, _placer, App);
+        _panel.Configure(_initializer.Wallet, _view, _placer, App);
         Assert.That(Subscribers(App, "Changed"), Is.EqualTo(1)); Assert.That(Subscribers(App, "StageCompleted"), Is.EqualTo(1));
         _panel.enabled = false; Assert.That(Subscribers(App, "Changed"), Is.Zero); Assert.That(Subscribers(App, "StageCompleted"), Is.Zero);
     }
@@ -129,7 +129,7 @@ public sealed class DeliveryGoalsPlayModeTests : FactoryPlayModeScope
         try
         {
             layout.Resources = resources;
-            panel.Configure(initializer.Wallet, initializer.Skills, view, placer, app); view.UpdateUIStatusWindow(core);
+            panel.Configure(initializer.Wallet, view, placer, app); view.UpdateUIStatusWindow(core);
             var canvas = layout.GetComponent<Canvas>(); canvas.renderMode = RenderMode.WorldSpace; canvas.GetComponent<CanvasScaler>().enabled = false;
             foreach (var resolution in new[] { new Vector2(1600, 900), new Vector2(1366, 768) })
             {
@@ -159,7 +159,7 @@ public sealed class DeliveryGoalsPlayModeTests : FactoryPlayModeScope
         finally
         {
             layout.Resources = originalResources;
-            panel.Configure(initializer.Wallet, initializer.Skills, view, placer, initializer.Deliveries); view.UpdateUIStatusWindow(core);
+            panel.Configure(initializer.Wallet, view, placer, initializer.Deliveries); view.UpdateUIStatusWindow(core);
             UnityEngine.Object.Destroy(resources);
         }
     }

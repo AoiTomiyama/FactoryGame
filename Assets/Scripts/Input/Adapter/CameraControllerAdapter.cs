@@ -58,6 +58,9 @@ public class CameraControllerAdapter : MonoBehaviour
     private const float TransitionSeconds = .5f;
     public bool IsTransitioning => _transitionActive;
 
+    private System.Func<bool> _inputBlocked;
+    public void ConfigureInputGate(System.Func<bool> blocked) => _inputBlocked = blocked;
+
     private void Start()
     {
         _targetFOV = virtualCamera.Lens.OrthographicSize;
@@ -74,6 +77,7 @@ public class CameraControllerAdapter : MonoBehaviour
 
     private void Update()
     {
+        if (_inputBlocked?.Invoke() == true) { _isPanning = false; return; }
         var keyboard = Keyboard.current;
         if (keyboard != null && keyboard.fKey.wasPressedThisFrame) ToggleFirstPerson();
         else if (IsFirstPerson && keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetFirstPerson(false);
@@ -127,12 +131,13 @@ public class CameraControllerAdapter : MonoBehaviour
         SwitchCameraAngle();
     }
 
-    public void SwitchCameraAngle() { if (!IsFirstPerson) _isCameraAngleSwitched = !_isCameraAngleSwitched; }
+    public void SwitchCameraAngle() { if (!IsFirstPerson && _inputBlocked?.Invoke() != true) _isCameraAngleSwitched = !_isCameraAngleSwitched; }
 
     public void ToggleFirstPerson() => SetFirstPerson(!_firstPersonRequested);
 
     public bool SetFirstPerson(bool active)
     {
+        if (_inputBlocked?.Invoke() == true) return false;
         if(active && _choosingStart) return false;
         if (_firstPersonRequested == active && (IsFirstPerson == active || _transitionActive)) return true;
         if (active && !IsFirstPerson)
@@ -215,6 +220,7 @@ public class CameraControllerAdapter : MonoBehaviour
 
     private void OnPanStart(InputAction.CallbackContext ctx)
     {
+        if (_inputBlocked?.Invoke() == true) return;
         if (IsFirstPerson) return;
         _isPanning = true;
         _lastMousePos = Mouse.current.position.ReadValue(); // 初期位置記録
@@ -241,6 +247,7 @@ public class CameraControllerAdapter : MonoBehaviour
 
     private void HandleZoom(InputAction.CallbackContext ctx)
     {
+        if (_inputBlocked?.Invoke() == true) return;
         if (IsFirstPerson) return;
         var scroll = ctx.ReadValue<Vector2>().y;
         if (Mathf.Abs(scroll) <= 0.01f) return;

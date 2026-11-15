@@ -67,7 +67,7 @@ public static class EconomyLoopAssertions
             var baseTransfer = conveyor.TransferAmount;
             view.UpdateUIStatusWindow(extractor);
             await Funds(50);
-            Require(panel.PurchaseSkill("basic-research") == SkillPurchaseResultApplication.Success, "root purchased from earnings");
+            Require(initializer.Skills.Purchase("basic-research") == SkillPurchaseResultApplication.Success, "root purchased from earnings");
             spent += 50;
             foreach (var tier in new[] { 1, 2 })
             {
@@ -76,10 +76,12 @@ public static class EconomyLoopAssertions
                     var uid = branch + "-" + tier;
                     var node = initializer.Skills.Catalog.Nodes.Single(n => n.Uid == uid);
                     await Funds(node.Price);
-                    Require(panel.SkillButton(uid).interactable, "earned funds enable skill button");
-                    panel.SkillButton(uid).onClick.Invoke();
-                    panel.EquipmentView.UpgradeButton.onClick.Invoke();
-                    Require(initializer.Skills.IsOwned(uid) && !panel.UpgradeInteractable, "detail action applies type skill once");
+                    panel.SkillScreen.Open();
+                    Require(panel.SkillScreen.NodeButton(uid) != null, "earned funds reveal skill candidate");
+                    panel.SkillScreen.NodeButton(uid).onClick.Invoke();
+                    panel.SkillScreen.Details.UpgradeButton.onClick.Invoke();
+                    Require(initializer.Skills.IsOwned(uid) && !panel.SkillScreen.Details.Interactable, "detail action applies type skill once");
+                    panel.SkillScreen.Close();
                     spent += node.Price;
                 }
                 Require(extractor.ExtractionAmount == baseExtraction * (tier + 1) &&

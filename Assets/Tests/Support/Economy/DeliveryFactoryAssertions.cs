@@ -149,7 +149,7 @@ public sealed class DeliveryFactoryAssertions
         foreach(var uid in new[]{"basic-research","wood-extraction-1"})
         {
             var price=_initializer.Skills.Catalog.Nodes.Single(n=>n.Uid==uid).Price; await Funds(price);
-            Require(_panel.PurchaseSkill(uid)==SkillPurchaseResultApplication.Success,"収益からの研究購入");_spent+=price;
+            Require(_initializer.Skills.Purchase(uid)==SkillPurchaseResultApplication.Success,"収益からの研究購入");_spent+=price;
         }
         await Funds(1400); Record("工場への再投資資金");
         var core=TestScenes.Find<SingularityCellAdapter>(); var stock=_initializer.ConstructionStock;

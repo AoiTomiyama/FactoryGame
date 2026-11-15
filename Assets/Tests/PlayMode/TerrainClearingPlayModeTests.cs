@@ -142,19 +142,20 @@ public sealed class TerrainClearingHudPlayModeTests : FactoryPlayModeScope
         var clearingButton = TestScenes.All<CellSelectButtonUIAdapter>(FindObjectsInactive.Include).Single(b => b.name == "TerrainClearingButton");
         Assert.That(placer.ClearingAvailable, Is.False); Assert.That(clearingButton.gameObject.activeSelf, Is.False);
         Assert.That(game.Wallet.TryReserveIncome(1000,out var income)); income.TryCommit();
-        Assert.That(panel.PurchaseSkill("basic-research"), Is.EqualTo(SkillPurchaseResultApplication.Success));
+        Assert.That(game.Skills.Purchase("basic-research"), Is.EqualTo(SkillPurchaseResultApplication.Success));
         var uid = TerrainClearingApplication.SkillUid;
-        panel.ShowPage(2); panel.SelectSkill(uid);
-        Assert.That(panel.EquipmentView.UpgradeButton.interactable, Is.False);
-        Assert.That(layout.EquipmentFeedback.text, Does.Contain("加工投入"));
-        Assert.That(layout.EquipmentText.text, Does.Not.Contain("×"));
+        var screen = panel.SkillScreen;
+        screen.Open();
+        Assert.That(screen.IsNodeVisible(uid), Is.False);
         foreach (var pair in new[] { (ResourceTypeDomain.Wood,40L), (ResourceTypeDomain.Stone,40L),
             (ResourceTypeDomain.Plank,30L), (ResourceTypeDomain.StoneBrick,20L) })
         { Assert.That(game.Deliveries.TryReserve(pair.Item1,pair.Item2,out var delivered)); delivered.TryCommit(); }
-        Assert.That(panel.EquipmentView.UpgradeButton.interactable, Is.True,"delivery updates the selected node without reselection");
-        panel.EquipmentView.UpgradeButton.onClick.Invoke();
+        Assert.That(screen.IsNodeVisible(uid), Is.True,"delivery reveals the clearing node without reopening");
+        screen.Select(uid);
+        Assert.That(screen.Description.text, Does.Not.Contain("×"));
+        screen.PurchaseButton.onClick.Invoke();
         Assert.That(game.Skills.IsOwned(uid));
-        panel.ShowPage(0);
+        screen.Close(); panel.ShowPage(0);
         await UniTask.DelayFrame(2);
         Assert.That(clearingButton.gameObject.activeSelf);
         clearingButton.GetComponentInChildren<Button>(true).onClick.Invoke();
@@ -174,12 +175,12 @@ public sealed class TerrainClearingHudPlayModeTests : FactoryPlayModeScope
         {
             Screen.SetResolution(size.x,size.y,false); await UniTask.DelayFrame(4); Canvas.ForceUpdateCanvases();
             Assert.That(operation.PlacementInfo.preferredHeight, Is.LessThanOrEqualTo(operation.PlacementInfo.rectTransform.rect.height + 1),"clearing operation text " + size);
-            panel.ShowPage(2); panel.SelectSkill(uid); await UniTask.DelayFrame(3); Canvas.ForceUpdateCanvases();
-            Assert.That(layout.EquipmentText.preferredHeight, Is.LessThanOrEqualTo(layout.EquipmentText.rectTransform.rect.height + 1),"clearing detail " + size);
-            var bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(layout.EquipmentGroup.transform,
-                panel.EquipmentView.UpgradeButton.transform);
-            Assert.That(bounds.min.y, Is.GreaterThanOrEqualTo(((RectTransform)layout.EquipmentGroup.transform).rect.yMin - 1));
-            panel.ShowPage(0);
+            screen.Open(); screen.Select(uid); await UniTask.DelayFrame(3); Canvas.ForceUpdateCanvases();
+            Assert.That(screen.Description.preferredHeight, Is.LessThanOrEqualTo(screen.Description.rectTransform.rect.height + 1),"clearing detail " + size);
+            var bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(screen.PurchaseButton.GetComponentInParent<ScrollRect>().viewport,
+                screen.PurchaseButton.transform);
+            Assert.That(bounds.min.y, Is.GreaterThanOrEqualTo(screen.PurchaseButton.GetComponentInParent<ScrollRect>().viewport.rect.yMin - 1));
+            screen.Close(); panel.ShowPage(0);
         }
         var saves = TestScenes.Find<GameSaveAdapter>();
         Assert.That(saves.RequestSave());

@@ -21,6 +21,8 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     public ResourceDefinition Resources;
     public Text TextRow, RecipeHeading;
     public Button SkillRow;
+    public RectTransform GameplayRoot;
+    public SkillScreenAdapter SkillScreen;
     public RecipeResourceRowAdapter ResourceRow;
     private bool _initialized;
     private Vector2 _navigationPosition, _headerPosition, _bodyPosition, _bodySize;
