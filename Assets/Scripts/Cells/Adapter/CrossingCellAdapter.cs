@@ -15,6 +15,15 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     private CancellationTokenSource _cts;
     private bool _isDisconnected;
     private SaveGameApplication.Slot[] _restoredBatches;
+
+    internal override Vector3 ResourceDisplayPosition(Vector3 point, Vector3Int travelDirection)
+    {
+        // モデルの横レーンを高くし、逆向きの資源は入口側で止めて表示を分ける。
+        var across = Vector3.Dot(travelDirection, transform.right);
+        var height = Mathf.Abs(across) > .5f ? 1.55f : ResourceDisplayHeight;
+        return point - (Vector3)travelDirection * .23f + Vector3.up * height;
+    }
+
     public SaveGameApplication.Slot[] CaptureBatches(Action<int> registerOwner)
     {
         var values = new List<SaveGameApplication.Slot>();
@@ -65,7 +74,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                 var transfer = new PendingTransfer {Started = true,ResourceOwner = pool,InputPort = slot.port,
                     Coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(this,id,type,slot.amount))};
                 _pending.Add(direction,transfer);
-                pool.SetPosition(id,transform.position + Vector3.up * 1.1f);
+                pool.SetPosition(id, ResourceDisplayPosition(transform.position, direction));
                 StoreResourceAsync(direction,transfer,_cts.Token).Forget();
             }
             _restoredBatches = null;
@@ -201,16 +210,20 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                 transfer.ActiveCts = activeCts;
                 try
                 {
-                    var startPos = transform.position + Vector3.up * 1.1f;
+                    var startPos = ResourceDisplayPosition(transform.position, dir);
+                    var nextCell = transform.position + dir;
                     var pool = transfer.ResourceOwner;
                     if (pool == null) throw new InvalidOperationException("Crossing transfer lost its resource owner.");
                     var result = await transfer.Coordinator.RunAsync(
                         () => _adjacentContainers.TryGetValue(dir, out var portTarget) ? TargetPortId(portTarget.Identity as CellBaseAdapter, dir) : -1, startPos,
-                        transform.position + dir + Vector3.up * 1.1f,
+                        nextCell + Vector3.up * ResourceDisplayHeight,
                         () => _adjacentContainers.TryGetValue(dir, out var adjacent) ? adjacent : null,
                         endpoint => _adjacentContainers.TryGetValue(dir, out var adjacent) &&
                                 ReferenceEquals(adjacent.Identity, endpoint.Identity), pool.Resources,
-                        pool, () => EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed), activeCts.Token);
+                        pool, () => EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed), activeCts.Token,
+                        resolveDestination: endpoint => endpoint.Identity is CellBaseAdapter cell
+                            ? cell.ResourceDisplayPosition(nextCell, dir)
+                            : nextCell + Vector3.up * ResourceDisplayHeight);
                     if (result != ResourceAnimationResultApplication.Completed)
                     {
                         await UniTask.Delay(100, cancellationToken: token);
@@ -226,8 +239,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                     if (operation.CurrentStage != ResourceTransferOperationApplication.Stage.WaitingForReservation)
                         throw;
                     // 接続先だけが失われた。次の接続までIDを保持する。
-                    ResourceItemObjectPoolAdapter.Instance.SetPosition(operation.ResourceId,
-                        transform.position + Vector3.up * 1.1f);
+                    transfer.ResourceOwner.SetPosition(operation.ResourceId, ResourceDisplayPosition(transform.position, dir));
                 }
                 finally
                 {

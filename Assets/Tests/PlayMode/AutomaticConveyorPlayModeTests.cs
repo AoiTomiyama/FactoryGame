@@ -188,6 +188,45 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
         await Until(() => Id(belt) == 0 && sink.CurrentLoad == sink.Capacity);
         Assert.That(_pool.Resources.Count, Is.Zero);
     }
+
+    [UnityTest] public IEnumerator CrossingShowsTwoStraightPathsAtEveryRotation() => CrossingDisplay().ToCoroutine();
+    private async UniTask CrossingDisplay()
+    {
+        for (var rotation = 0; rotation < 4; rotation++)
+        {
+            var center = new Vector3Int(4 + 5 * (rotation % 2), 0, 4 + 5 * (rotation / 2));
+            var crossing = Add<CrossingCellAdapter>("Crossing", center.x, center.z,
+                cell => cell.transform.rotation = Quaternion.Euler(0, rotation * 90, 0));
+            var forward = Vector3Int.RoundToInt(crossing.transform.forward);
+            var right = Vector3Int.RoundToInt(crossing.transform.right);
+
+            (StorageCellAdapter Result, GameObject Visual) Supply(Vector3Int direction, ResourceTypeDomain type, int amount)
+            {
+                var from = center - direction;
+                var to = center + direction;
+                var belt = Add<ConveyorCellAdapter>("Conveyor", from.x, from.z,
+                    cell => cell.transform.rotation = Quaternion.LookRotation(direction));
+                var result = Add<StorageCellAdapter>("Storage", to.x, to.z);
+                var input = belt.Ports.First(port => (port.Use & CellPortUseDomain.Input) != 0).Id;
+                Assert.That(belt.AllocateStorage(input, amount, type));
+                var id = _pool.CreateIdFromResourceData(type, amount);
+                belt.Reuse(input, id);
+                belt.StoreResource(input, amount);
+                return (result, ResourceTransferAssertions.GetVisual(_pool, id));
+            }
+
+            var lower = Supply(forward, ResourceTypeDomain.Wood, 3);
+            var upper = Supply(right, ResourceTypeDomain.Stone, 4);
+            await Until(() => crossing.CaptureBatches(_ => {}).Length == 2);
+            Assert.That(upper.Visual.transform.position.y - lower.Visual.transform.position.y, Is.GreaterThan(.30f));
+            Assert.That(Vector3.Dot(lower.Visual.transform.position - center, right), Is.EqualTo(0).Within(.01f));
+            Assert.That(Vector3.Dot(upper.Visual.transform.position - center, forward), Is.EqualTo(0).Within(.01f));
+            await Until(() => lower.Result.CurrentLoad == 3 && upper.Result.CurrentLoad == 4);
+            Assert.That(lower.Result.StoredResourceType, Is.EqualTo(ResourceTypeDomain.Wood));
+            Assert.That(upper.Result.StoredResourceType, Is.EqualTo(ResourceTypeDomain.Stone));
+        }
+        Assert.That(_pool.Resources.Count, Is.Zero);
+    }
     [UnityTest] public IEnumerator InvalidPromotionVisualKeepsTheOriginalBatchAndRole()=>FailedPromotion().ToCoroutine();
     private async UniTask FailedPromotion()
     {

@@ -18,6 +18,9 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
         => Footprint.Coordinates(XIndex, ZIndex, QuarterTurns);
     public Vector3 WorldCenter => transform.TransformPoint(new Vector3(
         footprintOffset.x + (footprintWidth - 1) * .5f, 0, footprintOffset.y + (footprintDepth - 1) * .5f));
+    internal const float ResourceDisplayHeight = 1.1f;
+    internal virtual Vector3 ResourceDisplayPosition(Vector3 point, Vector3Int travelDirection)
+        => point + Vector3.up * ResourceDisplayHeight;
     private SharedStatEffectsApplication _statEffects;
     private CellTypeDomain _configuredProgressionType;
     public virtual CellTypeDomain ProgressionType => CellTypeDomain.None;

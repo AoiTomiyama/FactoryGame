@@ -557,7 +557,7 @@ public static class ResourceTransferAssertions
     private static bool ContainsId(ResourceItemObjectPoolAdapter pool, int id)
         => pool.Resources.TryGet(id, out _);
 
-    private static GameObject GetVisual(ResourceItemObjectPoolAdapter pool, int id)
+    public static GameObject GetVisual(ResourceItemObjectPoolAdapter pool, int id)
     {
         // 作業ツリーで進行中の ResourceDefinition 名称変更と、このタスクの検証を独立させる。
         var field = typeof(ResourceItemObjectPoolAdapter).GetField("_rentedObjects", InstanceFields) ??

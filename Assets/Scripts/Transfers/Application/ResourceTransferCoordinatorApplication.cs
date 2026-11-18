@@ -43,7 +43,8 @@ public sealed class ResourceTransferCoordinatorApplication
     public async UniTask<ResourceAnimationResultApplication> RunAsync(Func<int> getPortId, Vector3 from, Vector3 to,
         Func<IContainableApplication> getTarget, Func<IContainableApplication, bool> isCurrentTarget,
         ResourceTransitStoreApplication resources, IResourceTransferPresentationApplication presentation,
-        Func<float> getDuration, CancellationToken token, Action onAnimating = null)
+        Func<float> getDuration, CancellationToken token, Action onAnimating = null,
+        Func<IContainableApplication, Vector3> resolveDestination = null)
     {
         try
         {
@@ -66,7 +67,8 @@ public sealed class ResourceTransferCoordinatorApplication
             if (float.IsNaN(seconds) || float.IsInfinity(seconds) || seconds <= 0)
                 throw new ArgumentOutOfRangeException(nameof(getDuration), "Transfer duration must be finite and positive.");
             onAnimating?.Invoke();
-            var result = await presentation.Transfer(token, from, to, Operation.ResourceId, seconds);
+            var destination = resolveDestination == null ? to : resolveDestination(target);
+            var result = await presentation.Transfer(token, from, destination, Operation.ResourceId, seconds);
             token.ThrowIfCancellationRequested();
             if (result != ResourceAnimationResultApplication.Completed)
             {
