@@ -31,6 +31,17 @@ public class RecipeDataDefinition
     public float CraftSecond => craftSecond;
 
     public string RecipeName => recipeName;
+
+    public bool TryReadRecipe(out RecipeRulesDomain.Recipe recipe)
+    {
+        recipe = null;
+        if (ingredients == null || float.IsNaN(craftSecond) || float.IsInfinity(craftSecond) || craftSecond < 0)
+            return false;
+        var requirements = Array.ConvertAll(ingredients,
+            ingredient => new RecipeRulesDomain.Ingredient(ingredient.resourceType, ingredient.requiredAmount));
+        recipe = new RecipeRulesDomain.Recipe(requirements, result, resultAmount);
+        return true;
+    }
 }
 
 [Serializable]

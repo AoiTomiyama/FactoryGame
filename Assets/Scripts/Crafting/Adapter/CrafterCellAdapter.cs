@@ -35,6 +35,12 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
 
     public int IngredientCapacity => EffectiveStat(ingredientCapacity, EquipmentStatDomain.InputCapacity);
 
+    public int BaseIngredientCapacity => ingredientCapacity;
+    public int BaseExporterCapacity => exporterCapacity;
+    public IReadOnlyList<RecipeDataDefinition> ConfiguredRecipes => recipeDatabase != null && recipeDatabase.recipes != null
+        ? Array.AsReadOnly(recipeDatabase.recipes)
+        : Array.Empty<RecipeDataDefinition>();
+
     public int ExporterCapacity => EffectiveStat(exporterCapacity, EquipmentStatDomain.OutputCapacity);
     public override CellTypeDomain ProgressionType => equipmentType;
     protected override void ValidateBaseStats()
@@ -195,16 +201,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
         var inputs = CaptureInputs();
         foreach (var definition in recipeDatabase.recipes)
         {
-            if (definition == null || definition.Ingredients == null ||
-                float.IsNaN(definition.CraftSecond) || float.IsInfinity(definition.CraftSecond) ||
-                definition.CraftSecond < 0) continue;
-            var ingredients = new RecipeRulesDomain.Ingredient[definition.Ingredients.Length];
-            for (var i = 0; i < ingredients.Length; i++)
-            {
-                var ingredient = definition.Ingredients[i];
-                ingredients[i] = new RecipeRulesDomain.Ingredient(ingredient.resourceType, ingredient.requiredAmount);
-            }
-            var recipe = new RecipeRulesDomain.Recipe(ingredients, definition.Result, definition.ResultAmount);
+            if (definition == null || !definition.TryReadRecipe(out var recipe)) continue;
             if (!RecipeRulesDomain.TryCreatePlan(recipe, inputs, CaptureOutput(), ExporterCapacity, out var plan))
                 continue;
             operation = new CraftingOperationApplication(plan);

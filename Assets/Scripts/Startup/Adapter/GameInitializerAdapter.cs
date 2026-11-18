@@ -141,6 +141,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         foreach (var cell in field.Owners) cell.InitializeSystem();
         IncomeRate = new IncomeRateApplication(Wallet, Time.unscaledTimeAsDouble);
         economyPanel.Configure(Wallet, IncomeRate, statusView, placer, Deliveries);
+        economyPanel.ConfigureReferences(RecipeReferenceCatalogAdapter.Create(placer.FieldPrefabs(), resources, Prices));
         var hud = selection.Layout;
         var screen = economyPanel.SkillScreen;
         screen.Configure(Wallet, Skills, Deliveries, field.StatEffects, hud, () => placer.ClearingPriceText,

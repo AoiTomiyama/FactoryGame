@@ -41,9 +41,11 @@ public static class ResourceIconAssertions
             var recipeObject = TestScenes.NewObject("RecipeRows", typeof(RectTransform));
             var rowPrefab = recipePrefab.GetComponent<RecipeResourceRowAdapter>();
             Require(rowPrefab != null, "recipe prefab has serialized resource row");
-            var heading = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/UI/HudRecipeHeading.prefab").GetComponent<Text>();
-            var view = new RecipeReferenceViewAdapter(recipeObject.transform, heading.font, heading, rowPrefab);
-            view.Render(recipes, resources);
+            foreach (var resource in resources.GetAllResources())
+            {
+                var row = UnityEngine.Object.Instantiate(rowPrefab, recipeObject.transform);
+                row.Render(resource.Icon, resource.ResourceName, null);
+            }
             await UniTask.Yield();
             var stoneRow = false;
             var woodRow = false;

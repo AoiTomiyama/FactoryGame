@@ -13,15 +13,6 @@ MonoBehaviour:
   m_Name: RecipeDB
   m_EditorClassIdentifier: 
   recipes:
-  - recipeName: TestRecipe
-    ingredients:
-    - resourceType: 1
-      requiredAmount: 2
-    - resourceType: 2
-      requiredAmount: 2
-    craftSecond: 5
-    result: 2
-    resultAmount: 1
   - recipeName: 板材加工
     ingredients:
     - resourceType: 2

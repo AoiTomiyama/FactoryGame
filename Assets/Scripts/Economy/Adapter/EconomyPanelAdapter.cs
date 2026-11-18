@@ -33,19 +33,29 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     [SerializeField] private HudLayoutAdapter layout;
     private Font _font;
     private GameObject _canvas;
-    private GameObject _body;
     private PersistentSummaryViewAdapter _summaryView;
     private EquipmentDetailsViewAdapter _equipmentView;
     private EquipmentDetailsPresenterAdapter _equipmentPresenter;
     public EquipmentDetailsViewAdapter EquipmentView => _equipmentView;
     public PersistentSummaryViewAdapter SummaryView => _summaryView;
     public RectTransform SummaryRect => _summaryView.Rect;
-    public Transform RecipeContent => _pages[1].transform;
+    public const int RecipePage = 1;
+    public const int EncyclopediaPage = 3;
+    private const int SkillTab = 2;
+    public Transform RecipeContent => _pages[RecipePage].transform;
+    public Transform EncyclopediaContent => _pages[EncyclopediaPage].transform;
     public RecipeReferenceViewAdapter RecipeView { get; private set; }
+    public RecipeReferenceViewAdapter EncyclopediaView { get; private set; }
+    private RecipeReferenceViewAdapter ActiveReference => SelectedPage switch
+    {
+        RecipePage => RecipeView,
+        EncyclopediaPage => EncyclopediaView,
+        _ => null
+    };
     public void SetSummaryItems(params string[] items) => _summaryView.SetItems(items);
-    private readonly GameObject[] _pages = new GameObject[2];
-    private readonly Button[] _tabs = new Button[3];
-    private readonly UnityAction[] _tabActions = new UnityAction[3];
+    private readonly GameObject[] _pages = new GameObject[4];
+    private readonly Button[] _tabs = new Button[4];
+    private readonly UnityAction[] _tabActions = new UnityAction[4];
     private UnityAction _closeAction;
     public int SelectedPage { get; private set; }
     public bool IsExpanded => _expanded;
@@ -55,16 +65,16 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
 
     public void ShowPage(int index)
     {
-        if (index < 0 || index >= _pages.Length) throw new ArgumentOutOfRangeException(nameof(index));
+        if (index < 0 || index >= _pages.Length || _pages[index] == null)
+            throw new ArgumentOutOfRangeException(nameof(index));
+        ActiveReference?.RememberScroll();
         SelectedPage = index;
         layout.Body.vertical = true;
-        SetExpanded(true);
-        _body.GetComponent<ScrollRect>().verticalNormalizedPosition = 1;
         for (var i = 0; i < _pages.Length; i++)
-        {
-            _pages[i].SetActive(i == index);
-            layout.StyleButton(_tabs[i], i == index);
-        }
+            if (_pages[i] != null) _pages[i].SetActive(i == index);
+        SetExpanded(true);
+        if (ActiveReference != null) ActiveReference.RestoreScroll();
+        else layout.Body.verticalNormalizedPosition = 1;
     }
     private OperationBarAdapter _operation;
     private Text _placement;
@@ -90,6 +100,19 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         _deliveryView = new DeliveryGoalsViewAdapter(_deliveries.Catalog, layout.Resources);
         if (isActiveAndEnabled) Bind();
     }
+
+    public void ConfigureReferences(RecipeReferenceCatalogApplication catalog)
+    {
+        RecipeView?.Dispose();
+        EncyclopediaView?.Dispose();
+        RecipeView = new RecipeReferenceViewAdapter((RectTransform)RecipeContent, layout, catalog, false, UpdateReferenceBack);
+        EncyclopediaView = new RecipeReferenceViewAdapter((RectTransform)EncyclopediaContent, layout, catalog, true, UpdateReferenceBack);
+        UpdateReferenceBack();
+        ActiveReference?.RestoreScroll();
+    }
+
+    private void UpdateReferenceBack() => layout.ReferenceBack.gameObject.SetActive(_expanded && ActiveReference?.IsDetail == true);
+    private void BackReference() => ActiveReference?.Back();
 
     private void Bind()
     {
@@ -147,6 +170,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         _expanded = expanded;
         layout.SetLeftExpanded(expanded);
+        UpdateReferenceBack();
         UpdatePlacementMode();
         for (var i = 0; i < _tabs.Length; i++) layout.StyleButton(_tabs[i], expanded && SelectedPage == i);
         // 閉じたタブに選択フォーカスが残り、選択色へ戻ることを防ぐ。
@@ -227,7 +251,9 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         for (var i = 0; i < _tabs.Length; i++)
             if (_tabs[i] != null && _tabActions[i] != null) _tabs[i].onClick.RemoveListener(_tabActions[i]);
         if (layout != null && _closeAction != null) layout.Close.onClick.RemoveListener(_closeAction);
+        if (layout != null && layout.ReferenceBack != null) layout.ReferenceBack.onClick.RemoveListener(BackReference);
         RecipeView?.Dispose();
+        EncyclopediaView?.Dispose();
         _summaryView?.Dispose();
     }
 
@@ -238,25 +264,25 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         layout.ApplyColors();
         _font = layout.Font;
         _canvas = layout.gameObject;
-        _body = layout.Body.gameObject;
         _operation = FindAnyObjectByType<OperationBarAdapter>(FindObjectsInactive.Include);
         _cameraController = FindAnyObjectByType<CameraControllerAdapter>();
         if (_cameraController != null) _cameraController.FirstPersonChanged += SetFirstPersonMode;
         _placement = _operation.PlacementInfo;
-        for (var i = 0; i < 3; i++)
+        _pages[0] = layout.Pages[0].gameObject;
+        _pages[RecipePage] = layout.Pages[1].gameObject;
+        _pages[EncyclopediaPage] = layout.EncyclopediaPage.gameObject;
+        layout.ReferenceBack.onClick.AddListener(BackReference);
+        for (var i = 0; i < _tabs.Length; i++)
         {
             var page = i;
             _tabs[i] = layout.Tabs[i];
-            if (i < _pages.Length) _pages[i] = layout.Pages[i].gameObject;
-            _tabActions[i] = i == 2 ? () => SkillScreen.Open() : () => { if (_expanded && SelectedPage == page) SetExpanded(false); else ShowPage(page); };
+            _tabActions[i] = i == SkillTab ? () => SkillScreen.Open() : () => { if (_expanded && SelectedPage == page) SetExpanded(false); else ShowPage(page); };
             _tabs[i].onClick.AddListener(_tabActions[i]);
         }
         _closeAction = () => SetExpanded(!_expanded);
         layout.Close.onClick.AddListener(_closeAction);
         _summaryView = new PersistentSummaryViewAdapter(layout.Summary, _font, layout.WalletItems, layout.TextRow, layout.Save != null ? (RectTransform)layout.Save.transform : null);
         layout.PlacementBuilder.Configure(_font);
-        RecipeView = new RecipeReferenceViewAdapter(_pages[1].transform, _font, layout.RecipeHeading, layout.ResourceRow);
-        RecipeView.Render(layout.Recipes, layout.Resources);
         _view.ConfigureHud(_font, layout.Resources);
         _equipmentView = new EquipmentDetailsViewAdapter(layout.EquipmentHeading, layout.EquipmentGroup,
             layout.EquipmentText, layout.Upgrade, layout.EquipmentFeedback);

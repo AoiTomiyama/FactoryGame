@@ -50,6 +50,19 @@ public static class RecipeRulesDomain
         { Inputs = Array.AsReadOnly(inputs); Result = result; }
     }
 
+    // 設備の入力口に最大限都合よく材料を置き、実加工と同じ対応付けで調べる。
+    public static bool CanUseInputPorts(Recipe recipe, int inputPortCount)
+    {
+        if (recipe == null || recipe.Ingredients.Count > inputPortCount) return false;
+        var inputs = new Input[recipe.Ingredients.Count];
+        for (var i = 0; i < inputs.Length; i++)
+        {
+            var ingredient = recipe.Ingredients[i];
+            inputs[i] = new Input(i, ingredient.Type, ingredient.Amount);
+        }
+        return TryCreatePlan(recipe, inputs, default, recipe.ResultAmount, out _);
+    }
+
     public static bool TryCreatePlan(Recipe recipe, IReadOnlyList<Input> inputs, Output output,
         int outputCapacity, out RecipePlanDomain plan)
     {

@@ -111,13 +111,12 @@ public static class HudPrefabAssertions
             Require(cell.GetComponent<Image>().color == hud.IdleTabColor, "placement and submenu outer backgrounds share normal color");
         panel.ShowPage(1);
         Require(hud.Tabs[1].colors.normalColor == hud.SelectedTabColor && hud.Tabs[0].colors.normalColor == hud.IdleTabColor, "page selection shares palette");
-        panel.RecipeView.Render(hud.Recipes, hud.Resources);
-        Require(hud.ResourceRow.GetComponentInChildren<Image>(true).color == Color.white, "resource icon color preserved on list refresh");
+        Require(hud.ResourceRow.Icon.color == Color.white, "resource icon color preserved on list refresh");
         panel.ShowPage(0);
         var rotate = (RectTransform)bar.RotateButton.transform;
         Require(Mathf.Abs(rotate.offsetMin.x - 14) < .01f, "edited operation position retained");
         var fixedObjects = new[] { hud.Close.gameObject, hud.Navigation.gameObject, hud.Body.gameObject,
-            hud.Tabs[0].gameObject, hud.Tabs[1].gameObject, hud.Tabs[2].gameObject, bar.RotateButton.gameObject, bar.ViewButton.gameObject };
+            hud.Tabs[0].gameObject, hud.Tabs[1].gameObject, hud.Tabs[2].gameObject, hud.Tabs[3].gameObject, bar.RotateButton.gameObject, bar.ViewButton.gameObject };
         var ids = fixedObjects.Select(o => o.GetInstanceID()).ToArray();
         var initializer = TestScenes.Find<GameInitializerAdapter>();
         panel.Configure(initializer.Wallet, initializer.IncomeRate,

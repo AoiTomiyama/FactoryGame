@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -47,6 +47,9 @@ public class CellPlacerAdapter : MonoBehaviour
     public bool IsPlacementTransactionActive => _placing;
     public CellBaseAdapter FieldPrefab(CellTypeDomain type)
         => TryGetDefinition(type,out var info) && info.FieldCellPrefab != null ? info.FieldCellPrefab : throw new InvalidOperationException($"Missing field definition: {type}");
+    public IEnumerable<CellBaseAdapter> FieldPrefabs() => cellDatabaseArr.SelectMany(database => database.GetAllCellInfos())
+        .Select(info => info.CellTypeDomain).Distinct().Select(FieldPrefab);
+
     public CellTypeDomain SelectedType => _selectedType;
     public int PreviewCount => _selectedRangeCells.Count(t => t.placeholder.activeSelf);
     public long PreviewCost => _clearingMode ? _clearingPreview?.Quote.Cost ?? 0 :

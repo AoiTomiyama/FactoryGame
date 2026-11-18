@@ -82,6 +82,55 @@ public sealed class EffectiveStatsTests : FactoryEditModeScope
 [TestFixture, Category("Crafting")]
 public sealed class CraftingRulesTests : FactoryEditModeScope
 {
+    [Test]
+    public void RecipeReferenceUsesEquipmentPortsCapacitiesAndShipmentPrices()
+    {
+        var wood = ResourceTypeDomain.Wood;
+        var plank = ResourceTypeDomain.Plank;
+        var recipe = new RecipeRulesDomain.Recipe(new[] {
+            new RecipeRulesDomain.Ingredient(wood, 3), new RecipeRulesDomain.Ingredient(wood, 2)
+        }, plank, 4);
+        var method = new RecipeReferenceCatalogApplication.RecipeInfo("Two ports", 5, recipe);
+        var alternative = new RecipeReferenceCatalogApplication.RecipeInfo("One port", 2,
+            new RecipeRulesDomain.Recipe(new[] { new RecipeRulesDomain.Ingredient(wood, 1) }, plank, 1));
+        var prices = new CurrencyPriceCatalogDomain(0,
+            new[] { new System.Collections.Generic.KeyValuePair<ResourceTypeDomain, long>(plank, 27) },
+            System.Array.Empty<System.Collections.Generic.KeyValuePair<CellTypeDomain, long>>());
+        var catalog = new RecipeReferenceCatalogApplication(new[] { wood, plank }, prices, new[]
+        {
+            new RecipeReferenceCatalogApplication.Equipment(CellTypeDomain.Crafter, 1, 3, 4, new[] { method, alternative }),
+            new RecipeReferenceCatalogApplication.Equipment(CellTypeDomain.AdvancedCrafter, 2, 2, 3, new[] { method, alternative })
+        });
+        var choices = catalog.MethodsFor(plank);
+        Assert.That(choices.Select(value => value.Definition), Is.EqualTo(new[] { method, alternative }));
+        var both = choices.Single(value => value.Definition == alternative);
+        CollectionAssert.AreEquivalent(new[] { CellTypeDomain.Crafter, CellTypeDomain.AdvancedCrafter }, both.Machines.Select(item => item.Type));
+        var twoPorts = choices.Single(value => value.Definition == method).Machines.Single();
+        Assert.That(twoPorts.Type, Is.EqualTo(CellTypeDomain.AdvancedCrafter));
+        Assert.That(twoPorts.InputCapacityNeeded, Is.EqualTo(3));
+        Assert.That(twoPorts.OutputCapacityNeeded, Is.EqualTo(4));
+        Assert.That(catalog.TryGetUnitSalePrice(plank, out var price), Is.True);
+        Assert.That(price, Is.EqualTo(27));
+        Assert.That(catalog.TryGetUnitSalePrice(wood, out _), Is.False);
+    }
+
+    [Test]
+    public void RecipeHistoryBlocksOnlyCyclesInCurrentPath()
+    {
+        var trail = new ResourceReferenceNavigationApplication();
+        Assert.That(trail.TryEnter(ResourceTypeDomain.Wood));
+        Assert.That(trail.TryEnter(ResourceTypeDomain.Wood), Is.False);
+        Assert.That(trail.TryEnter(ResourceTypeDomain.Plank));
+        Assert.That(trail.TryEnter(ResourceTypeDomain.Wood), Is.False);
+        Assert.That(trail.TryBack());
+        Assert.That(trail.Current, Is.EqualTo(ResourceTypeDomain.Wood));
+        Assert.That(trail.TryEnter(ResourceTypeDomain.Plank));
+        Assert.That(trail.TryBack());
+        Assert.That(trail.TryBack());
+        Assert.That(trail.Current, Is.EqualTo(ResourceTypeDomain.None));
+        Assert.That(trail.TryBack(), Is.False);
+    }
+
     [Test] public void ImmutablePlansQuantitiesAndCancellation() => CraftingAssertions.VerifyRules();
     [Test] public void IngredientMatchingAgreesWithIndependentSearch() => CraftingAssertions.VerifyMatchingAgainstSearch();
 }

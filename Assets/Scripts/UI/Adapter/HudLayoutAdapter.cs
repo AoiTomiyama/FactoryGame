@@ -10,6 +10,8 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     public Button[] Tabs;
     public Color SelectedTabColor = new(.24f, .43f, .53f), IdleTabColor = new(.14f, .21f, .27f);
     public RectTransform[] Pages;
+    public RectTransform EncyclopediaPage;
+    public Button ReferenceBack;
     public RectTransform Summary;
     public Text[] WalletItems;
     public Button Save;
@@ -17,7 +19,6 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     public GameObject EquipmentGroup;
     public Button Upgrade;
     public SelectButtonBuilderAdapter PlacementBuilder;
-    public RecipeDatabaseDefinition Recipes;
     public ResourceDefinition Resources;
     public Text TextRow, RecipeHeading;
     public Button SkillRow;
@@ -109,6 +110,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
         _bodyInput = Body.GetComponent<CanvasGroup>();
         _headerInput = Close.GetComponent<CanvasGroup>();
         foreach (var page in Pages) HudMotionAdapter.Reveal(page);
+        HudMotionAdapter.Reveal(EncyclopediaPage);
         // 移動する内容より手前にタブを置き、途中でも開き直せるようにする。
         Navigation.SetAsLastSibling();
     }

@@ -389,22 +389,19 @@ public static class EconomyUIAssertions
         view.UpdateUIStatusWindow(storage);
         Require(storage.Capacity == capacity * 2 && storage.CurrentLoad == 3,
             "right-hand button upgrades same selected cell and preserves inventory");
-        var recipes = AssetDatabase.LoadAssetAtPath<RecipeDatabaseDefinition>("Assets/Scripts/ScriptableObject/Recipes/RecipeDB.asset");
+        var initializer = TestScenes.Find<GameInitializerAdapter>();
         var resources = AssetDatabase.LoadAssetAtPath<ResourceDefinition>("Assets/Scripts/ScriptableObject/ResourceDB.asset");
-        panel.ShowPage(1);
-        var originalLabels = panel.RecipeContent.GetComponentsInChildren<Text>(true).Select(t => t.text).ToArray();
-        foreach (var recipe in recipes.recipes)
-        {
-            Require(originalLabels.Any(t => t.Contains(recipe.RecipeName) && t.Contains($"{recipe.CraftSecond} 秒")), "recipe name and craft time from definition");
-            foreach (var ingredient in recipe.Ingredients)
-                Require(originalLabels.Contains($"材料: {resources.GetResourceByType(ingredient.resourceType).ResourceName} ×{ingredient.requiredAmount}"), "ingredient name and required amount");
-            Require(originalLabels.Contains($"成果物: {resources.GetResourceByType(recipe.Result).ResourceName} ×{recipe.ResultAmount}"), "output name and quantity");
-        }
-        var expanded = ScriptableObject.CreateInstance<RecipeDatabaseDefinition>();
-        expanded.recipes = Enumerable.Range(0, 24).Select(i => JsonUtility.FromJson<RecipeDataDefinition>(
-            "{\"recipeName\":\"収容確認" + i + "\",\"ingredients\":[{\"resourceType\":2,\"requiredAmount\":3},{\"resourceType\":1,\"requiredAmount\":4},{\"resourceType\":2,\"requiredAmount\":5},{\"resourceType\":1,\"requiredAmount\":6},{\"resourceType\":2,\"requiredAmount\":7},{\"resourceType\":1,\"requiredAmount\":8}],\"craftSecond\":12.5,\"result\":2,\"resultAmount\":9}"
-        )).ToArray();
-        panel.RecipeView.Render(expanded, resources);
+        var original = RecipeReferenceCatalogAdapter.Create(placer.FieldPrefabs(), resources, initializer.Prices);
+        var ingredients = Enumerable.Range(1, 6)
+            .Select(n => new RecipeRulesDomain.Ingredient(n % 2 == 0 ? ResourceTypeDomain.Stone : ResourceTypeDomain.Wood, n + 2))
+            .ToArray();
+        var methods = Enumerable.Range(0, 24)
+            .Select(i => new RecipeReferenceCatalogApplication.RecipeInfo("収容確認" + i, 12.5f,
+                new RecipeRulesDomain.Recipe(ingredients, ResourceTypeDomain.Wood, 9))).ToArray();
+        panel.ConfigureReferences(new RecipeReferenceCatalogApplication(original.Resources, initializer.Prices,
+            new[] { new RecipeReferenceCatalogApplication.Equipment(CellTypeDomain.AdvancedCrafter, 6, 10, 20, methods) }));
+        panel.ShowPage(EconomyPanelAdapter.RecipePage);
+        panel.RecipeContent.GetComponentsInChildren<RecipeResourceRowAdapter>().Single().Link.onClick.Invoke();
         var extras = Enumerable.Range(0, 12).Select(i => "追加項目 " + i + "：12345").ToArray();
         panel.SetSummaryItems(extras);
         var root = canvas.GetComponent<RectTransform>();
@@ -444,7 +441,7 @@ public static class EconomyUIAssertions
             Require(!panel.EquipmentView.UpgradeRoot.gameObject.activeSelf, "cell status omits individual upgrade controls " + resolution);
             foreach (var text in panel.RecipeContent.GetComponentsInChildren<Text>())
                 Require(text.preferredHeight <= text.rectTransform.rect.height + 1, "expanded recipe text height " + resolution);
-            foreach (var icon in panel.RecipeContent.GetComponentsInChildren<Image>())
+            foreach (var icon in panel.RecipeContent.GetComponentsInChildren<RecipeResourceRowAdapter>().Select(row => row.Icon))
                 Require(icon.sprite != null && icon.rectTransform.rect.width >= 31 && icon.rectTransform.rect.height >= 31, "resource icon retained " + resolution);
         }
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -453,8 +450,7 @@ public static class EconomyUIAssertions
         panel.SetSummaryItems(extras.Reverse().ToArray());
         Require(panel.SummaryView.Items.First().text == extras.Last(), "summary order follows caller order");
         panel.SetSummaryItems();
-        panel.RecipeView.Render(recipes, resources);
-        UnityEngine.Object.Destroy(expanded);
+        panel.ConfigureReferences(original);
         panel.ShowPage(1);
         view.UpdateUIStatusWindow(storage);
         await UniTask.DelayFrame(5);
@@ -575,7 +571,7 @@ public static class EconomyUIAssertions
             camera.Render();
             var hud = canvas.GetComponent<HudLayoutAdapter>();
             var canvasRect = (RectTransform)canvas.transform;
-            var visibleRecipes = panel.RecipeContent.GetComponentsInChildren<Image>()
+            var visibleRecipes = panel.RecipeContent.GetComponentsInChildren<RecipeResourceRowAdapter>().Select(row => row.Icon)
                 .Where(icon => BoundsIn(canvasRect, icon.rectTransform).Overlaps(BoundsIn(canvasRect, hud.Body.viewport))).ToArray();
             if (page == 1) Require(visibleRecipes.Length > 0, "recipe capture includes visible icons " + resolution);
             foreach (var icon in visibleRecipes)
