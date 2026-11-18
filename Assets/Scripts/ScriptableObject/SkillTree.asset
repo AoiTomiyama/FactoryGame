@@ -12,6 +12,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 57d30d5b445241ce956361333e01479b, type: 3}
   m_Name: SkillTree
   m_EditorClassIdentifier:
+  basicExtractors:
+  - 6
+  - 5
+  industrialExtractors:
+  - 17
+  - 18
+  - 19
   nodes:
   - uid: basic-research
     label: 基礎研究
@@ -21,131 +28,110 @@ MonoBehaviour:
     stat: 0
     multiplier: 1
     addition: 0
-  - uid: wood-extraction-1
-    label: 木材採取・抽出量 I
-    price: 50
+  - uid: extraction-speed-1
+    label: 採取速度 I
+    price: 500
     prerequisite: basic-research
-    cellTypes:
-    - 6
+    cellTypes: []
+    extractionGroup: 1
+    stat: 7
+    multiplier: 1.25
+    addition: 0
+  - uid: extraction-speed-2
+    label: 採取速度 II
+    price: 1000
+    prerequisite: extraction-speed-1
+    cellTypes: []
+    extractionGroup: 1
+    stat: 7
+    multiplier: 1.5
+    addition: 0
+  - uid: extraction-speed-3
+    label: 採取速度 III
+    price: 2000
+    prerequisite: extraction-speed-2
+    cellTypes: []
+    extractionGroup: 1
+    stat: 7
+    multiplier: 2
+    addition: 0
+  - uid: extractor-capacity-1
+    label: 採取在庫 I
+    price: 1000
+    prerequisite: basic-research
+    cellTypes: []
+    extractionGroup: 1
+    stat: 1
+    multiplier: 2
+    addition: 0
+  - uid: extractor-capacity-2
+    label: 採取在庫 II
+    price: 2000
+    prerequisite: extractor-capacity-1
+    cellTypes: []
+    extractionGroup: 1
+    stat: 1
+    multiplier: 3
+    addition: 0
+  - uid: basic-extraction-1
+    label: 基礎素材・抽出量 I
+    price: 1000
+    prerequisite: basic-research
+    requiredDeliveryStage: processed
+    cellTypes: []
+    extractionGroup: 2
     stat: 0
     multiplier: 2
     addition: 0
-  - uid: wood-extraction-2
-    label: 木材採取・抽出量 II
-    price: 100
-    prerequisite: wood-extraction-1
-    cellTypes:
-    - 6
+  - uid: basic-extraction-2
+    label: 基礎素材・抽出量 II
+    price: 2000
+    prerequisite: basic-extraction-1
+    requiredDeliveryStage: processed
+    cellTypes: []
+    extractionGroup: 2
     stat: 0
     multiplier: 3
     addition: 0
-  - uid: wood-extraction-3
-    label: 木材採取・抽出量 III
-    price: 150
-    prerequisite: wood-extraction-2
-    cellTypes:
-    - 6
+  - uid: basic-extraction-3
+    label: 基礎素材・抽出量 III
+    price: 4000
+    prerequisite: basic-extraction-2
+    requiredDeliveryStage: processed
+    cellTypes: []
+    extractionGroup: 2
     stat: 0
     multiplier: 4
     addition: 0
-  - uid: wood-extraction-4
-    label: 木材採取・抽出量 IV
-    price: 200
-    prerequisite: wood-extraction-3
-    cellTypes:
-    - 6
-    stat: 0
-    multiplier: 5
-    addition: 0
-  - uid: wood-extraction-5
-    label: 木材採取・抽出量 V
-    price: 250
-    prerequisite: wood-extraction-4
-    cellTypes:
-    - 6
-    stat: 0
-    multiplier: 6
-    addition: 0
-  - uid: wood-extraction-6
-    label: 木材採取・抽出量 VI
-    price: 300
-    prerequisite: wood-extraction-5
-    cellTypes:
-    - 6
-    stat: 0
-    multiplier: 7
-    addition: 0
-  - uid: wood-extraction-7
-    label: 木材採取・抽出量 VII
-    price: 350
-    prerequisite: wood-extraction-6
-    cellTypes:
-    - 6
-    stat: 0
-    multiplier: 8
-    addition: 0
-  - uid: wood-extraction-8
-    label: 木材採取・抽出量 VIII
-    price: 400
-    prerequisite: wood-extraction-7
-    cellTypes:
-    - 6
-    stat: 0
-    multiplier: 9
-    addition: 0
-  - uid: wood-capacity-1
-    label: 木材採取・在庫容量 I
-    price: 50
+  - uid: industrial-extraction-1
+    label: 工業原料・抽出量 I
+    price: 1000
     prerequisite: basic-research
-    cellTypes:
-    - 6
-    stat: 1
-    multiplier: 2
-    addition: 0
-  - uid: wood-capacity-2
-    label: 木材採取・在庫容量 II
-    price: 100
-    prerequisite: wood-capacity-1
-    cellTypes:
-    - 6
-    stat: 1
-    multiplier: 3
-    addition: 0
-  - uid: stone-extraction-1
-    label: 石材採取・抽出量 I
-    price: 50
-    prerequisite: basic-research
-    cellTypes:
-    - 5
+    requiredDeliveryStage: processed
+    cellTypes: []
+    extractionGroup: 3
     stat: 0
     multiplier: 2
     addition: 0
-  - uid: stone-extraction-2
-    label: 石材採取・抽出量 II
-    price: 100
-    prerequisite: stone-extraction-1
-    cellTypes:
-    - 5
+  - uid: industrial-extraction-2
+    label: 工業原料・抽出量 II
+    price: 2000
+    prerequisite: industrial-extraction-1
+    requiredDeliveryStage: processed
+    cellTypes: []
+    extractionGroup: 3
     stat: 0
     multiplier: 3
     addition: 0
-  - uid: stone-capacity-1
-    label: 石材採取・在庫容量 I
-    price: 50
-    prerequisite: basic-research
-    cellTypes:
-    - 5
-    stat: 1
-    multiplier: 2
-    addition: 0
-  - uid: stone-capacity-2
-    label: 石材採取・在庫容量 II
-    price: 100
-    prerequisite: stone-capacity-1
-    cellTypes:
-    - 5
-    stat: 1
-    multiplier: 3
+  - uid: industrial-extraction-3
+    label: 工業原料・抽出量 III
+    price: 4000
+    prerequisite: industrial-extraction-2
+    requiredDeliveryStage: processed
+    cellTypes: []
+    extractionGroup: 3
+    stat: 0
+    multiplier: 4
     addition: 0
   - uid: storage-capacity-1
     label: 保管庫・容量 I

@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+public enum ExtractionSkillGroupDomain { None, All, Basic, Industrial }
+
 /// <summary>固定uidで参照する不変のノード。解放ノードは能力補正を持たない。</summary>
 public sealed class SkillNodeDomain
 {
@@ -12,14 +14,16 @@ public sealed class SkillNodeDomain
     public string RequiredDeliveryStage { get; }
     public IReadOnlyList<CellTypeDomain> TargetCellTypes { get; }
     public EquipmentStatDomain Stat { get; }
+    public ExtractionSkillGroupDomain ExtractionGroup { get; }
     public StatModifierDomain Modifier { get; }
 
     public SkillNodeDomain(string uid, string label, long price, string prerequisite,
         IEnumerable<CellTypeDomain> cellTypes = null, EquipmentStatDomain stat = EquipmentStatDomain.ExtractionAmount, decimal multiplier = 1, int addition = 0,
-        string requiredDeliveryStage = null)
+        string requiredDeliveryStage = null, ExtractionSkillGroupDomain extractionGroup = ExtractionSkillGroupDomain.None)
     {
         Uid = uid; Label = label; Price = price; Prerequisite = prerequisite;
         RequiredDeliveryStage = requiredDeliveryStage;
+        ExtractionGroup = extractionGroup;
         TargetCellTypes = Array.AsReadOnly(cellTypes?.ToArray() ?? Array.Empty<CellTypeDomain>());
         Stat = stat; Modifier = new StatModifierDomain(multiplier, addition);
     }
@@ -32,8 +36,8 @@ public sealed class SkillTreeCatalogDomain
         CellTypeDomain.Storage or CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter or CellTypeDomain.ExportConveyor or CellTypeDomain.Conveyor or CellTypeDomain.Crossing;
     public static bool SupportsStat(CellTypeDomain type, EquipmentStatDomain stat) => type switch
     {
-        CellTypeDomain.ExtractorWood or CellTypeDomain.ExtractorStone or CellTypeDomain.ExtractorIron or
-        CellTypeDomain.ExtractorCopper or CellTypeDomain.ExtractorCoal => stat is EquipmentStatDomain.ExtractionAmount or EquipmentStatDomain.Capacity,
+        _ when ResourceCellRulesDomain.IsExtractor(type) => stat is
+            EquipmentStatDomain.ExtractionAmount or EquipmentStatDomain.ExtractionSpeed or EquipmentStatDomain.Capacity,
         CellTypeDomain.Storage => stat == EquipmentStatDomain.Capacity,
         CellTypeDomain.Crafter or CellTypeDomain.AdvancedCrafter => stat is EquipmentStatDomain.InputCapacity or EquipmentStatDomain.OutputCapacity or EquipmentStatDomain.CraftingSpeed,
         CellTypeDomain.ExportConveyor => stat is EquipmentStatDomain.TransferAmount or EquipmentStatDomain.TransportSpeed,

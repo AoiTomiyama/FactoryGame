@@ -29,7 +29,6 @@ public static class EconomyLoopAssertions
             var grid = GridFieldDatabaseAdapter.Instance;
             var wallet = initializer.Wallet;
             var panel = TestScenes.Find<EconomyPanelAdapter>();
-            var view = TestScenes.Find<CellStatusViewAdapter>();
             var placer = TestScenes.Find<CellPlacerAdapter>();
             Require(wallet.Current.Balance == 100 && panel.BalanceText.Contains("残高 100"), "initial shared balance");
             long earned = 0, spent = 0, previous = 100;
@@ -53,55 +52,48 @@ public static class EconomyLoopAssertions
             foreach(var command in TestScenes.StarterPlacements(initializer.Session.Selected)) Place(command.X,command.Z,command.Type,command.Yaw);
             Require(wallet.Current.Balance==100-spent,"starter route stays within initial budget");
             var extractor=grid.GetCell(plan.Extractor.x,plan.Extractor.z) as ExtractorCellAdapter;
-            var tail=plan.Belts[plan.Belts.Count-1];var conveyor=grid.GetCell(tail.x,tail.z) as ConveyorCellAdapter;
-            Require(extractor != null && conveyor != null, "route installed through pointer commands");
+            Require(extractor != null, "route installed through pointer commands");
             await Funds(wallet.Current.Balance+1);
             Require(earned > 0 && panel.BalanceText.Contains(wallet.Current.Balance.ToString()), "first real extraction transfer and conversion");
             Debug.Log($"Economy loop first sale: balance={wallet.Current.Balance}, earned={earned}, spent={spent}");
 
             // 初回は通常速度で確認し、以後は同じ周期・搬送処理を時間倍率で短縮する。
             Time.timeScale = 20;
-            var identity = extractor.Identity;
             var baseExtraction = extractor.ExtractionAmount;
-            var baseCapacity = extractor.StorageCapacity;
-            var baseTransfer = conveyor.TransferAmount;
-            view.UpdateUIStatusWindow(extractor);
+            var baseDuration = extractor.ExtractionSecond;
             await Funds(50);
             Require(initializer.Skills.Purchase("basic-research") == SkillPurchaseResultApplication.Success, "root purchased from earnings");
             spent += 50;
-            foreach (var tier in new[] { 1, 2 })
-            {
-                foreach (var branch in new[] { "wood-extraction", "wood-capacity", "stone-extraction", "stone-capacity", "storage-capacity", "crafter-input", "crafter-output", "export-transfer" })
-                {
-                    var uid = branch + "-" + tier;
-                    var node = initializer.Skills.Catalog.Nodes.Single(n => n.Uid == uid);
-                    await Funds(node.Price);
-                    panel.SkillScreen.Open();
-                    Require(panel.SkillScreen.NodeButton(uid) != null, "earned funds reveal skill candidate");
-                    panel.SkillScreen.NodeButton(uid).onClick.Invoke();
-                    panel.SkillScreen.Details.UpgradeButton.onClick.Invoke();
-                    Require(initializer.Skills.IsOwned(uid) && !panel.SkillScreen.Details.Interactable, "detail action applies type skill once");
-                    panel.SkillScreen.Close();
-                    spent += node.Price;
-                }
-                Require(extractor.ExtractionAmount == baseExtraction * (tier + 1) &&
-                    extractor.StorageCapacity == baseCapacity * (tier + 1) &&
-                    conveyor.TransferAmount == (conveyor.IsExportConveyor?baseTransfer*(tier+1):baseTransfer), "I/II apply shared type levels to existing equipment");
-            }
-            // 空セルへ課金して新設し、既設・新設で同じ共有効果になることを確認する。
-            var empty = UnityEngine.Object.FindObjectsByType<EmptyCellAdapter>(FindObjectsSortMode.None)
-                .First(c => c.XIndex > 5 && c.ZIndex > 5 && c.XIndex < 45 && c.ZIndex < 45);
-            await Funds(5);
-            Place(empty.XIndex, empty.ZIndex, CellTypeDomain.ExportConveyor);
-            var added = (ExportConveyorCellAdapter)grid.GetCell(empty.XIndex, empty.ZIndex);
-            Require(added.TransferAmount == ((ConveyorCellAdapter)grid.GetCell(plan.Belts[0].x,plan.Belts[0].z)).TransferAmount, "reinvested new equipment inherits global effects");
+
+            const string uid = "extraction-speed-1";
+            Require(initializer.Skills.Catalog.TryGet(uid, out var node), "extraction speed unlock is configured");
+            await Funds(node.Price);
+            panel.SkillScreen.Open();
+            Require(panel.SkillScreen.NodeButton(uid) != null, "earned funds reveal speed skill");
+            panel.SkillScreen.NodeButton(uid).onClick.Invoke();
+            panel.SkillScreen.Details.UpgradeButton.onClick.Invoke();
+            Require(initializer.Skills.IsOwned(uid) && !panel.SkillScreen.Details.Interactable, "detail action applies the speed skill once");
+            panel.SkillScreen.Close();
+            spent += node.Price;
+            await UniTask.NextFrame();
+            Require(Mathf.Approximately(extractor.ExtractionSecond, baseDuration / 1.25f) &&
+                extractor.ExtractionAmount == baseExtraction, "early speed upgrade keeps batch size");
+
+            // 収益から建てた設備にも同じ速度強化が適用される。
+            var empty = grid.Owners.OfType<EmptyCellAdapter>().First(c => c.XIndex > 5 && c.ZIndex > 5 && c.XIndex < 45 && c.ZIndex < 45);
+            Require(initializer.Prices.TryGetPlacementAmount(CellTypeDomain.ExtractorWood, 1, out var price), "new extractor price");
+            await Funds(price);
+            Place(empty.XIndex, empty.ZIndex, CellTypeDomain.ExtractorWood);
+            var added = (ExtractorCellAdapter)grid.GetCell(empty.XIndex, empty.ZIndex);
+            Require(Mathf.Approximately(added.ExtractionSecond, extractor.ExtractionSecond),
+                "reinvested extractor inherits shared speed");
             var before = wallet.Current.Balance;
             await Funds(before + 1);
             Require(wallet.Current.Balance == 100 + earned - spent && wallet.Current.ReservedExpense == 0,
                 "all purchases reconcile with actual conversion income");
             Require(wallet.LastNotificationException == null && initializer.Skills.LastNotificationException == null,
                 "UI and ability notifications succeed");
-            Debug.Log($"Economy loop passed: {_checks} assertions; earned={earned}, spent={spent}, balance={wallet.Current.Balance}; initial100, actual sale, Lv3, all I/II, new equipment and continued income.");
+            Debug.Log($"Economy loop passed: {_checks} assertions; earned={earned}, spent={spent}, balance={wallet.Current.Balance}; initial100, actual sale, shared speed, new equipment and continued income.");
             Time.timeScale = originalScale;
         }
         catch (Exception exception)

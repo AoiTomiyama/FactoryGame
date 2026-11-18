@@ -27,6 +27,65 @@ public sealed class SpeedSkillTests
         Assert.That(effects.CanApply(CellTypeDomain.Crafter,EquipmentStatDomain.CraftingSpeed,new StatModifierDomain(1,0)),Is.False);
         Assert.That(effects.GetModifier(CellTypeDomain.AdvancedCrafter,EquipmentStatDomain.CraftingSpeed).Multiplier,Is.EqualTo(1));
     }
+    [Test]
+    public void ExtractionGroupsApplyOnceAndUseOneMembershipTable()
+    {
+        var asset = AssetDatabase.LoadAssetAtPath<SkillTreeDefinition>("Assets/Scripts/ScriptableObject/SkillTree.asset");
+        var definition = UnityEngine.Object.Instantiate(asset);
+        try
+        {
+            var catalog = definition.CreateCatalog();
+            var deliveryCatalog = AssetDatabase.LoadAssetAtPath<DeliveryGoalsDefinition>(
+                "Assets/Scripts/ScriptableObject/DeliveryGoals.asset").CreateCatalog();
+            var deliveries = new DeliveryProgressApplication(deliveryCatalog);
+            var effects = new SharedStatEffectsApplication();
+            var wallet = new CurrencyWalletApplication(10000);
+            var skills = new SkillTreeApplication(catalog, wallet, effects, deliveries);
+            Assert.That(skills.Purchase("basic-research"), Is.EqualTo(SkillPurchaseResultApplication.Success));
+            Assert.That(skills.Purchase("basic-extraction-1"), Is.EqualTo(SkillPurchaseResultApplication.DeliveryStageMissing));
+            Assert.That(skills.Purchase("industrial-extraction-1"), Is.EqualTo(SkillPurchaseResultApplication.DeliveryStageMissing));
+            Assert.That(skills.Purchase("extraction-speed-1"), Is.EqualTo(SkillPurchaseResultApplication.Success));
+            Assert.That(skills.Purchase("extractor-capacity-1"), Is.EqualTo(SkillPurchaseResultApplication.Success));
+            Assert.That(wallet.Current.Balance, Is.EqualTo(8450));
+            var extractors = Enum.GetValues(typeof(CellTypeDomain)).Cast<CellTypeDomain>().Where(ResourceCellRulesDomain.IsExtractor);
+            foreach (var type in extractors)
+            {
+                Assert.That(effects.GetModifier(type, EquipmentStatDomain.ExtractionSpeed).Multiplier, Is.EqualTo(1.25m));
+                Assert.That(effects.GetModifier(type, EquipmentStatDomain.Capacity).Multiplier, Is.EqualTo(2m));
+            }
+
+            foreach (var requirement in deliveryCatalog.Stages.Take(2).SelectMany(stage => stage.Requirements))
+            {
+                var missing = requirement.Amount - deliveries.Current.Count(requirement.Resource);
+                if (missing <= 0) continue;
+                Assert.That(deliveries.TryReserve(requirement.Resource, missing, out var delivery));
+                Assert.That(delivery.TryCommit());
+            }
+            Assert.That(skills.Purchase("industrial-extraction-1"), Is.EqualTo(SkillPurchaseResultApplication.Success));
+            Assert.That(effects.GetModifier(CellTypeDomain.ExtractorCoal, EquipmentStatDomain.ExtractionAmount).Multiplier, Is.EqualTo(2m));
+            Assert.That(effects.GetModifier(CellTypeDomain.ExtractorWood, EquipmentStatDomain.ExtractionAmount).Multiplier, Is.EqualTo(1m));
+
+            // 所属表だけで、追加先の全段階の対象が変わる。
+            var serialized = new SerializedObject(definition);
+            var basic = serialized.FindProperty("basicExtractors");
+            var industrial = serialized.FindProperty("industrialExtractors");
+            basic.arraySize++;
+            basic.GetArrayElementAtIndex(basic.arraySize - 1).intValue = (int)CellTypeDomain.ExtractorCoal;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            Assert.Throws<InvalidOperationException>(() => definition.CreateCatalog(), "a resource cannot belong to both groups");
+
+            industrial.arraySize--;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            var reassigned = definition.CreateCatalog();
+            Assert.That(reassigned.Nodes.Count, Is.EqualTo(catalog.Nodes.Count));
+            foreach (var node in reassigned.Nodes.Where(node => node.ExtractionGroup == ExtractionSkillGroupDomain.Basic))
+                Assert.That(node.TargetCellTypes, Does.Contain(CellTypeDomain.ExtractorCoal));
+            foreach (var node in reassigned.Nodes.Where(node => node.ExtractionGroup == ExtractionSkillGroupDomain.Industrial))
+                Assert.That(node.TargetCellTypes, Has.No.Member(CellTypeDomain.ExtractorCoal));
+        }
+        finally { UnityEngine.Object.DestroyImmediate(definition); }
+    }
+
     [Serializable] private sealed class LegacyEnvelope { public int version = 1; public string payload,sha256; }
     [Test] public void VersionOneCraftingProgressIsUpgradedOnceWithoutChangingItsRemainingTime()
     {

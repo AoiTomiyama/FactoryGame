@@ -53,7 +53,7 @@ public static class CellStatusProviderAdapter
                 return label switch
                 {
                     LabelEnumApplication.Amount => Stock(extractor.ResourceTypeDomain, extractor.CurrentLoad, extractor.StorageCapacity),
-                    LabelEnumApplication.Progress => Progress(extractor.ElapsedTime, extractor.ExtractionSecond),
+                    LabelEnumApplication.Progress => Progress(extractor.ElapsedTime, extractor.ActiveExtractionSecond),
                     _ => throw Unsupported(label)
                 };
             case CrafterCellAdapter crafter:

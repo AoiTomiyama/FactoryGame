@@ -146,7 +146,7 @@ public sealed class DeliveryFactoryAssertions
             await Place(command.Type,new Vector3Int(command.X,0,command.Z),Vector3Int.RoundToInt(Quaternion.Euler(0,command.Yaw,0)*Vector3.forward));
         await Until(()=>_earned>0,"初回換金"); Record("初回換金");
         Time.timeScale=20;
-        foreach(var uid in new[]{"basic-research","wood-extraction-1"})
+        foreach(var uid in new[]{"basic-research","extraction-speed-1"})
         {
             var price=_initializer.Skills.Catalog.Nodes.Single(n=>n.Uid==uid).Price; await Funds(price);
             Require(_initializer.Skills.Purchase(uid)==SkillPurchaseResultApplication.Success,"収益からの研究購入");_spent+=price;

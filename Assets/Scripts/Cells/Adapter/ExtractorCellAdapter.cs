@@ -28,7 +28,8 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
 
     public int CurrentLoad { get; private set; }
     public float ElapsedTime { get; private set; }
-    public float ExtractionSecond => extractionSecond;
+    public float ExtractionSecond => EffectiveDuration(extractionSecond, EquipmentStatDomain.ExtractionSpeed);
+    public float ActiveExtractionSecond => _cycleAmount > 0 ? _cycleSeconds : _resumeJob?.seconds ?? ExtractionSecond;
     public ResourceTypeDomain ResourceTypeDomain => resourceType;
     public event Action StatusChanged;
 
@@ -39,6 +40,7 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     {
         ValidateStat(storageCapacity, EquipmentStatDomain.Capacity);
         ValidateStat(extractionAmount, EquipmentStatDomain.ExtractionAmount);
+        ValidateDuration(extractionSecond, EquipmentStatDomain.ExtractionSpeed);
     }
     protected override void OnStatsChanged() => UpdateUI();
 
@@ -54,9 +56,12 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
         if (data.inventory.Length > 1 || data.inventory.Length == 1 && (data.inventory[0].port != 0 ||
             SaveKeysApplication.Resource(data.inventory[0].resource) != resourceType || data.inventory[0].amount > limit))
             throw new InvalidOperationException("Invalid saved extraction inventory.");
+        var minimumSeconds = EffectiveStatsRulesDomain.CalculateDuration(extractionSecond,
+            effects.GetModifier(ProgressionType, EquipmentStatDomain.ExtractionSpeed));
         var load = data.inventory.Length == 0 ? 0 : data.inventory[0].amount;
         if (data.job != null && (data.job.inputs.Length != 0 || SaveKeysApplication.Resource(data.job.result) != resourceType ||
-            data.job.seconds <= 0 || data.job.amount > amountLimit || data.job.amount > limit - load))
+            data.job.seconds <= 0 || data.job.seconds < minimumSeconds || data.job.seconds > extractionSecond ||
+            data.job.amount > amountLimit || data.job.amount > limit - load))
             throw new InvalidOperationException("Invalid saved extraction cycle.");
     }
     public void RestoreState(SaveGameApplication.Cell data)
@@ -168,7 +173,7 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
             while (_isActivate && !token.IsCancellationRequested)
             {
                 await UniTask.WaitUntil(() => CurrentLoad < StorageCapacity, cancellationToken: token);
-                // 周期開始時の空きと抽出量を固定し、途中の強化は次周期へ反映する。
+                // 周期開始時に量と所要時間を固定し、途中の強化は次周期へ反映する。
                 _cycleAmount = _resumeJob?.amount ?? Mathf.Min(StorageCapacity - CurrentLoad, ExtractionAmount);
                 _cycleSeconds = _resumeJob?.seconds ?? ExtractionSecond;
                 ElapsedTime = _resumeJob?.elapsed ?? 0;

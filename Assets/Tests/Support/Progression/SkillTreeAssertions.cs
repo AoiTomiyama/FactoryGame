@@ -68,12 +68,13 @@ public static class SkillTreeAssertions
 
     private static void VerifyTypeRules(SkillTreeCatalogDomain catalog)
     {
-        Require(catalog.Nodes.Count == 37, "root, ability chains and clearing unlock");
+        Require(catalog.Nodes.Count == 34, "root, ability chains and clearing unlock");
         foreach (var node in catalog.Nodes)
         {
-            Require(node.Price == (node.Uid == TerrainClearingApplication.SkillUid ? 500 :
-                EffectiveStatsRulesDomain.IsSpeed(node.Stat) && node.TargetCellTypes.Count > 0 ? new long[] {100,200,400}[int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-')+1))-1] :
-                node.TargetCellTypes.Count > 0 ? int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-') + 1)) * 50 : 50), "initial ability price");
+            if (node.ExtractionGroup == ExtractionSkillGroupDomain.None)
+                Require(node.Price == (node.Uid == TerrainClearingApplication.SkillUid ? 500 :
+                    EffectiveStatsRulesDomain.IsSpeed(node.Stat) && node.TargetCellTypes.Count > 0 ? new long[] {100,200,400}[int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-')+1))-1] :
+                    node.TargetCellTypes.Count > 0 ? int.Parse(node.Uid.Substring(node.Uid.LastIndexOf('-') + 1)) * 50 : 50), "initial ability price");
             if (node.TargetCellTypes.Count > 0) Require(SkillTreeCatalogDomain.SupportsStat(node.TargetCellTypes[0], node.Stat), "ability belongs to target type");
         }
         SkillNodeDomain Effect(string uid, CellTypeDomain type, EquipmentStatDomain stat, decimal multiplier = 2, int addition = 0, string previous = null)
@@ -85,10 +86,10 @@ public static class SkillTreeAssertions
         Invalid(() => new SkillTreeCatalogDomain(new[] { Effect("a", CellTypeDomain.Storage, EquipmentStatDomain.Capacity), Effect("b", CellTypeDomain.Storage, EquipmentStatDomain.Capacity) }));
         var wallet = new CurrencyWalletApplication(catalog.Nodes.Sum(node => node.Price) + 750); var effects = new SharedStatEffectsApplication(); var tree = new SkillTreeApplication(catalog, wallet, effects, Deliveries(true));
         var changed = 0; var commits = 0;
-        tree.Changed += () => { changed++; Require(tree.Purchase("wood-extraction-1") == SkillPurchaseResultApplication.Busy, "ability change reentry guarded"); };
+        tree.Changed += () => { changed++; Require(tree.Purchase("basic-extraction-1") == SkillPurchaseResultApplication.Busy, "ability change reentry guarded"); };
         wallet.Changed += state => { if (state.ReservedExpense == 0) { commits++; foreach (var node in catalog.Nodes.Where(n => n.TargetCellTypes.Count > 0 && tree.IsOwned(n.Uid)))
             Require(effects.GetModifier(node.TargetCellTypes[0], node.Stat).Multiplier >= node.Modifier.Multiplier, "commit sees configured ability"); } };
-        Require(tree.Purchase("wood-extraction-2") == SkillPurchaseResultApplication.PrerequisiteMissing, "ability prerequisite");
+        Require(tree.Purchase("basic-extraction-2") == SkillPurchaseResultApplication.PrerequisiteMissing, "ability prerequisite");
         foreach (var node in catalog.Nodes)
         {
             Require(tree.Purchase(node.Uid) == SkillPurchaseResultApplication.Success, "purchase configured ability " + node.Uid);
@@ -152,10 +153,17 @@ public static class SkillTreeAssertions
             var transfer = pending[Vector3Int.right];
             Require(tree.Purchase("basic-research") == SkillPurchaseResultApplication.Success, "scene root");
 
+            foreach (var requirement in initializer.Deliveries.Catalog.Stages.Take(2).SelectMany(stage => stage.Requirements))
+            {
+                var missing = requirement.Amount - initializer.Deliveries.Current.Count(requirement.Resource);
+                if (missing <= 0) continue;
+                Require(initializer.Deliveries.TryReserve(requirement.Resource, missing, out var delivery), "complete extraction upgrade gate");
+                delivery.TryCommit();
+            }
             var activeSite=TestScenes.ExtractorSite(ResourceTypeDomain.Wood);
             var activeExtractor = (ExtractorCellAdapter)Install(grid, "ExtractorWood", activeSite.X, activeSite.Z, activeSite.Yaw, cell => { Set(cell, "extractionAmount", 2); Set(cell, "extractionSecond", .4f); });
             await Wait(() => activeExtractor.ElapsedTime > .05f);
-            Require(tree.Purchase("wood-extraction-1") == SkillPurchaseResultApplication.Success, "shared purchase during extraction");
+            Require(tree.Purchase("basic-extraction-1") == SkillPurchaseResultApplication.Success, "shared purchase during extraction");
             await Wait(() => activeExtractor.CurrentLoad > 0);
             Require(activeExtractor.CurrentLoad == 2 && activeExtractor.ExtractionAmount == 4, "active extraction keeps captured quantity");
             await Wait(() => activeExtractor.CurrentLoad > 2);

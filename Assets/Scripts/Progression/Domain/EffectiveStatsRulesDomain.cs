@@ -1,6 +1,6 @@
-﻿using System;
+using System;
 
-public enum EquipmentStatDomain { ExtractionAmount, Capacity, InputCapacity, OutputCapacity, TransferAmount, CraftingSpeed, TransportSpeed }
+public enum EquipmentStatDomain { ExtractionAmount, Capacity, InputCapacity, OutputCapacity, TransferAmount, CraftingSpeed, TransportSpeed, ExtractionSpeed }
 
 /// <summary>ノードに設定する取得後の倍率と加算値。型全体の同じ能力へ適用する。</summary>
 public readonly struct StatModifierDomain
@@ -18,7 +18,7 @@ public readonly struct StatModifierDomain
 
 public static class EffectiveStatsRulesDomain
 {
-    public static bool IsSpeed(EquipmentStatDomain stat) => stat is EquipmentStatDomain.CraftingSpeed or EquipmentStatDomain.TransportSpeed;
+    public static bool IsSpeed(EquipmentStatDomain stat) => stat is EquipmentStatDomain.CraftingSpeed or EquipmentStatDomain.TransportSpeed or EquipmentStatDomain.ExtractionSpeed;
     public static float CalculateDuration(float baseSeconds, StatModifierDomain modifier)
     {
         if (float.IsNaN(baseSeconds) || float.IsInfinity(baseSeconds) || baseSeconds < 0 || modifier.Multiplier < 1 || modifier.Addition != 0)

@@ -45,7 +45,7 @@ public sealed class SkillDetailsPresenterAdapter : IDisposable
     }
     public static string StatName(EquipmentStatDomain stat) => stat switch
     {
-        EquipmentStatDomain.ExtractionAmount => "抽出量", EquipmentStatDomain.Capacity => "容量",
+        EquipmentStatDomain.ExtractionAmount => "抽出量", EquipmentStatDomain.ExtractionSpeed => "抽出速度", EquipmentStatDomain.Capacity => "容量",
         EquipmentStatDomain.InputCapacity => "入力容量", EquipmentStatDomain.OutputCapacity => "出力容量",
         EquipmentStatDomain.CraftingSpeed => "加工速度", EquipmentStatDomain.TransportSpeed => "輸送速度", _ => "搬出量"
     };
@@ -53,7 +53,16 @@ public sealed class SkillDetailsPresenterAdapter : IDisposable
     {
         string Value(StatModifierDomain modifier) => $"×{modifier.Multiplier:0.###}" + (modifier.Addition == 0 ? "" : $" ＋{modifier.Addition}");
         var current = _effects.GetModifier(node.TargetCellTypes[0],node.Stat);
-        return StatName(node.Stat) + " " + (_skills.IsOwned(node.Uid) ? Value(node.Modifier) : Value(current)+" → "+Value(node.Modifier)) + (node.TargetCellTypes.Count > 1 ? "\n全搬送路に適用" : "\n同種セルすべてに適用");
+        var targets = node.ExtractionGroup switch
+        {
+            ExtractionSkillGroupDomain.All => "全採取設備に適用",
+            ExtractionSkillGroupDomain.Basic or ExtractionSkillGroupDomain.Industrial =>
+                string.Join("・", node.TargetCellTypes.Select(SelectButtonBuilderAdapter.PlacementLabel)),
+            _ when node.Stat == EquipmentStatDomain.TransportSpeed && node.TargetCellTypes.Count > 1 => "全搬送路に適用",
+            _ => "同種セルすべてに適用"
+        };
+        return StatName(node.Stat) + " " + (_skills.IsOwned(node.Uid) ? Value(node.Modifier) : Value(current)+" → "+Value(node.Modifier))
+            + "\n" + targets;
     }
     public void Dispose() { if (_view.UpgradeButton != null) _view.UpgradeButton.onClick.RemoveListener(Apply); }
 }

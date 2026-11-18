@@ -39,29 +39,50 @@ public sealed class SkillScreenPlayModeTests : FactoryPlayModeScope
         Assert.That(Subscribers(game.Wallet),Is.EqualTo(listeners+1)); Assert.That(Time.timeScale,Is.EqualTo(1));
         var rotation = cursor.transform.rotation; cursor.RotatePlacement(); Assert.That(cursor.transform.rotation,Is.EqualTo(rotation));
         Assert.That(camera.SetFirstPerson(true),Is.False);
-        Assert.That(screen.IsNodeVisible("basic-research")); Assert.That(screen.IsNodeVisible("wood-extraction-1"),Is.False);
+        Assert.That(screen.IsNodeVisible("basic-research")); Assert.That(screen.IsNodeVisible("extraction-speed-1"),Is.False);
         Assert.That(screen.NodeButton("basic-research").colors.normalColor,Is.EqualTo(hud.SelectedTabColor));
         screen.Select("basic-research"); game.Wallet.TryReserveExpense(95,out var held);
         Assert.That(screen.Details.Interactable,Is.False); Assert.That(screen.IsNodeVisible("basic-research"));
         Assert.That(screen.NodeButton("basic-research").colors.normalColor,Is.EqualTo(hud.IdleTabColor));
         held.TryCancel(); screen.PurchaseButton.onClick.Invoke();
-        Assert.That(game.Skills.IsOwned("basic-research")); Assert.That(screen.IsNodeVisible("wood-extraction-1"));
+        Assert.That(game.Skills.IsOwned("basic-research"));
+        Assert.That(screen.IsNodeVisible("extraction-speed-1"));
+        Assert.That(screen.IsNodeVisible("basic-extraction-1"), Is.False);
+        Assert.That(screen.IsNodeVisible("industrial-extraction-1"), Is.False);
         Assert.That(screen.IsNodeVisible(TerrainClearingApplication.SkillUid),Is.False);
-        screen.Select("wood-extraction-1"); screen.PurchaseButton.onClick.Invoke();
-        Assert.That(screen.IsNodeVisible("wood-extraction-2"));
-        Assert.That(screen.NodeButton("wood-extraction-2").colors.normalColor,Is.EqualTo(hud.IdleTabColor));
+        screen.Select("extraction-speed-1");
+        Assert.That(screen.Description.text, Does.Contain("全採取設備"));
+        Assert.That(screen.NodeButton("extraction-speed-1").colors.normalColor, Is.EqualTo(hud.IdleTabColor));
         game.Wallet.TryReserveIncome(10000,out var funds); funds.TryCommit();
-        for(var tier=2;tier<=7;tier++) { screen.Select("wood-extraction-"+tier); screen.PurchaseButton.onClick.Invoke(); }
+        Assert.That(screen.NodeButton("extraction-speed-1").colors.normalColor, Is.EqualTo(hud.SelectedTabColor));
+        screen.PurchaseButton.onClick.Invoke();
+        Assert.That(screen.IsNodeVisible("extraction-speed-2"));
+        foreach (var requirement in game.Deliveries.Catalog.Stages.Take(2).SelectMany(stage => stage.Requirements))
+        {
+            var missing = requirement.Amount - game.Deliveries.Current.Count(requirement.Resource);
+            if (missing <= 0) continue;
+            Assert.That(game.Deliveries.TryReserve(requirement.Resource, missing, out var delivery));
+            Assert.That(delivery.TryCommit());
+        }
+        Assert.That(screen.IsNodeVisible("basic-extraction-1"));
+        Assert.That(screen.IsNodeVisible("industrial-extraction-1"));
+        for (var tier = 1; tier <= 2; tier++)
+        {
+            screen.Select("industrial-extraction-" + tier);
+            screen.PurchaseButton.onClick.Invoke();
+        }
         foreach(var size in new[] {new Vector2Int(1600,900),new Vector2Int(1366,768)})
         {
             Screen.SetResolution(size.x,size.y,false); await UniTask.DelayFrame(4); Canvas.ForceUpdateCanvases();
-            screen.Select("wood-extraction-8"); await UniTask.DelayFrame(3); Canvas.ForceUpdateCanvases();
+            screen.Select("industrial-extraction-3"); await UniTask.DelayFrame(3); Canvas.ForceUpdateCanvases();
             var canvas = (RectTransform)hud.transform;
             Assert.That(Inside(canvas,screen.ScreenRoot)); Assert.That(Inside(canvas,(RectTransform)screen.CloseButton.transform));
-            Assert.That(Inside(screen.TreeScroll.viewport,(RectTransform)screen.NodeButton("wood-extraction-8").transform),Is.True,"deepest visible candidate " + size);
+            Assert.That(Inside(screen.TreeScroll.viewport,(RectTransform)screen.NodeButton("industrial-extraction-3").transform),Is.True,"deepest visible candidate " + size);
             Assert.That(screen.Description.preferredHeight,Is.LessThanOrEqualTo(screen.Description.rectTransform.rect.height+1));
             Assert.That(Inside(screen.PurchaseButton.GetComponentInParent<ScrollRect>().viewport,(RectTransform)screen.PurchaseButton.transform),Is.True);
-            Assert.That(screen.TreeScroll.verticalScrollbar.gameObject.activeInHierarchy);
+            var treeOverflows = screen.TreeScroll.content.rect.height > screen.TreeScroll.viewport.rect.height + .01f;
+            Assert.That(screen.TreeScroll.verticalScrollbar.gameObject.activeInHierarchy, Is.EqualTo(treeOverflows),
+                "vertical scrollbar is needed only when the current tree exceeds the viewport");
             var position = screen.TreeScroll.content.anchoredPosition;
             game.Wallet.TryReserveIncome(1,out var extra); extra.TryCommit(); await UniTask.DelayFrame(2);
             Assert.That(Vector2.Distance(position,screen.TreeScroll.content.anchoredPosition),Is.LessThan(1),"balance refresh preserves scroll");
