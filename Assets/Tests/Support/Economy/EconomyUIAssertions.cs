@@ -67,6 +67,16 @@ public static class EconomyUIAssertions
             wallet.TryReserveExpense(1, out expense);
             expense.TryCancel();
             Require(!balanceMotion.IsAnimating, "reservation-only refresh does not replay balance animation");
+            Require(wallet.TotalIncome == 7, "only committed shipping income contributes to the rate");
+            var deadline = Time.realtimeSinceStartupAsDouble + 2;
+            while (panel.SummaryView.IncomeItem.text == "収入 0 / 秒" && Time.realtimeSinceStartupAsDouble < deadline)
+                await UniTask.NextFrame();
+            Require(panel.SummaryView.IncomeItem.text.StartsWith("収入 ") && panel.SummaryView.IncomeItem.text != "収入 0 / 秒",
+                "the HUD displays a positive rate after shipping");
+            deadline = Time.realtimeSinceStartupAsDouble + 2;
+            while (panel.SummaryView.IncomeItem.text != "収入 0 / 秒" && Time.realtimeSinceStartupAsDouble < deadline)
+                await UniTask.NextFrame();
+            Require(panel.SummaryView.IncomeItem.text == "収入 0 / 秒", "the rate returns to zero without shipments");
 
             var storage = Install(grid, "Storage");
             view.UpdateUIStatusWindow(storage);

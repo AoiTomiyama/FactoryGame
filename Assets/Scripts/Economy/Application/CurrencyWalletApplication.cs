@@ -26,6 +26,8 @@ public sealed class CurrencyWalletApplication
     private bool _notifying;
 
     public Snapshot Current => new(_balance, _income, _expense);
+    // 残高の増減とは別に、ゲーム開始後に確定した収入だけを数える。
+    public decimal TotalIncome { get; private set; }
     public event Action<Snapshot> Changed;
     public Exception LastNotificationException { get; private set; }
 
@@ -61,7 +63,11 @@ public sealed class CurrencyWalletApplication
         if (income)
         {
             _income = checked(_income - amount);
-            if (commit) _balance = checked(_balance + amount);
+            if (commit)
+            {
+                _balance = checked(_balance + amount);
+                TotalIncome += amount;
+            }
         }
         else
         {

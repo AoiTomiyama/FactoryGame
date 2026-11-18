@@ -39,7 +39,8 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
             var buttonBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(layout.Summary,(RectTransform)layout.Save.transform);
             var rect = layout.Summary.rect;
             Assert.That(buttonBounds.min.x,Is.GreaterThanOrEqualTo(rect.xMin)); Assert.That(buttonBounds.max.x,Is.LessThanOrEqualTo(rect.xMax));
-            foreach (var item in TestScenes.Find<EconomyPanelAdapter>().SummaryView.WalletItems.Concat(TestScenes.Find<EconomyPanelAdapter>().SummaryView.Items).Where(t => t.gameObject.activeSelf))
+            var summary = TestScenes.Find<EconomyPanelAdapter>().SummaryView;
+            foreach (var item in summary.WalletItems.Append(summary.IncomeItem).Concat(summary.Items).Where(t => t.gameObject.activeSelf))
             {
                 var bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(layout.Summary,item.rectTransform);
                 Assert.That(bounds.max.x,Is.LessThanOrEqualTo(buttonBounds.min.x - 1),item.text);

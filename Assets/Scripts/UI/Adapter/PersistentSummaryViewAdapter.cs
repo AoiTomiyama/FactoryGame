@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,6 +9,8 @@ public sealed class PersistentSummaryViewAdapter
     private readonly Font _font;
     private readonly List<Text> _items = new();
     private readonly Text[] _walletItems;
+    private Text _income;
+    public Text IncomeItem => _income;
     public RectTransform Rect { get; }
     public string BalanceText => _walletItems[0].text;
     public IReadOnlyList<Text> WalletItems => _walletItems;
@@ -42,6 +44,14 @@ public sealed class PersistentSummaryViewAdapter
         _walletRendered = true;
         UpdateLayout();
     }
+    public void RenderIncome(decimal incomePerSecond)
+    {
+        if (_income == null) _income = CreateItem();
+        var text = $"収入 {incomePerSecond:0.#} / 秒";
+        if (_income.text == text) return;
+        _income.text = text;
+        UpdateLayout();
+    }
     public void SetItems(params string[] items)
     {
         _itemCount = items.Length;
@@ -57,6 +67,7 @@ public sealed class PersistentSummaryViewAdapter
     {
         foreach (var text in _items) if (text != null) UnityEngine.Object.Destroy(text.gameObject);
         _items.Clear();
+        if (_income != null) UnityEngine.Object.Destroy(_income.gameObject);
     }
     private Text CreateItem()
     {
@@ -69,7 +80,7 @@ public sealed class PersistentSummaryViewAdapter
         // 全項目を通常の表示領域へ置き、画面幅に応じて行を増やす。
         var available = Mathf.Max(1, Rect.rect.width - 24 - (_actions != null ? _actions.rect.width + 12 : 0));
         var x = 0f; var y = 8f; var rowHeight = 0f;
-        foreach (var text in _walletItems.Concat(_items).Where(text => text.gameObject.activeSelf))
+        foreach (var text in _walletItems.Append(_income).Concat(_items).Where(text => text != null && text.gameObject.activeSelf))
         {
             var width = Mathf.Min(available, Mathf.Ceil(text.preferredWidth) + 8);
             if (x > 0 && x + width > available)
