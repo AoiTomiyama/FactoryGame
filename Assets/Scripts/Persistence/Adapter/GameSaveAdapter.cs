@@ -53,13 +53,13 @@ public sealed class GameSaveAdapter : MonoBehaviour
         {
             // awaitより前に全状態を写す。通知中の要求はLateUpdateへ集約される。
             var data = _world.Capture(_game,Math.Max(DateTime.UtcNow.Ticks,SavedRevision + 1));
-            _world.Validate(data,_game.Skills.Catalog,_game.RegisteredResources,_game.Deliveries.Catalog);
-            var json = SaveJsonAdapter.Encode(data);
+            await _world.ValidateAsync(data,_game.Skills.Catalog,_game.RegisteredResources,_game.Deliveries.Catalog,destroyCancellationToken);
             var storage = Storage;
-            await Task.Run(() => storage.Write(json));
+            await Task.Run(() => storage.Write(SaveJsonAdapter.Encode(data, parallelValidation: true)));
             SavedRevision = data.revision;
             if (this != null && _label != null) _label.text = "保存済み";
         }
+        catch (OperationCanceledException) when (this == null) { }
         catch (Exception exception)
         {
             Debug.LogError($"Game save failed: {exception}",this);
@@ -69,5 +69,10 @@ public sealed class GameSaveAdapter : MonoBehaviour
         finally { IsSaving = false; if (this != null && _button != null) _button.interactable = true; }
     }
     public SaveGameApplication Read() => SaveJsonAdapter.Decode(Storage.Read());
+    public Task<SaveGameApplication> ReadAsync(System.Threading.CancellationToken cancellation)
+    {
+        var storage = Storage;
+        return Task.Run(() => SaveJsonAdapter.Decode(storage.Read(), parallelValidation: true), cancellation);
+    }
     private void OnDestroy() { if (_button != null) _button.onClick.RemoveListener(SaveClicked); }
 }

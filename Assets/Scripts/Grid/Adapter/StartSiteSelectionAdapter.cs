@@ -24,6 +24,7 @@ public sealed class StartSiteSelectionAdapter : MonoBehaviour
     public int Count => _session?.Candidates.Count ?? 0;
     public bool CanChoose => _session != null && _session.CanChoose;
     public HudLayoutAdapter Layout => hud;
+    public void SetLoadStatus(string text) => bar.SetStartMenuStatus(text);
     public void BeginMenu(Action newGame, Action resume, bool canResume)
     {
         ValidateBindings();

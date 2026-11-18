@@ -152,7 +152,6 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         {
             _forwardCell = container;
             _forwardCellBase = cell;
-            Debug.Log("connect to forward cell: " + cell.name);
         }
     }
 

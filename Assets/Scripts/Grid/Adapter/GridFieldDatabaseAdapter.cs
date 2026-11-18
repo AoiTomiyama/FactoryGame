@@ -55,17 +55,32 @@ public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<Gri
             return;
         }
 
+        BeginCellInitialization(size);
+
+        // 名前や子の順序ではなく、設備の位置と定義から一度だけ登録する。
+        foreach (var cell in GetComponentsInChildren<CellBaseAdapter>()) RegisterInitialCell(cell);
+    }
+
+    private void BeginCellInitialization(int size)
+    {
         StatEffects = new SharedStatEffectsApplication();
         _gridCells = new CellBaseAdapter[size, size];
         _gridSize = size;
+    }
 
-        // 名前や子の順序ではなく、設備の位置と定義から一度だけ登録する。
-        foreach (var cell in GetComponentsInChildren<CellBaseAdapter>())
-        {
-            var anchor = Vector3Int.RoundToInt(cell.transform.position);
-            if (!TryRegisterCell(anchor.x, anchor.z, cell, previous => previous == null, out _))
-                throw new InvalidOperationException($"Invalid initial occupancy: {cell.name}");
-        }
+    private void RegisterInitialCell(CellBaseAdapter cell)
+    {
+        var anchor = Vector3Int.RoundToInt(cell.transform.position);
+        if (!TryRegisterCell(anchor.x, anchor.z, cell, previous => previous == null, out _))
+            throw new InvalidOperationException($"Invalid initial occupancy: {cell.name}");
+    }
+
+    internal void InitializeRestoredOccupancy(int size, int[] ownerIndexes, CellBaseAdapter[] cells)
+    {
+        BeginCellInitialization(size);
+        for (var x = 0; x < size; x++)
+        for (var z = 0; z < size; z++)
+            _gridCells[x,z] = cells[ownerIndexes[x * size + z]];
     }
 
     /// <summary>

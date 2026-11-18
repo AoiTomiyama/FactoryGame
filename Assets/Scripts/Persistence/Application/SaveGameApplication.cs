@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.ExceptionServices;
+using System.Threading.Tasks;
 
 /// <summary>一回の同期取得で切り離す保存データ。Unity参照と未確定予約を含めない。</summary>
 [Serializable]
@@ -44,7 +46,10 @@ public sealed class SaveGameApplication
         public Job job { get => jobs == null || jobs.Length == 0 ? null : jobs[0]; set => jobs = value == null ? Array.Empty<Job>() : new[] {value}; }
     }
 
-    public void ValidateShape()
+    public void ValidateShape() => ValidateShape(parallel: false);
+    internal void ValidateShapeInParallel() => ValidateShape(parallel: cells?.Length >= 1024);
+
+    private void ValidateShape(bool parallel)
     {
         if (formatVersion != CurrentFormat) throw new InvalidOperationException("Unsupported save format.");
         if (revision <= 0 || !DateTime.TryParse(savedUtc, null, System.Globalization.DateTimeStyles.RoundtripKind, out _) ||
@@ -57,21 +62,54 @@ public sealed class SaveGameApplication
             throw new InvalidOperationException("Invalid saved skills.");
         var anchors = new HashSet<(int,int)>();
         foreach (var c in cells)
-        {
             if (c == null || c.rotation < 0 || c.rotation > 3 || c.x < 0 || c.x >= size || c.z < 0 || c.z >= size ||
-                !anchors.Add((c.x,c.z)) || c.inventory == null || c.batches == null || c.jobs == null || c.jobs.Length > 1 || c.jobs.Any(j => j == null))
+                !anchors.Add((c.x,c.z)))
                 throw new InvalidOperationException("Invalid saved cell.");
-            SaveKeysApplication.Cell(c.kind);
-            ValidateSlots(c.inventory); ValidateSlots(c.batches);
-            if (c.job == null) continue;
-            var j = c.job;
-            if (float.IsNaN(j.seconds) || float.IsInfinity(j.seconds) || j.seconds < 0 ||
-                float.IsNaN(j.recipeSeconds) || float.IsInfinity(j.recipeSeconds) || j.recipeSeconds < 0 ||
-                float.IsNaN(j.elapsed) || float.IsInfinity(j.elapsed) || j.elapsed < 0 || j.elapsed > j.seconds ||
-                j.amount <= 0 || j.inputs == null)
-                throw new InvalidOperationException("Invalid saved production job.");
-            SaveKeysApplication.Resource(j.result); ValidateSlots(j.inputs);
+        if (!parallel || Environment.ProcessorCount < 3)
+        {
+            foreach (var cell in cells) ValidateCell(cell);
+            return;
         }
+
+        // セルの数量と周期は独立。失敗時も配列の先頭に近いセルの例外を報告する。
+        var options = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount - 1 };
+        var gate = new object();
+        var firstInvalid = cells.Length;
+        ExceptionDispatchInfo failure = null;
+        Parallel.For(0, cells.Length, options, (i, loop) =>
+        {
+            try { ValidateCell(cells[i]); }
+            catch (InvalidOperationException exception)
+            {
+                lock (gate)
+                {
+                    if (i < firstInvalid)
+                    {
+                        firstInvalid = i;
+                        failure = ExceptionDispatchInfo.Capture(exception);
+                    }
+                }
+                loop.Break();
+            }
+        });
+        failure?.Throw();
+    }
+
+    private static void ValidateCell(Cell c)
+    {
+        if (c.inventory == null || c.batches == null || c.jobs == null || c.jobs.Length > 1 ||
+            (c.jobs.Length == 1 && c.jobs[0] == null))
+            throw new InvalidOperationException("Invalid saved cell.");
+        SaveKeysApplication.Cell(c.kind);
+        ValidateSlots(c.inventory); ValidateSlots(c.batches);
+        if (c.job == null) return;
+        var j = c.job;
+        if (float.IsNaN(j.seconds) || float.IsInfinity(j.seconds) || j.seconds < 0 ||
+            float.IsNaN(j.recipeSeconds) || float.IsInfinity(j.recipeSeconds) || j.recipeSeconds < 0 ||
+            float.IsNaN(j.elapsed) || float.IsInfinity(j.elapsed) || j.elapsed < 0 || j.elapsed > j.seconds ||
+            j.amount <= 0 || j.inputs == null)
+            throw new InvalidOperationException("Invalid saved production job.");
+        SaveKeysApplication.Resource(j.result); ValidateSlots(j.inputs);
     }
     private static void ValidateStocks(Stock[] values)
     {
@@ -84,6 +122,7 @@ public sealed class SaveGameApplication
     }
     private static void ValidateSlots(Slot[] values)
     {
+        if (values.Length == 0) return;
         var ports = new HashSet<int>();
         foreach (var s in values)
         {
@@ -118,8 +157,12 @@ public static class SaveKeysApplication
         (ResourceTypeDomain.CopperIngot,"copper-ingot"),(ResourceTypeDomain.CopperWire,"copper-wire"),(ResourceTypeDomain.Steel,"steel"),
         (ResourceTypeDomain.MachineParts,"machine-parts")
     };
-    public static string Key(CellTypeDomain type) => Cells.FirstOrDefault(p => p.type == type).key ?? throw new InvalidOperationException($"Unknown cell: {type}");
-    public static string Key(ResourceTypeDomain type) => Resources.FirstOrDefault(p => p.type == type).key ?? throw new InvalidOperationException($"Unknown resource: {type}");
-    public static CellTypeDomain Cell(string key) => Cells.FirstOrDefault(p => p.key == key && key != null).type is var t && t != CellTypeDomain.None ? t : throw new InvalidOperationException($"Unknown saved cell: {key}");
-    public static ResourceTypeDomain Resource(string key) => Resources.FirstOrDefault(p => p.key == key && key != null).type is var t && t != ResourceTypeDomain.None ? t : throw new InvalidOperationException($"Unknown saved resource: {key}");
+    private static readonly Dictionary<CellTypeDomain,string> CellKeys = Cells.ToDictionary(p => p.type, p => p.key);
+    private static readonly Dictionary<ResourceTypeDomain,string> ResourceKeys = Resources.ToDictionary(p => p.type, p => p.key);
+    private static readonly Dictionary<string,CellTypeDomain> CellTypes = Cells.ToDictionary(p => p.key, p => p.type, StringComparer.Ordinal);
+    private static readonly Dictionary<string,ResourceTypeDomain> ResourceTypes = Resources.ToDictionary(p => p.key, p => p.type, StringComparer.Ordinal);
+    public static string Key(CellTypeDomain type) => CellKeys.TryGetValue(type,out var key) ? key : throw new InvalidOperationException($"Unknown cell: {type}");
+    public static string Key(ResourceTypeDomain type) => ResourceKeys.TryGetValue(type,out var key) ? key : throw new InvalidOperationException($"Unknown resource: {type}");
+    public static CellTypeDomain Cell(string key) => key != null && CellTypes.TryGetValue(key,out var type) ? type : throw new InvalidOperationException($"Unknown saved cell: {key}");
+    public static ResourceTypeDomain Resource(string key) => key != null && ResourceTypes.TryGetValue(key,out var type) ? type : throw new InvalidOperationException($"Unknown saved resource: {key}");
 }

@@ -14,7 +14,7 @@ public sealed class OperationBarAdapter : MonoBehaviour
     private bool _placementActive, _firstPerson;
     private StartSiteSelectionAdapter _startSelection;
     private System.Action _newGame, _continue;
-    private bool _canContinue;
+    private bool _canContinue, _startMenuLocked;
     private bool InMenu => _newGame != null;
     private readonly System.Collections.Generic.Dictionary<Text,string> _savedStartText = new();
     private void RememberStartText()
@@ -25,6 +25,7 @@ public sealed class OperationBarAdapter : MonoBehaviour
     public void SetStartMenu(System.Action newGame, System.Action resume, bool canResume)
     {
         RememberStartText();
+        _startMenuLocked = false;
         _newGame = newGame; _continue = resume; _canContinue = canResume;
         rotateButton.GetComponentInChildren<Text>(true).text = "新規開始";
         viewButton.GetComponentInChildren<Text>(true).text = "続きから";
@@ -33,6 +34,12 @@ public sealed class OperationBarAdapter : MonoBehaviour
             if (pair.Key.GetComponentInParent<Button>() == null) pair.Key.text = "";
         walkingHelp.gameObject.SetActive(false); bar.gameObject.SetActive(true);
         BindButtons(); RefreshStartAvailability();
+    }
+    public void SetStartMenuStatus(string text)
+    {
+        _startMenuLocked = true;
+        placementInfo.text = text;
+        RefreshStartAvailability();
     }
     public void SetStartSelection(StartSiteSelectionAdapter selection)
     {
@@ -65,7 +72,7 @@ public sealed class OperationBarAdapter : MonoBehaviour
         // 入力側のConfigureが後でも、候補の操作可否を上書きしない。
         if (_startSelection != null)
             rotateButton.interactable = viewButton.interactable = walkButton.interactable = _startSelection.CanChoose;
-        else if (InMenu) { rotateButton.interactable = true; viewButton.interactable = _canContinue; }
+        else if (InMenu) { rotateButton.interactable = !_startMenuLocked; viewButton.interactable = !_startMenuLocked && _canContinue; }
         else
         { rotateButton.interactable = walkButton.interactable = true; viewButton.interactable = _cameraController != null; }
     }
@@ -115,8 +122,8 @@ public sealed class OperationBarAdapter : MonoBehaviour
     {
         hud.StyleButton(rotateButton); hud.StyleButton(viewButton); hud.StyleButton(walkButton);
     }
-    private void Rotate() { if(InMenu) _newGame(); else if(_startSelection!=null) _startSelection.Step(-1); else _cursor?.RotatePlacement(); }
-    private void SwitchView() { if(InMenu) { if(_canContinue) _continue(); } else if(_startSelection!=null) _startSelection.Step(1); else _cameraController?.SwitchCameraAngle(); }
+    private void Rotate() { if(InMenu) { if (!_startMenuLocked) _newGame(); } else if(_startSelection!=null) _startSelection.Step(-1); else _cursor?.RotatePlacement(); }
+    private void SwitchView() { if(InMenu) { if(!_startMenuLocked && _canContinue) _continue(); } else if(_startSelection!=null) _startSelection.Step(1); else _cameraController?.SwitchCameraAngle(); }
     private void Walk() { if(_startSelection!=null) _startSelection.Confirm(); else _cameraController?.ToggleFirstPerson(); }
     private void OnDestroy()
     {

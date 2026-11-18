@@ -15,6 +15,59 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
 {
     protected override bool NeedsMainScene => true;
     protected override bool ChooseNewGame => false;
+    [UnityTest, Explicit("Supply a saved-game copy through FACTORY_SAVE_TEST_INPUT")]
+    public IEnumerator ExistingSaveRestoresAndSavesAcrossFrames() => ExistingSaveRoundTrip().ToCoroutine();
+    private static async UniTask ExistingSaveRoundTrip()
+    {
+        var input = System.Environment.GetEnvironmentVariable("FACTORY_SAVE_TEST_INPUT");
+        Assert.That(File.Exists(input), "An isolated copy of the saved game is required.");
+        var game = TestScenes.Find<GameInitializerAdapter>();
+        var destination = game.Saves.Storage.Path;
+        Assert.That(Path.GetFullPath(input), Is.Not.EqualTo(destination));
+        Directory.CreateDirectory(Path.GetDirectoryName(destination));
+        File.Copy(input, destination);
+        var expected = game.Saves.Read();
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        var load = game.TryRestoreGameAsync().AsTask();
+        var loadFrames = 0;
+        var longestLoadFrame = 0d;
+        var lastFrame = clock.Elapsed.TotalMilliseconds;
+        while (!load.IsCompleted)
+        {
+            await UniTask.NextFrame();
+            Assert.That(clock.Elapsed.TotalSeconds, Is.LessThan(30), "load timed out");
+            var now = clock.Elapsed.TotalMilliseconds;
+            longestLoadFrame = Math.Max(longestLoadFrame, now - lastFrame);
+            lastFrame = now;
+            loadFrames++;
+        }
+        Assert.That(await load);
+        Assert.That(loadFrames, Is.GreaterThan(1));
+        Assert.That(game.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Running));
+        Assert.That(GridFieldDatabaseAdapter.Instance.Owners.Count(), Is.EqualTo(expected.cells.Length));
+        var loadMs = clock.Elapsed.TotalMilliseconds;
+        clock.Restart();
+        Assert.That(game.Saves.RequestSave());
+        lastFrame = clock.Elapsed.TotalMilliseconds;
+        var longestSaveFrame = 0d;
+        var saveFrames = 0;
+        while (game.Saves.IsSaving)
+        {
+            await UniTask.NextFrame();
+            Assert.That(clock.Elapsed.TotalSeconds, Is.LessThan(30), "save timed out");
+            var now = clock.Elapsed.TotalMilliseconds;
+            longestSaveFrame = Math.Max(longestSaveFrame, now - lastFrame);
+            lastFrame = now;
+            saveFrames++;
+        }
+        var saveMs = clock.Elapsed.TotalMilliseconds;
+        Assert.That(game.Saves.LastError, Is.Null);
+        var saved = game.Saves.Read();
+        Assert.That(saved.cells.Length, Is.EqualTo(expected.cells.Length));
+        Assert.That(saved.seed, Is.EqualTo(expected.seed));
+        Assert.That(saved.skills, Is.EqualTo(expected.skills));
+        Debug.Log($"Save round-trip metrics: cells={saved.cells.Length}; load_ms={loadMs:F1}; load_frames={loadFrames}; max_load_frame_ms={longestLoadFrame:F1}; save_ms={saveMs:F1}; save_frames={saveFrames}; max_save_frame_ms={longestSaveFrame:F1}");
+    }
     [UnityTest] public IEnumerator MenuRequiresExplicitNewGameAndSavedHudControlFits() => MenuAndFit().ToCoroutine();
     private static async UniTask MenuAndFit()
     {
@@ -47,7 +100,7 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
                 Assert.That(item.preferredHeight,Is.LessThanOrEqualTo(item.rectTransform.rect.height + 1),item.text);
             }
         }
-        Assert.That(game.TryRestoreGame(),Is.False,"load is restricted to the menu");
+        Assert.That(await game.TryRestoreGameAsync(),Is.False,"load is restricted to the menu");
     }
     [UnityTest] public IEnumerator FreshSceneRestoresEconomyJobsAndContinuesProduction() => RoundTrip().ToCoroutine();
     private async UniTask RoundTrip()
@@ -92,7 +145,12 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         await ReloadMainScene().ToUniTask();
         game = TestScenes.Find<GameInitializerAdapter>(); grid = GridFieldDatabaseAdapter.Instance;
         Assert.That(TestScenes.Find<OperationBarAdapter>().ViewButton.interactable);
-        Assert.That(game.TryRestoreGame());
+        var restoring = game.TryRestoreGameAsync();
+        Assert.That(game.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Starting));
+        Assert.That(game.TryPrepareNewGame(), Is.False);
+        Assert.That(await game.TryRestoreGameAsync(), Is.False, "one reader");
+        Assert.That(TestScenes.Find<OperationBarAdapter>().ViewButton.interactable, Is.False);
+        Assert.That(await restoring);
         var restored = new SaveWorldAdapter(grid,TestScenes.Find<CellPlacerAdapter>()).Capture(game,1);
         Assert.That(restored.balance,Is.EqualTo(saved.balance));
         Assert.That(restored.skills,Is.EqualTo(saved.skills));
@@ -153,7 +211,7 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         var oldIds = new System.Collections.Generic.HashSet<int>(); crossing.CaptureBatches(i => oldIds.Add(i)); belt.CaptureBatches(i => oldIds.Add(i));
         Assert.That(target.CurrentLoad,Is.Zero,"reservation is excluded from confirmed inventory");
         await ReloadMainScene().ToUniTask(); game = TestScenes.Find<GameInitializerAdapter>();
-        Assert.That(game.TryRestoreGame()); grid = GridFieldDatabaseAdapter.Instance;
+        Assert.That(await game.TryRestoreGameAsync()); grid = GridFieldDatabaseAdapter.Instance;
         belt = (ConveyorCellAdapter)grid.GetCell(x,z + 1); crossing = (CrossingCellAdapter)grid.GetCell(x,z + 2); target = (StorageCellAdapter)grid.GetCell(x,z + 3);
         var newIds = new System.Collections.Generic.HashSet<int>(); crossing.CaptureBatches(i => newIds.Add(i)); belt.CaptureBatches(i => newIds.Add(i));
         Assert.That(newIds.Count,Is.EqualTo(2)); Assert.That(newIds.Overlaps(oldIds),Is.False,"runtime IDs are not persisted");
@@ -188,7 +246,7 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         Time.timeScale = 0; Assert.That(game.Saves.RequestSave());
         await UniTask.WaitUntil(() => !game.Saves.IsSaving).Timeout(TimeSpan.FromSeconds(10),DelayType.Realtime);
         Assert.That(game.Saves.LastError,Is.Null);
-        await ReloadMainScene().ToUniTask(); game = TestScenes.Find<GameInitializerAdapter>(); Assert.That(game.TryRestoreGame());
+        await ReloadMainScene().ToUniTask(); game = TestScenes.Find<GameInitializerAdapter>(); Assert.That(await game.TryRestoreGameAsync());
         var completed = 0; game.Deliveries.Completed += () => completed++;
         Assert.That(game.Deliveries.Current.IsComplete,Is.False);
         Time.timeScale = 10;
@@ -200,15 +258,40 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
     {
         var game = StartNew(); var world = new SaveWorldAdapter(GridFieldDatabaseAdapter.Instance,TestScenes.Find<CellPlacerAdapter>());
         var data = world.Capture(game,1); data.cells[1].x = data.cells[0].x; data.cells[1].z = data.cells[0].z;
-        Assert.Throws<InvalidOperationException>(() => world.Validate(data,game.Skills.Catalog,game.RegisteredResources,game.Deliveries.Catalog));
+        Assert.Throws<InvalidOperationException>(() => data.ValidateShape());
         yield return ReloadMainScene(); game = TestScenes.Find<GameInitializerAdapter>();
         var terrain = GridFieldDatabaseAdapter.Instance.GetComponentsInChildren<CellBaseAdapter>();
         Directory.CreateDirectory(SaveTestDirectory);
         File.WriteAllText(game.Saves.Storage.Path, "corrupt");
         LogAssert.Expect(LogType.Error,new System.Text.RegularExpressions.Regex("Game initialization failed during load:"));
-        Assert.That(game.TryRestoreGame(),Is.False); Assert.That(game.Session.CurrentStage,Is.EqualTo(GameStartApplication.Stage.Failed));
+        var restored = true;
+        yield return game.TryRestoreGameAsync().ToCoroutine(value => restored = value);
+        Assert.That(restored,Is.False); Assert.That(game.Session.CurrentStage,Is.EqualTo(GameStartApplication.Stage.Failed));
         Assert.That(GridFieldDatabaseAdapter.Instance.GetComponentsInChildren<CellBaseAdapter>(),Is.EquivalentTo(terrain));
         Assert.That(File.ReadAllText(game.Saves.Storage.Path),Is.EqualTo("corrupt"));
+    }
+
+    [UnityTest] public IEnumerator OverlappingFootprintIsRejectedBeforeTerrainChanges() => OverlappingFootprint().ToCoroutine();
+    private async UniTask OverlappingFootprint()
+    {
+        var game = StartNew();
+        var grid = GridFieldDatabaseAdapter.Instance;
+        var world = new SaveWorldAdapter(grid, TestScenes.Find<CellPlacerAdapter>());
+        var data = world.Capture(game, 1);
+        var core = grid.Owners.OfType<SingularityCellAdapter>().Single();
+        var overlap = core.OccupiedCoordinates.First(point => point != (core.XIndex, core.ZIndex));
+        var empty = data.cells.First(cell => cell.kind == "empty");
+        empty.x = overlap.x;
+        empty.z = overlap.z;
+        var save = SaveJsonAdapter.Encode(data);
+        await ReloadMainScene().ToUniTask();
+        game = TestScenes.Find<GameInitializerAdapter>();
+        var terrain = GridFieldDatabaseAdapter.Instance.GetComponentsInChildren<CellBaseAdapter>();
+        Directory.CreateDirectory(SaveTestDirectory);
+        File.WriteAllText(game.Saves.Storage.Path, save);
+        LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("Saved cell occupancy is invalid"));
+        Assert.That(await game.TryRestoreGameAsync(), Is.False);
+        Assert.That(GridFieldDatabaseAdapter.Instance.GetComponentsInChildren<CellBaseAdapter>(), Is.EquivalentTo(terrain));
     }
     private static GameInitializerAdapter StartNew()
     {

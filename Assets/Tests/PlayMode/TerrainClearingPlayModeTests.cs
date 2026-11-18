@@ -189,7 +189,7 @@ public sealed class TerrainClearingHudPlayModeTests : FactoryPlayModeScope
         var balance = game.Wallet.Current.Balance;
         await ReloadMainScene().ToUniTask();
         game = TestScenes.Find<GameInitializerAdapter>();
-        Assert.That(game.TryRestoreGame());
+        Assert.That(await game.TryRestoreGameAsync());
         Assert.That(game.Skills.IsOwned(uid)); Assert.That(TestScenes.Find<CellPlacerAdapter>().ClearingAvailable);
         Assert.That(game.Wallet.Current.Balance, Is.EqualTo(balance));
         grid = GridFieldDatabaseAdapter.Instance;

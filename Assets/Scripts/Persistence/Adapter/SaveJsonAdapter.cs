@@ -6,13 +6,13 @@ using UnityEngine;
 public static class SaveJsonAdapter
 {
     [Serializable] private sealed class Envelope { public int version; public string payload, sha256; }
-    public static string Encode(SaveGameApplication data)
+    public static string Encode(SaveGameApplication data, bool parallelValidation = false)
     {
-        data.ValidateShape();
+        Validate(data, parallelValidation);
         var payload = JsonUtility.ToJson(data);
         return JsonUtility.ToJson(new Envelope {version = 1, payload = payload, sha256 = Digest(payload)});
     }
-    public static SaveGameApplication Decode(string json)
+    public static SaveGameApplication Decode(string json, bool parallelValidation = false)
     {
         var envelope = JsonUtility.FromJson<Envelope>(json);
         if (envelope == null || envelope.version != 1 || string.IsNullOrEmpty(envelope.payload) ||
@@ -28,7 +28,12 @@ public static class SaveJsonAdapter
                         cell.job.recipeSeconds = cell.job.seconds;
             data.formatVersion = SaveGameApplication.CurrentFormat;
         }
-        data.ValidateShape(); return data;
+        Validate(data, parallelValidation); return data;
+    }
+    private static void Validate(SaveGameApplication data, bool parallel)
+    {
+        if (parallel) data.ValidateShapeInParallel();
+        else data.ValidateShape();
     }
     private static string Digest(string value)
     {

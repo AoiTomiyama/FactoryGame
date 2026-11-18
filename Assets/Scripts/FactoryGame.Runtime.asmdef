@@ -4,6 +4,8 @@
     "UniTask",
     "Unity.Cinemachine",
     "Unity.InputSystem",
+    "Unity.Burst",
+    "Unity.Collections",
     "UnityEngine.UI",
     "Unity.TextMeshPro",
     "DOTween.Modules",
