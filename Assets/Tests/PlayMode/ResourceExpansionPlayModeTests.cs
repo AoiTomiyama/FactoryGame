@@ -87,9 +87,8 @@ public sealed class ResourceExpansionHudPlayModeTests : FactoryPlayModeScope
         Assert.That(status.StatusContent.gameObject.activeInHierarchy, Is.False);
         Assert.That(status.SelectedCell, Is.SameAs(core));
         Assert.That(panel.RecipeContent.GetComponentsInChildren<RecipeResourceRowAdapter>().Length, Is.EqualTo(8));
-        var details = string.Join("\n", layout.RecipeDetails.GetComponentsInChildren<Text>().Select(text => text.text));
-        Assert.That(details, Does.Contain("上位加工").And.Contain("6 秒").And.Contain("鋼材 ×1").And.Contain("銅線 ×2"));
-        Assert.That(details, Does.Not.Contain("基本加工"));
+        var details = layout.RecipeDetails.GetComponentsInChildren<Text>().Select(text => text.text.TrimEnd(' ', '›'));
+        CollectionAssert.AreEqual(new[] { "機械部品 ×1", "鋼材 ×1", "銅線 ×2", "6 秒" }, details);
         Select(layout.RecipeDetails, ResourceTypeDomain.Steel);
         Select(layout.RecipeDetails, ResourceTypeDomain.IronIngot);
         var raw = layout.RecipeDetails.GetComponentsInChildren<RecipeResourceRowAdapter>().Single();

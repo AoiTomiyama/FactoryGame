@@ -105,21 +105,21 @@ public sealed class RecipeReferenceViewAdapter : IDisposable
     private Detail BuildDetail(ResourceTypeDomain selected)
     {
         var detail = new Detail();
-        Label(detail, _layout.RecipeHeading, _layout.Resources.GetResourceByType(selected).ResourceName);
+        var resourceName = _layout.Resources.GetResourceByType(selected).ResourceName;
+        var methods = _catalog.MethodsFor(selected);
         if (_encyclopedia)
         {
+            if (methods.Count == 0) Label(detail, _layout.RecipeHeading, resourceName);
             Label(detail, _layout.TextRow, _catalog.TryGetUnitSalePrice(selected, out var price) ? $"売値 {price:N0} / 個" : "売却不可");
             var extractor = ResourceCellRulesDomain.ExtractorType(selected);
             if (extractor != CellTypeDomain.None)
                 Label(detail, _layout.TextRow, $"入手：{SelectButtonBuilderAdapter.PlacementLabel(extractor)}");
         }
 
-        var methods = _catalog.MethodsFor(selected);
         foreach (var method in methods)
         {
             var info = method.Definition;
-            Label(detail, _layout.RecipeHeading, $"{info.Name}　×{info.Recipe.ResultAmount}");
-            Label(detail, _layout.TextRow, $"{string.Join("／", method.Machines.Select(MachineLabel))}\n基準加工時間 {info.Seconds:0.###} 秒");
+            Label(detail, _layout.RecipeHeading, $"{resourceName} ×{info.Recipe.ResultAmount}");
             foreach (var ingredient in info.Recipe.Ingredients)
             {
                 var type = ingredient.Type;
@@ -128,18 +128,11 @@ public sealed class RecipeReferenceViewAdapter : IDisposable
                 detail.Rows.Add(row.gameObject);
                 if (navigate != null) detail.Links.Add((type, row));
             }
+            Label(detail, _layout.TextRow, $"{info.Seconds:0.###} 秒");
         }
         // 起動時に全資源の詳細を作り、閲覧中は同じ行を表示し直す。
         detail.SetVisible(false);
         return detail;
-    }
-
-    private static string MachineLabel(RecipeReferenceCatalogApplication.Machine machine)
-    {
-        var label = SelectButtonBuilderAdapter.PlacementLabel(machine.Type);
-        if (machine.InputCapacityNeeded > 0) label += $"（入力容量 {machine.InputCapacityNeeded} 以上）";
-        if (machine.OutputCapacityNeeded > 0) label += $"（出力容量 {machine.OutputCapacityNeeded} 以上）";
-        return label;
     }
 
     private void Label(Detail detail, Text prefab, string value)
