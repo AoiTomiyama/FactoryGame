@@ -115,20 +115,17 @@ public sealed class CraftingRulesTests : FactoryEditModeScope
     }
 
     [Test]
-    public void RecipeHistoryBlocksOnlyCyclesInCurrentPath()
+    public void RecipeSelectionStartsANewIngredientPath()
     {
         var trail = new ResourceReferenceNavigationApplication();
-        Assert.That(trail.TryEnter(ResourceTypeDomain.Wood));
-        Assert.That(trail.TryEnter(ResourceTypeDomain.Wood), Is.False);
-        Assert.That(trail.TryEnter(ResourceTypeDomain.Plank));
-        Assert.That(trail.TryEnter(ResourceTypeDomain.Wood), Is.False);
-        Assert.That(trail.TryBack());
+        Assert.That(trail.TryFollow(ResourceTypeDomain.Wood), Is.False);
+        trail.Select(ResourceTypeDomain.Wood);
+        Assert.That(trail.TryFollow(ResourceTypeDomain.Wood), Is.False);
+        Assert.That(trail.TryFollow(ResourceTypeDomain.Plank));
+        Assert.That(trail.TryFollow(ResourceTypeDomain.Wood), Is.False);
+        trail.Select(ResourceTypeDomain.Plank);
+        Assert.That(trail.TryFollow(ResourceTypeDomain.Wood));
         Assert.That(trail.Current, Is.EqualTo(ResourceTypeDomain.Wood));
-        Assert.That(trail.TryEnter(ResourceTypeDomain.Plank));
-        Assert.That(trail.TryBack());
-        Assert.That(trail.TryBack());
-        Assert.That(trail.Current, Is.EqualTo(ResourceTypeDomain.None));
-        Assert.That(trail.TryBack(), Is.False);
     }
 
     [Test] public void ImmutablePlansQuantitiesAndCancellation() => CraftingAssertions.VerifyRules();

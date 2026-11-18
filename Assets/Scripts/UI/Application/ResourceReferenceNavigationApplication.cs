@@ -1,26 +1,26 @@
 using System.Collections.Generic;
 
-/// <summary>現在の経路だけで循環を防ぎ、別経路からの素材参照は許可する。</summary>
+/// <summary>一覧から選び直し、素材の参照経路では循環を防ぐ。</summary>
 public sealed class ResourceReferenceNavigationApplication
 {
-    private readonly Stack<ResourceTypeDomain> _history = new();
+    private readonly HashSet<ResourceTypeDomain> _path = new();
     public ResourceTypeDomain Current { get; private set; }
 
-    public bool CanEnter(ResourceTypeDomain resource) =>
-        resource != ResourceTypeDomain.None && resource != Current && !_history.Contains(resource);
-
-    public bool TryEnter(ResourceTypeDomain resource)
+    public void Select(ResourceTypeDomain resource)
     {
-        if (!CanEnter(resource)) return false;
-        _history.Push(Current);
+        _path.Clear();
         Current = resource;
-        return true;
+        if (resource != ResourceTypeDomain.None) _path.Add(resource);
     }
 
-    public bool TryBack()
+    public bool CanFollow(ResourceTypeDomain resource) =>
+        Current != ResourceTypeDomain.None && resource != ResourceTypeDomain.None && !_path.Contains(resource);
+
+    public bool TryFollow(ResourceTypeDomain resource)
     {
-        if (!_history.TryPop(out var previous)) return false;
-        Current = previous;
+        if (!CanFollow(resource)) return false;
+        _path.Add(resource);
+        Current = resource;
         return true;
     }
 }

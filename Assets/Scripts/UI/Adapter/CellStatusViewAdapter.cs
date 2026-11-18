@@ -23,7 +23,9 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
     [SerializeField] private HudStatusRowAdapter hudRowPrefab;
     [SerializeField] private ScrollRect statusScroll;
     [SerializeField] private Button closeButton;
+    private RectTransform _referenceContent;
     public ScrollRect StatusScroll => statusScroll;
+    public event Action ReferenceClosed;
     public Button CloseButton => closeButton;
     public float TopInset { get; set; } = 72;
     private Vector2 _baseMin, _baseMax;
@@ -48,7 +50,7 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
             _modeVisibility.blocksRaycasts = _savedRaycasts;
         }
         _firstPerson = active;
-        if (selectionMarker != null) selectionMarker.gameObject.SetActive(!active && _selectedCell != null && elementWindowTransform.gameObject.activeSelf);
+        if (selectionMarker != null) selectionMarker.gameObject.SetActive(!active && _referenceContent == null && _selectedCell != null && elementWindowTransform.gameObject.activeSelf);
     }
 
     public void ConfigureHud(Font font, ResourceDefinition resources)
@@ -64,7 +66,11 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
         closeButton.onClick.RemoveListener(CloseStatus);
         closeButton.onClick.AddListener(CloseStatus);
     }
-    private void CloseStatus() => SetStatusWindowActive(false);
+    private void CloseStatus()
+    {
+        if (_referenceContent != null) ReferenceClosed?.Invoke();
+        else SetStatusWindowActive(false);
+    }
     public event Action<CellBaseAdapter> SelectionChanged;
 
     private readonly Dictionary<UIStatusRowTypeApplication, ObjectPool<UIStatusRowBaseAdapter>> _statusRowUIPool = new();
@@ -126,20 +132,29 @@ public class CellStatusViewAdapter : SingletonMonoBehaviourAdapter<CellStatusVie
         if (!isActive) DeactivateCurrentStatus();
         if (elementWindowTransform != null)
         {
-            elementWindowTransform.gameObject.SetActive(isActive);
+            elementWindowTransform.gameObject.SetActive(isActive || _referenceContent != null);
         }
         
         if (selectionMarker != null)
         {
-            selectionMarker.gameObject.SetActive(isActive && !_firstPerson);
+            selectionMarker.gameObject.SetActive(isActive && _referenceContent == null && !_firstPerson);
         }
     }
-    public void ShowDetails()
+    public void SetReferenceContent(RectTransform content)
     {
-        // セルの購読と状態行を返してから、同じ右側枠を別の詳細へ貸し出す。
-        DeactivateCurrentStatus();
-        elementWindowTransform.gameObject.SetActive(true);
-        if (selectionMarker != null) selectionMarker.gameObject.SetActive(false);
+        if (_referenceContent == content) return;
+        // 枠と閉じるボタンを共用する。設備の選択と購読は背後で保持する。
+        if (_referenceContent != null) _referenceContent.gameObject.SetActive(false);
+        _referenceContent = content;
+        statusRowContainer.gameObject.SetActive(content == null);
+        if (content != null) content.gameObject.SetActive(true);
+        statusScroll.content = content != null ? content : (RectTransform)statusRowContainer;
+        elementWindowTransform.gameObject.SetActive(content != null || _selectedCell != null);
+        if (selectionMarker != null)
+            selectionMarker.gameObject.SetActive(content == null && _selectedCell != null && !_firstPerson);
+        statusScroll.StopMovement();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(statusScroll.content);
+        statusScroll.verticalNormalizedPosition = 1;
     }
 
     public UIStatusRowBaseAdapter CreateStatusRow(UIElementDataBaseApplication data)

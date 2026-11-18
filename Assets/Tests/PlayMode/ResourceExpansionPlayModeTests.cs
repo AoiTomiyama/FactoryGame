@@ -61,6 +61,9 @@ public sealed class ResourceExpansionHudPlayModeTests : FactoryPlayModeScope
         var panel = TestScenes.Find<EconomyPanelAdapter>();
         var layout = TestScenes.Find<HudLayoutAdapter>();
         var game = TestScenes.Find<GameInitializerAdapter>();
+        var status = TestScenes.Find<CellStatusViewAdapter>();
+        var core = TestScenes.Find<SingularityCellAdapter>();
+        status.UpdateUIStatusWindow(core);
         var placer = TestScenes.Find<CellPlacerAdapter>();
         void Select(Transform root, ResourceTypeDomain type)
         {
@@ -76,13 +79,16 @@ public sealed class ResourceExpansionHudPlayModeTests : FactoryPlayModeScope
         Assert.That(panel.RecipeContent.GetComponentsInChildren<RecipeResourceRowAdapter>().Length, Is.EqualTo(8));
         Select(panel.RecipeContent, ResourceTypeDomain.MachineParts);
         Assert.That(panel.RecipeView.CurrentResource, Is.EqualTo(ResourceTypeDomain.MachineParts));
-        Assert.That(layout.ReferenceBack.gameObject.activeInHierarchy, Is.True);
-        var details = string.Join("\n", panel.RecipeContent.GetComponentsInChildren<Text>().Select(text => text.text));
+        Assert.That(status.StatusScroll.content, Is.SameAs(layout.RecipeDetails));
+        Assert.That(status.StatusContent.gameObject.activeInHierarchy, Is.False);
+        Assert.That(status.SelectedCell, Is.SameAs(core));
+        Assert.That(panel.RecipeContent.GetComponentsInChildren<RecipeResourceRowAdapter>().Length, Is.EqualTo(8));
+        var details = string.Join("\n", layout.RecipeDetails.GetComponentsInChildren<Text>().Select(text => text.text));
         Assert.That(details, Does.Contain("上位加工").And.Contain("6 秒").And.Contain("鋼材 ×1").And.Contain("銅線 ×2"));
         Assert.That(details, Does.Not.Contain("基本加工"));
-        Select(panel.RecipeContent, ResourceTypeDomain.Steel);
-        Select(panel.RecipeContent, ResourceTypeDomain.IronIngot);
-        var raw = panel.RecipeContent.GetComponentsInChildren<RecipeResourceRowAdapter>().Single();
+        Select(layout.RecipeDetails, ResourceTypeDomain.Steel);
+        Select(layout.RecipeDetails, ResourceTypeDomain.IronIngot);
+        var raw = layout.RecipeDetails.GetComponentsInChildren<RecipeResourceRowAdapter>().Single();
         Assert.That(raw.name, Is.EqualTo("Reference_Iron"));
         Assert.That(raw.Link.enabled, Is.False);
 
@@ -91,19 +97,27 @@ public sealed class ResourceExpansionHudPlayModeTests : FactoryPlayModeScope
             Is.EqualTo(layout.Resources.GetAllResources().Length));
         Select(panel.EncyclopediaContent, ResourceTypeDomain.Iron);
         Assert.That(game.Prices.TryGetSaleAmount(ResourceTypeDomain.Iron, 1, out var unit));
-        var encyclopedia = string.Join("\n", panel.EncyclopediaContent.GetComponentsInChildren<Text>().Select(text => text.text));
+        Assert.That(status.StatusScroll.content, Is.SameAs(layout.EncyclopediaDetails));
+        var encyclopedia = string.Join("\n", layout.EncyclopediaDetails.GetComponentsInChildren<Text>().Select(text => text.text));
         Assert.That(encyclopedia, Does.Contain($"売値 {unit:N0} / 個").And.Contain("鉄鉱石採取"));
         panel.PageButton(EconomyPanelAdapter.RecipePage).onClick.Invoke();
         Assert.That(panel.RecipeView.CurrentResource, Is.EqualTo(ResourceTypeDomain.IronIngot));
-        layout.ReferenceBack.onClick.Invoke();
-        Assert.That(panel.RecipeView.CurrentResource, Is.EqualTo(ResourceTypeDomain.Steel));
-        layout.ReferenceBack.onClick.Invoke();
+        Select(panel.RecipeContent, ResourceTypeDomain.MachineParts);
         Assert.That(panel.RecipeView.CurrentResource, Is.EqualTo(ResourceTypeDomain.MachineParts));
-        layout.ReferenceBack.onClick.Invoke();
+        status.CloseButton.onClick.Invoke();
         Assert.That(panel.RecipeView.IsDetail, Is.False);
-        Assert.That(layout.ReferenceBack.gameObject.activeSelf, Is.False);
+        Assert.That(status.StatusScroll.content, Is.SameAs(status.StatusContent));
+        Assert.That(status.SelectedCell, Is.SameAs(core));
+        Assert.That(panel.RecipeContent.gameObject.activeInHierarchy, Is.True);
         panel.PageButton(EconomyPanelAdapter.EncyclopediaPage).onClick.Invoke();
         Assert.That(panel.EncyclopediaView.CurrentResource, Is.EqualTo(ResourceTypeDomain.Iron));
+        Assert.That(status.StatusScroll.content, Is.SameAs(layout.EncyclopediaDetails));
+        panel.PageButton(0).onClick.Invoke();
+        Assert.That(layout.EncyclopediaDetails.gameObject.activeInHierarchy, Is.False);
+        Assert.That(status.StatusContent.gameObject.activeInHierarchy, Is.True);
+        Assert.That(status.SelectedCell, Is.SameAs(core));
+        Assert.That(placer.PlacementEnabled, Is.True);
+        panel.PageButton(EconomyPanelAdapter.EncyclopediaPage).onClick.Invoke();
         Assert.That(placer.PlacementEnabled, Is.False);
     }
     private static async UniTask VerifyHud()

@@ -11,7 +11,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     public Color SelectedTabColor = new(.24f, .43f, .53f), IdleTabColor = new(.14f, .21f, .27f);
     public RectTransform[] Pages;
     public RectTransform EncyclopediaPage;
-    public Button ReferenceBack;
+    public RectTransform RecipeDetails, EncyclopediaDetails;
     public RectTransform Summary;
     public Text[] WalletItems;
     public Button Save;

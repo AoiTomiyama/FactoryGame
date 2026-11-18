@@ -8,29 +8,34 @@ using Object = UnityEngine.Object;
 /// <summary>一方のタブの閲覧状態を、共有の詳細と行Prefabへ描画する。</summary>
 public sealed class RecipeReferenceViewAdapter : IDisposable
 {
-    private readonly RectTransform _root;
+    private readonly RectTransform _list;
+    private readonly ScrollRect _detailScroll;
     private readonly HudLayoutAdapter _layout;
     private readonly RecipeReferenceCatalogApplication _catalog;
     private readonly bool _encyclopedia;
     private readonly Action _changed;
     private readonly ResourceReferenceNavigationApplication _navigation = new();
-    private readonly List<GameObject> _rows = new();
-    private readonly Stack<float> _historyScroll = new();
+    private readonly Dictionary<ResourceTypeDomain, RecipeResourceRowAdapter> _listRows = new();
+    private readonly List<GameObject> _detailRows = new();
     private float _scrollPosition = 1;
 
     public ResourceTypeDomain CurrentResource => _navigation.Current;
     public bool IsDetail => CurrentResource != ResourceTypeDomain.None;
+    public RectTransform DetailContent { get; }
 
-    public RecipeReferenceViewAdapter(RectTransform root, HudLayoutAdapter layout,
-        RecipeReferenceCatalogApplication catalog, bool encyclopedia, Action changed)
+    public RecipeReferenceViewAdapter(RectTransform list, RectTransform details, ScrollRect detailScroll,
+        HudLayoutAdapter layout, RecipeReferenceCatalogApplication catalog, bool encyclopedia, Action changed)
     {
-        _root = root; _layout = layout; _catalog = catalog; _encyclopedia = encyclopedia; _changed = changed;
-        Render();
+        _list = list; DetailContent = details; _detailScroll = detailScroll;
+        _layout = layout; _catalog = catalog; _encyclopedia = encyclopedia; _changed = changed;
+        // 詳細を開いても一覧を描き直さず、行の位置とスクロールを保つ。
+        foreach (var type in _catalog.Resources.Where(type => _encyclopedia || _catalog.HasRecipe(type)))
+            _listRows.Add(type, ResourceRow(_list, type, "", () => Select(type)));
     }
 
     public void RememberScroll()
     {
-        if (_root.gameObject.activeInHierarchy)
+        if (_list.gameObject.activeInHierarchy)
             _scrollPosition = Mathf.Clamp01(_layout.Body.verticalNormalizedPosition);
     }
 
@@ -42,36 +47,36 @@ public sealed class RecipeReferenceViewAdapter : IDisposable
         _layout.Body.verticalNormalizedPosition = _scrollPosition;
     }
 
-    public void Back()
+    private void Select(ResourceTypeDomain resource)
     {
-        if (!_navigation.TryBack()) return;
-        _scrollPosition = _historyScroll.Pop();
-        Render();
-        RestoreScroll();
-        _changed();
+        _navigation.Select(resource);
+        RefreshDetail();
     }
 
-    private void Enter(ResourceTypeDomain resource)
+    private void Follow(ResourceTypeDomain resource)
     {
-        if (!_navigation.TryEnter(resource)) return;
-        RememberScroll();
-        _historyScroll.Push(_scrollPosition);
-        _scrollPosition = 1;
-        Render();
-        RestoreScroll();
-        _changed();
+        if (_navigation.TryFollow(resource)) RefreshDetail();
     }
 
-    private void Render()
+    public void ClearSelection() => Select(ResourceTypeDomain.None);
+
+    private void RefreshDetail()
     {
-        Dispose();
-        if (!IsDetail)
+        ClearDetails();
+        if (IsDetail) RenderDetail();
+        foreach (var pair in _listRows)
+            _layout.StyleButton(pair.Value.Link, pair.Key == CurrentResource);
+        _changed();
+        if (DetailContent.gameObject.activeInHierarchy)
         {
-            foreach (var type in _catalog.Resources.Where(type => _encyclopedia || _catalog.HasRecipe(type)))
-                ResourceRow(type, "", true);
-            return;
+            _detailScroll.StopMovement();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(DetailContent);
+            _detailScroll.verticalNormalizedPosition = 1;
         }
+    }
 
+    private void RenderDetail()
+    {
         var selected = CurrentResource;
         Heading(_layout.Resources.GetResourceByType(selected).ResourceName);
         if (_encyclopedia)
@@ -89,8 +94,11 @@ public sealed class RecipeReferenceViewAdapter : IDisposable
             Heading($"{info.Name}　×{info.Recipe.ResultAmount}");
             TextRow($"{string.Join("／", method.Machines.Select(MachineLabel))}\n基準加工時間 {info.Seconds:0.###} 秒");
             foreach (var ingredient in info.Recipe.Ingredients)
-                ResourceRow(ingredient.Type, $" ×{ingredient.Amount}",
-                    _catalog.HasRecipe(ingredient.Type) && _navigation.CanEnter(ingredient.Type));
+            {
+                var type = ingredient.Type;
+                Action navigate = _catalog.HasRecipe(type) && _navigation.CanFollow(type) ? () => Follow(type) : null;
+                _detailRows.Add(ResourceRow(DetailContent, type, $" ×{ingredient.Amount}", navigate).gameObject);
+            }
         }
     }
 
@@ -106,30 +114,38 @@ public sealed class RecipeReferenceViewAdapter : IDisposable
     private void TextRow(string label) => Label(_layout.TextRow, label);
     private void Label(Text prefab, string value)
     {
-        var text = Object.Instantiate(prefab, _root);
-        _rows.Add(text.gameObject);
+        var text = Object.Instantiate(prefab, DetailContent);
+        _detailRows.Add(text.gameObject);
         if (text.font == null) text.font = _layout.Font;
         text.text = value;
     }
 
-    private void ResourceRow(ResourceTypeDomain type, string quantity, bool canEnter)
+    private RecipeResourceRowAdapter ResourceRow(Transform root, ResourceTypeDomain type, string quantity, Action navigate)
     {
         var resource = _layout.Resources.GetResourceByType(type);
-        var row = Object.Instantiate(_layout.ResourceRow, _root);
-        _rows.Add(row.gameObject);
+        var row = Object.Instantiate(_layout.ResourceRow, root);
         row.name = $"Reference_{type}";
-        row.Render(resource.Icon, resource.ResourceName + quantity + (canEnter ? "  ›" : ""), _layout.Font);
-        if (canEnter)
+        row.Render(resource.Icon, resource.ResourceName + quantity + (navigate != null ? "  ›" : ""), _layout.Font);
+        if (navigate != null)
         {
-            row.Bind(() => Enter(type));
+            row.Bind(() => navigate());
             _layout.StyleButton(row.Link);
         }
+        return row;
+    }
+
+    private void ClearDetails()
+    {
+        foreach (var row in _detailRows)
+            if (row != null) { row.SetActive(false); Object.Destroy(row); }
+        _detailRows.Clear();
     }
 
     public void Dispose()
     {
-        foreach (var row in _rows)
-            if (row != null) { row.SetActive(false); Object.Destroy(row); }
-        _rows.Clear();
+        ClearDetails();
+        foreach (var row in _listRows.Values)
+            if (row != null) { row.gameObject.SetActive(false); Object.Destroy(row.gameObject); }
+        _listRows.Clear();
     }
 }

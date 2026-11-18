@@ -105,14 +105,18 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         RecipeView?.Dispose();
         EncyclopediaView?.Dispose();
-        RecipeView = new RecipeReferenceViewAdapter((RectTransform)RecipeContent, layout, catalog, false, UpdateReferenceBack);
-        EncyclopediaView = new RecipeReferenceViewAdapter((RectTransform)EncyclopediaContent, layout, catalog, true, UpdateReferenceBack);
-        UpdateReferenceBack();
+        RecipeView = new RecipeReferenceViewAdapter((RectTransform)RecipeContent, layout.RecipeDetails,
+            _view.StatusScroll, layout, catalog, false, UpdateReferenceDetail);
+        EncyclopediaView = new RecipeReferenceViewAdapter((RectTransform)EncyclopediaContent, layout.EncyclopediaDetails,
+            _view.StatusScroll, layout, catalog, true, UpdateReferenceDetail);
+        UpdateReferenceDetail();
         ActiveReference?.RestoreScroll();
     }
 
-    private void UpdateReferenceBack() => layout.ReferenceBack.gameObject.SetActive(_expanded && ActiveReference?.IsDetail == true);
-    private void BackReference() => ActiveReference?.Back();
+    private void UpdateReferenceDetail() =>
+        _view.SetReferenceContent(_expanded && ActiveReference?.IsDetail == true ? ActiveReference.DetailContent : null);
+
+    private void CloseReference() => ActiveReference?.ClearSelection();
 
     private void Bind()
     {
@@ -170,7 +174,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         _expanded = expanded;
         layout.SetLeftExpanded(expanded);
-        UpdateReferenceBack();
+        UpdateReferenceDetail();
         UpdatePlacementMode();
         for (var i = 0; i < _tabs.Length; i++) layout.StyleButton(_tabs[i], expanded && SelectedPage == i);
         // 閉じたタブに選択フォーカスが残り、選択色へ戻ることを防ぐ。
@@ -251,7 +255,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         for (var i = 0; i < _tabs.Length; i++)
             if (_tabs[i] != null && _tabActions[i] != null) _tabs[i].onClick.RemoveListener(_tabActions[i]);
         if (layout != null && _closeAction != null) layout.Close.onClick.RemoveListener(_closeAction);
-        if (layout != null && layout.ReferenceBack != null) layout.ReferenceBack.onClick.RemoveListener(BackReference);
+        if (_view != null) _view.ReferenceClosed -= CloseReference;
         RecipeView?.Dispose();
         EncyclopediaView?.Dispose();
         _summaryView?.Dispose();
@@ -271,7 +275,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         _pages[0] = layout.Pages[0].gameObject;
         _pages[RecipePage] = layout.Pages[1].gameObject;
         _pages[EncyclopediaPage] = layout.EncyclopediaPage.gameObject;
-        layout.ReferenceBack.onClick.AddListener(BackReference);
+        _view.ReferenceClosed += CloseReference;
         for (var i = 0; i < _tabs.Length; i++)
         {
             var page = i;

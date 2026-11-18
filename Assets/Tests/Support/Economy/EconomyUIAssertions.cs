@@ -429,8 +429,10 @@ public static class EconomyUIAssertions
                 await UniTask.DelayFrame(3);
                 Canvas.ForceUpdateCanvases();
             }
-            var lastRecipe = (RectTransform)panel.RecipeContent.GetChild(panel.RecipeContent.childCount - 1);
-            Require(Inside(root, lastRecipe, leftScroll.viewport), "last of 24 recipes with six ingredients reachable " + resolution);
+            var recipeDetails = panel.RecipeView.DetailContent;
+            var lastRecipe = (RectTransform)recipeDetails.GetChild(recipeDetails.childCount - 1);
+            Require(view.StatusScroll.content == recipeDetails && Inside(root, lastRecipe, view.StatusScroll.viewport),
+                "last of 24 recipes with six ingredients reachable in right window " + resolution);
             VerifyFixedSummary(panel, root, resolution);
             var fixedPositions = panel.SummaryView.WalletItems.Concat(panel.SummaryView.Items).Select(t => t.rectTransform.anchoredPosition).ToArray();
             ExecuteEvents.ExecuteHierarchy(panel.SummaryRect.gameObject, new PointerEventData(EventSystem.current) { scrollDelta = new Vector2(0, -12) }, ExecuteEvents.scrollHandler);
@@ -439,9 +441,9 @@ public static class EconomyUIAssertions
             Require(fixedPositions.SequenceEqual(panel.SummaryView.WalletItems.Concat(panel.SummaryView.Items).Select(t => t.rectTransform.anchoredPosition)),
                 "wheel input does not move persistent summary " + resolution);
             Require(!panel.EquipmentView.UpgradeRoot.gameObject.activeSelf, "cell status omits individual upgrade controls " + resolution);
-            foreach (var text in panel.RecipeContent.GetComponentsInChildren<Text>())
+            foreach (var text in recipeDetails.GetComponentsInChildren<Text>())
                 Require(text.preferredHeight <= text.rectTransform.rect.height + 1, "expanded recipe text height " + resolution);
-            foreach (var icon in panel.RecipeContent.GetComponentsInChildren<RecipeResourceRowAdapter>().Select(row => row.Icon))
+            foreach (var icon in recipeDetails.GetComponentsInChildren<RecipeResourceRowAdapter>().Select(row => row.Icon))
                 Require(icon.sprite != null && icon.rectTransform.rect.width >= 31 && icon.rectTransform.rect.height >= 31, "resource icon retained " + resolution);
         }
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
