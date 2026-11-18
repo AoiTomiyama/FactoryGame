@@ -81,7 +81,7 @@ public sealed class SaveWorldAdapter
                     throw new InvalidOperationException("Saved cell occupancy is invalid.");
             foreach (var slot in c.inventory.Concat(c.batches).Concat(c.job?.inputs ?? Array.Empty<SaveGameApplication.Slot>())) CheckResource(slot.resource,accepted);
             if (c.job != null) CheckResource(c.job.result,accepted);
-            if (prefab is not ConveyorCellAdapter && c.exporter || kind == CellTypeDomain.ExportConveyor && !c.exporter)
+            if (prefab is not ConveyorCellAdapter && c.exporter)
                 throw new InvalidOperationException("Invalid saved export role.");
             if (prefab is not (ExtractorCellAdapter or CrafterCellAdapter) && c.job != null ||
                 prefab is not (StorageCellAdapter or ExtractorCellAdapter or CrafterCellAdapter) && c.inventory.Length != 0 ||

@@ -85,19 +85,36 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
         Assert.That(sink.StoredResourceType,Is.EqualTo(ResourceTypeDomain.Wood));
         Assert.That(_pool.Resources.TryGet(id,out _),Is.False);Assert.That(_pool.Resources.TryGet(Id(core),out var held));Assert.That(held.Type,Is.EqualTo(ResourceTypeDomain.Stone));
     }
-    [UnityTest] public IEnumerator SourceRotationAndReconnectionKeepRoleAndSettings()=>Reconnect().ToCoroutine();
+    [UnityTest] public IEnumerator SourceRotationFallsBackAndReconnectionKeepsSettings()=>Reconnect().ToCoroutine();
     private async UniTask Reconnect()
     {
         var core=Add<ConveyorCellAdapter>("Conveyor",4,4);var source=Add<CrafterCellAdapter>("Crafter",4,3);
         await Until(()=>core.IsExportConveyor);typeof(ConveyorCellAdapter).GetField("transferAmount",Fields).SetValue(core,7);
         var identity=core.Identity;
         source.transform.rotation=Quaternion.Euler(0,180,0);source.InitializeSystem();await UniTask.DelayFrame(3);
-        Assert.That(core.IsExportConveyor);Assert.That(core.TransferAmount,Is.EqualTo(7));Assert.That(core.Identity,Is.SameAs(identity));
+        Assert.That(core.IsExportConveyor,Is.False);Assert.That(core.ProgressionType,Is.EqualTo(CellTypeDomain.Conveyor));Assert.That(core.Identity,Is.SameAs(identity));
         Assert.That(ConveyorCellAdapter.HasExtractionSource(_grid,4,4,Quaternion.identity),Is.False);
         source.transform.rotation=Quaternion.identity;source.InitializeSystem();await UniTask.DelayFrame(3);
-        Assert.That(ConveyorCellAdapter.HasExtractionSource(_grid,4,4,Quaternion.identity));Assert.That(core.TransferAmount,Is.EqualTo(7));
+        Assert.That(ConveyorCellAdapter.HasExtractionSource(_grid,4,4,Quaternion.identity));Assert.That(core.IsExportConveyor);Assert.That(core.TransferAmount,Is.EqualTo(7));
         core.transform.rotation=Quaternion.Euler(0,90,0);core.InitializeSystem();await UniTask.DelayFrame(3);
         Assert.That(core.TransferAmount,Is.EqualTo(7));Assert.That(core.Identity,Is.SameAs(identity));
+    }
+    [UnityTest] public IEnumerator ExplicitExporterFallsBackWithItsMovingBatch()=>FallbackWithBatch().ToCoroutine();
+    private async UniTask FallbackWithBatch()
+    {
+        var source=Add<StorageCellAdapter>("Storage",4,3);
+        var core=Add<ExportConveyorCellAdapter>("ExportConveyor",4,4);
+        var sink=Add<StorageCellAdapter>("Storage",4,5);
+        Fill(source,ResourceTypeDomain.Wood,3);
+        await Until(()=>Id(core)!=0);
+        var id=Id(core);
+        source.OnDisconnect();
+        await Until(()=>!core.IsExportConveyor);
+        Assert.That(_grid.GetCell(4,4),Is.SameAs(core));
+        Assert.That(core.transform.Find("Model").GetChild(1).gameObject.activeSelf);
+        Assert.That(Id(core),Is.EqualTo(id));
+        await Until(()=>sink.CurrentLoad==3);
+        Assert.That(_pool.Resources.TryGet(id,out _),Is.False);
     }
     [UnityTest] public IEnumerator RolledBackSourceDoesNotPromoteAndReconnectionKeepsTheCell()=>RollbackSource().ToCoroutine();
     private async UniTask RollbackSource()
@@ -145,7 +162,7 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
         Object.DestroyImmediate(bad.transform.Find("Model").GetChild(0).gameObject);
         typeof(ConveyorCellAdapter).GetField("exportDefinition",Fields).SetValue(core,bad);
         Assert.That(core.AllocateStorage(0,2,ResourceTypeDomain.Wood));var id=_pool.CreateIdFromResourceData(ResourceTypeDomain.Wood,2);core.Reuse(0,id);core.StoreResource(0,2);
-        Assert.Throws<TargetInvocationException>(()=>typeof(ConveyorCellAdapter).GetMethod("EnableExportMode",Fields).Invoke(core,new object[] {true}));
+        Assert.Throws<TargetInvocationException>(()=>typeof(ConveyorCellAdapter).GetMethod("SetExportMode",Fields).Invoke(core,new object[] {true,true}));
         Assert.That(core.IsExportConveyor,Is.False);Assert.That(Id(core),Is.EqualTo(id));Assert.That(_pool.Resources.TryGet(id,out var held));Assert.That(held.Amount,Is.EqualTo(2));
         Object.Destroy(bad.gameObject);await UniTask.Yield();
     }

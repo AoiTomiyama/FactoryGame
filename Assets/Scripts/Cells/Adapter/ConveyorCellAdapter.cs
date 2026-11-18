@@ -8,12 +8,14 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
 {
     [SerializeField] private int transferAmount;
     [SerializeField] private ExportConveyorCellAdapter exportDefinition;
-    private bool _exportMode, _modeEvaluationQueued, _takeLoopStarted;
+    [SerializeField] private ConveyorCellAdapter normalDefinition;
+    private bool _exportMode, _roleInitialized, _hasPromoted, _modeEvaluationQueued, _takeLoopStarted;
+    private GameObject _normalVisual, _exportVisual;
     private IExportableApplication _backwardCell;
     private ConnectableCellBaseAdapter _backwardCellBase;
     private int _backwardPortId;
     protected virtual bool StartsAsExporter => false;
-    public bool IsExportConveyor => StartsAsExporter || _exportMode;
+    public bool IsExportConveyor => _roleInitialized ? _exportMode : StartsAsExporter;
     public event Action KindChanged;
     public int BaseTransferAmount => transferAmount;
     private IContainableApplication _forwardCell;
@@ -27,7 +29,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     private bool _readyToSend;
     private int _incomingReservationAmount;
     private ResourceTypeDomain _incomingReservationType;
-    public int TransferAmount => EffectiveStat(transferAmount, EquipmentStatDomain.TransferAmount);
+    public int TransferAmount => IsExportConveyor ? EffectiveStat(transferAmount, EquipmentStatDomain.TransferAmount) : transferAmount;
     public override CellTypeDomain ProgressionType => IsExportConveyor ? CellTypeDomain.ExportConveyor : CellTypeDomain.Conveyor;
     protected override void ValidateBaseStats()
     {
@@ -45,7 +47,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     }
     public void RestoreExportRole(bool exporter)
     {
-        if (exporter && !IsExportConveyor) EnableExportMode(false);
+        SetExportMode(exporter, false);
     }
     public void ValidateSavedRole(bool exporter, SharedStatEffectsApplication effects)
     {
@@ -111,7 +113,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         _backwardCell = null; _backwardCellBase = null;
         base.InitializeSystem();
         StoreResourceAsync(_cts.Token).Forget();
-        if (IsExportConveyor) StartTaking();
+        ScheduleModeEvaluation();
     }
 
     protected override void OnDestroy() { base.OnDestroy(); Shutdown(); }
@@ -156,7 +158,11 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
 
     private void OnConnectionLost(CellBaseAdapter cell)
     {
-        if (cell == _backwardCellBase) { _backwardCell = null; _backwardCellBase = null; }
+        if (cell == _backwardCellBase)
+        {
+            _backwardCell = null; _backwardCellBase = null;
+            ScheduleModeEvaluation();
+        }
         if (cell != _forwardCellBase) return;
         _forwardCell = null;
         _forwardCellBase = null;
@@ -193,47 +199,62 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         {
             // 設備の登録・初期化と失敗復元が完了した後の接続だけを採用する。
             await UniTask.Yield(PlayerLoopTiming.Update,token);
-            if (this == null || !isActiveAndEnabled || _isDisconnected ||
-                !Connections.Values.Any(IsExtractionConnection) || _backwardCellBase == null || !_backwardCellBase.isActiveAndEnabled) return;
-            if (!IsExportConveyor) EnableExportMode();
-            StartTaking();
+            if (this == null || !isActiveAndEnabled || _isDisconnected) return;
+            var exporter = _backwardCellBase != null && _backwardCellBase.isActiveAndEnabled &&
+                Connections.Values.Any(IsExtractionConnection);
+            if (exporter != IsExportConveyor) SetExportMode(exporter, true);
+            if (exporter) StartTaking();
         }
         catch (OperationCanceledException) when(token.IsCancellationRequested) { }
         finally { _modeEvaluationQueued = false; }
     }
-    private void EnableExportMode(bool bindProgression = true)
+
+    private void SetExportMode(bool exporter, bool bindProgression)
     {
-        GameObject prepared = null;
-        var amount = exportDefinition != null ? exportDefinition.BaseTransferAmount : transferAmount;
-        var grid = GridFieldDatabaseAdapter.Instance;
-        // 状態を変える前に能力値と見た目を用意し、失敗時は元の搬送を保つ。
-        if (bindProgression) EffectiveStatsRulesDomain.Calculate(amount,grid.StatEffects.GetModifier(CellTypeDomain.ExportConveyor,EquipmentStatDomain.TransferAmount));
+        if (exporter == IsExportConveyor) return;
+        var definition = exporter ? exportDefinition : normalDefinition;
+        var effects = bindProgression ? GridFieldDatabaseAdapter.Instance.StatEffects : null;
+        var amount = exporter && !_hasPromoted && !StartsAsExporter && exportDefinition != null
+            ? exportDefinition.BaseTransferAmount : transferAmount;
+        if (exporter && effects != null)
+            EffectiveStatsRulesDomain.Calculate(amount, effects.GetModifier(CellTypeDomain.ExportConveyor, EquipmentStatDomain.TransferAmount));
+
         var model = transform.Find("Model");
-        try
+        if (model != null && model.childCount > 0)
         {
-            if (exportDefinition != null && model != null)
+            if (_normalVisual == null && _exportVisual == null)
             {
-                var sourceModel = exportDefinition.transform.Find("Model").GetChild(0);
-                prepared = Instantiate(sourceModel.gameObject,model);
-                prepared.SetActive(false);
-                prepared.transform.localPosition = sourceModel.localPosition;
-                prepared.transform.localRotation = sourceModel.localRotation;
-                prepared.transform.localScale = sourceModel.localScale;
+                if (StartsAsExporter) _exportVisual = model.GetChild(0).gameObject;
+                else _normalVisual = model.GetChild(0).gameObject;
+            }
+            var visual = exporter ? _exportVisual : _normalVisual;
+            if (visual == null && definition != null)
+            {
+                var source = definition.transform.Find("Model").GetChild(0);
+                visual = Instantiate(source.gameObject, model, false);
+                if (exporter) _exportVisual = visual;
+                else _normalVisual = visual;
+            }
+            if (visual != null)
+            {
+                if (_normalVisual != null) _normalVisual.SetActive(!exporter);
+                if (_exportVisual != null) _exportVisual.SetActive(exporter);
             }
         }
-        catch { if (prepared != null) Destroy(prepared); throw; }
-        _exportMode = true; transferAmount = amount;
-        if (bindProgression) ConfigureProgression(grid.StatEffects);
-        if (prepared != null)
+        // 役割だけを切り替える。保持資源・予約・搬送中の処理は同じ本体が引き継ぐ。
+        if (exporter)
         {
-            foreach (Transform child in model)
-                if (child.gameObject != prepared) { child.gameObject.SetActive(false); Destroy(child.gameObject); }
-            prepared.SetActive(true);
+            transferAmount = amount;
+            _hasPromoted = true;
         }
+        _roleInitialized = true;
+        _exportMode = exporter;
+        if (effects != null) ConfigureProgression(effects);
         if (KindChanged != null)
-            foreach(Action handler in KindChanged.GetInvocationList())
-                try { handler(); } catch(Exception exception) { Debug.LogException(exception); }
+            foreach (Action handler in KindChanged.GetInvocationList())
+                try { handler(); } catch (Exception exception) { Debug.LogException(exception); }
     }
+
     private void StartTaking()
     {
         if (!Application.isPlaying || _takeLoopStarted || _cts == null || _isDisconnected) return;
@@ -242,7 +263,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     private bool TryTakeBatch(out Vector3 startPosition)
     {
         startPosition = default;
-        if (!isActiveAndEnabled || HasResource || ResourceId != 0 || _backwardCellBase == null ||
+        if (!IsExportConveyor || !isActiveAndEnabled || HasResource || ResourceId != 0 || _backwardCellBase == null ||
             !_backwardCellBase.isActiveAndEnabled || !_backwardCellBase.HasPort(_backwardPortId,CellPortUseDomain.Output)) return false;
         startPosition = _backwardCell.GetPosition(_backwardPortId) + Vector3.up * 1.1f;
         // 送り元の通知から搬入が再入しても、同じ枠を二重に使わない。

@@ -115,6 +115,11 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         var belt = (ConveyorCellAdapter)Install(CellTypeDomain.Conveyor,x,z + 1);
         var crossing = (CrossingCellAdapter)Install(CellTypeDomain.Crossing,x,z + 2);
         var target = (StorageCellAdapter)Install(CellTypeDomain.Storage,x,z + 3);
+        var empty = grid.Owners.OfType<EmptyCellAdapter>().First(e => e.ZIndex > 0 &&
+            grid.GetCell(e.XIndex,e.ZIndex - 1) is EmptyCellAdapter);
+        var fallbackX = empty.XIndex;
+        var fallbackZ = empty.ZIndex;
+        var formerExporter = (ConveyorCellAdapter)Install(CellTypeDomain.ExportConveyor,fallbackX,fallbackZ);
         var port = source.Ports.First(p => (p.Use & CellPortUseDomain.Input) != 0).Id;
         Assert.That(source.AllocateStorage(port,10,ResourceTypeDomain.Wood)); source.StoreResource(port,10);
         var pool = ResourceItemObjectPoolAdapter.Instance;
@@ -127,6 +132,10 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         Assert.That(game.Saves.LastError,Is.Null);
         var saved = game.Saves.Read();
         Assert.That(saved.cells.Where(c => c.batches.Length != 0).Sum(c => c.batches.Sum(b => b.amount)),Is.EqualTo(10));
+        Assert.That(formerExporter.IsExportConveyor,Is.False);
+        var fallback = saved.cells.Single(c => c.x == fallbackX && c.z == fallbackZ);
+        Assert.That(SaveKeysApplication.Cell(fallback.kind),Is.EqualTo(CellTypeDomain.ExportConveyor));
+        Assert.That(fallback.exporter,Is.False);
         var oldIds = new System.Collections.Generic.HashSet<int>(); crossing.CaptureBatches(i => oldIds.Add(i)); belt.CaptureBatches(i => oldIds.Add(i));
         Assert.That(target.CurrentLoad,Is.Zero,"reservation is excluded from confirmed inventory");
         await ReloadMainScene().ToUniTask(); game = TestScenes.Find<GameInitializerAdapter>();
@@ -135,6 +144,8 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         var newIds = new System.Collections.Generic.HashSet<int>(); crossing.CaptureBatches(i => newIds.Add(i)); belt.CaptureBatches(i => newIds.Add(i));
         Assert.That(newIds.Count,Is.EqualTo(2)); Assert.That(newIds.Overlaps(oldIds),Is.False,"runtime IDs are not persisted");
         Assert.That(belt.IsExportConveyor,"automatic exporter role is retained");
+        Assert.That(((ConveyorCellAdapter)grid.GetCell(fallbackX,fallbackZ)).IsExportConveyor,Is.False,
+            "a saved export prefab in normal mode restores in normal mode");
         Assert.That(target.CurrentLoad,Is.Zero,"load does not instantly complete transit");
         Time.timeScale = 10;
         await UniTask.WaitUntil(() => target.CurrentLoad == 10).Timeout(TimeSpan.FromSeconds(15),DelayType.Realtime);
