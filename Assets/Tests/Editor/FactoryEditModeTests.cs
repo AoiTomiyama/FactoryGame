@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine.TestTools;
@@ -40,6 +40,28 @@ public sealed class CurrencyWalletTests : FactoryEditModeScope
     [Test] public void WalletAndTransactionBoundaries() => CurrencyWalletAssertions.VerifyBoundaries();
     [Test] public void SettlementOrderPreservesQuantities() => CurrencyWalletAssertions.VerifySettlementOrders();
     [Test] public void ReentrantAndFailingObservers() => CurrencyWalletAssertions.VerifyNotifications();
+
+    [Test]
+    public void IncomeRateUsesActualSampleTimeAndOnlyCommittedIncome()
+    {
+        var wallet = new CurrencyWalletApplication(100);
+        var rate = new IncomeRateApplication(wallet, 10);
+        Assert.That(wallet.TryReserveIncome(9, out var sale), Is.True);
+        Assert.That(sale.TryCommit(), Is.True);
+        Assert.That(wallet.TryReserveIncome(30, out var cancelled), Is.True);
+        Assert.That(cancelled.TryCancel(), Is.True);
+        Assert.That(wallet.TryReserveExpense(5, out var purchase), Is.True);
+        Assert.That(purchase.TryCommit(), Is.True);
+
+        rate.Advance(10.75);
+        Assert.That(rate.IncomePerSecond, Is.Zero);
+        rate.Advance(11.5);
+        Assert.That(rate.IncomePerSecond, Is.EqualTo(6m));
+        rate.Advance(12);
+        Assert.That(rate.IncomePerSecond, Is.EqualTo(6m));
+        rate.Advance(12.5);
+        Assert.That(rate.IncomePerSecond, Is.Zero);
+    }
 }
 [TestFixture, Category("Transfers")]
 public sealed class ResourceReservationTests : FactoryEditModeScope

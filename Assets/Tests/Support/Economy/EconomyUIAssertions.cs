@@ -73,6 +73,10 @@ public static class EconomyUIAssertions
                 await UniTask.NextFrame();
             Require(panel.SummaryView.IncomeItem.text.StartsWith("収入 ") && panel.SummaryView.IncomeItem.text != "収入 0 / 秒",
                 "the HUD displays a positive rate after shipping");
+            var incomeText = panel.SummaryView.IncomeItem.text;
+            panel.enabled = false;
+            panel.enabled = true;
+            Require(panel.SummaryView.IncomeItem.text == incomeText, "HUD rebinding keeps the current income rate");
             deadline = Time.realtimeSinceStartupAsDouble + 2;
             while (panel.SummaryView.IncomeItem.text != "収入 0 / 秒" && Time.realtimeSinceStartupAsDouble < deadline)
                 await UniTask.NextFrame();

@@ -20,6 +20,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
 
     public GameStartApplication Session { get; } = new();
     public CurrencyWalletApplication Wallet { get; private set; }
+    public IncomeRateApplication IncomeRate { get; private set; }
     public CurrencyPriceCatalogDomain Prices { get; private set; }
     public ConstructionStockApplication ConstructionStock { get; private set; }
     public DeliveryProgressApplication Deliveries { get; private set; }
@@ -39,6 +40,9 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         }
         catch (Exception exception) { Fail("preparation",exception); }
     }
+
+    // HUDを開閉してもプレイ中の計測を続ける。
+    private void Update() => IncomeRate?.Advance(Time.unscaledTimeAsDouble);
 
     public bool TryPrepareNewGame()
     {
@@ -135,7 +139,8 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         { depot.Configure(ConstructionStock); }
         // 全在庫・能力・受入先が揃ってから接続と非同期処理を開始する。
         foreach (var cell in field.Owners) cell.InitializeSystem();
-        economyPanel.Configure(Wallet, statusView, placer, Deliveries);
+        IncomeRate = new IncomeRateApplication(Wallet, Time.unscaledTimeAsDouble);
+        economyPanel.Configure(Wallet, IncomeRate, statusView, placer, Deliveries);
         var hud = selection.Layout;
         var screen = economyPanel.SkillScreen;
         screen.Configure(Wallet, Skills, Deliveries, field.StatEffects, hud, () => placer.ClearingPriceText,

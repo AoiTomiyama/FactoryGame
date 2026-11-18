@@ -16,8 +16,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     private CellBaseAdapter _selected;
     private IDataProvidableApplication _source;
     private bool _bound;
-    private double _incomeSampleTime;
-    private decimal _incomeSampleTotal;
+    private IncomeRateApplication _incomeRate;
     private bool _expanded = true;
     private bool _selectedActive;
     private bool _firstPerson;
@@ -78,11 +77,12 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     public SkillScreenAdapter SkillScreen => layout.SkillScreen;
     public OperationBarAdapter Operation => _operation;
 
-    public void Configure(CurrencyWalletApplication wallet,
+    public void Configure(CurrencyWalletApplication wallet, IncomeRateApplication incomeRate,
         CellStatusViewAdapter view, CellPlacerAdapter placer, DeliveryProgressApplication deliveries)
     {
         Unbind();
         _wallet = wallet ?? throw new ArgumentNullException(nameof(wallet));
+        _incomeRate = incomeRate ?? throw new ArgumentNullException(nameof(incomeRate));
         _deliveries = deliveries ?? throw new ArgumentNullException(nameof(deliveries));
         _view = view;
         _placer = placer;
@@ -95,9 +95,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
     {
         if (_bound || _wallet == null) return;
         _bound = true;
-        _incomeSampleTime = Time.unscaledTimeAsDouble;
-        _incomeSampleTotal = _wallet.TotalIncome;
-        _summaryView.RenderIncome(0);
+        _summaryView.RenderIncome(_incomeRate.IncomePerSecond);
         UpdatePlacementMode();
         _wallet.Changed += WalletChanged;
         _deliveries.Changed += DeliveryChanged;
@@ -211,15 +209,7 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
             _view.TopInset = _summaryView.Rect.rect.height + 8;
         }
         if (!_bound) return;
-        var now = Time.unscaledTimeAsDouble;
-        var interval = now - _incomeSampleTime;
-        if (interval >= 1)
-        {
-            var total = _wallet.TotalIncome;
-            _summaryView.RenderIncome((total - _incomeSampleTotal) / (decimal)interval);
-            _incomeSampleTime = now;
-            _incomeSampleTotal = total;
-        }
+        _summaryView.RenderIncome(_incomeRate.IncomePerSecond);
         if (!ReferenceEquals(_selected, null) && _selected == null) Select(null);
         var active = _selected != null && _selected.isActiveAndEnabled;
         if (active != _selectedActive) { _selectedActive = active; Refresh(); }

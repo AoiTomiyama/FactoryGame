@@ -120,7 +120,7 @@ public static class HudPrefabAssertions
             hud.Tabs[0].gameObject, hud.Tabs[1].gameObject, hud.Tabs[2].gameObject, bar.RotateButton.gameObject, bar.ViewButton.gameObject };
         var ids = fixedObjects.Select(o => o.GetInstanceID()).ToArray();
         var initializer = TestScenes.Find<GameInitializerAdapter>();
-        panel.Configure(initializer.Wallet,
+        panel.Configure(initializer.Wallet, initializer.IncomeRate,
             TestScenes.Find<CellStatusViewAdapter>(), TestScenes.Find<CellPlacerAdapter>(), initializer.Deliveries);
         Require(ids.SequenceEqual(fixedObjects.Select(o => o.GetInstanceID())), "reconfigure preserves static instances");
         Require(TestScenes.All<HudLayoutAdapter>(FindObjectsInactive.Include).Length == 1,

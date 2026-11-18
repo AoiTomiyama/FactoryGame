@@ -10,6 +10,7 @@ public sealed class PersistentSummaryViewAdapter
     private readonly List<Text> _items = new();
     private readonly Text[] _walletItems;
     private Text _income;
+    private decimal? _displayedIncome;
     public Text IncomeItem => _income;
     public RectTransform Rect { get; }
     public string BalanceText => _walletItems[0].text;
@@ -46,7 +47,13 @@ public sealed class PersistentSummaryViewAdapter
     }
     public void RenderIncome(decimal incomePerSecond)
     {
-        if (_income == null) _income = CreateItem();
+        if (_income == null)
+        {
+            _income = CreateItem();
+            _displayedIncome = null;
+        }
+        if (_displayedIncome == incomePerSecond) return;
+        _displayedIncome = incomePerSecond;
         var text = $"収入 {incomePerSecond:0.#} / 秒";
         if (_income.text == text) return;
         _income.text = text;
