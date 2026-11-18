@@ -100,6 +100,7 @@ public sealed class TransportSpeedPlayModeTests : FactoryPlayModeScope
             endpoint => ReferenceEquals(endpoint,target),_pool.Resources,presentation,() => { reads++;return 1/multiplier; },CancellationToken.None);
         await UniTask.DelayFrame(2); Assert.That(reads,Is.Zero);
         multiplier=2; recipient=target;
+        coordinator.WakeForTargetChange();
         await UniTask.WaitUntil(() => presentation.Seconds>0).Timeout(TimeSpan.FromSeconds(3));
         Assert.That(presentation.Seconds,Is.EqualTo(.5f)); multiplier=4;
         await UniTask.DelayFrame(2); Assert.That(reads,Is.EqualTo(1)); Assert.That(presentation.Seconds,Is.EqualTo(.5f));

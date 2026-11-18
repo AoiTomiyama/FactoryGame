@@ -20,6 +20,8 @@ public abstract class ConnectableCellBaseAdapter : CellBaseAdapter
         public Vector3Int Direction => Owner.PortDirection(PortId);
     }
     public IReadOnlyDictionary<int, Connection> Connections => _connections;
+    public event Action<int?> ReceiveSpaceAvailable;
+    protected void NotifyReceiveSpace(int? portId = null) => ReceiveSpaceAvailable?.Invoke(portId);
     private readonly Dictionary<int, Connection> _connections = new();
     private bool _connected;
     protected Action OnDisconnected;

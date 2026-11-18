@@ -9,10 +9,13 @@ public sealed class SingularityCellAdapter : ConnectableCellBaseAdapter, IContai
         if (deliveries == null) throw new System.ArgumentNullException(nameof(deliveries));
         if (ReferenceEquals(Deliveries, deliveries)) return;
         if (_initialized) throw new System.InvalidOperationException("Cannot replace delivery progress while initialized.");
+        if (Deliveries != null) Deliveries.IntakeSpaceAvailable -= OnIntakeSpaceAvailable;
         Deliveries = deliveries;
         _intake = new AbsorptionIntakeApplication(System.Linq.Enumerable.Select(Ports, p => p.Id), deliveries);
         _intake.Absorbed += NotifyAbsorbed;
+        deliveries.IntakeSpaceAvailable += OnIntakeSpaceAvailable;
     }
+    private void OnIntakeSpaceAvailable() => NotifyReceiveSpace();
     private void NotifyAbsorbed(ResourceTypeDomain type, int amount)
     {
         if (Absorbed == null) return;
@@ -38,9 +41,20 @@ public sealed class SingularityCellAdapter : ConnectableCellBaseAdapter, IContai
         if (_intake != null) _intake.Accepting = false;
         OnDisconnect(); StopIntake();
     }
-    protected override void OnDestroy() { base.OnDestroy(); StopIntake(); }
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        if (Deliveries != null) Deliveries.IntakeSpaceAvailable -= OnIntakeSpaceAvailable;
+        StopIntake();
+    }
     public bool AllocateStorage(int portId, int amount, ResourceTypeDomain type)
         => isActiveAndEnabled && HasPort(portId, CellPortUseDomain.Input) && _intake != null && _intake.TryReserve(portId, amount, type);
-    public void StoreResource(int portId, int amount) => _intake?.Commit(portId, amount);
-    public void CancelStorage(int portId, int amount, ResourceTypeDomain type) => _intake?.Cancel(portId, amount, type);
+    public void StoreResource(int portId, int amount)
+    {
+        if (_intake?.Commit(portId, amount) == true) NotifyReceiveSpace(portId);
+    }
+    public void CancelStorage(int portId, int amount, ResourceTypeDomain type)
+    {
+        if (_intake?.Cancel(portId, amount, type) == true) NotifyReceiveSpace(portId);
+    }
 }

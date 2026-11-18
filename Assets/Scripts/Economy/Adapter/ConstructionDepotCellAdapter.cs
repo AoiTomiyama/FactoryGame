@@ -14,8 +14,10 @@ public sealed class ConstructionDepotCellAdapter : ConnectableCellBaseAdapter, I
         Stock = stock ?? throw new ArgumentNullException(nameof(stock));
         _intake = new ConstructionDepotIntakeApplication(stock, Ports.Select(p => p.Id));
         Stock.Changed += Notify;
+        Stock.DepositSpaceAvailable += OnDepositSpaceAvailable;
     }
     private void Notify() => StatusChanged?.Invoke();
+    private void OnDepositSpaceAvailable() => NotifyReceiveSpace();
     public override void InitializeSystem()
     {
         if (_intake == null) throw new InvalidOperationException("Configure construction stock before connecting the depot.");
@@ -33,10 +35,22 @@ public sealed class ConstructionDepotCellAdapter : ConnectableCellBaseAdapter, I
     }
     protected override void OnDestroy()
     {
-        base.OnDestroy(); StopIntake(); if (Stock != null) Stock.Changed -= Notify;
+        base.OnDestroy();
+        if (Stock != null)
+        {
+            Stock.Changed -= Notify;
+            Stock.DepositSpaceAvailable -= OnDepositSpaceAvailable;
+        }
+        StopIntake();
     }
     public bool AllocateStorage(int port, int amount, ResourceTypeDomain resource)
         => isActiveAndEnabled && HasPort(port, CellPortUseDomain.Input) && _intake != null && _intake.TryReserve(port, amount, resource);
-    public void StoreResource(int port, int amount) => _intake?.Commit(port, amount);
-    public void CancelStorage(int port, int amount, ResourceTypeDomain resource) => _intake?.Cancel(port, amount, resource);
+    public void StoreResource(int port, int amount)
+    {
+        if (_intake?.Commit(port, amount) == true) NotifyReceiveSpace(port);
+    }
+    public void CancelStorage(int port, int amount, ResourceTypeDomain resource)
+    {
+        if (_intake?.Cancel(port, amount, resource) == true) NotifyReceiveSpace(port);
+    }
 }

@@ -5,11 +5,23 @@ using System.Linq;
 public sealed class ShippingCellAdapter : ConnectableCellBaseAdapter, IContainableApplication
 {
     private ShippingIntakeApplication _intake;
+    private CurrencyWalletApplication _wallet;
+    private long _incomeSpace;
     private bool _initialized;
     public void Configure(CurrencyWalletApplication wallet, CurrencyPriceCatalogDomain prices)
     {
         if (_intake != null) throw new InvalidOperationException("Shipping cell is already configured.");
         _intake = new ShippingIntakeApplication(wallet, prices, Ports.Select(p => p.Id));
+        _wallet = wallet;
+        _incomeSpace = long.MaxValue - wallet.Current.Balance - wallet.Current.ReservedIncome;
+        wallet.Changed += OnWalletChanged;
+    }
+    private void OnWalletChanged(CurrencyWalletApplication.Snapshot wallet)
+    {
+        var space = long.MaxValue - wallet.Balance - wallet.ReservedIncome;
+        var increased = space > _incomeSpace;
+        _incomeSpace = space;
+        if (increased) NotifyReceiveSpace();
     }
     public override void InitializeSystem()
     {
@@ -30,9 +42,20 @@ public sealed class ShippingCellAdapter : ConnectableCellBaseAdapter, IContainab
         if (_intake != null) _intake.Accepting = false;
         OnDisconnect(); StopIntake();
     }
-    protected override void OnDestroy() { base.OnDestroy(); StopIntake(); }
+    protected override void OnDestroy()
+    {
+        base.OnDestroy();
+        if (_wallet != null) _wallet.Changed -= OnWalletChanged;
+        StopIntake();
+    }
     public bool AllocateStorage(int portId, int amount, ResourceTypeDomain type)
         => isActiveAndEnabled && HasPort(portId, CellPortUseDomain.Input) && _intake != null && _intake.TryReserve(portId, amount, type);
-    public void StoreResource(int portId, int amount) => _intake?.Commit(portId, amount);
-    public void CancelStorage(int portId, int amount, ResourceTypeDomain type) => _intake?.Cancel(portId, amount, type);
+    public void StoreResource(int portId, int amount)
+    {
+        if (_intake?.Commit(portId, amount) == true) NotifyReceiveSpace(portId);
+    }
+    public void CancelStorage(int portId, int amount, ResourceTypeDomain type)
+    {
+        if (_intake?.Cancel(portId, amount, type) == true) NotifyReceiveSpace(portId);
+    }
 }

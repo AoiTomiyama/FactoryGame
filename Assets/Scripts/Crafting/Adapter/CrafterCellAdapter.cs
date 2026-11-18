@@ -52,7 +52,14 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
         if (recipeDatabase != null && recipeDatabase.recipes != null)
             foreach (var recipe in recipeDatabase.recipes.Where(r => r != null)) ValidateDuration(recipe.CraftSecond,EquipmentStatDomain.CraftingSpeed);
     }
-    protected override void OnStatsChanged() => UpdateUI();
+    private int _lastInputCapacity;
+    protected override void OnStatsChanged()
+    {
+        var capacityIncreased = IngredientCapacity > _lastInputCapacity;
+        _lastInputCapacity = IngredientCapacity;
+        UpdateUI();
+        if (capacityIncreased) NotifyReceiveSpace();
+    }
 
     public IUIDataProviderApplication GetDataProvider() => CellStatusProviderAdapter.Create(this, crafterProvider);
     public SaveGameApplication.Slot[] CaptureInventory()
@@ -222,6 +229,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
         }
         ExportResourceType = commit.Result.Type;
         ExportStorageAmount = commit.Result.Amount;
+        NotifyReceiveSpace();
     }
 
     private async UniTask CraftAsync(CancellationToken token)
@@ -295,8 +303,9 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
     public void CancelStorage(int dir, int amount, ResourceTypeDomain resourceType)
     {
         if (!_resourceInputs.TryGetValue(dir, out var input)) return;
-        if (ResourceStorageRulesDomain.TryCancel(ToStock(input), amount, resourceType, out var next))
-            ApplyInput(dir, next);
+        if (!ResourceStorageRulesDomain.TryCancel(ToStock(input), amount, resourceType, out var next)) return;
+        ApplyInput(dir, next);
+        NotifyReceiveSpace(dir);
     }
 
     public Vector3 GetPosition(int portId) => PortPosition(portId);

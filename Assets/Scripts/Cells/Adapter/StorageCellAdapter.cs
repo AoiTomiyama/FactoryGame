@@ -8,9 +8,16 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
     [SerializeField] private StorageProviderDefinition dataProvider;
 
     public int Capacity => EffectiveStat(capacity, EquipmentStatDomain.Capacity);
+    private int _lastCapacity;
     public override CellTypeDomain ProgressionType => CellTypeDomain.Storage;
     protected override void ValidateBaseStats() => ValidateStat(capacity, EquipmentStatDomain.Capacity);
-    protected override void OnStatsChanged() => UpdateUI();
+    protected override void OnStatsChanged()
+    {
+        var capacityIncreased = Capacity > _lastCapacity;
+        _lastCapacity = Capacity;
+        UpdateUI();
+        if (capacityIncreased) NotifyReceiveSpace();
+    }
 
     public int CurrentLoad { get; private set; }
     public int AllocatedAmount { get; private set; }
@@ -62,7 +69,9 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
 
     public void CancelStorage(int dir, int amount, ResourceTypeDomain resourceType)
     {
-        if (ResourceStorageRulesDomain.TryCancel(Stock, amount, resourceType, out var next)) ApplyStock(next);
+        if (!ResourceStorageRulesDomain.TryCancel(Stock, amount, resourceType, out var next)) return;
+        ApplyStock(next);
+        NotifyReceiveSpace();
     }
 
     public Vector3 GetPosition(int portId) => PortPosition(portId);
@@ -73,6 +82,7 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
         if (!HasPort(portId, CellPortUseDomain.Output)) return false;
         if (!ResourceStorageRulesDomain.TryExport(Stock, requestedAmount, out var next, out amount, out type)) return false;
         ApplyStock(next);
+        NotifyReceiveSpace();
         return true;
     }
 }

@@ -1,6 +1,11 @@
 
+using System;
+
 public interface IContainableApplication : IResourceTransferEndpointApplication
 {
+    /// <summary>受入枠に空きが出た。nullは複数の入力ポートに共通する変更。</summary>
+    event Action<int?> ReceiveSpaceAvailable;
+
     /// <summary>
     /// 指定量のリソースの搬入を全量予約します。
     /// 成功時は amount と同量を確保し、失敗時は状態を変更しません。

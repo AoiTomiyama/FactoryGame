@@ -21,6 +21,7 @@ public sealed class ResourceTransferPlayModeTests : FactoryPlayModeScope
         yield return null;
     }
     [UnityTest] public IEnumerator NonCellEndpointsAndIdentity() => ResourceTransferAssertions.VerifyNonCellEndpoints(_pool).ToCoroutine();
+    [UnityTest] public IEnumerator BlockedTransferRetriesOnlyWhenItsPortOpens() => ResourceTransferAssertions.VerifyBlockedTransferWaitsForPort(_pool).ToCoroutine();
     [UnityTest] public IEnumerator PresentationLifetime() => ResourceTransferAssertions.VerifyPresentationLifetime(_pool).ToCoroutine();
     [UnityTest] public IEnumerator MissingVisualRecovery() => ResourceTransferAssertions.VerifyMissingVisualRecovery(_pool).ToCoroutine();
     [UnityTest] public IEnumerator CrossingMissingVisualRecovery() => ResourceTransferAssertions.VerifyCrossingMissingVisualRecovery(_pool).ToCoroutine();

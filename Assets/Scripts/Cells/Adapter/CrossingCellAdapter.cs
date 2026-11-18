@@ -10,6 +10,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     // 方向ごとの数量と所有者を保持し、速度だけを共有効果から読む。
     public override CellTypeDomain ProgressionType => CellTypeDomain.Crossing;
     private readonly Dictionary<Vector3Int, IContainableApplication> _adjacentContainers = new();
+    private readonly Dictionary<Vector3Int, (IContainableApplication Target, Action<int?> Wake)> _downstreamSignals = new();
     private readonly Dictionary<Vector3Int, PendingTransfer> _pending = new();
     private CancellationTokenSource _cts;
     private bool _isDisconnected;
@@ -41,6 +42,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         public ResourceTransferOperationApplication Operation => Coordinator.Operation;
         public ResourceReservationApplication Reservation => Coordinator.Reservation;
         public bool Started;
+        public int InputPort;
         public CancellationTokenSource ActiveCts;
         public ResourceItemObjectPoolAdapter ResourceOwner;
     }
@@ -60,7 +62,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                 var pool = ResourceItemObjectPoolAdapter.Instance;
                 var id = pool.CreateIdFromResourceData(type,slot.amount);
                 var direction = -PortDirection(slot.port);
-                var transfer = new PendingTransfer {Started = true,ResourceOwner = pool,
+                var transfer = new PendingTransfer {Started = true,ResourceOwner = pool,InputPort = slot.port,
                     Coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(this,id,type,slot.amount))};
                 _pending.Add(direction,transfer);
                 pool.SetPosition(id,transform.position + Vector3.up * 1.1f);
@@ -76,6 +78,8 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     {
         if (_isDisconnected) return;
         _isDisconnected = true;
+        foreach (var signal in _downstreamSignals.Values) signal.Target.ReceiveSpaceAvailable -= signal.Wake;
+        _downstreamSignals.Clear();
         // 取消コールバックが即時に再開しても辞書の列挙が崩れないよう、先に所有権を外す。
         var pending = new List<KeyValuePair<Vector3Int, PendingTransfer>>(_pending);
         _pending.Clear();
@@ -98,8 +102,26 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     {
         var dir = connection.Direction;
         var cell = connection.Neighbor;
-        if (cell is IContainableApplication container)
-            _adjacentContainers[dir] = container;
+        if (cell is not IContainableApplication container) return;
+        _adjacentContainers[dir] = container;
+        if (_pending.TryGetValue(dir, out var pending)) pending.Coordinator.WakeForTargetChange();
+        if (!HasPort(connection.PortId, CellPortUseDomain.Output)) return;
+        foreach (var input in Ports)
+        {
+            if ((input.Use & CellPortUseDomain.Input) == 0 || -PortDirection(input.Id) != dir) continue;
+            if (_downstreamSignals.Remove(dir, out var old)) old.Target.ReceiveSpaceAvailable -= old.Wake;
+            var inputId = input.Id;
+            var downstreamPortId = connection.NeighborPortId;
+            void WakeUpstream(int? port)
+            {
+                if ((!port.HasValue || port.Value == downstreamPortId) && !_pending.ContainsKey(dir))
+                    NotifyReceiveSpace(inputId);
+            }
+            container.ReceiveSpaceAvailable += WakeUpstream;
+            _downstreamSignals.Add(dir, (container, WakeUpstream));
+            WakeUpstream(null);
+            break;
+        }
     }
 
     private void OnConnectionLost(CellBaseAdapter cell)
@@ -113,7 +135,10 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         foreach (var dir in directions)
         {
             _adjacentContainers.Remove(dir);
-            if (!_pending.TryGetValue(dir, out var transfer) || !ReferenceEquals(transfer.Operation.Target?.Identity, cell)) continue;
+            if (_downstreamSignals.Remove(dir, out var signal)) signal.Target.ReceiveSpaceAvailable -= signal.Wake;
+            if (!_pending.TryGetValue(dir, out var transfer)) continue;
+            transfer.Coordinator.WakeForTargetChange();
+            if (!ReferenceEquals(transfer.Operation.Target?.Identity, cell)) continue;
             // 受け取り先を失った予約だけを取り消し、資源IDは交差セルに保持する。
             transfer.Coordinator.WaitForNewTarget();
             transfer.ActiveCts?.Cancel();
@@ -133,6 +158,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         operation.TryMarkReserved();
         _pending[dir] = new PendingTransfer
         {
+            InputPort = portId,
             Coordinator = new ResourceTransferCoordinatorApplication(operation, reservation)
         };
         return true;
@@ -150,6 +176,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         transfer.ActiveCts?.Cancel();
         transfer.Coordinator.Cancel();
         if (operation.ResourceId != 0 && transfer.ResourceOwner != null) transfer.ResourceOwner.DisposeId(operation.ResourceId);
+        NotifyReceiveSpace(portId);
     }
 
     public void StoreResource(int portId, int amount)
@@ -190,6 +217,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                         continue;
                     }
                     _pending.Remove(dir);
+                    NotifyReceiveSpace(transfer.InputPort);
                     return;
                 }
                 catch (OperationCanceledException) when (!token.IsCancellationRequested)
@@ -222,6 +250,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                         transfer.ResourceOwner.DisposeId(operation.ResourceId);
                 }
                 _pending.Remove(dir);
+                if (!_isDisconnected) NotifyReceiveSpace(transfer.InputPort);
             }
         }
     }

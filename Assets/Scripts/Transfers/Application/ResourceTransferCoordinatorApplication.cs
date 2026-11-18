@@ -8,6 +8,9 @@ public sealed class ResourceTransferCoordinatorApplication
 {
     public ResourceTransferOperationApplication Operation { get; }
     public ResourceReservationApplication Reservation { get; private set; }
+    private UniTaskCompletionSource _reservationWakeup;
+
+    public void WakeForTargetChange() => _reservationWakeup?.TrySetResult();
 
     public ResourceTransferCoordinatorApplication(ResourceTransferOperationApplication operation,
         ResourceReservationApplication reservation = null)
@@ -34,6 +37,7 @@ public sealed class ResourceTransferCoordinatorApplication
     {
         if (!Operation.TryCancel()) return;
         Reservation?.TryCancel();
+        WakeForTargetChange();
     }
 
     public async UniTask<ResourceAnimationResultApplication> RunAsync(Func<int> getPortId, Vector3 from, Vector3 to,
@@ -44,8 +48,7 @@ public sealed class ResourceTransferCoordinatorApplication
         try
         {
             if (Reservation == null)
-                // 再接続待ちでは相手と接点が変わる。成立した予約だけがIDを固定する。
-                await UniTask.WaitUntil(() => TryReserve(getTarget(), getPortId()), cancellationToken: token);
+                await WaitForReservation(getTarget, getPortId, token);
 
             token.ThrowIfCancellationRequested();
             // 接続喪失で現在の予約が外れても、この試行が所有するTokenで終端を判定する。
@@ -95,6 +98,39 @@ public sealed class ResourceTransferCoordinatorApplication
                 Operation.CurrentStage != ResourceTransferOperationApplication.Stage.WaitingForReservation)
                 Cancel();
         }
+    }
+
+    private async UniTask WaitForReservation(Func<IContainableApplication> getTarget, Func<int> getPortId,
+        CancellationToken token)
+    {
+        while (!Operation.IsTerminal)
+        {
+            token.ThrowIfCancellationRequested();
+            var target = getTarget();
+            var port = target == null ? -1 : getPortId();
+            if (target != null && TryReserve(target, port)) return;
+
+            var wakeup = new UniTaskCompletionSource();
+            void RetryWhenSpaceOpens(int? changedPort)
+            {
+                if (!changedPort.HasValue || changedPort.Value == port) wakeup.TrySetResult();
+            }
+            _reservationWakeup = wakeup;
+            if (target != null) target.ReceiveSpaceAvailable += RetryWhenSpaceOpens;
+            try
+            {
+                if (ReferenceEquals(target, getTarget()))
+                    await wakeup.Task.AttachExternalCancellation(token);
+                // 容量の更新や接続通知の途中から次の予約処理へ入り直さない。
+                await UniTask.NextFrame(cancellationToken: token);
+            }
+            finally
+            {
+                _reservationWakeup = null;
+                if (!ReferenceEquals(target, null)) target.ReceiveSpaceAvailable -= RetryWhenSpaceOpens;
+            }
+        }
+        throw new OperationCanceledException(token);
     }
 
     private bool TryReserve(IContainableApplication target, int portId)

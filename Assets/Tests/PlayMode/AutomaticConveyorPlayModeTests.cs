@@ -25,9 +25,10 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
         _grid=new GameObject("AutomaticConveyorGrid").AddComponent<GridFieldDatabaseAdapter>(); _grid.InitializeCells(16);
         yield return null;
     }
-    private T Add<T>(string name,int x,int z) where T:CellBaseAdapter
+    private T Add<T>(string name,int x,int z, Action<T> configure = null) where T:CellBaseAdapter
     {
         var cell=Object.Instantiate(AssetDatabase.LoadAssetAtPath<T>("Assets/Prefabs/Field/General/F_"+name+"Cell.prefab"),new Vector3(x,0,z),Quaternion.identity,_grid.transform);
+        configure?.Invoke(cell);
         _grid.SaveCell(x,z,cell); cell.InitializeSystem(); return cell;
     }
     private static void Fill(StorageCellAdapter cell,ResourceTypeDomain type,int amount)
@@ -143,16 +144,49 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
     [UnityTest] public IEnumerator InsufficientSpaceKeepsTheWholeBatchUntilCapacityIncreases()=>WaitForCapacity().ToCoroutine();
     private async UniTask WaitForCapacity()
     {
-        var core=Add<ConveyorCellAdapter>("Conveyor",4,4);var sink=Add<StorageCellAdapter>("Storage",4,5);
-        typeof(StorageCellAdapter).GetField("capacity",Fields).SetValue(sink,3);Fill(sink,ResourceTypeDomain.Wood,1);
+        var core=Add<ConveyorCellAdapter>("Conveyor",4,4);
+        var sink=Add<StorageCellAdapter>("Storage",4,5, cell => typeof(StorageCellAdapter).GetField("capacity",Fields).SetValue(cell,3));
+        Fill(sink,ResourceTypeDomain.Wood,1);
         Assert.That(core.AllocateStorage(0,5,ResourceTypeDomain.Wood));var id=_pool.CreateIdFromResourceData(ResourceTypeDomain.Wood,5);
         core.Reuse(0,id);core.StoreResource(0,5);
         await UniTask.Delay(400);
         Assert.That(Id(core),Is.EqualTo(id));Assert.That(_pool.Resources.TryGet(id,out var held));Assert.That(held.Amount,Is.EqualTo(5));
         Assert.That(_pool.Resources.Count,Is.EqualTo(1));Assert.That(sink.CurrentLoad,Is.EqualTo(1));Assert.That(sink.AllocatedAmount,Is.Zero);
         // 容量拡張後に同じ5個を一括で受け取り、分割用のIDを作らない。
-        typeof(StorageCellAdapter).GetField("capacity",Fields).SetValue(sink,10);
+        var catalog = new SkillTreeCatalogDomain(new[]
+        {
+            new SkillNodeDomain("capacity", "Capacity", 1, null, new[] {CellTypeDomain.Storage},
+                EquipmentStatDomain.Capacity, multiplier: 2)
+        });
+        var skills = new SkillTreeApplication(catalog, new CurrencyWalletApplication(1), _grid.StatEffects);
+        Assert.That(skills.Purchase("capacity"),Is.EqualTo(SkillPurchaseResultApplication.Success));
+        Assert.That(sink.Capacity, Is.EqualTo(6));
         await Until(()=>sink.CurrentLoad==6);Assert.That(Id(core),Is.Zero);Assert.That(_pool.Resources.Count,Is.Zero);
+    }
+    [UnityTest] public IEnumerator CrossingWakesUpstreamWhenItsDestinationMakesSpace() => CrossingWait().ToCoroutine();
+    private async UniTask CrossingWait()
+    {
+        var belt = Add<ConveyorCellAdapter>("Conveyor", 4, 4);
+        Add<CrossingCellAdapter>("Crossing", 4, 5);
+        var sink = Add<StorageCellAdapter>("Storage", 4, 6);
+        var output = sink.Ports.First(p => (p.Use & CellPortUseDomain.Output) != 0).Id;
+        Fill(sink, ResourceTypeDomain.Wood, sink.Capacity);
+        Assert.That(belt.AllocateStorage(0, 5, ResourceTypeDomain.Wood));
+        var id = _pool.CreateIdFromResourceData(ResourceTypeDomain.Wood, 5);
+        belt.Reuse(0, id);
+        belt.StoreResource(0, 5);
+        await UniTask.DelayFrame(8);
+        Assert.That(Id(belt), Is.EqualTo(id));
+        Assert.That(sink.AllocatedAmount, Is.Zero);
+        Assert.That(sink.TryExport(output, 3, out var first, out _));
+        Assert.That(first, Is.EqualTo(3));
+        await UniTask.DelayFrame(3);
+        Assert.That(Id(belt), Is.EqualTo(id));
+        Assert.That(sink.AllocatedAmount, Is.Zero);
+        Assert.That(sink.TryExport(output, 2, out var second, out _));
+        Assert.That(second, Is.EqualTo(2));
+        await Until(() => Id(belt) == 0 && sink.CurrentLoad == sink.Capacity);
+        Assert.That(_pool.Resources.Count, Is.Zero);
     }
     [UnityTest] public IEnumerator InvalidPromotionVisualKeepsTheOriginalBatchAndRole()=>FailedPromotion().ToCoroutine();
     private async UniTask FailedPromotion()

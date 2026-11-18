@@ -20,6 +20,7 @@ public sealed class ConstructionStockApplication
     private readonly Dictionary<ResourceTypeDomain, long> _stored = new(), _incoming = new(), _expenses = new();
     private bool _notifying, _notifyAgain;
     public event Action Changed;
+    public event Action DepositSpaceAvailable;
     public Exception LastNotificationException { get; private set; }
     public ConstructionStockApplication(IEnumerable<ResourceTypeDomain> accepted)
     {
@@ -68,7 +69,11 @@ public sealed class ConstructionStockApplication
             if (commit) _stored[item.Resource] = reservation.Incoming ? Stored(item.Resource) + item.Amount : Stored(item.Resource) - item.Amount;
         }
         // 全材料を更新した後に通知し、再入した建設も完成した在庫を読む。
-        if (commit) Notify(); return true;
+        if (commit) Notify();
+        if (commit != reservation.Incoming && DepositSpaceAvailable != null)
+            foreach (Action handler in DepositSpaceAvailable.GetInvocationList())
+                try { handler(); } catch (Exception exception) { LastNotificationException = exception; }
+        return true;
     }
     private void Notify()
     {

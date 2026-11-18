@@ -352,6 +352,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         var target = _forwardCell;
         var targetCell = _forwardCellBase;
         var dir = DirectionEnumToVector(DirectionsDomain.Forward);
+        var portId = TargetPortId(targetCell, dir);
         var id = ResourceId;
         var (type, amount) = ResourceItemObjectPoolAdapter.Instance.TakeResourceDataById(id);
         if (amount <= 0 || type == ResourceTypeDomain.None) return;
@@ -368,7 +369,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         try
         {
             _status = TransferStatus.WaitingForStorage;
-            var result = await coordinator.RunAsync(() => TargetPortId(targetCell, dir), startPos, transform.position + dir + Vector3.up * 1.1f,
+            var result = await coordinator.RunAsync(() => portId, startPos, transform.position + dir + Vector3.up * 1.1f,
                 () => targetCell != null && _forwardCellBase == targetCell ? target : null,
                 endpoint => ReferenceEquals(_forwardCellBase, endpoint.Identity), pool.Resources, pool,
                 () => EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed), transferCts.Token,
@@ -381,6 +382,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             ResourceId = 0;
             HasResource = false;
             _readyToSend = false;
+            NotifyReceiveSpace();
         }
         finally
         {
@@ -421,6 +423,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         _incomingReservationAmount = 0;
         _incomingReservationType = ResourceTypeDomain.None;
         HasResource = false;
+        NotifyReceiveSpace();
     }
 
     protected void MarkResourceReady() => _readyToSend = true;

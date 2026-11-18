@@ -41,18 +41,17 @@ public sealed class ShippingIntakeApplication
         return true;
     }
 
-    public void Commit(int input, int amount) => Complete(input, amount, ResourceTypeDomain.None, true);
-    public void Cancel(int input, int amount, ResourceTypeDomain type) => Complete(input, amount, type, false);
+    public bool Commit(int input, int amount) => Complete(input, amount, ResourceTypeDomain.None, true);
+    public bool Cancel(int input, int amount, ResourceTypeDomain type) => Complete(input, amount, type, false);
 
-    private void Complete(int input, int amount, ResourceTypeDomain type, bool commit)
+    private bool Complete(int input, int amount, ResourceTypeDomain type, bool commit)
     {
-        if (!_inputs.ContainsKey(input)) return;
+        if (!_inputs.ContainsKey(input)) return false;
         var intake = _inputs[input];
         if (intake == null || intake.Transaction == null || intake.Amount != amount ||
-            (!commit && intake.Type != type)) return;
+            (!commit && intake.Type != type)) return false;
         _inputs[input] = null;
-        if (commit) intake.Transaction.TryCommit();
-        else intake.Transaction.TryCancel();
+        return commit ? intake.Transaction.TryCommit() : intake.Transaction.TryCancel();
     }
 
     public void CancelAll()

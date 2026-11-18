@@ -41,6 +41,7 @@ public sealed class DeliveryProgressApplication
     public event Action<Snapshot> Changed;
     public event Action<DeliveryGoalCatalogDomain.Stage> StageCompleted;
     public event Action Completed;
+    public event Action IntakeSpaceAvailable;
     public DeliveryProgressApplication(DeliveryGoalCatalogDomain catalog)
     { Catalog = catalog ?? throw new ArgumentNullException(nameof(catalog)); Current = new Snapshot(_delivered, 0, catalog.Stages.Count); }
     public void RestoreDelivered(IReadOnlyDictionary<ResourceTypeDomain,long> values)
@@ -70,7 +71,11 @@ public sealed class DeliveryProgressApplication
         if (!reservation.Pending) return false;
         reservation.Pending = false;
         _reserved[reservation.Resource] -= reservation.Amount;
-        if (!commit) return true;
+        if (!commit)
+        {
+            Notify(IntakeSpaceAvailable);
+            return true;
+        }
         _delivered[reservation.Resource] = Current.Count(reservation.Resource) + reservation.Amount;
         var previous = Current.CompletedStages;
         var completed = previous;

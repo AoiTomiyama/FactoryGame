@@ -30,13 +30,20 @@ public static class ResourceTransferAssertions
     {
         public object Identity { get; } = new object();
         public bool IsAlive { get; private set; } = true;
-        public int Amount, Reserved, CommitCalls, CancelCalls;
+        public int Amount, Reserved, CommitCalls, CancelCalls, Attempts;
         public Action OnCommit;
+        public event Action<int?> ReceiveSpaceAvailable;
         public bool AllocateStorage(int dir, int amount, ResourceTypeDomain type)
         {
+            Attempts++;
             if (!IsAlive || amount <= 0 || type == ResourceTypeDomain.None || Amount + Reserved + amount > 10) return false;
             Reserved += amount;
             return true;
+        }
+        public void OpenSpace(int port, int amount)
+        {
+            Amount -= amount;
+            ReceiveSpaceAvailable?.Invoke(port);
         }
         public void StoreResource(int dir, int amount)
         {
@@ -48,6 +55,7 @@ public static class ResourceTransferAssertions
         {
             Require(IsAlive && Reserved >= amount, "fixture cancel has a live reservation");
             CancelCalls++; Reserved -= amount;
+            ReceiveSpaceAvailable?.Invoke(dir);
         }
         public void EndLifetime() { IsAlive = false; Reserved = 0; }
         // Equalsが一致しても、別の寿命を持つ接点はIdentityの参照で区別する。
@@ -59,6 +67,33 @@ public static class ResourceTransferAssertions
     {
         public int Id, ReuseCalls;
         public void Reuse(int dir, int resourceId) { Id = resourceId; ReuseCalls++; }
+    }
+
+    public static async UniTask VerifyBlockedTransferWaitsForPort(ResourceItemObjectPoolAdapter pool)
+    {
+        var source = new EndpointFixture();
+        var target = new EndpointFixture { Amount = 10 };
+        var id = pool.CreateIdFromResourceData(ResourceTypeDomain.Stone, 5);
+        var operation = new ResourceTransferOperationApplication(source, target, id, ResourceTypeDomain.Stone, 5);
+        var coordinator = new ResourceTransferCoordinatorApplication(operation);
+        using var cancellation = new CancellationTokenSource();
+        var transfer = coordinator.RunAsync(() => 1, Vector3.zero, Vector3.right, () => target,
+            endpoint => ReferenceEquals(endpoint, target), pool.Resources, pool, () => pool.BaseTransferSeconds,
+            cancellation.Token).AsTask();
+        await UniTask.DelayFrame(8);
+        Require(target.Attempts == 1 && target.Reserved == 0 && ContainsId(pool, id),
+            "a full port sleeps across frames and the source keeps the original batch");
+        target.OpenSpace(2, 2);
+        await UniTask.DelayFrame(3);
+        Require(target.Attempts == 1, "space at another input does not wake this transfer");
+        target.OpenSpace(1, 1);
+        await UniTask.DelayFrame(8);
+        Require(target.Attempts == 2 && target.Reserved == 0 && ContainsId(pool, id),
+            "an insufficient change is checked once and keeps the whole batch at the source");
+        target.OpenSpace(1, 2);
+        Require(await transfer.AsUniTask().Timeout(TimeSpan.FromSeconds(3)) == ResourceAnimationResultApplication.Completed &&
+                target.Attempts == 3 && target.Amount == 10 && target.CommitCalls == 1 && !ContainsId(pool, id),
+            "space for the whole batch wakes the transfer and commits once");
     }
 
     public static async UniTask VerifyNonCellEndpoints(ResourceItemObjectPoolAdapter pool)
@@ -423,8 +458,10 @@ public static class ResourceTransferAssertions
 
         var replacement = CreateCell<StorageCellAdapter>("TransferCheck:Replacement", Vector3.right);
         SetField(replacement, "capacity", 10);
-        var adjacent = (Dictionary<Vector3Int, IContainableApplication>)GetField(setup.crossing, "_adjacentContainers");
-        adjacent[Vector3Int.right] = replacement;
+        var connection = new ConnectableCellBaseAdapter.Connection
+        { Owner = setup.crossing, Neighbor = replacement, PortId = 0, NeighborPortId = 1 };
+        typeof(CrossingCellAdapter).GetMethod("OnConnectionUpdated", InstanceFields)
+            .Invoke(setup.crossing, new object[] {connection});
         await UniTask.Delay(120);
         await UniTask.WaitUntil(() => GetCrossingReservation(setup.crossing) != null).Timeout(TimeSpan.FromSeconds(2));
         var secondReservation = GetCrossingReservation(setup.crossing);
