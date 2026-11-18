@@ -309,6 +309,8 @@ public static class EconomyUIAssertions
         var open = body.anchoredPosition;
         var page = panel.SelectedPage;
         var group = body.GetComponent<CanvasGroup>();
+        var itemVisibility = hud.Body.content.GetComponent<CanvasGroup>();
+        var closeVisibility = hud.Close.GetComponent<CanvasGroup>();
         var timeScale = Time.timeScale;
         var point = RectTransformUtility.WorldToScreenPoint(null, body.TransformPoint(body.rect.center));
         try
@@ -321,6 +323,8 @@ public static class EconomyUIAssertions
             Require(hud.Tabs.All(tab => tab.colors.normalColor == hud.IdleTabColor) && EventSystem.current.currentSelectedGameObject == null,
                 "closing clears active tab color and selection focus");
             Require(body.gameObject.activeSelf && group.blocksRaycasts && !group.interactable, "closing keeps visible frame and blocks purchases");
+            Require(itemVisibility.alpha == 0 && closeVisibility.alpha == 0 && group.alpha == 1,
+                "moving frame keeps its background while unavailable controls are hidden");
             do { await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate); }
             while (hud.IsSliding && Time.unscaledTime - started < .08f);
             Require(body.anchoredPosition.x < open.x, "closing slides left instead of disappearing");
@@ -330,6 +334,7 @@ public static class EconomyUIAssertions
             Require(body.anchoredPosition.x == current, "reversal starts from current position");
             await WaitForSlide(panel);
             Require(Vector2.Distance(body.anchoredPosition, open) < .01f && group.interactable, "opening returns to authored frame while paused");
+            Require(itemVisibility.alpha == 1 && closeVisibility.alpha == 1, "controls are visible when input resumes");
             panel.SetExpanded(false);
             await WaitForSlide(panel);
             var canvas = (RectTransform)hud.transform;

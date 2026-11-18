@@ -29,7 +29,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     private Vector2 _navigationPosition, _headerPosition, _bodyPosition, _bodySize;
     private float _width, _bodyHeight, _summaryHeight;
     private float _slide, _slideTarget, _slideFrom, _slideElapsed;
-    private CanvasGroup _bodyInput, _headerInput;
+    private CanvasGroup _bodyInput, _headerInput, _bodyItems;
     private bool _firstPerson;
     public void SetFirstPersonMode(bool active)
     {
@@ -96,6 +96,9 @@ public sealed class HudLayoutAdapter : MonoBehaviour
         var colors = button.colors;
         colors.normalColor = selected ? SelectedTabColor : IdleTabColor;
         colors.highlightedColor = colors.pressedColor = colors.selectedColor = SelectedTabColor;
+        // スライド用の入力遮断では非表示にするため、再表示時に無効色から補間させない。
+        if (button == Close || button.transform.IsChildOf(Body.content))
+            colors.disabledColor = colors.normalColor;
         button.colors = colors;
     }
     private void InitializeLayout()
@@ -109,6 +112,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
         _width = body.rect.width; _bodyHeight = body.rect.height; _summaryHeight = Summary.rect.height;
         _bodyInput = Body.GetComponent<CanvasGroup>();
         _headerInput = Close.GetComponent<CanvasGroup>();
+        _bodyItems = Body.content.GetComponent<CanvasGroup>();
         foreach (var page in Pages) HudMotionAdapter.Reveal(page);
         HudMotionAdapter.Reveal(EncyclopediaPage);
         // 移動する内容より手前にタブを置き、途中でも開き直せるようにする。
@@ -133,7 +137,10 @@ public sealed class HudLayoutAdapter : MonoBehaviour
         Body.gameObject.SetActive(visible);
         Close.gameObject.SetActive(visible);
         // 移動中の購入を防ぎ、見えているUIの背後へ配置入力を通さない。
-        _bodyInput.interactable = _headerInput.interactable = _slide == 1 && _slideTarget == 1;
+        var ready = visible && _slide == 1 && _slideTarget == 1;
+        _bodyInput.interactable = _headerInput.interactable = ready;
+        // 枠だけをスライドさせ、入力を受け付けない操作部品はその間隠す。
+        _bodyItems.alpha = _headerInput.alpha = ready ? 1 : 0;
         _bodyInput.blocksRaycasts = _headerInput.blocksRaycasts = visible;
     }
     public void UpdateLayout()

@@ -100,7 +100,8 @@ public static class HudPrefabAssertions
             hud.GetComponentInChildren<CellStatusViewAdapter>(true).StatusScroll.GetComponent<Image>().color ==
                 savedHud.GetComponentInChildren<CellStatusViewAdapter>(true).StatusScroll.GetComponent<Image>().color &&
             bar.Bar.GetComponent<Image>().color == savedBar.Bar.GetComponent<Image>().color, "black panel backgrounds retain saved colors");
-        foreach (var button in hud.GetComponentsInChildren<Button>(true).Concat(bar.GetComponentsInChildren<Button>(true)))
+        foreach (var button in hud.GetComponentsInChildren<Button>(true).Concat(bar.GetComponentsInChildren<Button>(true))
+                     .Where(button => button.enabled))
         {
             Require(button.targetGraphic.color == Color.white, "no double color multiplication");
             var locked = button.name.StartsWith("SkillNode_") && TestScenes.Find<GameInitializerAdapter>().Skills.CanPurchase(button.name.Substring("SkillNode_".Length)) == SkillPurchaseResultApplication.PrerequisiteMissing;

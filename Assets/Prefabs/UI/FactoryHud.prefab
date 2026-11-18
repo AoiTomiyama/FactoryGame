@@ -2035,6 +2035,7 @@ GameObject:
   - component: {fileID: 1573346561812208955}
   - component: {fileID: 894389694236045244}
   - component: {fileID: 1723202245831971667}
+  - component: {fileID: 8840400000000000001}
   m_Layer: 0
   m_Name: Content
   m_TagString: Untagged
@@ -5803,3 +5804,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.ContentSizeFitter
   m_HorizontalFit: 0
   m_VerticalFit: 2
+--- !u!225 &8840400000000000001
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5786628554966254418}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0

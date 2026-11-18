@@ -73,6 +73,10 @@ public sealed class ResourceExpansionHudPlayModeTests : FactoryPlayModeScope
             row.Link.onClick.Invoke();
         }
 
+        var preparedRecipe = layout.RecipeDetails.GetComponentsInChildren<Text>(true);
+        var preparedEncyclopedia = layout.EncyclopediaDetails.GetComponentsInChildren<Text>(true);
+        Assert.That(preparedRecipe, Is.Not.Empty);
+        Assert.That(preparedEncyclopedia, Is.Not.Empty);
         panel.PageButton(EconomyPanelAdapter.RecipePage).onClick.Invoke();
         await UniTask.DelayFrame(3);
         Assert.That(placer.PlacementEnabled, Is.False);
@@ -119,6 +123,8 @@ public sealed class ResourceExpansionHudPlayModeTests : FactoryPlayModeScope
         Assert.That(placer.PlacementEnabled, Is.True);
         panel.PageButton(EconomyPanelAdapter.EncyclopediaPage).onClick.Invoke();
         Assert.That(placer.PlacementEnabled, Is.False);
+        CollectionAssert.AreEqual(preparedRecipe, layout.RecipeDetails.GetComponentsInChildren<Text>(true));
+        CollectionAssert.AreEqual(preparedEncyclopedia, layout.EncyclopediaDetails.GetComponentsInChildren<Text>(true));
     }
     private static async UniTask VerifyHud()
     {
