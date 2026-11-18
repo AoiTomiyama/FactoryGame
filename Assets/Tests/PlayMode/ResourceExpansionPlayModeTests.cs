@@ -98,7 +98,13 @@ public sealed class ResourceExpansionHudPlayModeTests : FactoryPlayModeScope
         panel.PageButton(EconomyPanelAdapter.EncyclopediaPage).onClick.Invoke();
         Assert.That(panel.EncyclopediaContent.GetComponentsInChildren<RecipeResourceRowAdapter>().Length,
             Is.EqualTo(layout.Resources.GetAllResources().Length));
+        Select(panel.EncyclopediaContent, ResourceTypeDomain.MachineParts);
+        var processed = layout.EncyclopediaDetails.GetComponentsInChildren<Text>().Select(text => text.text).ToArray();
+        Assert.That(processed[0], Is.EqualTo("機械部品"));
+        Assert.That(processed[1], Does.StartWith("売値 "));
+        Assert.That(processed, Does.Contain("できあがり 1個"));
         Select(panel.EncyclopediaContent, ResourceTypeDomain.Iron);
+        Assert.That(layout.EncyclopediaDetails.GetComponentsInChildren<Text>()[0].text, Is.EqualTo("鉄鉱石"));
         Assert.That(game.Prices.TryGetSaleAmount(ResourceTypeDomain.Iron, 1, out var unit));
         Assert.That(status.StatusScroll.content, Is.SameAs(layout.EncyclopediaDetails));
         var encyclopedia = string.Join("\n", layout.EncyclopediaDetails.GetComponentsInChildren<Text>().Select(text => text.text));

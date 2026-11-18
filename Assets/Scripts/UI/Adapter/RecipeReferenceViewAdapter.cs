@@ -109,7 +109,7 @@ public sealed class RecipeReferenceViewAdapter : IDisposable
         var methods = _catalog.MethodsFor(selected);
         if (_encyclopedia)
         {
-            if (methods.Count == 0) Label(detail, _layout.RecipeHeading, resourceName);
+            Label(detail, _layout.RecipeHeading, resourceName);
             Label(detail, _layout.TextRow, _catalog.TryGetUnitSalePrice(selected, out var price) ? $"売値 {price:N0} / 個" : "売却不可");
             var extractor = ResourceCellRulesDomain.ExtractorType(selected);
             if (extractor != CellTypeDomain.None)
@@ -119,7 +119,8 @@ public sealed class RecipeReferenceViewAdapter : IDisposable
         foreach (var method in methods)
         {
             var info = method.Definition;
-            Label(detail, _layout.RecipeHeading, $"{resourceName} ×{info.Recipe.ResultAmount}");
+            var output = _encyclopedia ? $"できあがり {info.Recipe.ResultAmount}個" : $"{resourceName} ×{info.Recipe.ResultAmount}";
+            Label(detail, _layout.RecipeHeading, output);
             foreach (var ingredient in info.Recipe.Ingredients)
             {
                 var type = ingredient.Type;
