@@ -47,7 +47,8 @@ public sealed class AutomaticConveyorTests : FactoryEditModeScope
         Assert.That(ConveyorRouteRulesDomain.Extend(straight, output, input).Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Invalid));
         Assert.That(new ConveyorRouteRulesDomain.Route(input | output, left | right).Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Invalid));
 
-        var line = new[] { (3, 4, default(ConveyorRouteRulesDomain.Route)), (4, 4, straight), (5, 4, default) };
+        var line = new (int, int, ConveyorRouteRulesDomain.Route, DirectionsDomain)[]
+            { (3, 4, default, 0), (4, 4, straight, 0), (5, 4, default, 0) };
         var replacement = ConveyorRouteRulesDomain.Plan(line, right).Replacements;
         Assert.That(replacement.Count, Is.EqualTo(1));
         Assert.That((replacement[0].X, replacement[0].Z), Is.EqualTo((4, 4)));
@@ -56,6 +57,18 @@ public sealed class AutomaticConveyorTests : FactoryEditModeScope
         Assert.That(parallel.Invalid, Is.False);
         Assert.That(parallel.Replacements, Is.Empty);
         Assert.That(ConveyorRouteRulesDomain.Plan(line, input).Invalid);
+
+        var branch = new (int, int, ConveyorRouteRulesDomain.Route, DirectionsDomain)[]
+            { (4, 4, split, right), (3, 4, default, 0) };
+        var sideSplit = ConveyorRouteRulesDomain.Plan(branch, left).Replacements[0].After;
+        Assert.That(sideSplit.Inputs, Is.EqualTo(input));
+        Assert.That(sideSplit.Outputs, Is.EqualTo(left | right));
+        branch[0] = (4, 4, split, output | right);
+        Assert.That(ConveyorRouteRulesDomain.Plan(branch, left).Replacements[0].After.Outputs,
+            Is.EqualTo(output | left | right));
+        branch[0] = (4, 4, sideSplit, left | right);
+        Assert.That(ConveyorRouteRulesDomain.Plan(branch, output).Replacements[0].After.Outputs,
+            Is.EqualTo(output | left | right));
     }
 
     [TestCase(0)] [TestCase(90)] [TestCase(180)] [TestCase(270)]

@@ -390,9 +390,10 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
     protected override bool NeedsMainScene=>true;
     [UnityTest] public IEnumerator UnifiedToolMatchesPreviewAndChargesOnePrice()=>VerifyPlacement().ToCoroutine();
     [UnityTest] public IEnumerator DragConvertsABeltWithAnIncomingReservationAndPreservesItsDirection() => VerifyRouteDrag(false).ToCoroutine();
-    [UnityTest] public IEnumerator DragAddsSideOutputsToMakeAThreeWaySplit() => VerifyRouteDrag(true).ToCoroutine();
+    [UnityTest] public IEnumerator DragAddsSideOutputsToMakeAThreeWaySplit() => VerifyRouteDrag(true, connectForward: true).ToCoroutine();
+    [UnityTest] public IEnumerator DragMakesALeftRightSplitWhenTheForwardExitIsUnconnected() => VerifyRouteDrag(true).ToCoroutine();
 
-    private static async UniTask VerifyRouteDrag(bool split)
+    private static async UniTask VerifyRouteDrag(bool split, bool connectForward = false)
     {
         var game = Object.FindAnyObjectByType<GameInitializerAdapter>();
         var placer = Object.FindAnyObjectByType<CellPlacerAdapter>();
@@ -406,7 +407,7 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
             grid.GetCell(cell.XIndex, cell.ZIndex - 1) is EmptyCellAdapter && grid.GetCell(cell.XIndex, cell.ZIndex + 1) is EmptyCellAdapter);
         var x = center.XIndex;
         var z = center.ZIndex;
-        void Drag(int from, int to, int previewCount, long previewCost, bool checkArrows = false)
+        void Drag(int from, int to, int previewCount, long previewCost, bool checkArrows = false, bool bothSides = false)
         {
             placer.SelectGrid(grid.GetCell(from, z).gameObject);
             placer.PointerBegin();
@@ -421,10 +422,10 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
                 if (split)
                 {
                     Assert.That(marker.transform.Find("BeltCenter").GetComponent<MeshRenderer>().enabled);
-                    Assert.That(marker.transform.Find("ForwardBelt").gameObject.activeSelf);
+                    Assert.That(marker.transform.Find("ForwardBelt").gameObject.activeSelf, Is.EqualTo(!bothSides || connectForward));
                     Assert.That(marker.transform.Find("RightBelt").gameObject.activeSelf);
                     Assert.That(marker.transform.Find("BackBelt").gameObject.activeSelf);
-                    Assert.That(marker.transform.Find("LeftBelt").gameObject.activeSelf, Is.False);
+                    Assert.That(marker.transform.Find("LeftBelt").gameObject.activeSelf, Is.EqualTo(bothSides));
                 }
                 else
                 {
@@ -456,7 +457,11 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
             Assert.That(placer.LastPlacedCount, Is.EqualTo(1));
         }
         StorageCellAdapter sink = null;
-        if (split) Assert.That(original.AllocateStorage(0, 2, ResourceTypeDomain.Stone));
+        if (split)
+        {
+            if (connectForward) PlaceAt(CellTypeDomain.Conveyor, z + 1);
+            Assert.That(original.AllocateStorage(0, 2, ResourceTypeDomain.Stone));
+        }
         else
         {
             Assert.That(game.ConstructionStock.TryReserveDeposit(ResourceTypeDomain.Plank, 2, out var planks));
@@ -473,17 +478,22 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
             placer.SetSelectedCellType(CellTypeDomain.Conveyor);
         }
         Drag(split ? x : x - 1, x + 1, split ? 2 : 3, split ? 10 : 15, checkArrows: true);
-        if (split) Drag(x, x - 1, 2, 5);
+        if (split)
+        {
+            await UniTask.NextFrame();
+            Drag(x, x - 1, 2, 5, checkArrows: true, bothSides: true);
+        }
         var converted = (ConnectableCellBaseAdapter)grid.GetCell(x, z);
         Assert.That(converted, split ? Is.TypeOf<ConveyorJunctionCellAdapter>() : Is.TypeOf<CrossingCellAdapter>());
         foreach (var port in converted.Ports)
         {
             var world = converted.PortDirection(port.Id);
-            var output = world.z == 1 || world.x == 1 || (split && world.x == -1);
+            var output = world.x == 1 || (split && world.x == -1) || (world.z == 1 && (!split || connectForward));
+            var input = world.z == -1 || (!split && world.x == -1);
             Assert.That(converted.HasPort(port.Id, CellPortUseDomain.Output), Is.EqualTo(output));
-            Assert.That(converted.HasPort(port.Id, CellPortUseDomain.Input), Is.EqualTo(!output));
+            Assert.That(converted.HasPort(port.Id, CellPortUseDomain.Input), Is.EqualTo(input));
         }
-        Assert.That(converted.Connections.Count, Is.EqualTo(split ? 2 : 4));
+        Assert.That(converted.Connections.Count, Is.EqualTo(split ? (connectForward ? 3 : 2) : 4));
         Assert.That(game.ConstructionStock.Available(ResourceTypeDomain.CopperWire), Is.Zero);
         if (!split)
             await UniTask.WaitUntil(() => sink.CurrentLoad == 2).Timeout(TimeSpan.FromSeconds(5), DelayType.Realtime);

@@ -191,7 +191,7 @@ public class CellPlacerAdapter : MonoBehaviour
         var step = start <= end ? 1 : -1;
         var travel = isX ? new Vector3Int(step, 0, 0) : new Vector3Int(0, 0, step);
         var line = _selectedType == CellTypeDomain.Conveyor && !_clearingMode && start != end
-            ? new (int X, int Z, ConveyorRouteRulesDomain.Route Existing)[Mathf.Abs(end - start) + 1] : null;
+            ? new (int X, int Z, ConveyorRouteRulesDomain.Route Existing, DirectionsDomain ConnectedOutputs)[Mathf.Abs(end - start) + 1] : null;
         var grid = GridFieldDatabaseAdapter.Instance;
         for (int i = start; i != end + step; i += step)
         {
@@ -208,7 +208,7 @@ public class CellPlacerAdapter : MonoBehaviour
             }
             if (line != null && TryGetExistingRoute(cell, out var current))
             {
-                line[(i - start) * step] = (x, z, current);
+                line[(i - start) * step] = (x, z, current, ConnectedOutputs((ConnectableCellBaseAdapter)cell));
                 continue;
             }
             if (_cachedCell is not EmptyCellAdapter && !CanPlaceAt(x, z)) { _overlap = true; continue; }
@@ -261,6 +261,19 @@ public class CellPlacerAdapter : MonoBehaviour
                 route = default;
                 return false;
         }
+    }
+
+    private static DirectionsDomain ConnectedOutputs(ConnectableCellBaseAdapter cell)
+    {
+        var outputs = (DirectionsDomain)0;
+        foreach (var link in cell.Connections.Values)
+        {
+            if (!cell.HasPort(link.PortId, CellPortUseDomain.Output) || link.Neighbor == null ||
+                !link.Neighbor.HasPort(link.NeighborPortId, CellPortUseDomain.Input)) continue;
+            var direction = link.Direction;
+            outputs |= ConveyorRouteRulesDomain.Side(direction.x, direction.z);
+        }
+        return outputs;
     }
 
     private void SelectRangedGrid(HashSet<CellBaseAdapter> newSelection)
@@ -443,7 +456,8 @@ public class CellPlacerAdapter : MonoBehaviour
             (removing ? replaceTarget is not EmptyCellAdapter && retired.All(c => c == replaceTarget) :
                 converting ? retired.All(c => c == replaceTarget) && replaceTarget.transform.rotation == rotation &&
                     TryGetExistingRoute(replaceTarget, out var current) &&
-                    current.Inputs == change.Before.Inputs && current.Outputs == change.Before.Outputs :
+                    current.Inputs == change.Before.Inputs && current.Outputs == change.Before.Outputs &&
+                    (ConnectedOutputs(oldRoute) & (change.Before.Outputs & ~change.After.Outputs)) == 0 :
                 retired.All(c => c is EmptyCellAdapter)) &&
             previous.All(e => grid.GetCell(e.X, e.Z) == e.Owner && e.Owner != null && e.Owner.isActiveAndEnabled);
 

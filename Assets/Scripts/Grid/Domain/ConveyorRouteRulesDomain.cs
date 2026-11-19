@@ -50,7 +50,7 @@ public static class ConveyorRouteRulesDomain
     }
 
     public static (List<(int X, int Z, Route Before, Route After)> Replacements, bool Overlap, bool Invalid)
-        Plan(IReadOnlyList<(int X, int Z, Route Existing)> line, DirectionsDomain travel)
+        Plan(IReadOnlyList<(int X, int Z, Route Existing, DirectionsDomain ConnectedOutputs)> line, DirectionsDomain travel)
     {
         var replacements = new List<(int X, int Z, Route Before, Route After)>();
         var overlap = false;
@@ -58,13 +58,19 @@ public static class ConveyorRouteRulesDomain
         var entry = Opposite(travel);
         for (var i = 0; i < line.Count; i++)
         {
-            var (x, z, existing) = line[i];
+            var (x, z, existing, connectedOutputs) = line[i];
             if (existing.Inputs == 0) continue;
             var incoming = i == 0 ? 0 : entry;
             var outgoing = i == line.Count - 1 ? 0 : travel;
             var proposed = Extend(existing, incoming, outgoing);
-            if (proposed.Type != Kind.Invalid)
+            var type = proposed.Type;
+            if (type != Kind.Invalid)
             {
+                // 左右がそろったら未接続の正面口を外す。正面へ引く操作ならその出口を追加する。
+                var forward = Opposite(proposed.Inputs);
+                if (type == Kind.Split && outgoing != 0 && outgoing != forward &&
+                    (proposed.Inputs | proposed.Outputs) == AllSides && (connectedOutputs & forward) == 0)
+                    proposed = new Route(proposed.Inputs, proposed.Outputs & ~forward);
                 replacements.Add((x, z, existing, proposed));
                 continue;
             }
