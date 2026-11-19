@@ -44,82 +44,86 @@ internal static class DebugWorldSeedAdapter
             cell.routeOutputs = outputs;
         }
 
-        // 特異点の東側から納品し、周囲の空きマスを閲覧と移動に使う。
-        Add(CellTypeDomain.Singularity, 0, 0);
-        Storage(6, 0, deliverySample, 9);
-        for (var x = 5; x >= 3; x--) Add(CellTypeDomain.Conveyor, x, 0, 3);
-
-        // 地形・採取設備・搬出路は品目ごとに一列で確認する。
-        var natural = prefabs.Values.OfType<ResourceCellAdapter>().OrderBy(cell => (int)cell.ResourceTypeDomain).ToArray();
-        for (var i = 0; i < natural.Length; i++)
+        void BeltLine(int x, int z, int turn, int length)
         {
-            var resource = natural[i].ResourceTypeDomain;
-            var x = -12 + 3 * i;
-            Add(SaveWorldAdapter.Kind(natural[i]), x, -13);
+            var (dx, dz) = CellFootprintDomain.Rotate(0, 1, turn);
+            for (var i = 0; i < length; i++) Add(CellTypeDomain.Conveyor, x + i * dx, z + i * dz, turn);
+        }
+
+        var natural = prefabs.Values.OfType<ResourceCellAdapter>().ToDictionary(cell => cell.ResourceTypeDomain);
+        void Harvest(ResourceTypeDomain resource, int x, int z, int facing, int shoulder)
+        {
+            var terrain = SaveWorldAdapter.Kind(natural[resource]);
+            Add(terrain, x, z);
+            Add(terrain, x + shoulder, z);
+            for (var i = 0; i < 3; i++) Add(terrain, x + i * shoulder, z - 1);
             var extractor = ResourceCellRulesDomain.ExtractorType(resource);
-            if (extractor == CellTypeDomain.None) continue;
-            Add(extractor, x, -14);
-            Add(CellTypeDomain.ExportConveyor, x, -15, 2);
-            Add(CellTypeDomain.Storage, x, -16);
+            if (extractor == CellTypeDomain.None) return;
+            var (dx, dz) = CellFootprintDomain.Rotate(0, 1, facing);
+            Add(extractor, x - dx, z - dz, facing);
+            Add(CellTypeDomain.ExportConveyor, x - 2 * dx, z - 2 * dz, (facing + 2) % 4);
         }
 
-        void Craft(CellTypeDomain type, int x, int z, CellTypeDomain destination)
+        // 木材と石材を平行に加工し、上位加工から出荷と建設資材庫へ分ける。
+        Add(CellTypeDomain.Singularity, 0, 0);
+        Add(CellTypeDomain.Shipping, 0, -3);
+        foreach (var (resource, x) in new[] { (wood, -1), (stone, 1) })
         {
-            Add(type, x, z);
-            var machine = (CrafterCellAdapter)prefabs[type];
-            var inputs = machine.Ports.Where(port => (port.Use & CellPortUseDomain.Input) != 0).OrderBy(port => port.Id).ToArray();
-            var recipe = machine.ConfiguredRecipes.Where(definition => definition != null)
-                .Select(definition => definition.TryReadRecipe(out var value) ? value : null)
-                .FirstOrDefault(value => value != null && value.Ingredients.Count == inputs.Length);
-            if (recipe == null) throw new InvalidOperationException($"No debug recipe for {type}.");
-            for (var i = 0; i < inputs.Length; i++)
-            {
-                var port = inputs[i];
-                var ingredient = recipe.Ingredients[i];
-                Storage(x + port.Cell.x, z + port.Cell.y - 2, ingredient.Type, ingredient.Amount);
-                Add(CellTypeDomain.ExportConveyor, x + port.Cell.x, z + port.Cell.y - 1);
-            }
-            var output = machine.Ports.Single(port => (port.Use & CellPortUseDomain.Output) != 0);
-            Add(CellTypeDomain.ExportConveyor, x + output.Cell.x, z + output.Cell.y + 1);
-            Add(destination, x + output.Cell.x, z + output.Cell.y + 2);
+            Harvest(resource, x, -17, 2, x);
+            BeltLine(x, -14, 0, 1);
+            Add(CellTypeDomain.Crafter, x, -13);
+            Add(CellTypeDomain.ExportConveyor, x, -12);
+            Add(CellTypeDomain.Storage, x, -11);
+            Add(CellTypeDomain.ExportConveyor, x, -10);
         }
+        Add(CellTypeDomain.AdvancedCrafter, -1, -9);
+        Add(CellTypeDomain.ExportConveyor, 0, -7);
+        BeltLine(0, -6, 0, 1);
+        Route(CellTypeDomain.Junction, 0, -5, DirectionsDomain.Back, DirectionsDomain.Forward | DirectionsDomain.Right);
+        BeltLine(0, -4, 0, 1);
+        BeltLine(1, -5, 1, 1);
+        Add(CellTypeDomain.ConstructionDepot, 2, -5);
 
-        Craft(CellTypeDomain.Crafter, -6, 2, CellTypeDomain.Shipping);
-        Craft(CellTypeDomain.AdvancedCrafter, 0, 9, CellTypeDomain.Storage);
+        // 北側の2つの保管庫を合流させ、中央の特異点へ納品する。
+        Storage(0, 9, deliverySample, 9);
+        Add(CellTypeDomain.ExportConveyor, 0, 8, 2);
+        BeltLine(0, 7, 2, 1);
+        Storage(4, 6, deliverySample, 6);
+        Add(CellTypeDomain.ExportConveyor, 3, 6, 3);
+        BeltLine(2, 6, 3, 2);
+        Route(CellTypeDomain.Junction, 0, 6, DirectionsDomain.Forward | DirectionsDomain.Right, DirectionsDomain.Back);
+        BeltLine(0, 5, 2, 3);
 
-        // それぞれの入口に在庫を置き、ゲーム開始直後に各経路へ資源を流す。
-        Route(CellTypeDomain.Crossing, -11, 9, DirectionsDomain.Back | DirectionsDomain.Left,
+        // 西側で採取ラインを交差させ、縦の流れは手動交差を経由して三方向へ分ける。
+        Harvest(wood, -8, -8, 2, -1);
+        BeltLine(-8, -5, 0, 4);
+        Harvest(stone, -15, -1, 3, -1);
+        BeltLine(-12, -1, 1, 4);
+        Route(CellTypeDomain.Crossing, -8, -1, DirectionsDomain.Back | DirectionsDomain.Left,
             DirectionsDomain.Forward | DirectionsDomain.Right);
-        Storage(-11, 8, wood, 9);
-        Storage(-12, 9, stone, 9);
-        Add(CellTypeDomain.Storage, -11, 10);
-        Add(CellTypeDomain.Storage, -10, 9);
-
-        Storage(-11, 13, wood, 9);
-        Add(CellTypeDomain.ExportConveyor, -11, 14);
-        Add(CellTypeDomain.Crossing, -11, 15);
-        Add(CellTypeDomain.Storage, -11, 16);
-
-        Route(CellTypeDomain.Junction, 7, 8, DirectionsDomain.Back, DirectionsDomain.Forward | DirectionsDomain.Right);
-        Storage(7, 7, wood, 9);
-        Add(CellTypeDomain.Storage, 7, 9);
-        Add(CellTypeDomain.Storage, 8, 8);
-
-        Route(CellTypeDomain.Junction, 12, 8, DirectionsDomain.Back | DirectionsDomain.Left, DirectionsDomain.Forward);
-        Storage(12, 7, wood, 4);
-        Storage(11, 8, wood, 4);
-        Add(CellTypeDomain.Storage, 12, 9);
-
-        Route(CellTypeDomain.Junction, 7, 14, DirectionsDomain.Back,
+        BeltLine(-7, -1, 1, 2);
+        Add(CellTypeDomain.Storage, -5, -1);
+        BeltLine(-8, 0, 0, 3);
+        Add(CellTypeDomain.Crossing, -8, 3);
+        BeltLine(-8, 4, 0, 2);
+        Route(CellTypeDomain.Junction, -8, 6, DirectionsDomain.Back,
             DirectionsDomain.Forward | DirectionsDomain.Left | DirectionsDomain.Right);
-        Storage(7, 13, stone, 15);
-        Add(CellTypeDomain.Storage, 6, 14);
-        Add(CellTypeDomain.Storage, 8, 14);
-        Add(CellTypeDomain.Storage, 7, 15);
+        BeltLine(-8, 7, 0, 2);
+        BeltLine(-9, 6, 3, 2);
+        BeltLine(-7, 6, 1, 2);
+        Add(CellTypeDomain.Storage, -8, 9);
+        Add(CellTypeDomain.Storage, -11, 6);
+        Add(CellTypeDomain.Storage, -5, 6);
 
-        Storage(8, -6, ResourceTypeDomain.Plank, 6);
-        Add(CellTypeDomain.ExportConveyor, 9, -6, 1);
-        Add(CellTypeDomain.ConstructionDepot, 10, -6);
+        // 東側には残りの採取ラインを揃え、中央と各区画の間を歩けるようにする。
+        var otherResources = natural.Keys.Where(resource => resource != wood && resource != stone).OrderBy(resource => resource).ToArray();
+        for (var i = 0; i < otherResources.Length; i++)
+        {
+            var x = 6 + 4 * i;
+            Harvest(otherResources[i], x, -13, 2, 1);
+            BeltLine(x, -10, 0, 2);
+            Add(CellTypeDomain.Storage, x, -8);
+        }
 
         // 未配置の定義もモデル閲覧に含める。既存の検証ラインからは間隔を空ける。
         var galleryIndex = 0;

@@ -98,16 +98,24 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         var registered = TestScenes.Find<CellPlacerAdapter>().FieldPrefabs().Select(SaveWorldAdapter.Kind).ToHashSet();
         Assert.That(grid.Owners.Select(SaveWorldAdapter.Kind).ToHashSet(), Is.EquivalentTo(registered));
         var center = grid.GeneratedSize / 2;
+        Assert.That(grid.GetCell(center, center), Is.TypeOf<SingularityCellAdapter>());
+        Assert.That(grid.GetCell(center, center - 3), Is.TypeOf<ShippingCellAdapter>());
+        Assert.That(grid.GetCell(center - 3, center), Is.TypeOf<EmptyCellAdapter>());
+        Assert.That(grid.GetCell(center + 3, center), Is.TypeOf<EmptyCellAdapter>());
         var initialBalance = game.Wallet.Current.Balance;
-        var initialPlanks = game.ConstructionStock.Available(ResourceTypeDomain.Plank);
-        bool HasLoad(int x, int z) => grid.GetCell(center + x, center + z) is StorageCellAdapter storage && storage.CurrentLoad > 0;
+        var initialParts = game.ConstructionStock.Available(ResourceTypeDomain.BuildingParts);
+        var deliverySample = game.Deliveries.Catalog.Stages[0].Requirements[0].Resource;
+        bool Received(int x, int z, ResourceTypeDomain type) =>
+            grid.GetCell(center + x, center + z) is StorageCellAdapter storage &&
+            storage.CurrentLoad > 0 && storage.StoredResourceType == type;
         Time.timeScale = 6;
         await UniTask.WaitUntil(() =>
-            new[] { -12, -9, -6, -3, 0 }.All(x => HasLoad(x, -16)) &&
-            HasLoad(1, 12) && HasLoad(-11, 10) && HasLoad(-10, 9) && HasLoad(-11, 16) &&
-            HasLoad(7, 9) && HasLoad(8, 8) && HasLoad(12, 9) && HasLoad(6, 14) && HasLoad(8, 14) && HasLoad(7, 15) &&
-            game.Wallet.Current.Balance > initialBalance && game.ConstructionStock.Available(ResourceTypeDomain.Plank) > initialPlanks &&
-            game.Deliveries.Current.Delivered.Values.Any(amount => amount > 0))
+            Received(6, -8, ResourceTypeDomain.Iron) && Received(10, -8, ResourceTypeDomain.Copper) &&
+            Received(14, -8, ResourceTypeDomain.Coal) && Received(-5, -1, ResourceTypeDomain.Stone) &&
+            Received(-8, 9, ResourceTypeDomain.Wood) && Received(-11, 6, ResourceTypeDomain.Wood) &&
+            Received(-5, 6, ResourceTypeDomain.Wood) && game.Wallet.Current.Balance > initialBalance &&
+            game.ConstructionStock.Available(ResourceTypeDomain.BuildingParts) > initialParts &&
+            game.Deliveries.Current.Count(deliverySample) == 15)
             .Timeout(TimeSpan.FromSeconds(25), DelayType.Realtime);
         Time.timeScale = 1;
         Assert.That(game.Wallet.TryReserveIncome(200000, out var edit));
