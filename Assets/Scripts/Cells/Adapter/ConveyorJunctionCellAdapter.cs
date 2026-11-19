@@ -7,6 +7,7 @@ using UnityEngine;
 
 public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IContainableApplication, IResourceReusableApplication
 {
+    private const float InputOffset = .24f;
     [SerializeField] private ExportConveyorCellAdapter exportDefinition;
     [SerializeField] private Material routeMaterial;
     [SerializeField] private Transform beltModel, beltSurface;
@@ -27,6 +28,11 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
     internal ConveyorRouteRulesDomain.Route WorldRoute => ConveyorRouteRulesDomain.Rotate(_route, QuarterTurns);
     internal int InputCursor => _junction.InputCursor;
     internal int OutputCursor => _junction.OutputCursor;
+    private bool IsMerge => _route.Type == ConveyorRouteRulesDomain.Kind.Merge;
+
+    internal override Vector3 ResourceDisplayPosition(Vector3 point, Vector3Int travelDirection) =>
+        IsMerge ? point - (Vector3)travelDirection * InputOffset + Vector3.up * ResourceDisplayHeight
+            : base.ResourceDisplayPosition(point, travelDirection);
 
     internal void ConfigureWorldRoute(ConveyorRouteRulesDomain.Route route) =>
         ConfigureRoute(ConveyorRouteRulesDomain.Rotate(route, -QuarterTurns));
@@ -91,12 +97,12 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
         if (!AllocateStorage(port, amount, type)) throw new InvalidOperationException("Junction input is already reserved.");
         var id = _pool.CreateIdFromResourceData(type, amount);
         Reuse(port, id);
-        _pool.SetPosition(id, HoldingPosition(port));
         StoreResource(port, amount);
     }
 
-    private Vector3 HoldingPosition(int port) => transform.position + (Vector3)PortDirection(port) * .24f +
-        Vector3.up * ResourceDisplayHeight;
+    private Vector3 CenterPosition => transform.position + Vector3.up * ResourceDisplayHeight;
+    private Vector3 HoldingPosition(int port) => CenterPosition + (Vector3)PortDirection(port) * InputOffset;
+    private float TransportSeconds() => EffectiveDuration(_pool.BaseTransferSeconds, EquipmentStatDomain.TransportSpeed);
 
     public bool AllocateStorage(int port, int amount, ResourceTypeDomain type) =>
         _lifetime != null && _junction.Reserve(port, amount, type);
@@ -127,9 +133,23 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
         try
         {
             await UniTask.Yield(PlayerLoopTiming.Update, token);
+            ConveyorJunctionApplication.Batch centeredBatch = null;
             while (!token.IsCancellationRequested)
             {
-                var batch = _junction.NextBatch();
+                var batch = centeredBatch ?? _junction.NextBatch();
+                // 合流の中央を一件だけ使う。後続は各入口で先頭が出るのを待つ。
+                if (IsMerge && batch != null && centeredBatch == null)
+                {
+                    var result = await _pool.Transfer(token, HoldingPosition(batch.Port), CenterPosition, batch.Id,
+                        TransportSeconds() * InputOffset);
+                    token.ThrowIfCancellationRequested();
+                    if (result != ResourceAnimationResultApplication.Completed)
+                    {
+                        await UniTask.Delay(100, cancellationToken: token);
+                        continue;
+                    }
+                    centeredBatch = batch;
+                }
                 ResourceReservationApplication Reserve(int port) =>
                     _outputs.TryGetValue(port, out var outlet) &&
                     ResourceReservationApplication.TryCreate(outlet.Target, outlet.Link.NeighborPortId, batch.Amount, batch.Type, out var r) ? r : null;
@@ -144,7 +164,12 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
 
                 var direction = PortDirection(output);
                 var next = transform.position + direction;
-                var start = HoldingPosition(batch.Port);
+                var start = IsMerge ? CenterPosition : HoldingPosition(batch.Port);
+                var fallback = next + Vector3.up * ResourceDisplayHeight;
+                var targetCell = reservation.Target.Identity as CellBaseAdapter;
+                var destination = targetCell != null ? targetCell.ResourceDisplayPosition(next, direction) : fallback;
+                var distance = IsMerge || targetCell is (CrossingCellAdapter or ConveyorJunctionCellAdapter { IsMerge: true })
+                    ? ResourceTravelDistance(start, destination) : 1f;
                 var operation = new ResourceTransferOperationApplication(this, reservation.Target, batch.Id, batch.Type, batch.Amount);
                 operation.TryMarkReserved();
                 using var attempt = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -153,14 +178,13 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
                 _activePort = output;
                 try
                 {
-                    var result = await _active.RunAsync(() => reservation.PortId, start, next,
+                    var result = await _active.RunAsync(() => reservation.PortId, start, destination,
                         () => reservation.Target, endpoint => _outputs.TryGetValue(output, out var link) &&
                             ReferenceEquals(link.Target.Identity, endpoint.Identity),
-                        _pool.Resources, _pool, () => EffectiveDuration(_pool.BaseTransferSeconds, EquipmentStatDomain.TransportSpeed),
-                        attempt.Token, resolveDestination: endpoint => endpoint.Identity is CellBaseAdapter target
-                            ? target.ResourceDisplayPosition(next, direction) : next + Vector3.up * ResourceDisplayHeight);
+                        _pool.Resources, _pool, () => TransportSeconds() * distance, attempt.Token);
                     if (result == ResourceAnimationResultApplication.Completed)
                     {
+                        centeredBatch = null;
                         _junction.Complete(batch, output);
                         NotifyReceiveSpace(batch.Port);
                     }

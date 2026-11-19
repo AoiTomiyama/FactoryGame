@@ -21,6 +21,13 @@ public abstract class CellBaseAdapter : MonoBehaviour, IResourceTransferEndpoint
     internal const float ResourceDisplayHeight = 1.1f;
     internal virtual Vector3 ResourceDisplayPosition(Vector3 point, Vector3Int travelDirection)
         => point + Vector3.up * ResourceDisplayHeight;
+    protected static float ResourceTravelDistance(Vector3 from, Vector3 to)
+    {
+        // レーンの高さの違いで水平の搬送速度が変わらないようにする。
+        var offset = to - from;
+        offset.y = 0;
+        return offset.sqrMagnitude > 0 ? offset.magnitude : 1f;
+    }
     private SharedStatEffectsApplication _statEffects;
     private CellTypeDomain _configuredProgressionType;
     public virtual CellTypeDomain ProgressionType => CellTypeDomain.None;

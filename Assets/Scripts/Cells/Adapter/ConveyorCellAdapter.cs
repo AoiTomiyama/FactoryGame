@@ -373,7 +373,8 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             var result = await coordinator.RunAsync(() => portId, startPos, destination,
                 () => targetCell != null && _forwardCellBase == targetCell ? target : null,
                 endpoint => ReferenceEquals(_forwardCellBase, endpoint.Identity), pool.Resources, pool,
-                () => EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed), transferCts.Token,
+                () => EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed) *
+                    ResourceTravelDistance(startPos, destination), transferCts.Token,
                 () => _status = TransferStatus.Storing);
             if (result != ResourceAnimationResultApplication.Completed)
             {

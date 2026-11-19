@@ -385,13 +385,13 @@ public static class ResourceTransferAssertions
     public static async UniTask VerifyCrossingSuccess(ResourceItemObjectPoolAdapter pool)
     {
         var setup = CreateCrossingTransfer(pool);
-        await UniTask.Delay(120);
         var operation = GetCrossingOperation(setup.crossing);
         Require(ReferenceEquals(operation.Source.Identity, setup.crossing) && ReferenceEquals(operation.Target.Identity, setup.target) &&
                 operation.ResourceId == setup.id && operation.Type == ResourceTypeDomain.Stone &&
                 operation.Amount == 5 && operation.CurrentStage == ResourceTransferOperationApplication.Stage.Animating,
-            "crossing tracks one active transfer");
-        await UniTask.Delay(1000);
+            "crossing starts the reserved transfer in the handoff frame");
+        await UniTask.WaitUntil(() => operation.CurrentStage == ResourceTransferOperationApplication.Stage.Completed)
+            .Timeout(TimeSpan.FromSeconds(3));
         Require(setup.target.CurrentLoad == 5 && setup.target.AllocatedAmount == 0,
             "crossing commits its downstream reservation");
         Require(!ContainsId(pool, setup.id), "crossing returns the display ID after delivery");

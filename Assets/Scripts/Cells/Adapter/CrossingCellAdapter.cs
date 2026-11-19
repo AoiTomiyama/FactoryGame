@@ -82,13 +82,13 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             foreach (var slot in _restoredBatches)
             {
                 var type = SaveKeysApplication.Resource(slot.resource);
-                AcceptPulledBatch(slot.port, slot.amount, type);
+                AcceptPulledBatch(slot.port, slot.amount, type, deferUntilConnected: true);
             }
             _restoredBatches = null;
         }
     }
 
-    private void AcceptPulledBatch(int port, int amount, ResourceTypeDomain type)
+    private void AcceptPulledBatch(int port, int amount, ResourceTypeDomain type, bool deferUntilConnected = false)
     {
         var pool = ResourceItemObjectPoolAdapter.Instance;
         var id = pool.CreateIdFromResourceData(type, amount);
@@ -97,7 +97,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             Coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(this, id, type, amount))};
         _pending.Add(direction, transfer);
         pool.SetPosition(id, ResourceDisplayPosition(transform.position, direction));
-        StoreResourceAsync(direction, transfer, _cts.Token).Forget();
+        StoreResourceAsync(direction, transfer, _cts.Token, deferUntilConnected).Forget();
     }
 
     protected override void OnDestroy() { base.OnDestroy(); Shutdown(); }
@@ -221,12 +221,14 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         StoreResourceAsync(dir, transfer, _cts.Token).Forget();
     }
 
-    private async UniTask StoreResourceAsync(Vector3Int dir, PendingTransfer transfer, CancellationToken token)
+    private async UniTask StoreResourceAsync(Vector3Int dir, PendingTransfer transfer, CancellationToken token,
+        bool deferUntilConnected = false)
     {
         var operation = transfer.Operation;
         try
         {
-            await UniTask.Yield(PlayerLoopTiming.Update,token);
+            // 復元時は接続を待つ。通常の引き継ぎでは予約済みの出口へそのまま進む。
+            if (deferUntilConnected) await UniTask.Yield(PlayerLoopTiming.Update, token);
             while (!token.IsCancellationRequested)
             {
                 using var activeCts = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -235,18 +237,20 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                 {
                     var startPos = ResourceDisplayPosition(transform.position, dir);
                     var nextCell = transform.position + dir;
+                    var fallback = nextCell + Vector3.up * ResourceDisplayHeight;
+                    Vector3 Destination(IContainableApplication endpoint) => endpoint.Identity is CellBaseAdapter cell
+                        ? cell.ResourceDisplayPosition(nextCell, dir) : fallback;
                     var pool = transfer.ResourceOwner;
                     if (pool == null) throw new InvalidOperationException("Crossing transfer lost its resource owner.");
                     var result = await transfer.Coordinator.RunAsync(
                         () => _adjacentContainers.TryGetValue(dir, out var portTarget) ? TargetPortId(portTarget.Identity as CellBaseAdapter, dir) : -1, startPos,
-                        nextCell + Vector3.up * ResourceDisplayHeight,
+                        fallback,
                         () => _adjacentContainers.TryGetValue(dir, out var adjacent) ? adjacent : null,
                         endpoint => _adjacentContainers.TryGetValue(dir, out var adjacent) &&
                                 ReferenceEquals(adjacent.Identity, endpoint.Identity), pool.Resources,
-                        pool, () => EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed), activeCts.Token,
-                        resolveDestination: endpoint => endpoint.Identity is CellBaseAdapter cell
-                            ? cell.ResourceDisplayPosition(nextCell, dir)
-                            : nextCell + Vector3.up * ResourceDisplayHeight);
+                        pool, () => EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed) *
+                            ResourceTravelDistance(startPos, Destination(operation.Target)), activeCts.Token,
+                        resolveDestination: Destination);
                     if (result != ResourceAnimationResultApplication.Completed)
                     {
                         await UniTask.Delay(100, cancellationToken: token);

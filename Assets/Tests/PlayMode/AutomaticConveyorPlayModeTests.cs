@@ -46,12 +46,14 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
             typeof(ConveyorJunctionCellAdapter).GetMethod("ConfigureRoute", Fields)
                 .Invoke(cell, new object[] { new ConveyorRouteRulesDomain.Route(inputs, outputs), 0, 0 }));
 
-    private void Send(IContainableApplication lane, IResourceReusableApplication receiver, int port,
+    private int Send(IContainableApplication lane, IResourceReusableApplication receiver, int port,
         ResourceTypeDomain type, int count)
     {
         Assert.That(lane.AllocateStorage(port, count, type));
-        receiver.Reuse(port, _pool.CreateIdFromResourceData(type, count));
+        var id = _pool.CreateIdFromResourceData(type, count);
+        receiver.Reuse(port, id);
         lane.StoreResource(port, count);
+        return id;
     }
 
     [UnityTest] public IEnumerator JunctionSkipsAFullOutputAndResumesWhenSpaceOpens() => Split().ToCoroutine();
@@ -96,9 +98,14 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
         var sink = Add<StorageCellAdapter>("Storage", 5, 6);
         var exit = sink.Ports.First(port => (port.Use & CellPortUseDomain.Output) != 0).Id;
         Fill(sink, ResourceTypeDomain.Wood, sink.Capacity);
-        Send(junction, junction, 1, ResourceTypeDomain.Wood, 2);
-        Send(junction, junction, 3, ResourceTypeDomain.Wood, 4);
-        await UniTask.DelayFrame(4);
+        var first = ResourceTransferAssertions.GetVisual(_pool, Send(junction, junction, 1, ResourceTypeDomain.Wood, 2));
+        var second = ResourceTransferAssertions.GetVisual(_pool, Send(junction, junction, 3, ResourceTypeDomain.Wood, 4));
+        var center = junction.transform.position + Vector3.up * 1.1f;
+        await Until(() => (first.transform.position - center).sqrMagnitude < .0001f);
+        await UniTask.DelayFrame(2);
+        Assert.That((first.transform.position - center).sqrMagnitude, Is.LessThan(.0001f));
+        Assert.That(Vector3.Distance(second.transform.position, center + (Vector3)junction.PortDirection(3) * .24f),
+            Is.LessThan(.01f));
         Assert.That(_pool.Resources.Count, Is.EqualTo(2));
         Assert.That(junction.AllocateStorage(1, 1, ResourceTypeDomain.Wood), Is.False);
         Assert.That(sink.TryExport(exit, 4, out _, out _));
