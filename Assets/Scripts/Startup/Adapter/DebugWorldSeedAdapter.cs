@@ -7,7 +7,7 @@ internal static class DebugWorldSeedAdapter
 {
     internal const long StartingBalance = 10000;
 
-    internal static SaveGameApplication Create(int size, CellPlacerAdapter definitions, ResourceTypeDomain deliverySample)
+    internal static SaveGameApplication Create(int size, CellPlacerAdapter definitions)
     {
         var prefabs = definitions.FieldPrefabs().ToDictionary(SaveWorldAdapter.Kind);
         var center = size / 2;
@@ -34,9 +34,6 @@ internal static class DebugWorldSeedAdapter
             return cell;
         }
 
-        void Storage(int x, int z, ResourceTypeDomain resource, int amount) =>
-            Add(CellTypeDomain.Storage, x, z).inventory = new[] { SaveGameApplication.SlotValue(0, resource, amount) };
-
         void Route(CellTypeDomain type, int x, int z, DirectionsDomain inputs, DirectionsDomain outputs)
         {
             var cell = Add(type, x, z);
@@ -54,12 +51,13 @@ internal static class DebugWorldSeedAdapter
         void Harvest(ResourceTypeDomain resource, int x, int z, int facing, int shoulder)
         {
             var terrain = SaveWorldAdapter.Kind(natural[resource]);
+            var (dx, dz) = CellFootprintDomain.Rotate(0, 1, facing);
+            var deepZ = z + (dz == 0 ? -1 : dz);
             Add(terrain, x, z);
             Add(terrain, x + shoulder, z);
-            for (var i = 0; i < 3; i++) Add(terrain, x + i * shoulder, z - 1);
+            for (var i = 0; i < 3; i++) Add(terrain, x + i * shoulder, deepZ);
             var extractor = ResourceCellRulesDomain.ExtractorType(resource);
             if (extractor == CellTypeDomain.None) return;
-            var (dx, dz) = CellFootprintDomain.Rotate(0, 1, facing);
             Add(extractor, x - dx, z - dz, facing);
             Add(CellTypeDomain.ExportConveyor, x - 2 * dx, z - 2 * dz, (facing + 2) % 4);
         }
@@ -84,13 +82,11 @@ internal static class DebugWorldSeedAdapter
         BeltLine(1, -5, 1, 1);
         Add(CellTypeDomain.ConstructionDepot, 2, -5);
 
-        // 北側の2つの保管庫を合流させ、中央の特異点へ納品する。
-        Storage(0, 9, deliverySample, 9);
-        Add(CellTypeDomain.ExportConveyor, 0, 8, 2);
-        BeltLine(0, 7, 2, 1);
-        Storage(4, 6, deliverySample, 6);
-        Add(CellTypeDomain.ExportConveyor, 3, 6, 3);
-        BeltLine(2, 6, 3, 2);
+        // 両側の採取が続くため、後から見に来ても北側で合流を確認できる。
+        Harvest(wood, 0, 11, 0, 1);
+        BeltLine(0, 8, 2, 2);
+        Harvest(wood, 6, 6, 1, 1);
+        BeltLine(3, 6, 3, 3);
         Route(CellTypeDomain.Junction, 0, 6, DirectionsDomain.Forward | DirectionsDomain.Right, DirectionsDomain.Back);
         BeltLine(0, 5, 2, 3);
 

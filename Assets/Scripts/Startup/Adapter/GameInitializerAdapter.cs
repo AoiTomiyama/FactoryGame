@@ -100,7 +100,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
             else saves.SelectSlot(slot);
             var deliveryCatalog = initialLayout.CreateDeliveryCatalog();
             var data = debug
-                ? DebugWorldSeedAdapter.Create(field.GeneratedSize, placer, deliveryCatalog.Stages[0].Requirements[0].Resource)
+                ? DebugWorldSeedAdapter.Create(field.GeneratedSize, placer)
                 : await saves.ReadAsync(cancellation);
             cancellation.ThrowIfCancellationRequested();
             var world = new SaveWorldAdapter(field,placer);

@@ -104,18 +104,25 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         Assert.That(grid.GetCell(center + 3, center), Is.TypeOf<EmptyCellAdapter>());
         var initialBalance = game.Wallet.Current.Balance;
         var initialParts = game.ConstructionStock.Available(ResourceTypeDomain.BuildingParts);
-        var deliverySample = game.Deliveries.Catalog.Stages[0].Requirements[0].Resource;
+        var northInput = (ConveyorCellAdapter)grid.GetCell(center, center + 7);
+        var eastInput = (ConveyorCellAdapter)grid.GetCell(center + 1, center + 6);
+        var sawNorth = false;
+        var sawEast = false;
         bool Received(int x, int z, ResourceTypeDomain type) =>
             grid.GetCell(center + x, center + z) is StorageCellAdapter storage &&
             storage.CurrentLoad > 0 && storage.StoredResourceType == type;
         Time.timeScale = 6;
         await UniTask.WaitUntil(() =>
-            Received(6, -8, ResourceTypeDomain.Iron) && Received(10, -8, ResourceTypeDomain.Copper) &&
-            Received(14, -8, ResourceTypeDomain.Coal) && Received(-5, -1, ResourceTypeDomain.Stone) &&
-            Received(-8, 9, ResourceTypeDomain.Wood) && Received(-11, 6, ResourceTypeDomain.Wood) &&
-            Received(-5, 6, ResourceTypeDomain.Wood) && game.Wallet.Current.Balance > initialBalance &&
-            game.ConstructionStock.Available(ResourceTypeDomain.BuildingParts) > initialParts &&
-            game.Deliveries.Current.Count(deliverySample) == 15)
+        {
+            sawNorth |= northInput.CaptureBatches(_ => { }).Length != 0;
+            sawEast |= eastInput.CaptureBatches(_ => { }).Length != 0;
+            return sawNorth && sawEast && game.Deliveries.Current.Count(ResourceTypeDomain.Wood) >= 20 &&
+                Received(6, -8, ResourceTypeDomain.Iron) && Received(10, -8, ResourceTypeDomain.Copper) &&
+                Received(14, -8, ResourceTypeDomain.Coal) && Received(-5, -1, ResourceTypeDomain.Stone) &&
+                Received(-8, 9, ResourceTypeDomain.Wood) && Received(-11, 6, ResourceTypeDomain.Wood) &&
+                Received(-5, 6, ResourceTypeDomain.Wood) && game.Wallet.Current.Balance > initialBalance &&
+                game.ConstructionStock.Available(ResourceTypeDomain.BuildingParts) > initialParts;
+        })
             .Timeout(TimeSpan.FromSeconds(25), DelayType.Realtime);
         Time.timeScale = 1;
         Assert.That(game.Wallet.TryReserveIncome(200000, out var edit));
