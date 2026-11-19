@@ -247,7 +247,7 @@ public sealed class SaveWorldAdapter
         _ when cell.SupportsProgression => cell.ProgressionType,
         _ => throw new InvalidOperationException($"Cell has no save definition: {cell.GetType().Name}")
     };
-    private static string Layout(CellBaseAdapter cell)
+    internal static string Layout(CellBaseAdapter cell)
     {
         var f = cell.Footprint;
         return $"{f.Width},{f.Depth},{f.OffsetX},{f.OffsetZ}|" + (cell is ConnectableCellBaseAdapter c ?

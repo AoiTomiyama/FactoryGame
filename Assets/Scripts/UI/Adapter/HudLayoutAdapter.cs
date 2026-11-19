@@ -15,6 +15,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     public RectTransform Summary;
     public Text[] WalletItems;
     public Button Save;
+    internal Button ReturnToSlots { get; set; }
     public Text EquipmentHeading, EquipmentText, EquipmentFeedback;
     public GameObject EquipmentGroup;
     public Button Upgrade;
@@ -35,6 +36,7 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     {
         InitializeLayout(); _firstPerson = active;
         Navigation.gameObject.SetActive(!active);
+        if (ReturnToSlots != null) ReturnToSlots.gameObject.SetActive(!active);
         UpdateSlideInput();
     }
     public bool IsSliding => _slide != _slideTarget;

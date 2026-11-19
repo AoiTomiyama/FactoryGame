@@ -29,8 +29,9 @@ public abstract class FactoryPlayModeScope
         if (scene.path != "Assets/Scenes/MainScene.unity") return;
         try
         {
+            _scene = scene;
             SceneManager.SetActiveScene(scene);
-            TestScenes.Find<GameSaveAdapter>().SetStorage(new SaveFileApplication(Path.Combine(SaveTestDirectory,"factory.json")));
+            TestScenes.Find<GameSaveAdapter>().SetDirectory(SaveTestDirectory);
             if (FixedTerrainSeed.HasValue) TestScenes.GenerateFixedTerrain(FixedTerrainSeed.Value);
             if (PrepareHud) HudPrefabAssertions.Prepare();
         }

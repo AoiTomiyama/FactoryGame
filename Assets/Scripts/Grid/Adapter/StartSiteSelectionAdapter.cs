@@ -24,13 +24,13 @@ public sealed class StartSiteSelectionAdapter : MonoBehaviour
     public int Count => _session?.Candidates.Count ?? 0;
     public bool CanChoose => _session != null && _session.CanChoose;
     public HudLayoutAdapter Layout => hud;
-    public void SetLoadStatus(string text) => bar.SetStartMenuStatus(text);
-    public void BeginMenu(Action newGame, Action resume, bool canResume)
+    public RectTransform MenuHost => (RectTransform)bar.GetComponentInParent<Canvas>().rootCanvas.transform;
+    public void BeginMenu()
     {
         ValidateBindings();
         placer.SetPlacementEnabled(false); statusView.SetStatusWindowActive(false);
         hud.gameObject.SetActive(false); cameraController.SetStartSelection(true);
-        bar.SetStartMenu(newGame,resume,canResume);
+        bar.SetPlacementActive(false);
     }
 
     public void ValidateBindings()

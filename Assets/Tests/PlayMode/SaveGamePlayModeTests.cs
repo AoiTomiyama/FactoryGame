@@ -15,6 +15,124 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
 {
     protected override bool NeedsMainScene => true;
     protected override bool ChooseNewGame => false;
+    [UnityTest] public IEnumerator ReturnsToSlotSelectionAndSwitchesIndependentWorlds() => SwitchSlots().ToCoroutine();
+    private async UniTask SwitchSlots()
+    {
+        var game = TestScenes.Find<GameInitializerAdapter>();
+        ButtonNamed("SaveSlot1").onClick.Invoke();
+        Assert.That(game.TryStartGame());
+        Assert.That(game.Wallet.TryReserveIncome(73, out var income));
+        income.TryCommit();
+        var balanceA = game.Wallet.Current.Balance;
+        var storage = (StorageCellAdapter)Install(CellTypeDomain.Storage);
+        var x = storage.XIndex;
+        var z = storage.ZIndex;
+        var slotOne = game.Saves.Slots.FileFor(1);
+        var slotTwo = game.Saves.Slots.FileFor(2);
+        Assert.That(Path.GetFileName(slotOne.Path), Is.EqualTo("factory.json"));
+        ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
+        ButtonNamed("CancelReturn").onClick.Invoke();
+        Assert.That(game.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Running));
+        Assert.That(GameObject.Find("SaveSlotOverlay"), Is.Null);
+        Assert.That(slotOne.Exists, Is.False);
+
+        ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
+        ButtonNamed("SaveAndReturn").onClick.Invoke();
+        game = await WaitForSlotMenu(game);
+        Assert.That(slotOne.Exists);
+        Assert.That(slotTwo.Exists, Is.False);
+
+        ButtonNamed("SaveSlot2").onClick.Invoke();
+        Assert.That(game.TryStartGame());
+        Assert.That(game.Saves.SelectedSlot, Is.EqualTo(2));
+        Assert.That(game.Wallet.Current.Balance, Is.EqualTo(game.Prices.InitialBalance));
+        Assert.That(GridFieldDatabaseAdapter.Instance.GetCell(x, z), Is.Not.InstanceOf<StorageCellAdapter>());
+        Assert.That(game.Wallet.TryReserveIncome(13, out var otherIncome));
+        otherIncome.TryCommit();
+        var balanceB = game.Wallet.Current.Balance;
+        ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
+        ButtonNamed("SaveAndReturn").onClick.Invoke();
+        game = await WaitForSlotMenu(game);
+        Assert.That(slotTwo.Exists);
+        Assert.That(SaveJsonAdapter.Decode(slotTwo.Read()).balance, Is.EqualTo(balanceB));
+
+        ButtonNamed("SaveSlot1").onClick.Invoke();
+        await UniTask.WaitUntil(() => game.Session.CurrentStage == GameStartApplication.Stage.Running)
+            .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime);
+        Assert.That(game.Wallet.Current.Balance, Is.EqualTo(balanceA));
+        Assert.That(GridFieldDatabaseAdapter.Instance.GetCell(x, z), Is.InstanceOf<StorageCellAdapter>());
+        Assert.That(game.Wallet.TryReserveIncome(10, out var unsaved));
+        unsaved.TryCommit();
+        ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
+        ButtonNamed("ReturnWithoutSaving").onClick.Invoke();
+        game = await WaitForSlotMenu(game);
+        Assert.That(SaveJsonAdapter.Decode(slotOne.Read()).balance, Is.EqualTo(balanceA));
+
+        ButtonNamed("SaveSlot3").onClick.Invoke();
+        Assert.That(game.TryStartGame());
+        Directory.CreateDirectory(game.Saves.Storage.Path);
+        ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
+        LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("Game save failed:"));
+        ButtonNamed("SaveAndReturn").onClick.Invoke();
+        await UniTask.WaitUntil(() => !game.Saves.IsSaving && game.Saves.LastError != null)
+            .Timeout(TimeSpan.FromSeconds(15), DelayType.Realtime);
+        Assert.That(game.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Running));
+        Assert.That(ButtonNamed("SaveAndReturn").interactable);
+        ButtonNamed("ReturnWithoutSaving").onClick.Invoke();
+        await WaitForSlotMenu(game);
+    }
+
+    [UnityTest] public IEnumerator DebugSlotRunsRegisteredCellsAndStartsFresh() => DebugWorld().ToCoroutine();
+    private async UniTask DebugWorld()
+    {
+        var game = TestScenes.Find<GameInitializerAdapter>();
+        var normal = game.Saves.Slots.FileFor(1);
+        normal.Write("isolated normal slot");
+        ButtonNamed("DebugSlot").onClick.Invoke();
+        await UniTask.WaitUntil(() => game.Session.CurrentStage == GameStartApplication.Stage.Running)
+            .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime);
+        Assert.That(game.Saves.IsDebug);
+        Assert.That(game.Saves.RequestSave(), Is.False);
+        Assert.That(TestScenes.Find<HudLayoutAdapter>().Save.gameObject.activeSelf, Is.False);
+        var grid = GridFieldDatabaseAdapter.Instance;
+        var registered = TestScenes.Find<CellPlacerAdapter>().FieldPrefabs().Select(SaveWorldAdapter.Kind).ToHashSet();
+        Assert.That(grid.Owners.Select(SaveWorldAdapter.Kind).ToHashSet(), Is.EquivalentTo(registered));
+        var center = grid.GeneratedSize / 2;
+        var initialBalance = game.Wallet.Current.Balance;
+        var initialPlanks = game.ConstructionStock.Available(ResourceTypeDomain.Plank);
+        bool HasLoad(int x, int z) => grid.GetCell(center + x, center + z) is StorageCellAdapter storage && storage.CurrentLoad > 0;
+        Time.timeScale = 6;
+        await UniTask.WaitUntil(() =>
+            new[] { -12, -9, -6, -3, 0 }.All(x => HasLoad(x, -16)) &&
+            HasLoad(1, 12) && HasLoad(-11, 10) && HasLoad(-10, 9) && HasLoad(-11, 16) &&
+            HasLoad(7, 9) && HasLoad(8, 8) && HasLoad(12, 9) && HasLoad(6, 14) && HasLoad(8, 14) && HasLoad(7, 15) &&
+            game.Wallet.Current.Balance > initialBalance && game.ConstructionStock.Available(ResourceTypeDomain.Plank) > initialPlanks &&
+            game.Deliveries.Current.Delivered.Values.Any(amount => amount > 0))
+            .Timeout(TimeSpan.FromSeconds(25), DelayType.Realtime);
+        Time.timeScale = 1;
+        Assert.That(game.Wallet.TryReserveIncome(200000, out var edit));
+        edit.TryCommit();
+        ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
+        Assert.That(GameObject.Find("SaveAndReturn"), Is.Null);
+        ButtonNamed("ReturnWithoutSaving").onClick.Invoke();
+        game = await WaitForSlotMenu(game);
+        Assert.That(await game.TryStartDebugAsync());
+        Assert.That(game.Wallet.Current.Balance, Is.EqualTo(initialBalance));
+        Assert.That(normal.Read(), Is.EqualTo("isolated normal slot"));
+        Assert.That(Directory.GetFiles(SaveTestDirectory).Length, Is.EqualTo(1));
+    }
+
+    private static Button ButtonNamed(string name) => GameObject.Find(name).GetComponent<Button>();
+    private static async UniTask<GameInitializerAdapter> WaitForSlotMenu(GameInitializerAdapter previous)
+    {
+        GameInitializerAdapter current = null;
+        await UniTask.WaitUntil(() =>
+        {
+            current = Object.FindAnyObjectByType<GameInitializerAdapter>();
+            return current != null && current != previous && current.Session.CurrentStage == GameStartApplication.Stage.Menu;
+        }).Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime);
+        return current;
+    }
     [UnityTest, Explicit("Supply a saved-game copy through FACTORY_SAVE_TEST_INPUT")]
     public IEnumerator ExistingSaveRestoresAndSavesAcrossFrames() => ExistingSaveRoundTrip().ToCoroutine();
     private static async UniTask ExistingSaveRoundTrip()
@@ -74,10 +192,29 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         var game = TestScenes.Find<GameInitializerAdapter>(); var bar = TestScenes.Find<OperationBarAdapter>();
         Assert.That(game.Session.CurrentStage,Is.EqualTo(GameStartApplication.Stage.Menu));
         Assert.That(game.Wallet,Is.Null); Assert.That(game.Saves.RequestSave(),Is.False);
-        Assert.That(bar.RotateButton.GetComponentInChildren<Text>().text,Is.EqualTo("新規開始"));
-        Assert.That(bar.ViewButton.interactable,Is.False);
+        var menu = GameObject.Find("SaveSlotOverlay");
+        var menuCanvas = menu.GetComponent<Canvas>().rootCanvas;
+        menuCanvas.renderMode = RenderMode.WorldSpace;
+        menuCanvas.GetComponent<CanvasScaler>().enabled = false;
+        foreach (var size in new[] { new Vector2(1600, 900), new Vector2(1366, 768), new Vector2(960, 720) })
+        {
+            ((RectTransform)menuCanvas.transform).sizeDelta = new Vector2(size.x * 720 / size.y, 720);
+            Canvas.ForceUpdateCanvases();
+            var bounds = ((RectTransform)menu.transform).rect;
+            foreach (var button in menu.GetComponentsInChildren<Button>())
+            {
+                var box = RectTransformUtility.CalculateRelativeRectTransformBounds(menu.transform, (RectTransform)button.transform);
+                Assert.That(box.min.x, Is.GreaterThanOrEqualTo(bounds.xMin - 1));
+                Assert.That(box.max.x, Is.LessThanOrEqualTo(bounds.xMax + 1));
+                Assert.That(box.min.y, Is.GreaterThanOrEqualTo(bounds.yMin - 1));
+                Assert.That(box.max.y, Is.LessThanOrEqualTo(bounds.yMax + 1));
+                var text = button.GetComponentInChildren<Text>();
+                Assert.That(text.preferredWidth, Is.LessThanOrEqualTo(text.rectTransform.rect.width + 1));
+            }
+        }
+        Assert.That(ButtonNamed("SaveSlot1").GetComponentInChildren<Text>().text, Does.Contain("新規開始"));
         Assert.That(TestScenes.Find<CameraControllerAdapter>().SetFirstPerson(true),Is.False);
-        bar.RotateButton.onClick.Invoke(); Assert.That(game.Session.CurrentStage,Is.EqualTo(GameStartApplication.Stage.Choosing));
+        ButtonNamed("SaveSlot1").onClick.Invoke(); Assert.That(game.Session.CurrentStage,Is.EqualTo(GameStartApplication.Stage.Choosing));
         bar.WalkButton.onClick.Invoke(); await UniTask.DelayFrame(2);
         var layout = TestScenes.Find<HudLayoutAdapter>(); var label = layout.Save.GetComponentInChildren<Text>();
         Assert.That(label.text,Is.EqualTo("保存 [F5]"));
@@ -89,7 +226,10 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         {
             ((RectTransform)canvas.transform).sizeDelta = new Vector2(size.x * 720 / size.y,720);
             await UniTask.DelayFrame(3); Canvas.ForceUpdateCanvases();
-            var buttonBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(layout.Summary,(RectTransform)layout.Save.transform);
+            var returnButton = ButtonNamed("ReturnToSaveSlots");
+            var returnLabel = returnButton.GetComponentInChildren<Text>();
+            Assert.That(returnLabel.preferredWidth, Is.LessThanOrEqualTo(returnLabel.rectTransform.rect.width + 1));
+            var buttonBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(layout.Summary,(RectTransform)returnButton.transform);
             var rect = layout.Summary.rect;
             Assert.That(buttonBounds.min.x,Is.GreaterThanOrEqualTo(rect.xMin)); Assert.That(buttonBounds.max.x,Is.LessThanOrEqualTo(rect.xMax));
             var summary = TestScenes.Find<EconomyPanelAdapter>().SummaryView;
@@ -144,12 +284,12 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         var crafterX = crafter.XIndex; var crafterZ = crafter.ZIndex;
         await ReloadMainScene().ToUniTask();
         game = TestScenes.Find<GameInitializerAdapter>(); grid = GridFieldDatabaseAdapter.Instance;
-        Assert.That(TestScenes.Find<OperationBarAdapter>().ViewButton.interactable);
+        Assert.That(ButtonNamed("SaveSlot1").interactable);
         var restoring = game.TryRestoreGameAsync();
         Assert.That(game.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Starting));
         Assert.That(game.TryPrepareNewGame(), Is.False);
         Assert.That(await game.TryRestoreGameAsync(), Is.False, "one reader");
-        Assert.That(TestScenes.Find<OperationBarAdapter>().ViewButton.interactable, Is.False);
+        Assert.That(ButtonNamed("SaveSlot1").interactable, Is.False);
         Assert.That(await restoring);
         var restored = new SaveWorldAdapter(grid,TestScenes.Find<CellPlacerAdapter>()).Capture(game,1);
         Assert.That(restored.balance,Is.EqualTo(saved.balance));

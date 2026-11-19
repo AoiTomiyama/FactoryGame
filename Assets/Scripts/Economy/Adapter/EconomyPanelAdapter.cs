@@ -285,7 +285,9 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
         }
         _closeAction = () => SetExpanded(!_expanded);
         layout.Close.onClick.AddListener(_closeAction);
-        _summaryView = new PersistentSummaryViewAdapter(layout.Summary, _font, layout.WalletItems, layout.TextRow, layout.Save != null ? (RectTransform)layout.Save.transform : null);
+        _summaryView = new PersistentSummaryViewAdapter(layout.Summary, _font, layout.WalletItems, layout.TextRow,
+            layout.Save != null ? (RectTransform)layout.Save.transform : null,
+            layout.ReturnToSlots != null ? (RectTransform)layout.ReturnToSlots.transform : null);
         layout.PlacementBuilder.Configure(_font);
         _view.ConfigureHud(_font, layout.Resources);
         _equipmentView = new EquipmentDetailsViewAdapter(layout.EquipmentHeading, layout.EquipmentGroup,

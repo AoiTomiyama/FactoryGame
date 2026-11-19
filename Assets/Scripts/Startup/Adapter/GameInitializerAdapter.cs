@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>一回のプレイを構成し、準備した参照を既存の機能へ渡す起動入口。</summary>
 public sealed class GameInitializerAdapter : MonoBehaviour
@@ -18,6 +19,9 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     [SerializeField] private PlayerCursorBehaviourAdapter cursor;
     [SerializeField] private StartSiteSelectionAdapter selection;
     [SerializeField] private GameSaveAdapter saves;
+    private SaveSlotMenuAdapter _saveMenu;
+    private bool _returning;
+    internal bool SaveMenuBlocksInput => _saveMenu?.BlocksGameplay ?? false;
 
     public GameStartApplication Session { get; } = new();
     public CurrencyWalletApplication Wallet { get; private set; }
@@ -37,7 +41,11 @@ public sealed class GameInitializerAdapter : MonoBehaviour
             cursor.ConfigureStartup(Session,selection,cameraController);
             saves.Configure(this,new SaveWorldAdapter(field,placer),selection.Layout.Save);
             Session.ShowMenu();
-            selection.BeginMenu(() => TryPrepareNewGame(),() => TryRestoreGameAsync().Forget(),saves.Storage.Exists);
+            cameraController.ConfigureInputGate(() => SaveMenuBlocksInput);
+            _saveMenu = new SaveSlotMenuAdapter(selection.Layout, selection.MenuHost, ChooseSlot, () => TryStartDebugAsync().Forget(),
+                () => OpenReturnMenu(), save => TryReturnToSaveSlotsAsync(save).Forget(), () => TryReturnToSaveSlotsAsync(false).Forget());
+            selection.BeginMenu();
+            _saveMenu.ShowSlots(saves.Slots);
         }
         catch (Exception exception) { Fail("preparation",exception); }
     }
@@ -45,42 +53,66 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     // HUDを開閉してもプレイ中の計測を続ける。
     private void Update() => IncomeRate?.Advance(Time.unscaledTimeAsDouble);
 
-    public bool TryPrepareNewGame()
+    private void ChooseSlot(int slot)
     {
-        if (Session.CurrentStage is not (GameStartApplication.Stage.Uninitialized or GameStartApplication.Stage.Menu)) return false;
+        if (saves.Slots.FileFor(slot).Exists) TryRestoreGameAsync(slot).Forget();
+        else TryPrepareNewGame(slot);
+    }
+
+    public bool TryPrepareNewGame(int slot = SaveSlotCatalogApplication.FirstSlot)
+    {
+        if (!SaveSlotCatalogApplication.IsNormal(slot) ||
+            Session.CurrentStage is not (GameStartApplication.Stage.Uninitialized or GameStartApplication.Stage.Menu)) return false;
         try
         {
             ValidateConfiguration();
             var candidates = DiscoverStartSites(field, initialLayout);
             cursor.ConfigureStartup(Session, selection, cameraController);
+            saves.SelectSlot(slot);
             Session.Prepare(candidates);
+            _saveMenu?.Hide();
             selection.Begin(Session, initialLayout.SingularityPrefab.Footprint, () => TryStartGame());
             return true;
         }
-        catch (Exception exception) { Fail("preparation", exception); return false; }
+        catch (Exception exception)
+        {
+            Fail("preparation", exception);
+            _saveMenu?.ShowFailure("開始できませんでした");
+            return false;
+        }
     }
 
-    public async UniTask<bool> TryRestoreGameAsync()
+    public UniTask<bool> TryRestoreGameAsync(int slot = SaveSlotCatalogApplication.FirstSlot) =>
+        SaveSlotCatalogApplication.IsNormal(slot) ? RestoreAsync(slot, debug: false) : UniTask.FromResult(false);
+
+    public UniTask<bool> TryStartDebugAsync() => RestoreAsync(0, debug: true);
+
+    private async UniTask<bool> RestoreAsync(int slot, bool debug)
     {
         if (!Session.TryBeginRestore()) return false;
         var cancellation = destroyCancellationToken;
         try
         {
-            selection.SetLoadStatus("ロード中…");
+            _saveMenu?.SetBusy("ロード中…");
             await UniTask.NextFrame(cancellationToken: cancellation);
             ValidateConfiguration();
-            var data = await saves.ReadAsync(cancellation);
+            if (debug) saves.SelectDebug();
+            else saves.SelectSlot(slot);
+            var deliveryCatalog = initialLayout.CreateDeliveryCatalog();
+            var data = debug
+                ? DebugWorldSeedAdapter.Create(field.GeneratedSize, placer, deliveryCatalog.Stages[0].Requirements[0].Resource)
+                : await saves.ReadAsync(cancellation);
             cancellation.ThrowIfCancellationRequested();
             var world = new SaveWorldAdapter(field,placer);
             var catalog = skillTree.CreateCatalog();
             // ファイルと定義の検査を終えるまで、Sceneの地形を変更しない。
-            var owners = await world.ValidateAsync(data,catalog,RegisteredResources,initialLayout.CreateDeliveryCatalog(),
+            var owners = await world.ValidateAsync(data,catalog,RegisteredResources,deliveryCatalog,
                 cancellation,includeOccupancy: true);
             var cells = await world.BuildCellsAsync(data,owners,cancellation);
             Prices = initialLayout.CreateCatalog(); Wallet = new CurrencyWalletApplication(data.balance);
             ConstructionStock = new ConstructionStockApplication(RegisteredResources);
             ConstructionStock.RestoreStored(SaveGameApplication.StockValues(data.construction));
-            Deliveries = new DeliveryProgressApplication(initialLayout.CreateDeliveryCatalog());
+            Deliveries = new DeliveryProgressApplication(deliveryCatalog);
             Deliveries.RestoreDelivered(SaveGameApplication.StockValues(data.deliveries));
             Skills = new SkillTreeApplication(catalog,Wallet,field.StatEffects,Deliveries);
             Skills.RestoreOwned(data.skills);
@@ -95,7 +127,10 @@ public sealed class GameInitializerAdapter : MonoBehaviour
             // 接続済みセルの搬送が初期化途中に進まないよう、稼働開始は最後の同じフレームで行う。
             InitializeCellSystems();
             cameraController.FocusOn(core.WorldCenter);
-            Session.Complete(); selection.Finish();
+            Session.Complete();
+            _saveMenu?.SetDebugSession(debug);
+            _saveMenu?.Hide();
+            selection.Finish();
             return true;
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { return false; }
@@ -103,9 +138,51 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         {
             if (cancellation.IsCancellationRequested) return false;
             Fail("load",exception);
-            if (selection != null) selection.SetLoadStatus("ロード失敗");
+            _saveMenu?.ShowFailure("ロード失敗");
             return false;
         }
+    }
+
+    public bool OpenReturnMenu()
+    {
+        if (Session.CurrentStage != GameStartApplication.Stage.Running || _returning) return false;
+        cursor.CancelCurrentGesture();
+        _saveMenu.ShowReturn(!saves.IsDebug);
+        return true;
+    }
+
+    public async UniTask<bool> TryReturnToSaveSlotsAsync(bool save)
+    {
+        var wasRunning = Session.CurrentStage == GameStartApplication.Stage.Running;
+        if (_returning || (!wasRunning && Session.CurrentStage != GameStartApplication.Stage.Failed) ||
+            (save && (!wasRunning || saves.IsDebug))) return false;
+        _returning = true;
+        try
+        {
+            if (wasRunning && (save || saves.IsSaving))
+            {
+                _saveMenu.SetBusy("保存中…");
+                if (!await saves.CompleteSaveBeforeReturn(save))
+                {
+                    _saveMenu.SetReturnFailure("保存失敗");
+                    return false;
+                }
+            }
+            if (!Session.TryBeginReturn()) return false;
+            _saveMenu.SetBusy("セーブ選択へ戻っています…");
+            var sceneLoad = SceneManager.LoadSceneAsync(gameObject.scene.path, LoadSceneMode.Single);
+            if (sceneLoad == null) throw new InvalidOperationException("Cannot reload the gameplay scene.");
+            await sceneLoad;
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Debug.LogError($"Returning to save slots failed: {exception}", this);
+            Session.CancelReturn(wasRunning);
+            _saveMenu.SetReturnFailure("セーブ選択へ戻れませんでした");
+            return false;
+        }
+        finally { _returning = false; }
     }
 
     public static IReadOnlyList<StartSiteRulesDomain.Candidate> DiscoverStartSites(
@@ -184,8 +261,8 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         var screen = economyPanel.SkillScreen;
         screen.Configure(Wallet, Skills, Deliveries, field.StatEffects, hud, () => placer.ClearingPriceText,
             cursor.CancelCurrentGesture, new[] { hud.GameplayRoot, statusView.transform, economyPanel.Operation.transform });
-        cursor.ConfigureInputGate(() => screen.BlocksGameplayInput);
-        cameraController.ConfigureInputGate(() => screen.BlocksGameplayInput);
+        cursor.ConfigureInputGate(() => SaveMenuBlocksInput || screen.BlocksGameplayInput);
+        cameraController.ConfigureInputGate(() => SaveMenuBlocksInput || screen.BlocksGameplayInput);
     }
 
     private void ValidateConfiguration()
