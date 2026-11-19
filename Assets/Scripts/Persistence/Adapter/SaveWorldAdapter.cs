@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -10,8 +11,11 @@ using Object = UnityEngine.Object;
 /// <summary>セルの所有状態と保存データを接続する。取得と検証ではプレイ状態を変更しない。</summary>
 public sealed class SaveWorldAdapter
 {
+    private const int CloneBatchSize = 64;
+    private const int MaxPendingCloneBatches = 3;
     private readonly GridFieldDatabaseAdapter _field;
     private readonly CellPlacerAdapter _definitions;
+    private readonly Queue<GameObject> _retiredTerrain = new();
     private Transform _restoredRoot;
     public SaveWorldAdapter(GridFieldDatabaseAdapter field, CellPlacerAdapter definitions)
     { _field = field; _definitions = definitions; }
@@ -184,65 +188,83 @@ public sealed class SaveWorldAdapter
 
     internal async UniTask BuildInitialTerrainAsync(StartSiteRulesDomain.Terrain[,] terrain, int seed, CancellationToken cancellation)
     {
+        var (data, owners) = await Task.Run(() => PrepareInitialTerrain(terrain, seed, cancellation), cancellation);
+        await BuildCellsAsync(data, owners, cancellation);
+    }
+
+    private static (SaveGameApplication data, int[] owners) PrepareInitialTerrain(
+        StartSiteRulesDomain.Terrain[,] terrain, int seed, CancellationToken cancellation)
+    {
         var size = terrain.GetLength(0);
-        var budget = new SaveFrameBudgetAdapter(cancellation);
         var cells = new SaveGameApplication.Cell[terrain.Length];
         var owners = new int[terrain.Length];
         for (var x = 0; x < size; x++)
-        for (var z = 0; z < size; z++)
         {
-            var kind = terrain[x, z].Empty ? CellTypeDomain.Empty : ResourceCellKind(terrain[x, z].Resource);
-            var i = x * size + z;
-            cells[i] = new SaveGameApplication.Cell { x = x, z = z, kind = SaveKeysApplication.Key(kind) };
-            owners[i] = i;
-            await budget.YieldIfNeeded();
+            cancellation.ThrowIfCancellationRequested();
+            for (var z = 0; z < size; z++)
+            {
+                var kind = terrain[x, z].Empty ? CellTypeDomain.Empty : ResourceCellKind(terrain[x, z].Resource);
+                var i = x * size + z;
+                cells[i] = new SaveGameApplication.Cell { x = x, z = z, kind = SaveKeysApplication.Key(kind) };
+                owners[i] = i;
+            }
         }
-        await BuildCellsAsync(new SaveGameApplication { size = size, seed = seed, cells = cells }, owners, cancellation);
+        return (new SaveGameApplication { size = size, seed = seed, cells = cells }, owners);
     }
 
     public async UniTask<CellBaseAdapter[]> BuildCellsAsync(SaveGameApplication data, int[] owners, CancellationToken cancellation)
     {
-        var budget = new SaveFrameBudgetAdapter(cancellation, maxOperations: 64);
-        var created = new CellBaseAdapter[data.cells.Length];
-        // 同じ自然地形を使い回し、設備と変わったマスだけを入れ替える。
-        foreach (var cell in _field.GetComponentsInChildren<CellBaseAdapter>())
+        var previous = _field.GetComponentsInChildren<CellBaseAdapter>();
+        var terrain = new (string Kind, int X, int Z, int Rotation)[previous.Length];
+        var budget = new SaveFrameBudgetAdapter(cancellation);
+        for (var i = 0; i < previous.Length; i++)
         {
+            var cell = previous[i];
+            if (!IsTerrain(cell)) continue;
             var anchor = Vector3Int.RoundToInt(cell.transform.position);
-            if (cell is (EmptyCellAdapter or ResourceCellAdapter) && anchor.x >= 0 && anchor.z >= 0 &&
-                anchor.x < data.size && anchor.z < data.size)
-            {
-                var index = owners[anchor.x * data.size + anchor.z];
-                var target = data.cells[index];
-                if (created[index] == null && target.x == anchor.x && target.z == anchor.z &&
-                    target.rotation == cell.QuarterTurns && target.kind == SaveKeysApplication.Key(Kind(cell)))
-                {
-                    created[index] = cell;
-                    await budget.YieldIfNeeded(countOperation: false);
-                    continue;
-                }
-            }
-            if (cell is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
-            cell.gameObject.SetActive(false);
-            Object.Destroy(cell.gameObject);
+            terrain[i] = (SaveKeysApplication.Key(Kind(cell)), anchor.x, anchor.z, cell.QuarterTurns % 4);
             await budget.YieldIfNeeded();
         }
-        // Destroy はフレーム末尾に実行されるため、旧設備の終了を先に済ませる。
+
+        // 座標と種類を写してから、差分と生成バッチを作る処理をワーカーへ渡す。
+        var rotations = new[] { Quaternion.identity, Quaternion.Euler(0, 90, 0),
+            Quaternion.Euler(0, 180, 0), Quaternion.Euler(0, 270, 0) };
+        var (targets, batches) = await Task.Run(
+            () => PrepareReplacement(data, owners, terrain, rotations, cancellation), cancellation);
+        cancellation.ThrowIfCancellationRequested();
+        var created = new CellBaseAdapter[data.cells.Length];
+        budget = new SaveFrameBudgetAdapter(cancellation, maxOperations: 256, milliseconds: 8);
+        for (var i = 0; i < previous.Length; i++)
+        {
+            var cell = previous[i];
+            if (targets[i] >= 0)
+            {
+                created[targets[i]] = cell;
+                continue;
+            }
+            if (cell is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
+            var old = cell.gameObject;
+            old.SetActive(false);
+            if (IsTerrain(cell)) _retiredTerrain.Enqueue(old);
+            else Object.Destroy(old);
+            await budget.YieldIfNeeded();
+        }
+        // 搬送や生産を持つ旧設備の Destroy を済ませ、非アクティブな地形だけを破棄待ちに残す。
         await UniTask.NextFrame(cancellationToken: cancellation);
-        budget = new SaveFrameBudgetAdapter(cancellation, maxOperations: 64);
         if (_restoredRoot == null)
         {
             _restoredRoot = new GameObject("RestoredCells").transform;
             _restoredRoot.SetParent(_field.transform, false);
         }
+        await CloneCellsAsync(batches, created, cancellation);
+        budget = new SaveFrameBudgetAdapter(cancellation);
         for (var i = 0; i < data.cells.Length; i++)
         {
-            if (created[i] != null) continue;
             var c = data.cells[i];
-            var cell = Object.Instantiate(_definitions.FieldPrefab(SaveKeysApplication.Cell(c.kind)),new Vector3(c.x,0,c.z),Quaternion.Euler(0,c.rotation * 90,0),_restoredRoot);
+            var cell = created[i];
             if (cell is ConveyorCellAdapter belt) belt.RestoreExportRole(c.exporter);
             if (cell is CrossingCellAdapter crossing && c.routeInputs != 0) crossing.ConfigureRoute(SavedRoute(c));
             if (cell is ConveyorJunctionCellAdapter junction) junction.ConfigureRoute(SavedRoute(c), c.routeInputCursor, c.routeOutputCursor);
-            created[i] = cell;
             await budget.YieldIfNeeded();
         }
         _field.RecordGeneratedField(data.size,data.seed);
@@ -257,6 +279,105 @@ public sealed class SaveWorldAdapter
             await budget.YieldIfNeeded();
         }
         return created;
+    }
+
+    private static bool IsTerrain(CellBaseAdapter cell) => cell is EmptyCellAdapter or ResourceCellAdapter;
+
+    private sealed class CloneBatch
+    {
+        public CellTypeDomain Kind;
+        public int[] Indices;
+        public Vector3[] Positions;
+        public Quaternion[] Rotations;
+    }
+
+    private static (int[] targets, CloneBatch[] batches) PrepareReplacement(
+        SaveGameApplication data, int[] owners, (string Kind, int X, int Z, int Rotation)[] terrain,
+        Quaternion[] rotations, CancellationToken cancellation)
+    {
+        var kept = new bool[data.cells.Length];
+        var targets = new int[terrain.Length];
+        Array.Fill(targets, -1);
+        for (var i = 0; i < terrain.Length; i++)
+        {
+            var old = terrain[i];
+            if (old.Kind == null || old.X < 0 || old.Z < 0 || old.X >= data.size || old.Z >= data.size) continue;
+            var index = owners[old.X * data.size + old.Z];
+            var next = data.cells[index];
+            if (kept[index] || next.kind != old.Kind || next.x != old.X || next.z != old.Z || next.rotation != old.Rotation) continue;
+            kept[index] = true;
+            targets[i] = index;
+        }
+
+        var batches = new List<CloneBatch>();
+        foreach (var group in Enumerable.Range(0, data.cells.Length).Where(i => !kept[i]).GroupBy(i => data.cells[i].kind))
+        {
+            cancellation.ThrowIfCancellationRequested();
+            var kind = SaveKeysApplication.Cell(group.Key);
+            var indices = group.ToArray();
+            for (var start = 0; start < indices.Length; start += CloneBatchSize)
+            {
+                var count = Math.Min(CloneBatchSize, indices.Length - start);
+                var batch = new CloneBatch
+                {
+                    Kind = kind, Indices = new int[count], Positions = new Vector3[count], Rotations = new Quaternion[count]
+                };
+                for (var i = 0; i < count; i++)
+                {
+                    var index = indices[start + i];
+                    var cell = data.cells[index];
+                    batch.Indices[i] = index;
+                    batch.Positions[i] = new Vector3(cell.x, 0, cell.z);
+                    batch.Rotations[i] = rotations[cell.rotation];
+                }
+                batches.Add(batch);
+            }
+        }
+        return (targets, batches.ToArray());
+    }
+
+    private async UniTask CloneCellsAsync(CloneBatch[] batches, CellBaseAdapter[] created, CancellationToken cancellation)
+    {
+        var pending = new List<(CloneBatch Batch, AsyncInstantiateOperation<CellBaseAdapter> Operation)>();
+        var cleanupTime = new System.Diagnostics.Stopwatch();
+        var next = 0;
+        try
+        {
+            while (next < batches.Length || pending.Count != 0 || _retiredTerrain.Count != 0)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                for (var i = pending.Count - 1; i >= 0; i--)
+                {
+                    var (batch, operation) = pending[i];
+                    if (!operation.isDone) continue;
+                    var results = operation.Result;
+                    if (results == null || results.Length != batch.Indices.Length)
+                        throw new InvalidOperationException("Cell instantiation did not return the requested objects.");
+                    for (var j = 0; j < results.Length; j++) created[batch.Indices[j]] = results[j];
+                    pending.RemoveAt(i);
+                }
+                // Awake がまとまって実行される場合も、一度に統合するセル数を小さく保つ。
+                while (next < batches.Length && pending.Count < MaxPendingCloneBatches)
+                {
+                    var batch = batches[next++];
+                    var prefab = _definitions.FieldPrefab(batch.Kind);
+                    var operation = Object.InstantiateAsync(prefab, batch.Indices.Length, _restoredRoot,
+                        batch.Positions, batch.Rotations, cancellation);
+                    pending.Add((batch, operation));
+                }
+                cleanupTime.Restart();
+                // Unity が生成を進める間に、停止済みの旧地形を同じフレームへ詰め込みすぎず破棄する。
+                for (var retired = 0; retired < 160 && _retiredTerrain.Count != 0 && cleanupTime.ElapsedMilliseconds < 2; retired++)
+                    Object.Destroy(_retiredTerrain.Dequeue());
+                if (next < batches.Length || pending.Count != 0 || _retiredTerrain.Count != 0)
+                    await UniTask.NextFrame(cancellationToken: cancellation);
+            }
+        }
+        finally
+        {
+            foreach (var (_, operation) in pending)
+                if (!operation.isDone) operation.Cancel();
+        }
     }
     public async UniTask RestoreCellStatesAsync(SaveGameApplication data, CellBaseAdapter[] cells, CancellationToken cancellation)
     {
@@ -305,14 +426,13 @@ internal sealed class SaveFrameBudgetAdapter
 {
     private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
     private readonly CancellationToken _cancellation;
-    private readonly int _maxOperations;
+    private readonly int _maxOperations, _milliseconds;
     private int _operations;
-    public SaveFrameBudgetAdapter(CancellationToken cancellation, int maxOperations = int.MaxValue)
-    { _cancellation = cancellation; _maxOperations = maxOperations; }
-    public UniTask YieldIfNeeded(bool countOperation = true)
+    public SaveFrameBudgetAdapter(CancellationToken cancellation, int maxOperations = int.MaxValue, int milliseconds = 4)
+    { _cancellation = cancellation; _maxOperations = maxOperations; _milliseconds = milliseconds; }
+    public UniTask YieldIfNeeded()
     {
-        if (countOperation) _operations++;
-        return _operations < _maxOperations && _clock.ElapsedMilliseconds < 4 ? UniTask.CompletedTask : NextFrame();
+        return ++_operations < _maxOperations && _clock.ElapsedMilliseconds < _milliseconds ? UniTask.CompletedTask : NextFrame();
     }
 
     private async UniTask NextFrame()
