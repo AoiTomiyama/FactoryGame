@@ -6,6 +6,26 @@ using UnityEngine;
 [TestFixture,Category("AutomaticConveyor")]
 public sealed class AutomaticConveyorTests : FactoryEditModeScope
 {
+    [TestCase("Assets/Prefabs/Field/General/F_CrafterCell.prefab")]
+    [TestCase("Assets/Prefabs/Placeholder/General/P_CrafterCell.prefab")]
+    public void BasicCrafterReusesConveyorArrowsAtBothPorts(string path)
+    {
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+        var model = prefab.transform.Find("Model/CrafterCellModel");
+        Assert.That(model, Is.Not.Null);
+        var input = model.Find("InputArrow");
+        var output = model.Find("OutputArrow");
+        Assert.That(input, Is.Not.Null);
+        Assert.That(output, Is.Not.Null);
+        Assert.That(input.localPosition.z, Is.LessThan(0));
+        Assert.That(output.localPosition.z, Is.GreaterThan(0));
+        foreach (var arrow in new[] { input, output })
+        {
+            Assert.That(arrow.GetComponentsInChildren<MeshRenderer>().Length, Is.EqualTo(2));
+            Assert.That(Vector3.Dot(model.forward, arrow.forward), Is.EqualTo(1).Within(.001f));
+        }
+    }
+
     [TestCase(0)] [TestCase(1)] [TestCase(2)] [TestCase(3)]
     public void RouteShapeUsesExistingDirectionAndDragEndpoints(int turns)
     {

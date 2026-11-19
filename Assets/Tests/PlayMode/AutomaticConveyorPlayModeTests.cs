@@ -84,6 +84,15 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
     private async UniTask Merge()
     {
         var junction = Junction(5, 5, DirectionsDomain.Back | DirectionsDomain.Left, DirectionsDomain.Forward);
+        var model = junction.CellModel.transform.Find("JunctionBelt");
+        Assert.That(model, Is.Not.Null);
+        var straight = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Models/ConveyorCellModel.prefab");
+        Assert.That(model.Find("BeltCenter").GetComponent<MeshFilter>().sharedMesh,
+            Is.SameAs(straight.transform.GetChild(0).GetComponent<MeshFilter>().sharedMesh));
+        Assert.That(model.Find("RightBelt").gameObject.activeSelf, Is.False);
+        Assert.That(Vector3.Dot(model.Find("LeftBelt").forward, Vector3.right), Is.EqualTo(1).Within(.001f));
+        Assert.That(Vector3.Dot(model.Find("BackBelt").forward, Vector3.forward), Is.EqualTo(1).Within(.001f));
+        Assert.That(Vector3.Dot(model.Find("ForwardBelt").forward, Vector3.forward), Is.EqualTo(1).Within(.001f));
         var sink = Add<StorageCellAdapter>("Storage", 5, 6);
         var exit = sink.Ports.First(port => (port.Use & CellPortUseDomain.Output) != 0).Id;
         Fill(sink, ResourceTypeDomain.Wood, sink.Capacity);
@@ -374,10 +383,21 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
             {
                 var marker = Object.FindObjectsByType<ConveyorRouteViewAdapter>(FindObjectsSortMode.None)
                     .Single(view => view.transform.parent.name.StartsWith("P_", StringComparison.Ordinal));
-                Assert.That(marker.GetComponent<MeshRenderer>().enabled);
-                var mesh = marker.GetComponent<MeshFilter>().sharedMesh;
-                Assert.That(mesh.vertexCount, Is.EqualTo(split ? 21 : 28));
-                Assert.That(mesh.bounds.max.y, Is.GreaterThan(.5f));
+                if (split)
+                {
+                    Assert.That(marker.transform.Find("BeltCenter").GetComponent<MeshRenderer>().enabled);
+                    Assert.That(marker.transform.Find("ForwardBelt").gameObject.activeSelf);
+                    Assert.That(marker.transform.Find("RightBelt").gameObject.activeSelf);
+                    Assert.That(marker.transform.Find("BackBelt").gameObject.activeSelf);
+                    Assert.That(marker.transform.Find("LeftBelt").gameObject.activeSelf, Is.False);
+                }
+                else
+                {
+                    Assert.That(marker.GetComponent<MeshRenderer>().enabled);
+                    var mesh = marker.GetComponent<MeshFilter>().sharedMesh;
+                    Assert.That(mesh.vertexCount, Is.EqualTo(28));
+                    Assert.That(mesh.bounds.max.y, Is.GreaterThan(.5f));
+                }
             }
             placer.PointerEnd();
             if (previewCount > 0)

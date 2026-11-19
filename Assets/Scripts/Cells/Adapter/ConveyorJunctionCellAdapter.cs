@@ -9,7 +9,10 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
 {
     [SerializeField] private ExportConveyorCellAdapter exportDefinition;
     [SerializeField] private Material routeMaterial;
+    [SerializeField] private Transform beltModel, beltSurface;
     internal Material RouteMaterial => routeMaterial;
+    internal void ShowBelt(Transform root, ConveyorRouteRulesDomain.Route route) =>
+        ConveyorRouteViewAdapter.ShowBelt(root, route, beltModel, beltSurface);
     private ConveyorJunctionApplication _junction;
     private ConveyorRouteRulesDomain.Route _route;
     private readonly Dictionary<int, (Connection Link, IContainableApplication Target, Action<int?> Wake)> _outputs = new();
@@ -47,7 +50,7 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
         OnGetConnectedCell += Connect;
         OnLostConnectedCell += Disconnect;
         OnDisconnected += Shutdown;
-        ConveyorRouteViewAdapter.Show(CellModel.transform, _route, routeMaterial);
+        ShowBelt(CellModel.transform, _route);
         if (_restoredBatches != null)
         {
             foreach (var slot in _restoredBatches)

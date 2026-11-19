@@ -293,8 +293,13 @@ public class CellPlacerAdapter : MonoBehaviour
             }
             ConfigurePreview(placeholder, cell, PlannedRotation(cell));
             if (_routeChanges.TryGetValue(cell, out var change) && FieldPrefab(CellTypeDomain.Junction) is ConveyorJunctionCellAdapter junction)
-                ConveyorRouteViewAdapter.Show(placeholder.transform,
-                    ConveyorRouteRulesDomain.Rotate(change.After, -cell.QuarterTurns), junction.RouteMaterial);
+            {
+                var route = ConveyorRouteRulesDomain.Rotate(change.After, -cell.QuarterTurns);
+                if (route.Type == ConveyorRouteRulesDomain.Kind.Crossing)
+                    ConveyorRouteViewAdapter.Show(placeholder.transform, route, junction.RouteMaterial);
+                else
+                    junction.ShowBelt(placeholder.transform, route);
+            }
             _selectedRangeCells.Add((cell, placeholder));
         }
     }

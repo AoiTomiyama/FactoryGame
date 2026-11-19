@@ -12,6 +12,8 @@ public sealed class ConveyorRouteViewAdapter : MonoBehaviour
     };
     private Mesh _mesh;
     private DirectionsDomain _inputs, _outputs;
+    private Transform[] _beltArms;
+    private Transform[] _beltSurfaces;
 
     internal static void Show(Transform root, ConveyorRouteRulesDomain.Route route, Material material)
     {
@@ -27,6 +29,65 @@ public sealed class ConveyorRouteViewAdapter : MonoBehaviour
             renderer.shadowCastingMode = ShadowCastingMode.Off;
         }
         child.GetComponent<ConveyorRouteViewAdapter>().SetRoute(route);
+    }
+
+    internal static void ShowBelt(Transform root, ConveyorRouteRulesDomain.Route route, Transform model, Transform surface)
+    {
+        var child = root.Find("JunctionBelt");
+        if (child == null)
+        {
+            var view = new GameObject("JunctionBelt", typeof(ConveyorRouteViewAdapter));
+            child = view.transform;
+            child.SetParent(root, false);
+        }
+        child.GetComponent<ConveyorRouteViewAdapter>().SetBelt(route, model, surface);
+    }
+
+    private void SetBelt(ConveyorRouteRulesDomain.Route route, Transform model, Transform surface)
+    {
+        if (_inputs == route.Inputs && _outputs == route.Outputs) return;
+        _inputs = route.Inputs;
+        _outputs = route.Outputs;
+        var surfaceScale = surface.localScale;
+        var halfWidth = surfaceScale.x * .5f;
+        var rimLength = .5f - halfWidth;
+        var rimCenter = halfWidth + rimLength * .5f;
+        const float arrowCenter = .28f;
+        if (_beltArms == null)
+        {
+            var center = Instantiate(surface, transform, false);
+            center.name = "BeltCenter";
+            center.localScale = new Vector3(surfaceScale.x, surfaceScale.y, surfaceScale.x);
+
+            // 同じPrefabのベルト面と矢印を使い、中央と外周の面が重ならないように分ける。
+            _beltArms = new Transform[Sides.Length];
+            _beltSurfaces = new Transform[Sides.Length];
+            for (var i = 0; i < Sides.Length; i++)
+            {
+                var arm = _beltArms[i] = Instantiate(model, transform, false);
+                arm.name = $"{Sides[i].Side}Belt";
+                arm.localPosition = Sides[i].Direction * arrowCenter;
+                var rim = _beltSurfaces[i] = arm.GetChild(surface.GetSiblingIndex());
+                rim.localScale = new Vector3(surfaceScale.x, surfaceScale.y, rimLength);
+                foreach (Transform marker in arm)
+                {
+                    if (marker == rim) continue;
+                    var scale = new Vector3(.54f, .7f, .54f);
+                    marker.localPosition = new Vector3(marker.localPosition.x * scale.x,
+                        marker.localPosition.y, marker.localPosition.z * scale.z);
+                    marker.localScale = Vector3.Scale(marker.localScale, scale);
+                }
+            }
+        }
+        for (var i = 0; i < Sides.Length; i++)
+        {
+            var (side, direction) = Sides[i];
+            var arm = _beltArms[i];
+            var input = (_inputs & side) != 0;
+            arm.gameObject.SetActive(input || (_outputs & side) != 0);
+            arm.localRotation = Quaternion.LookRotation(input ? -direction : direction);
+            _beltSurfaces[i].localPosition = surface.localPosition + Vector3.forward * ((rimCenter - arrowCenter) * (input ? -1 : 1));
+        }
     }
 
     private void SetRoute(ConveyorRouteRulesDomain.Route route)

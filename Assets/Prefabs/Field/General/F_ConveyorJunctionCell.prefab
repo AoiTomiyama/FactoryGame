@@ -97,3 +97,5 @@ MonoBehaviour:
     Use: 3
   exportDefinition: {fileID: -6418179465880099695, guid: 96acf1e9aebc93d41a2804eeca4df6bd, type: 3}
   routeMaterial: {fileID: 2100000, guid: 11092ac7953212c4c9381b424e816a9c, type: 2}
+  beltModel: {fileID: 3908655582398405483, guid: f987f6e3a4251234a92c50dde42f87dd, type: 3}
+  beltSurface: {fileID: 3206645513511022196, guid: f987f6e3a4251234a92c50dde42f87dd, type: 3}
