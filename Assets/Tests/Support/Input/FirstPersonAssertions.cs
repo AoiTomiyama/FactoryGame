@@ -104,9 +104,9 @@ public static class FirstPersonAssertions
             Require(Cursor.lockState == cursorLock && Cursor.visible == cursorVisible && cine.Lens.ModeOverride == lens.ModeOverride, "cursor and lens override restored");
             Require(view.SelectedCell == selected && marker.gameObject.activeInHierarchy && view.GetComponent<CanvasGroup>().alpha == 1, "selected equipment and right UI restored");
             Require(placer.PlacementEnabled && operation.Bar.gameObject.activeInHierarchy && !operation.WalkingHelp.gameObject.activeInHierarchy && hud.Navigation.gameObject.activeInHierarchy, "placement HUD restored");
-            for (var page = 0; page < 3; page++)
+            foreach (var page in new[] { 0, EconomyPanelAdapter.RecipePage, EconomyPanelAdapter.EncyclopediaPage })
             {
-                panel.ShowPage(page); var expanded = page != 1; panel.SetExpanded(expanded);
+                panel.ShowPage(page); var expanded = page != EconomyPanelAdapter.RecipePage; panel.SetExpanded(expanded);
                 await Press(keyboard, Key.F); await WaitForMode(controller, true); Require(controller.IsFirstPerson, "F enters from each page");
                 wallet.TryReserveIncome(1, out var income); income.TryCommit();
                 Require(panel.BalanceText.Contains(wallet.Current.Balance.ToString()), "wallet keeps updating during first person");
