@@ -110,10 +110,13 @@ public sealed class SkillScreenAdapter : MonoBehaviour
     private void Update() { if (IsOpen && Keyboard.current?.escapeKey.wasPressedThisFrame == true) Close(); }
     private void LateUpdate() { if (IsOpen) { _tree.UpdateLayout(); Details.UpdateLayout(); } }
     private void OnDisable() => Close();
-    private void OnDestroy()
+    private void OnDestroy() => ReleaseWorld();
+    internal void ReleaseWorld()
     {
         Close();
         if (CloseButton != null) CloseButton.onClick.RemoveListener(Close);
         _presenter?.Dispose(); _tree?.Dispose();
+        _presenter = null; _tree = null; _presentation = null;
+        _wallet = null; _skills = null; _deliveries = null;
     }
 }

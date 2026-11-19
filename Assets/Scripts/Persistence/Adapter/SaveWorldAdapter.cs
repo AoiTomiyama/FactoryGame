@@ -12,6 +12,7 @@ public sealed class SaveWorldAdapter
 {
     private readonly GridFieldDatabaseAdapter _field;
     private readonly CellPlacerAdapter _definitions;
+    private Transform _restoredRoot;
     public SaveWorldAdapter(GridFieldDatabaseAdapter field, CellPlacerAdapter definitions)
     { _field = field; _definitions = definitions; }
 
@@ -181,22 +182,63 @@ public sealed class SaveWorldAdapter
             throw new InvalidOperationException("Invalid saved conveyor route or input.");
     }
 
+    internal async UniTask BuildInitialTerrainAsync(StartSiteRulesDomain.Terrain[,] terrain, int seed, CancellationToken cancellation)
+    {
+        var size = terrain.GetLength(0);
+        var budget = new SaveFrameBudgetAdapter(cancellation);
+        var cells = new SaveGameApplication.Cell[terrain.Length];
+        var owners = new int[terrain.Length];
+        for (var x = 0; x < size; x++)
+        for (var z = 0; z < size; z++)
+        {
+            var kind = terrain[x, z].Empty ? CellTypeDomain.Empty : ResourceCellKind(terrain[x, z].Resource);
+            var i = x * size + z;
+            cells[i] = new SaveGameApplication.Cell { x = x, z = z, kind = SaveKeysApplication.Key(kind) };
+            owners[i] = i;
+            await budget.YieldIfNeeded();
+        }
+        await BuildCellsAsync(new SaveGameApplication { size = size, seed = seed, cells = cells }, owners, cancellation);
+    }
+
     public async UniTask<CellBaseAdapter[]> BuildCellsAsync(SaveGameApplication data, int[] owners, CancellationToken cancellation)
     {
-        // ロードは開始前だけ。元の地形を退役させ、保存された所有セルを一件ずつ構築する。
-        var budget = new SaveFrameBudgetAdapter(cancellation);
+        var budget = new SaveFrameBudgetAdapter(cancellation, maxOperations: 64);
+        var created = new CellBaseAdapter[data.cells.Length];
+        // 同じ自然地形を使い回し、設備と変わったマスだけを入れ替える。
         foreach (var cell in _field.GetComponentsInChildren<CellBaseAdapter>())
         {
+            var anchor = Vector3Int.RoundToInt(cell.transform.position);
+            if (cell is (EmptyCellAdapter or ResourceCellAdapter) && anchor.x >= 0 && anchor.z >= 0 &&
+                anchor.x < data.size && anchor.z < data.size)
+            {
+                var index = owners[anchor.x * data.size + anchor.z];
+                var target = data.cells[index];
+                if (created[index] == null && target.x == anchor.x && target.z == anchor.z &&
+                    target.rotation == cell.QuarterTurns && target.kind == SaveKeysApplication.Key(Kind(cell)))
+                {
+                    created[index] = cell;
+                    await budget.YieldIfNeeded(countOperation: false);
+                    continue;
+                }
+            }
+            if (cell is ConnectableCellBaseAdapter connected) connected.OnDisconnect();
             cell.gameObject.SetActive(false);
             Object.Destroy(cell.gameObject);
             await budget.YieldIfNeeded();
         }
-        var root = new GameObject("RestoredCells"); root.transform.SetParent(_field.transform,false);
-        var created = new CellBaseAdapter[data.cells.Length];
+        // Destroy はフレーム末尾に実行されるため、旧設備の終了を先に済ませる。
+        await UniTask.NextFrame(cancellationToken: cancellation);
+        budget = new SaveFrameBudgetAdapter(cancellation, maxOperations: 64);
+        if (_restoredRoot == null)
+        {
+            _restoredRoot = new GameObject("RestoredCells").transform;
+            _restoredRoot.SetParent(_field.transform, false);
+        }
         for (var i = 0; i < data.cells.Length; i++)
         {
+            if (created[i] != null) continue;
             var c = data.cells[i];
-            var cell = Object.Instantiate(_definitions.FieldPrefab(SaveKeysApplication.Cell(c.kind)),new Vector3(c.x,0,c.z),Quaternion.Euler(0,c.rotation * 90,0),root.transform);
+            var cell = Object.Instantiate(_definitions.FieldPrefab(SaveKeysApplication.Cell(c.kind)),new Vector3(c.x,0,c.z),Quaternion.Euler(0,c.rotation * 90,0),_restoredRoot);
             if (cell is ConveyorCellAdapter belt) belt.RestoreExportRole(c.exporter);
             if (cell is CrossingCellAdapter crossing && c.routeInputs != 0) crossing.ConfigureRoute(SavedRoute(c));
             if (cell is ConveyorJunctionCellAdapter junction) junction.ConfigureRoute(SavedRoute(c), c.routeInputCursor, c.routeOutputCursor);
@@ -205,6 +247,7 @@ public sealed class SaveWorldAdapter
         }
         _field.RecordGeneratedField(data.size,data.seed);
         _field.InitializeRestoredOccupancy(data.size, owners, created);
+        budget = new SaveFrameBudgetAdapter(cancellation);
         for (var i = 0; i < created.Length; i++)
         {
             var cell = created[i];
@@ -235,17 +278,18 @@ public sealed class SaveWorldAdapter
     public static CellTypeDomain Kind(CellBaseAdapter cell) => cell switch
     {
         EmptyCellAdapter => CellTypeDomain.Empty,
-        ResourceCellAdapter r => r.ResourceTypeDomain switch
-        {
-            ResourceTypeDomain.Wood => CellTypeDomain.ResourceWood, ResourceTypeDomain.Stone => CellTypeDomain.ResourceStone,
-            ResourceTypeDomain.Iron => CellTypeDomain.ResourceIron, ResourceTypeDomain.Copper => CellTypeDomain.ResourceCopper,
-            ResourceTypeDomain.Coal => CellTypeDomain.ResourceCoal, _ => throw new InvalidOperationException("Unknown natural resource cell.")
-        },
+        ResourceCellAdapter r => ResourceCellKind(r.ResourceTypeDomain),
         ExportConveyorCellAdapter => CellTypeDomain.ExportConveyor, ConveyorCellAdapter => CellTypeDomain.Conveyor,
         CrossingCellAdapter => CellTypeDomain.Crossing, ConveyorJunctionCellAdapter => CellTypeDomain.Junction, SingularityCellAdapter => CellTypeDomain.Singularity,
         ShippingCellAdapter => CellTypeDomain.Shipping, ConstructionDepotCellAdapter => CellTypeDomain.ConstructionDepot,
         _ when cell.SupportsProgression => cell.ProgressionType,
         _ => throw new InvalidOperationException($"Cell has no save definition: {cell.GetType().Name}")
+    };
+    private static CellTypeDomain ResourceCellKind(ResourceTypeDomain resource) => resource switch
+    {
+        ResourceTypeDomain.Wood => CellTypeDomain.ResourceWood, ResourceTypeDomain.Stone => CellTypeDomain.ResourceStone,
+        ResourceTypeDomain.Iron => CellTypeDomain.ResourceIron, ResourceTypeDomain.Copper => CellTypeDomain.ResourceCopper,
+        ResourceTypeDomain.Coal => CellTypeDomain.ResourceCoal, _ => throw new InvalidOperationException("Unknown natural resource cell.")
     };
     internal static string Layout(CellBaseAdapter cell)
     {
@@ -261,12 +305,20 @@ internal sealed class SaveFrameBudgetAdapter
 {
     private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
     private readonly CancellationToken _cancellation;
-    public SaveFrameBudgetAdapter(CancellationToken cancellation) => _cancellation = cancellation;
-    public UniTask YieldIfNeeded() => _clock.ElapsedMilliseconds < 4 ? UniTask.CompletedTask : NextFrame();
+    private readonly int _maxOperations;
+    private int _operations;
+    public SaveFrameBudgetAdapter(CancellationToken cancellation, int maxOperations = int.MaxValue)
+    { _cancellation = cancellation; _maxOperations = maxOperations; }
+    public UniTask YieldIfNeeded(bool countOperation = true)
+    {
+        if (countOperation) _operations++;
+        return _operations < _maxOperations && _clock.ElapsedMilliseconds < 4 ? UniTask.CompletedTask : NextFrame();
+    }
 
     private async UniTask NextFrame()
     {
         await UniTask.NextFrame(cancellationToken: _cancellation);
+        _operations = 0;
         _clock.Restart();
     }
 }

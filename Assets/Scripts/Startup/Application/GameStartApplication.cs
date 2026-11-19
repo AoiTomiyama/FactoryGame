@@ -18,16 +18,17 @@ public sealed class GameStartApplication
     }
     public bool TryBeginRestore()
     {
-        if (CurrentStage != Stage.Menu) return false;
+        if (CurrentStage is not (Stage.Menu or Stage.SwitchingSlot)) return false;
         CurrentStage = Stage.Starting; return true;
     }
 
     public void Prepare(IEnumerable<StartSiteRulesDomain.Candidate> candidates)
     {
-        if (CurrentStage is not (Stage.Uninitialized or Stage.Menu)) throw new InvalidOperationException("Start session has already been prepared.");
+        if (CurrentStage is not (Stage.Uninitialized or Stage.Menu or Stage.SwitchingSlot)) throw new InvalidOperationException("Start session has already been prepared.");
         var copy = (candidates ?? throw new ArgumentNullException(nameof(candidates))).ToArray();
         if (copy.Any(c => c == null)) throw new ArgumentException("Start candidates must be valid.");
         Candidates = Array.AsReadOnly(copy);
+        SelectedIndex = 0;
         CurrentStage = Stage.Choosing;
     }
     public bool TrySelect(int index)
@@ -60,9 +61,5 @@ public sealed class GameStartApplication
         if (CurrentStage != Stage.SelectingSlot) return false;
         CurrentStage = Stage.SwitchingSlot;
         return true;
-    }
-    public void CancelSlotSwitch()
-    {
-        if (CurrentStage == Stage.SwitchingSlot) CurrentStage = Stage.SelectingSlot;
     }
 }

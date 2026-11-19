@@ -43,6 +43,12 @@ public class CellPlacerAdapter : MonoBehaviour
         if (_placeholderCell != null) _placeholderCell.SetActive(enabled);
         if (_selectedCell != null) _selectedCell.CellModel.SetActive(!enabled || _selectedCell is not EmptyCellAdapter);
     }
+    internal void ResetWorldSelection()
+    {
+        _selectedCell = null;
+        _overlap = false;
+        SetSelectedCellType(CellTypeDomain.Empty);
+    }
     private CurrencyWalletApplication _wallet;
     private ConstructionStockApplication _stock;
     private ResourceDefinition _resources;

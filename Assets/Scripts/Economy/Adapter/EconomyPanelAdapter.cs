@@ -118,6 +118,12 @@ public sealed class EconomyPanelAdapter : MonoBehaviour
 
     private void CloseReference() => ActiveReference?.ClearSelection();
 
+    internal void ReleaseWorld()
+    {
+        if (_view != null) SetExpanded(false);
+        Unbind();
+    }
+
     private void Bind()
     {
         if (_bound || _wallet == null) return;

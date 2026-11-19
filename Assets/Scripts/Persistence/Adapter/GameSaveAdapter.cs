@@ -35,11 +35,14 @@ public sealed class GameSaveAdapter : MonoBehaviour
         if (!SaveSlotCatalogApplication.IsNormal(slot)) throw new ArgumentOutOfRangeException(nameof(slot));
         SelectedSlot = slot;
         IsDebug = false;
+        SavedRevision = 0; LastError = null;
+        _label.text = "保存 [F5]";
         _button.gameObject.SetActive(true);
     }
     internal void SelectDebug()
     {
         IsDebug = true;
+        SavedRevision = 0; LastError = null;
         _button.gameObject.SetActive(false);
     }
     public void Configure(GameInitializerAdapter game, SaveWorldAdapter world, Button button)
@@ -108,9 +111,9 @@ public sealed class GameSaveAdapter : MonoBehaviour
         }
     }
     public SaveGameApplication Read() => SaveJsonAdapter.Decode(Storage.Read());
-    public Task<SaveGameApplication> ReadAsync(System.Threading.CancellationToken cancellation)
+    internal Task<SaveGameApplication> ReadAsync(int slot, CancellationToken cancellation)
     {
-        var storage = Storage;
+        var storage = Slots.FileFor(slot);
         return Task.Run(() => SaveJsonAdapter.Decode(storage.Read(), parallelValidation: true), cancellation);
     }
     private void OnDestroy() { if (_button != null) _button.onClick.RemoveListener(SaveClicked); }

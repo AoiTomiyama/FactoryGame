@@ -19,7 +19,6 @@ public sealed class StartSiteSelectionAdapter : MonoBehaviour
     private readonly List<GameObject> _previews = new();
     private readonly List<LineRenderer> _frames = new();
     private GameObject _shipping;
-    private bool _finished;
     public int SelectedIndex => _session?.SelectedIndex ?? 0;
     public int Count => _session?.Candidates.Count ?? 0;
     public bool CanChoose => _session != null && _session.CanChoose;
@@ -28,6 +27,8 @@ public sealed class StartSiteSelectionAdapter : MonoBehaviour
     public void BeginMenu()
     {
         ValidateBindings();
+        DisposePreviews();
+        bar.SetStartSelection(null);
         placer.SetPlacementEnabled(false); statusView.SetStatusWindowActive(false);
         hud.gameObject.SetActive(false); cameraController.SetStartSelection(true);
         bar.SetPlacementActive(false);
@@ -122,15 +123,15 @@ public sealed class StartSiteSelectionAdapter : MonoBehaviour
     }
     public void Finish()
     {
-        if (_finished) return; _finished = true; _confirm = null;
         bar.SetStartSelection(null);
         cameraController.SetStartSelection(false);
         hud.gameObject.SetActive(true);
-        DisposePreviews(); Destroy(this);
+        DisposePreviews();
     }
     public void DisposePreviews()
     {
         _confirm = null;
+        _session = null;
         foreach (var root in _roots) if (root != null) { root.SetActive(false); Destroy(root); }
         _roots.Clear(); _previews.Clear(); _frames.Clear();
     }

@@ -25,6 +25,8 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         income.TryCommit();
         var balanceA = game.Wallet.Current.Balance;
         var storage = (StorageCellAdapter)Install(CellTypeDomain.Storage);
+        var field = GridFieldDatabaseAdapter.Instance;
+        var resource = field.Owners.OfType<ResourceCellAdapter>().First();
         var x = storage.XIndex;
         var z = storage.ZIndex;
         var slotOne = game.Saves.Slots.FileFor(1);
@@ -45,7 +47,10 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         Assert.That(slotTwo.Exists, Is.False);
 
         ButtonNamed("SaveSlot2").onClick.Invoke();
-        game = await WaitForSelectedWorld(game, GameStartApplication.Stage.Choosing);
+        await WaitForSelectedWorld(game, GameStartApplication.Stage.Choosing);
+        Assert.That(field.GetCell(resource.XIndex, resource.ZIndex), Is.SameAs(resource));
+        Assert.That(storage == null, Is.True);
+        Assert.That(game.Wallet, Is.Null);
         Assert.That(game.TryStartGame());
         Assert.That(game.Saves.SelectedSlot, Is.EqualTo(2));
         Assert.That(game.Wallet.Current.Balance, Is.EqualTo(game.Prices.InitialBalance));
@@ -60,10 +65,11 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         Assert.That(SaveJsonAdapter.Decode(slotTwo.Read()).balance, Is.EqualTo(balanceB));
 
         ButtonNamed("SaveSlot1").onClick.Invoke();
-        game = await WaitForSelectedWorld(game, GameStartApplication.Stage.Starting);
+        await WaitForSelectedWorld(game, GameStartApplication.Stage.Starting);
         Assert.That(ButtonNamed("SaveSlot1").interactable, Is.False);
         await UniTask.WaitUntil(() => game.Session.CurrentStage == GameStartApplication.Stage.Running)
             .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime);
+        Assert.That(Time.timeScale, Is.EqualTo(1));
         Assert.That(game.Wallet.Current.Balance, Is.EqualTo(balanceA));
         Assert.That(GridFieldDatabaseAdapter.Instance.GetCell(x, z), Is.InstanceOf<StorageCellAdapter>());
         Assert.That(game.Wallet.TryReserveIncome(10, out var unsaved));
@@ -74,7 +80,7 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         Assert.That(SaveJsonAdapter.Decode(slotOne.Read()).balance, Is.EqualTo(balanceA));
 
         ButtonNamed("SaveSlot3").onClick.Invoke();
-        game = await WaitForSelectedWorld(game, GameStartApplication.Stage.Choosing);
+        await WaitForSelectedWorld(game, GameStartApplication.Stage.Choosing);
         Assert.That(game.TryStartGame());
         Directory.CreateDirectory(game.Saves.Storage.Path);
         ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
@@ -138,8 +144,9 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         ButtonNamed("ReturnWithoutSaving").onClick.Invoke();
         await WaitForSlotMenu(game);
         ButtonNamed("DebugSlot").onClick.Invoke();
-        game = await WaitForSelectedWorld(game, GameStartApplication.Stage.Running);
+        await WaitForSelectedWorld(game, GameStartApplication.Stage.Running);
         Assert.That(game.Wallet.Current.Balance, Is.EqualTo(initialBalance));
+        Assert.That(ResourceItemObjectPoolAdapter.Instance.Resources.Count, Is.Zero);
         Assert.That(normal.Read(), Is.EqualTo("isolated normal slot"));
         Assert.That(Directory.GetFiles(SaveTestDirectory).Length, Is.EqualTo(1));
     }
@@ -159,15 +166,15 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         Assert.That(Object.FindAnyObjectByType<GameInitializerAdapter>(), Is.SameAs(game));
     }
 
-    private static async UniTask<GameInitializerAdapter> WaitForSelectedWorld(GameInitializerAdapter previous, GameStartApplication.Stage stage)
+    private static async UniTask WaitForSelectedWorld(GameInitializerAdapter game, GameStartApplication.Stage stage)
     {
-        GameInitializerAdapter current = null;
-        await UniTask.WaitUntil(() =>
-        {
-            current = Object.FindAnyObjectByType<GameInitializerAdapter>();
-            return current != null && current != previous && current.Session.CurrentStage == stage;
-        }).Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime);
-        return current;
+        var field = GridFieldDatabaseAdapter.Instance;
+        var frame = Time.frameCount;
+        await UniTask.WaitUntil(() => game == null || game.Session.CurrentStage == stage)
+            .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime);
+        Assert.That(Object.FindAnyObjectByType<GameInitializerAdapter>(), Is.SameAs(game));
+        Assert.That(GridFieldDatabaseAdapter.Instance, Is.SameAs(field));
+        if (stage != GameStartApplication.Stage.Starting) Assert.That(Time.frameCount, Is.GreaterThan(frame));
     }
     [UnityTest, Explicit("Supply a saved-game copy through FACTORY_SAVE_TEST_INPUT")]
     public IEnumerator ExistingSaveRestoresAndSavesAcrossFrames() => ExistingSaveRoundTrip().ToCoroutine();

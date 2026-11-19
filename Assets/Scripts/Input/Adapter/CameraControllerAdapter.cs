@@ -201,7 +201,7 @@ public class CameraControllerAdapter : MonoBehaviour
         if (!_firstPersonRequested) RestoreOverview();
     }
 
-    private void RestoreOverview()
+    internal void RestoreOverview()
     {
         if (!IsFirstPerson) return;
         _firstPersonRequested = _transitionActive = false;

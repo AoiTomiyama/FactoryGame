@@ -11,10 +11,12 @@ public sealed class InitialCellPlacementAdapter
         definition.ValidateAt(field.GeneratedSize, anchor);
         var occupied = definition.SingularityPrefab.Footprint.Coordinates(anchor.x, anchor.y, 0).ToHashSet();
         var sale = definition.ShippingCell(anchor);
-        var cells = field.GetComponentsInChildren<CellBaseAdapter>().ToDictionary(c =>
-            (Mathf.RoundToInt(c.transform.position.x), Mathf.RoundToInt(c.transform.position.z)));
-        if (occupied.Any(p => !cells.TryGetValue(p, out var c) || c is not EmptyCellAdapter && c is not ResourceCellAdapter) ||
-            !cells.TryGetValue(sale, out var target) || target is not EmptyCellAdapter)
+        var registered = field.IsWithinBounds(0, 0);
+        var coordinates = occupied.Append(sale).ToArray();
+        var previous = registered ? field.CaptureCells(coordinates) : null;
+        var cells = registered ? previous.Select(entry => entry.Owner).ToArray() : UnregisteredCells(field, coordinates);
+        if (cells.Take(occupied.Count).Any(c => c is not (EmptyCellAdapter or ResourceCellAdapter)) ||
+            cells[^1] is not EmptyCellAdapter)
             throw new InvalidOperationException("Selected start site is no longer available.");
 
         // 作成を先に済ませる。例外時は呼出側へ伝え、作成途中の状態を調査用に残す。
@@ -24,8 +26,17 @@ public sealed class InitialCellPlacementAdapter
         shipping.transform.SetPositionAndRotation(new Vector3(sale.x, 0, sale.z), Quaternion.identity);
         core.name = $"Tile_{anchor.x}_{anchor.y}"; shipping.name = $"Tile_{sale.x}_{sale.z}";
         // 初期配置で作るセルはこの2設備だけ。範囲外は触らない。
-        foreach (var p in occupied.Append(sale)) Retire(cells[p]);
+        if (registered && !field.TryReplaceCells(new CellBaseAdapter[] { core, shipping }, previous))
+            throw new InvalidOperationException("Selected start site changed during placement.");
+        foreach (var cell in cells) Retire(cell);
+        if (!registered) field.InitializeCells(field.GeneratedSize);
         return (core, shipping);
+    }
+    private static CellBaseAdapter[] UnregisteredCells(GridFieldDatabaseAdapter field, (int x, int z)[] coordinates)
+    {
+        var cells = field.GetComponentsInChildren<CellBaseAdapter>().ToDictionary(c =>
+            (Mathf.RoundToInt(c.transform.position.x), Mathf.RoundToInt(c.transform.position.z)));
+        return coordinates.Select(point => cells.TryGetValue(point, out var cell) ? cell : null).ToArray();
     }
     private static void Retire(CellBaseAdapter cell)
     {
