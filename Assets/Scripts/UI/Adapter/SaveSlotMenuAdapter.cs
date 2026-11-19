@@ -112,13 +112,13 @@ internal sealed class SaveSlotMenuAdapter
         rect.anchoredPosition = _shortcutPosition - Vector2.right * (debug ? 0 : _saveWidth + 8);
     }
 
-    internal void ShowSlots(SaveSlotCatalogApplication catalog)
+    internal void ShowSlots(DateTime?[] savedDates)
     {
         Display("セーブデータを選択");
         for (var i = 0; i < _slots.Length; i++)
         {
             var number = i + SaveSlotCatalogApplication.FirstSlot;
-            var lastSave = catalog.LastSaved(number);
+            var lastSave = savedDates[i];
             var detail = lastSave.HasValue ? lastSave.Value.ToLocalTime().ToString("yyyy/MM/dd HH:mm") : "新規開始";
             SetLabel(_slots[i], $"セーブ {number}　{detail}");
             _slots[i].gameObject.SetActive(true);

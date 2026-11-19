@@ -38,11 +38,14 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
 
         ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
         ButtonNamed("SaveAndReturn").onClick.Invoke();
-        game = await WaitForSlotMenu(game);
+        Assert.That(game.Saves.IsSaving);
+        Assert.That(slotOne.Exists, Is.False);
+        await WaitForSlotMenu(game);
         Assert.That(slotOne.Exists);
         Assert.That(slotTwo.Exists, Is.False);
 
         ButtonNamed("SaveSlot2").onClick.Invoke();
+        game = await WaitForSelectedWorld(game, GameStartApplication.Stage.Choosing);
         Assert.That(game.TryStartGame());
         Assert.That(game.Saves.SelectedSlot, Is.EqualTo(2));
         Assert.That(game.Wallet.Current.Balance, Is.EqualTo(game.Prices.InitialBalance));
@@ -52,11 +55,13 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         var balanceB = game.Wallet.Current.Balance;
         ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
         ButtonNamed("SaveAndReturn").onClick.Invoke();
-        game = await WaitForSlotMenu(game);
+        await WaitForSlotMenu(game);
         Assert.That(slotTwo.Exists);
         Assert.That(SaveJsonAdapter.Decode(slotTwo.Read()).balance, Is.EqualTo(balanceB));
 
         ButtonNamed("SaveSlot1").onClick.Invoke();
+        game = await WaitForSelectedWorld(game, GameStartApplication.Stage.Starting);
+        Assert.That(ButtonNamed("SaveSlot1").interactable, Is.False);
         await UniTask.WaitUntil(() => game.Session.CurrentStage == GameStartApplication.Stage.Running)
             .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime);
         Assert.That(game.Wallet.Current.Balance, Is.EqualTo(balanceA));
@@ -65,10 +70,11 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         unsaved.TryCommit();
         ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
         ButtonNamed("ReturnWithoutSaving").onClick.Invoke();
-        game = await WaitForSlotMenu(game);
+        await WaitForSlotMenu(game);
         Assert.That(SaveJsonAdapter.Decode(slotOne.Read()).balance, Is.EqualTo(balanceA));
 
         ButtonNamed("SaveSlot3").onClick.Invoke();
+        game = await WaitForSelectedWorld(game, GameStartApplication.Stage.Choosing);
         Assert.That(game.TryStartGame());
         Directory.CreateDirectory(game.Saves.Storage.Path);
         ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
@@ -130,21 +136,36 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         ButtonNamed("ReturnToSaveSlots").onClick.Invoke();
         Assert.That(GameObject.Find("SaveAndReturn"), Is.Null);
         ButtonNamed("ReturnWithoutSaving").onClick.Invoke();
-        game = await WaitForSlotMenu(game);
-        Assert.That(await game.TryStartDebugAsync());
+        await WaitForSlotMenu(game);
+        ButtonNamed("DebugSlot").onClick.Invoke();
+        game = await WaitForSelectedWorld(game, GameStartApplication.Stage.Running);
         Assert.That(game.Wallet.Current.Balance, Is.EqualTo(initialBalance));
         Assert.That(normal.Read(), Is.EqualTo("isolated normal slot"));
         Assert.That(Directory.GetFiles(SaveTestDirectory).Length, Is.EqualTo(1));
     }
 
     private static Button ButtonNamed(string name) => GameObject.Find(name).GetComponent<Button>();
-    private static async UniTask<GameInitializerAdapter> WaitForSlotMenu(GameInitializerAdapter previous)
+    private static async UniTask WaitForSlotMenu(GameInitializerAdapter game)
+    {
+        var field = GridFieldDatabaseAdapter.Instance;
+        var frame = Time.frameCount;
+        await UniTask.WaitUntil(() => game != null && game.Session.CurrentStage == GameStartApplication.Stage.SelectingSlot)
+            .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime);
+        Assert.That(GridFieldDatabaseAdapter.Instance, Is.SameAs(field));
+        Assert.That(Time.timeScale, Is.Zero);
+        await UniTask.NextFrame();
+        Assert.That(Time.frameCount, Is.GreaterThan(frame));
+        Assert.That(GridFieldDatabaseAdapter.Instance, Is.SameAs(field));
+        Assert.That(Object.FindAnyObjectByType<GameInitializerAdapter>(), Is.SameAs(game));
+    }
+
+    private static async UniTask<GameInitializerAdapter> WaitForSelectedWorld(GameInitializerAdapter previous, GameStartApplication.Stage stage)
     {
         GameInitializerAdapter current = null;
         await UniTask.WaitUntil(() =>
         {
             current = Object.FindAnyObjectByType<GameInitializerAdapter>();
-            return current != null && current != previous && current.Session.CurrentStage == GameStartApplication.Stage.Menu;
+            return current != null && current != previous && current.Session.CurrentStage == stage;
         }).Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime);
         return current;
     }

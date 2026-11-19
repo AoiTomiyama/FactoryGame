@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
@@ -60,7 +61,13 @@ public sealed class GameSaveAdapter : MonoBehaviour
     internal UniTask<bool> CompleteSaveBeforeReturn(bool save)
     {
         if (IsSaving) return _completion.Task;
-        return save ? RequestSave() ? _completion.Task : UniTask.FromResult(false) : UniTask.FromResult(true);
+        if (!save) return UniTask.FromResult(true);
+        return RequestSave() ? _completion.Task : UniTask.FromResult(false);
+    }
+    internal Task<DateTime?[]> ReadSlotDatesAsync(CancellationToken cancellation)
+    {
+        var catalog = Slots;
+        return Task.Run(catalog.LastSavedDates, cancellation);
     }
     private void Update()
     { if (_game != null && !_game.SaveMenuBlocksInput && Keyboard.current?.f5Key.wasPressedThisFrame == true) RequestSave(); }

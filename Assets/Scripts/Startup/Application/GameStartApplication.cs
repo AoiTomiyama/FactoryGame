@@ -5,7 +5,7 @@ using System.Linq;
 /// <summary>開始地点の選択と、開始処理の一回性を管理する。Scene操作は呼出側が担当する。</summary>
 public sealed class GameStartApplication
 {
-    public enum Stage { Uninitialized, Menu, Choosing, Starting, Running, Failed, Returning }
+    public enum Stage { Uninitialized, Menu, Choosing, Starting, Running, Failed, SelectingSlot, SwitchingSlot }
     public Stage CurrentStage { get; private set; }
     public IReadOnlyList<StartSiteRulesDomain.Candidate> Candidates { get; private set; } = Array.Empty<StartSiteRulesDomain.Candidate>();
     public int SelectedIndex { get; private set; }
@@ -48,14 +48,21 @@ public sealed class GameStartApplication
         CurrentStage = Stage.Running;
     }
     public void Fail() => CurrentStage = Stage.Failed;
-    public bool TryBeginReturn()
+    public bool TryShowSlotSelection()
     {
         if (CurrentStage is not (Stage.Running or Stage.Failed)) return false;
-        CurrentStage = Stage.Returning;
+        CurrentStage = Stage.SelectingSlot;
         return true;
     }
-    public void CancelReturn(bool wasRunning)
+
+    public bool TryBeginSlotSwitch()
     {
-        if (CurrentStage == Stage.Returning) CurrentStage = wasRunning ? Stage.Running : Stage.Failed;
+        if (CurrentStage != Stage.SelectingSlot) return false;
+        CurrentStage = Stage.SwitchingSlot;
+        return true;
+    }
+    public void CancelSlotSwitch()
+    {
+        if (CurrentStage == Stage.SwitchingSlot) CurrentStage = Stage.SelectingSlot;
     }
 }

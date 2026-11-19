@@ -20,6 +20,9 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     [SerializeField] private StartSiteSelectionAdapter selection;
     [SerializeField] private GameSaveAdapter saves;
     private SaveSlotMenuAdapter _saveMenu;
+    private DateTime?[] _slotDates;
+    private int? _startupSlot;
+    private float? _timeScaleBeforeSlotSelection;
     private bool _returning;
     internal bool SaveMenuBlocksInput => _saveMenu?.BlocksGameplay ?? false;
 
@@ -33,30 +36,83 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     public GameSaveAdapter Saves => saves;
     public IEnumerable<ResourceTypeDomain> RegisteredResources => resources.GetAllResources().Select(r => r.ResourceTypeDomain);
 
-    private void Start()
+    private async void Start()
     {
+        var cancellation = destroyCancellationToken;
         try
         {
             ValidateConfiguration();
             cursor.ConfigureStartup(Session,selection,cameraController);
             saves.Configure(this,new SaveWorldAdapter(field,placer),selection.Layout.Save);
-            Session.ShowMenu();
             cameraController.ConfigureInputGate(() => SaveMenuBlocksInput);
-            _saveMenu = new SaveSlotMenuAdapter(selection.Layout, selection.MenuHost, ChooseSlot, () => TryStartDebugAsync().Forget(),
+            _saveMenu = new SaveSlotMenuAdapter(selection.Layout, selection.MenuHost, ChooseSlot, () => ChooseSlot(0),
                 () => OpenReturnMenu(), save => TryReturnToSaveSlotsAsync(save).Forget(), () => TryReturnToSaveSlotsAsync(false).Forget());
             selection.BeginMenu();
-            _saveMenu.ShowSlots(saves.Slots);
+            _slotDates = await saves.ReadSlotDatesAsync(cancellation);
+            cancellation.ThrowIfCancellationRequested();
+            Session.ShowMenu();
+            _saveMenu.ShowSlots(_slotDates);
+            if (_startupSlot is { } slot) ChooseSlot(slot);
         }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception exception) { Fail("preparation",exception); }
     }
 
     // HUDを開閉してもプレイ中の計測を続ける。
-    private void Update() => IncomeRate?.Advance(Time.unscaledTimeAsDouble);
+    private void Update()
+    {
+        if (Session.CurrentStage == GameStartApplication.Stage.Running) IncomeRate?.Advance(Time.unscaledTimeAsDouble);
+    }
 
     private void ChooseSlot(int slot)
     {
-        if (saves.Slots.FileFor(slot).Exists) TryRestoreGameAsync(slot).Forget();
+        if (Session.CurrentStage == GameStartApplication.Stage.SelectingSlot)
+        {
+            SwitchSlotAsync(slot).Forget();
+            return;
+        }
+        if (Session.CurrentStage != GameStartApplication.Stage.Menu) return;
+        if (slot == 0) TryStartDebugAsync().Forget();
+        else if (_slotDates[slot - SaveSlotCatalogApplication.FirstSlot].HasValue) TryRestoreGameAsync(slot).Forget();
         else TryPrepareNewGame(slot);
+    }
+
+    private async UniTask SwitchSlotAsync(int slot)
+    {
+        if (!Session.TryBeginSlotSwitch()) return;
+        var cancellation = destroyCancellationToken;
+        var path = gameObject.scene.path;
+        void PassChoice(Scene loaded, LoadSceneMode mode)
+        {
+            if (loaded.path != path || mode != LoadSceneMode.Single) return;
+            SceneManager.sceneLoaded -= PassChoice;
+            foreach (var root in loaded.GetRootGameObjects())
+            {
+                var game = root.GetComponentInChildren<GameInitializerAdapter>();
+                if (game == null) continue;
+                game._startupSlot = slot;
+                break;
+            }
+        }
+
+        try
+        {
+            _saveMenu.SetBusy("ロード中…");
+            await UniTask.NextFrame(cancellationToken: cancellation);
+            // 枠を確定したSceneだけに選択を引き渡し、新しい開始処理で開く。
+            SceneManager.sceneLoaded += PassChoice;
+            var sceneLoad = SceneManager.LoadSceneAsync(path, LoadSceneMode.Single);
+            if (sceneLoad == null) throw new InvalidOperationException("Cannot reload the gameplay scene.");
+            await sceneLoad;
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (Exception exception)
+        {
+            Debug.LogError($"Opening the selected save failed: {exception}", this);
+            Session.CancelSlotSwitch();
+            _saveMenu.SetReturnFailure("保存枠を開けませんでした");
+        }
+        finally { SceneManager.sceneLoaded -= PassChoice; }
     }
 
     public bool TryPrepareNewGame(int slot = SaveSlotCatalogApplication.FirstSlot)
@@ -157,6 +213,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         if (_returning || (!wasRunning && Session.CurrentStage != GameStartApplication.Stage.Failed) ||
             (save && (!wasRunning || saves.IsDebug))) return false;
         _returning = true;
+        var cancellation = destroyCancellationToken;
         try
         {
             if (wasRunning && (save || saves.IsSaving))
@@ -168,17 +225,20 @@ public sealed class GameInitializerAdapter : MonoBehaviour
                     return false;
                 }
             }
-            if (!Session.TryBeginReturn()) return false;
             _saveMenu.SetBusy("セーブ選択へ戻っています…");
-            var sceneLoad = SceneManager.LoadSceneAsync(gameObject.scene.path, LoadSceneMode.Single);
-            if (sceneLoad == null) throw new InvalidOperationException("Cannot reload the gameplay scene.");
-            await sceneLoad;
+            _slotDates = await saves.ReadSlotDatesAsync(cancellation);
+            cancellation.ThrowIfCancellationRequested();
+            if (!Session.TryShowSlotSelection()) return false;
+            // 一覧を開いている間は今のフィールドを描画し、ゲーム内の時間だけを止める。
+            _timeScaleBeforeSlotSelection = Time.timeScale;
+            Time.timeScale = 0;
+            _saveMenu.ShowSlots(_slotDates);
             return true;
         }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { return false; }
         catch (Exception exception)
         {
             Debug.LogError($"Returning to save slots failed: {exception}", this);
-            Session.CancelReturn(wasRunning);
             _saveMenu.SetReturnFailure("セーブ選択へ戻れませんでした");
             return false;
         }
@@ -296,5 +356,9 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         Debug.LogError($"Game initialization failed during {stage}: {exception}", this);
         Session.Fail();
     }
-    private void OnDestroy() { if (selection != null) selection.DisposePreviews(); }
+    private void OnDestroy()
+    {
+        if (_timeScaleBeforeSlotSelection is { } before) Time.timeScale = before;
+        if (selection != null) selection.DisposePreviews();
+    }
 }

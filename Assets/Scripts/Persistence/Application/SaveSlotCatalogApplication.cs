@@ -23,4 +23,11 @@ public sealed class SaveSlotCatalogApplication
         var file = FileFor(slot);
         return file.Exists ? File.GetLastWriteTimeUtc(file.Path) : null;
     }
+
+    public DateTime?[] LastSavedDates()
+    {
+        var dates = new DateTime?[NormalSlotCount];
+        for (var i = 0; i < dates.Length; i++) dates[i] = LastSaved(i + FirstSlot);
+        return dates;
+    }
 }
