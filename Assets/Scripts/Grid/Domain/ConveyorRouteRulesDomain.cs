@@ -50,7 +50,7 @@ public static class ConveyorRouteRulesDomain
     }
 
     public static (List<(int X, int Z, Route Before, Route After)> Replacements, bool Overlap, bool Invalid)
-        Plan(IReadOnlyList<(int X, int Z, Route Existing, DirectionsDomain ConnectedOutputs)> line, DirectionsDomain travel)
+        Plan(IReadOnlyList<(int X, int Z, Route Existing, DirectionsDomain ConnectedSides)> line, DirectionsDomain travel)
     {
         var replacements = new List<(int X, int Z, Route Before, Route After)>();
         var overlap = false;
@@ -58,7 +58,7 @@ public static class ConveyorRouteRulesDomain
         var entry = Opposite(travel);
         for (var i = 0; i < line.Count; i++)
         {
-            var (x, z, existing, connectedOutputs) = line[i];
+            var (x, z, existing, connectedSides) = line[i];
             if (existing.Inputs == 0) continue;
             var incoming = i == 0 ? 0 : entry;
             var outgoing = i == line.Count - 1 ? 0 : travel;
@@ -66,11 +66,16 @@ public static class ConveyorRouteRulesDomain
             var type = proposed.Type;
             if (type != Kind.Invalid)
             {
-                // 左右がそろったら未接続の正面口を外す。正面へ引く操作ならその出口を追加する。
-                var forward = Opposite(proposed.Inputs);
-                if (type == Kind.Split && outgoing != 0 && outgoing != forward &&
-                    (proposed.Inputs | proposed.Outputs) == AllSides && (connectedOutputs & forward) == 0)
-                    proposed = new Route(proposed.Inputs, proposed.Outputs & ~forward);
+                if ((proposed.Inputs | proposed.Outputs) == AllSides)
+                {
+                    // 横の枝がそろったら未接続の直進口を外す。直進口を足すドラッグでは残す。
+                    var forward = Opposite(proposed.Inputs);
+                    var rear = Opposite(proposed.Outputs);
+                    if (type == Kind.Split && outgoing != 0 && outgoing != forward && (connectedSides & forward) == 0)
+                        proposed = new Route(proposed.Inputs, proposed.Outputs & ~forward);
+                    if (type == Kind.Merge && incoming != 0 && incoming != rear && (connectedSides & rear) == 0)
+                        proposed = new Route(proposed.Inputs & ~rear, proposed.Outputs);
+                }
                 replacements.Add((x, z, existing, proposed));
                 continue;
             }
@@ -88,7 +93,7 @@ public static class ConveyorRouteRulesDomain
         var inputCount = Count(inputs);
         var outputCount = Count(outputs);
         if (inputCount == 1 && (outputCount == 2 || outputCount == 3)) return Kind.Split;
-        if (inputCount == 2 && outputCount == 1) return Kind.Merge;
+        if ((inputCount == 2 || inputCount == 3) && outputCount == 1) return Kind.Merge;
         if (inputCount != 2 || outputCount != 2) return Kind.Invalid;
         return Rotate(inputs, 2) == outputs ? Kind.Crossing : Kind.Invalid;
     }

@@ -191,7 +191,7 @@ public class CellPlacerAdapter : MonoBehaviour
         var step = start <= end ? 1 : -1;
         var travel = isX ? new Vector3Int(step, 0, 0) : new Vector3Int(0, 0, step);
         var line = _selectedType == CellTypeDomain.Conveyor && !_clearingMode && start != end
-            ? new (int X, int Z, ConveyorRouteRulesDomain.Route Existing, DirectionsDomain ConnectedOutputs)[Mathf.Abs(end - start) + 1] : null;
+            ? new (int X, int Z, ConveyorRouteRulesDomain.Route Existing, DirectionsDomain ConnectedSides)[Mathf.Abs(end - start) + 1] : null;
         var grid = GridFieldDatabaseAdapter.Instance;
         for (int i = start; i != end + step; i += step)
         {
@@ -208,7 +208,7 @@ public class CellPlacerAdapter : MonoBehaviour
             }
             if (line != null && TryGetExistingRoute(cell, out var current))
             {
-                line[(i - start) * step] = (x, z, current, ConnectedOutputs((ConnectableCellBaseAdapter)cell));
+                line[(i - start) * step] = (x, z, current, ConnectedSides((ConnectableCellBaseAdapter)cell));
                 continue;
             }
             if (_cachedCell is not EmptyCellAdapter && !CanPlaceAt(x, z)) { _overlap = true; continue; }
@@ -263,17 +263,16 @@ public class CellPlacerAdapter : MonoBehaviour
         }
     }
 
-    private static DirectionsDomain ConnectedOutputs(ConnectableCellBaseAdapter cell)
+    private static DirectionsDomain ConnectedSides(ConnectableCellBaseAdapter cell)
     {
-        var outputs = (DirectionsDomain)0;
+        var sides = (DirectionsDomain)0;
         foreach (var link in cell.Connections.Values)
         {
-            if (!cell.HasPort(link.PortId, CellPortUseDomain.Output) || link.Neighbor == null ||
-                !link.Neighbor.HasPort(link.NeighborPortId, CellPortUseDomain.Input)) continue;
+            if (link.Neighbor == null) continue;
             var direction = link.Direction;
-            outputs |= ConveyorRouteRulesDomain.Side(direction.x, direction.z);
+            sides |= ConveyorRouteRulesDomain.Side(direction.x, direction.z);
         }
-        return outputs;
+        return sides;
     }
 
     private void SelectRangedGrid(HashSet<CellBaseAdapter> newSelection)
@@ -449,6 +448,7 @@ public class CellPlacerAdapter : MonoBehaviour
         var previous = grid.CaptureCells(points);
         var retired = previous.Select(e => e.Owner).Distinct().ToArray();
         var created = new List<CellBaseAdapter>();
+        var removedPorts = (change.Before.Inputs | change.Before.Outputs) & ~(change.After.Inputs | change.After.Outputs);
         bool Validate() => this != null && isActiveAndEnabled && replaceTarget != null &&
             replaceTarget.isActiveAndEnabled && _cachedCell != null &&
             replaceTarget is not ResourceCellAdapter && replaceTarget is not SingularityCellAdapter &&
@@ -457,7 +457,7 @@ public class CellPlacerAdapter : MonoBehaviour
                 converting ? retired.All(c => c == replaceTarget) && replaceTarget.transform.rotation == rotation &&
                     TryGetExistingRoute(replaceTarget, out var current) &&
                     current.Inputs == change.Before.Inputs && current.Outputs == change.Before.Outputs &&
-                    (ConnectedOutputs(oldRoute) & (change.Before.Outputs & ~change.After.Outputs)) == 0 :
+                    (removedPorts == 0 || (ConnectedSides(oldRoute) & removedPorts) == 0) :
                 retired.All(c => c is EmptyCellAdapter)) &&
             previous.All(e => grid.GetCell(e.X, e.Z) == e.Owner && e.Owner != null && e.Owner.isActiveAndEnabled);
 

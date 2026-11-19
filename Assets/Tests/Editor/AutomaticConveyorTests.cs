@@ -69,6 +69,19 @@ public sealed class AutomaticConveyorTests : FactoryEditModeScope
         branch[0] = (4, 4, sideSplit, left | right);
         Assert.That(ConveyorRouteRulesDomain.Plan(branch, output).Replacements[0].After.Outputs,
             Is.EqualTo(output | left | right));
+
+        var mergeLine = new (int, int, ConveyorRouteRulesDomain.Route, DirectionsDomain)[]
+            { (5, 4, default, 0), (4, 4, merge, left) };
+        var sideMerge = ConveyorRouteRulesDomain.Plan(mergeLine, left).Replacements[0].After;
+        Assert.That(sideMerge.Inputs, Is.EqualTo(left | right));
+        Assert.That(sideMerge.Outputs, Is.EqualTo(output));
+        mergeLine[1] = (4, 4, merge, input | left);
+        var threeWayMerge = ConveyorRouteRulesDomain.Plan(mergeLine, left).Replacements[0].After;
+        Assert.That(threeWayMerge.Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Merge));
+        Assert.That(threeWayMerge.Inputs, Is.EqualTo(input | left | right));
+        mergeLine[1] = (4, 4, sideMerge, left | right);
+        Assert.That(ConveyorRouteRulesDomain.Plan(mergeLine, output).Replacements[0].After.Inputs,
+            Is.EqualTo(input | left | right));
     }
 
     [TestCase(0)] [TestCase(90)] [TestCase(180)] [TestCase(270)]
