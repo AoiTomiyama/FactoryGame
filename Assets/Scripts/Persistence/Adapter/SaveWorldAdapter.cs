@@ -51,7 +51,7 @@ public sealed class SaveWorldAdapter
                     data.batches = crossing.CaptureBatches(Register); break;
                 case ConveyorJunctionCellAdapter junction:
                     data.routeInputs = junction.LocalRoute.Inputs; data.routeOutputs = junction.LocalRoute.Outputs;
-                    data.routeInputCursor = junction.InputCursor; data.routeOutputCursor = junction.OutputCursor;
+                    data.routeOutputCursor = junction.OutputCursor;
                     data.batches = junction.CaptureBatches(Register); break;
             }
             cells.Add(data);
@@ -168,7 +168,7 @@ public sealed class SaveWorldAdapter
         var hasRoute = (route.Inputs | route.Outputs) != 0;
         if (prefab is not (CrossingCellAdapter or ConveyorJunctionCellAdapter))
         {
-            if (hasRoute || cell.routeInputCursor != 0 || cell.routeOutputCursor != 0)
+            if (hasRoute || cell.routeOutputCursor != 0)
                 throw new InvalidOperationException("Saved route does not belong to this cell kind.");
             return;
         }
@@ -178,9 +178,8 @@ public sealed class SaveWorldAdapter
         var outputCount = connectable.Ports.Count(port => (route.Outputs & port.Facing) != 0);
         var valid = prefab is CrossingCellAdapter
             ? (!hasRoute || route.Type == ConveyorRouteRulesDomain.Kind.Crossing) &&
-                cell.routeInputCursor == 0 && cell.routeOutputCursor == 0
-            : route.Type is ConveyorRouteRulesDomain.Kind.Split or ConveyorRouteRulesDomain.Kind.Merge &&
-                cell.routeInputCursor >= 0 && cell.routeInputCursor < inputs.Count &&
+                cell.routeOutputCursor == 0
+            : route.Type == ConveyorRouteRulesDomain.Kind.Split &&
                 cell.routeOutputCursor >= 0 && cell.routeOutputCursor < outputCount;
         if (!valid || cell.batches.Any(batch => !inputs.Contains(batch.port)))
             throw new InvalidOperationException("Invalid saved conveyor route or input.");
@@ -264,7 +263,7 @@ public sealed class SaveWorldAdapter
             var cell = created[i];
             if (cell is ConveyorCellAdapter belt) belt.RestoreExportRole(c.exporter);
             if (cell is CrossingCellAdapter crossing && c.routeInputs != 0) crossing.ConfigureRoute(SavedRoute(c));
-            if (cell is ConveyorJunctionCellAdapter junction) junction.ConfigureRoute(SavedRoute(c), c.routeInputCursor, c.routeOutputCursor);
+            if (cell is ConveyorJunctionCellAdapter junction) junction.ConfigureRoute(SavedRoute(c), c.routeOutputCursor);
             await budget.YieldIfNeeded();
         }
         _field.RecordGeneratedField(data.size,data.seed);

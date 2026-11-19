@@ -162,6 +162,7 @@ MonoBehaviour:
     Use: 3
   transferAmount: 5
   normalDefinition: {fileID: 177518240655023122, guid: 8eb7cf53876d07649996986c20e7dd38, type: 3}
+  beltSurface: {fileID: 3206645513511022196, guid: f987f6e3a4251234a92c50dde42f87dd, type: 3}
 --- !u!4 &7160944560747574814 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 878906971913252476, guid: 8c8cfe96d70652644a12364b7fb2e686, type: 3}

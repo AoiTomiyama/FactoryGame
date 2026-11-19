@@ -44,7 +44,7 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
     private ConveyorJunctionCellAdapter Junction(int x, int z, DirectionsDomain inputs, DirectionsDomain outputs) =>
         Add<ConveyorJunctionCellAdapter>("ConveyorJunction", x, z, cell =>
             typeof(ConveyorJunctionCellAdapter).GetMethod("ConfigureRoute", Fields)
-                .Invoke(cell, new object[] { new ConveyorRouteRulesDomain.Route(inputs, outputs), 0, 0 }));
+                .Invoke(cell, new object[] { new ConveyorRouteRulesDomain.Route(inputs, outputs), 0 }));
 
     private int Send(IContainableApplication lane, IResourceReusableApplication receiver, int port,
         ResourceTypeDomain type, int count)
@@ -82,38 +82,44 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
         await Until(() => right.CurrentLoad == right.Capacity && _pool.Resources.Count == 0);
     }
 
-    [UnityTest] public IEnumerator MergeHoldsTwoInputsAndUsesBothInTurn() => Merge().ToCoroutine();
-    private async UniTask Merge()
+    [UnityTest] public IEnumerator SideInputsChangeTheBeltAppearanceAndKeepItsHeldBatch() => VisualMerge().ToCoroutine();
+    private async UniTask VisualMerge()
     {
-        var junction = Junction(5, 5, DirectionsDomain.Back | DirectionsDomain.Left, DirectionsDomain.Forward);
-        var model = junction.CellModel.transform.Find("JunctionBelt");
-        Assert.That(model, Is.Not.Null);
+        var belt = Add<ConveyorCellAdapter>("Conveyor", 5, 5);
+        var left = Add<ConveyorCellAdapter>("Conveyor", 4, 5, cell => cell.transform.rotation = Quaternion.Euler(0, 90, 0));
+        var right = Add<ConveyorCellAdapter>("Conveyor", 6, 5, cell => cell.transform.rotation = Quaternion.Euler(0, 270, 0));
+        var rear = Add<ConveyorCellAdapter>("Conveyor", 5, 4, cell => cell.transform.rotation = Quaternion.Euler(0, 90, 0));
+        await Until(() => belt.CellModel.transform.Find("JunctionBelt") != null);
+        var model = belt.CellModel.transform.Find("JunctionBelt");
         var straight = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Prefabs/Models/ConveyorCellModel.prefab");
         Assert.That(model.Find("BeltCenter").GetComponent<MeshFilter>().sharedMesh,
             Is.SameAs(straight.transform.GetChild(0).GetComponent<MeshFilter>().sharedMesh));
-        Assert.That(model.Find("RightBelt").gameObject.activeSelf, Is.False);
+        Assert.That(model.Find("LeftBelt").gameObject.activeSelf);
+        Assert.That(model.Find("RightBelt").gameObject.activeSelf);
+        Assert.That(model.Find("BackBelt").gameObject.activeSelf, Is.False);
         Assert.That(Vector3.Dot(model.Find("LeftBelt").forward, Vector3.right), Is.EqualTo(1).Within(.001f));
-        Assert.That(Vector3.Dot(model.Find("BackBelt").forward, Vector3.forward), Is.EqualTo(1).Within(.001f));
+        Assert.That(Vector3.Dot(model.Find("RightBelt").forward, Vector3.left), Is.EqualTo(1).Within(.001f));
         Assert.That(Vector3.Dot(model.Find("ForwardBelt").forward, Vector3.forward), Is.EqualTo(1).Within(.001f));
+        rear.transform.rotation = Quaternion.identity;
+        rear.InitializeSystem();
+        await Until(() => model.Find("BackBelt").gameObject.activeSelf);
+
         var sink = Add<StorageCellAdapter>("Storage", 5, 6);
         var exit = sink.Ports.First(port => (port.Use & CellPortUseDomain.Output) != 0).Id;
         Fill(sink, ResourceTypeDomain.Wood, sink.Capacity);
-        var first = ResourceTransferAssertions.GetVisual(_pool, Send(junction, junction, 1, ResourceTypeDomain.Wood, 2));
-        var second = ResourceTransferAssertions.GetVisual(_pool, Send(junction, junction, 3, ResourceTypeDomain.Wood, 4));
-        var center = junction.transform.position + Vector3.up * 1.1f;
-        await Until(() => (first.transform.position - center).sqrMagnitude < .0001f);
-        await UniTask.DelayFrame(2);
-        Assert.That((first.transform.position - center).sqrMagnitude, Is.LessThan(.0001f));
-        Assert.That(Vector3.Distance(second.transform.position, center + (Vector3)junction.PortDirection(3) * .24f),
-            Is.LessThan(.01f));
-        Assert.That(_pool.Resources.Count, Is.EqualTo(2));
-        Assert.That(junction.AllocateStorage(1, 1, ResourceTypeDomain.Wood), Is.False);
-        Assert.That(sink.TryExport(exit, 4, out _, out _));
-        await Until(() => sink.CurrentLoad == sink.Capacity - 2);
-        Send(junction, junction, 1, ResourceTypeDomain.Wood, 1);
-        Assert.That(sink.TryExport(exit, 2, out _, out _));
-        await Until(() => sink.CurrentLoad == sink.Capacity && _pool.Resources.Count == 1);
-        Assert.That(sink.TryExport(exit, 1, out _, out _));
+        var first = Send(left, left, 3, ResourceTypeDomain.Wood, 2);
+        await Until(() => Id(belt) == first && belt.CaptureBatches(_ => { }).Length == 1);
+        Assert.That(belt.AllocateStorage(0, 1, ResourceTypeDomain.Wood), Is.False);
+        right.OnDisconnect();
+        right.gameObject.SetActive(false);
+        Object.Destroy(right.gameObject);
+        await Until(() => !model.Find("RightBelt").gameObject.activeSelf);
+        Assert.That(_grid.GetCell(5, 5), Is.SameAs(belt));
+        Assert.That(Id(belt), Is.EqualTo(first));
+
+        Assert.That(sink.TryExport(exit, 5, out _, out _));
+        await Until(() => sink.CurrentLoad == sink.Capacity - 3);
+        Send(rear, rear, 3, ResourceTypeDomain.Wood, 3);
         await Until(() => sink.CurrentLoad == sink.Capacity && _pool.Resources.Count == 0);
     }
 

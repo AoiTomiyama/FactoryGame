@@ -87,8 +87,7 @@ internal static class DebugWorldSeedAdapter
         BeltLine(0, 8, 2, 2);
         Harvest(wood, 6, 6, 1, 1);
         BeltLine(3, 6, 3, 3);
-        Route(CellTypeDomain.Junction, 0, 6, DirectionsDomain.Forward | DirectionsDomain.Right, DirectionsDomain.Back);
-        BeltLine(0, 5, 2, 3);
+        BeltLine(0, 6, 2, 4);
 
         // 西側で採取ラインを交差させ、縦の流れは手動交差を経由して三方向へ分ける。
         Harvest(wood, -8, -8, 2, -1);

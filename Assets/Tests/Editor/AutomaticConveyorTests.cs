@@ -42,7 +42,7 @@ public sealed class AutomaticConveyorTests : FactoryEditModeScope
         Assert.That(split.Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Split));
         Assert.That(ConveyorRouteRulesDomain.Extend(split, 0, left).Outputs, Is.EqualTo(output | left | right));
         var merge = ConveyorRouteRulesDomain.Extend(straight, left, 0);
-        Assert.That(merge.Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Merge));
+        Assert.That(merge.Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Invalid));
         Assert.That(ConveyorRouteRulesDomain.Extend(merge, 0, right).Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Crossing));
         Assert.That(ConveyorRouteRulesDomain.Extend(straight, output, input).Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Invalid));
         Assert.That(new ConveyorRouteRulesDomain.Route(input | output, left | right).Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Invalid));
@@ -70,18 +70,16 @@ public sealed class AutomaticConveyorTests : FactoryEditModeScope
         Assert.That(ConveyorRouteRulesDomain.Plan(branch, output).Replacements[0].After.Outputs,
             Is.EqualTo(output | left | right));
 
-        var mergeLine = new (int, int, ConveyorRouteRulesDomain.Route, DirectionsDomain)[]
-            { (5, 4, default, 0), (4, 4, merge, left) };
-        var sideMerge = ConveyorRouteRulesDomain.Plan(mergeLine, left).Replacements[0].After;
-        Assert.That(sideMerge.Inputs, Is.EqualTo(left | right));
-        Assert.That(sideMerge.Outputs, Is.EqualTo(output));
-        mergeLine[1] = (4, 4, merge, input | left);
-        var threeWayMerge = ConveyorRouteRulesDomain.Plan(mergeLine, left).Replacements[0].After;
-        Assert.That(threeWayMerge.Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Merge));
-        Assert.That(threeWayMerge.Inputs, Is.EqualTo(input | left | right));
-        mergeLine[1] = (4, 4, sideMerge, left | right);
-        Assert.That(ConveyorRouteRulesDomain.Plan(mergeLine, output).Replacements[0].After.Inputs,
-            Is.EqualTo(input | left | right));
+        var joinLine = new (int, int, ConveyorRouteRulesDomain.Route, DirectionsDomain)[]
+            { (5, 4, default, 0), (4, 4, straight, 0) };
+        foreach (var travel in new[] { left, right, output })
+        {
+            var join = ConveyorRouteRulesDomain.Plan(joinLine, travel);
+            Assert.That(join.JoinsBelt);
+            Assert.That(join.Invalid || join.Overlap, Is.False);
+            Assert.That(join.Replacements, Is.Empty);
+        }
+        Assert.That(ConveyorRouteRulesDomain.Plan(joinLine, input).Invalid);
     }
 
     [TestCase(0)] [TestCase(90)] [TestCase(180)] [TestCase(270)]

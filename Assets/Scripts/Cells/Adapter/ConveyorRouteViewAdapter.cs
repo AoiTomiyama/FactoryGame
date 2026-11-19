@@ -31,7 +31,7 @@ public sealed class ConveyorRouteViewAdapter : MonoBehaviour
         child.GetComponent<ConveyorRouteViewAdapter>().SetRoute(route);
     }
 
-    internal static void ShowBelt(Transform root, ConveyorRouteRulesDomain.Route route, Transform model, Transform surface)
+    internal static Transform ShowBelt(Transform root, ConveyorRouteRulesDomain.Route route, Transform model, Transform surface)
     {
         var child = root.Find("JunctionBelt");
         if (child == null)
@@ -41,6 +41,7 @@ public sealed class ConveyorRouteViewAdapter : MonoBehaviour
             child.SetParent(root, false);
         }
         child.GetComponent<ConveyorRouteViewAdapter>().SetBelt(route, model, surface);
+        return child;
     }
 
     private void SetBelt(ConveyorRouteRulesDomain.Route route, Transform model, Transform surface)

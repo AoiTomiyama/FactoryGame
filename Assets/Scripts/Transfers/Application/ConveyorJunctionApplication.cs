@@ -1,7 +1,5 @@
 using System;
-using System.Collections.Generic;
-
-/// <summary>入口ごとの受入枠と、直近に確定した搬送の次に試す順番を保持する。</summary>
+/// <summary>分岐の受入枠と、次に使う出口の順番を保持する。</summary>
 internal sealed class ConveyorJunctionApplication
 {
     internal sealed class Batch
@@ -13,27 +11,23 @@ internal sealed class ConveyorJunctionApplication
         public Batch(int port, int amount, ResourceTypeDomain type) { Port = port; Amount = amount; Type = type; }
     }
 
-    private readonly Dictionary<int, Batch> _batches = new();
-    private readonly int[] _inputs, _outputs;
-    public IEnumerable<Batch> Batches => _batches.Values;
-    public int InputCursor { get; private set; }
+    private readonly int _input;
+    private readonly int[] _outputs;
+    public Batch CurrentBatch { get; private set; }
     public int OutputCursor { get; private set; }
 
-    public ConveyorJunctionApplication(int[] inputs, int[] outputs, int inputCursor, int outputCursor)
-    { _inputs = inputs; _outputs = outputs; InputCursor = inputCursor; OutputCursor = outputCursor; }
+    public ConveyorJunctionApplication(int input, int[] outputs, int outputCursor)
+    { _input = input; _outputs = outputs; OutputCursor = outputCursor; }
 
-    public bool Reserve(int port, int amount, ResourceTypeDomain type) =>
-        amount > 0 && type != ResourceTypeDomain.None && Array.IndexOf(_inputs, port) >= 0 &&
-        _batches.TryAdd(port, new Batch(port, amount, type));
-
-    public Batch At(int port) => _batches.TryGetValue(port, out var batch) ? batch : null;
-    public void Release(int port) => _batches.Remove(port);
-    public Batch NextBatch()
+    public bool Reserve(int port, int amount, ResourceTypeDomain type)
     {
-        for (var i = 0; i < _inputs.Length; i++)
-            if (At(_inputs[(InputCursor + i) % _inputs.Length]) is { Ready: true } batch) return batch;
-        return null;
+        if (port != _input || amount <= 0 || type == ResourceTypeDomain.None || CurrentBatch != null) return false;
+        CurrentBatch = new Batch(port, amount, type);
+        return true;
     }
+
+    public Batch At(int port) => port == _input ? CurrentBatch : null;
+    public void Release() => CurrentBatch = null;
 
     public bool TryDispatch(Func<int, ResourceReservationApplication> tryReserve, out int port,
         out ResourceReservationApplication reservation)
@@ -49,10 +43,9 @@ internal sealed class ConveyorJunctionApplication
         return false;
     }
 
-    public void Complete(Batch batch, int output)
+    public void Complete(int output)
     {
-        InputCursor = (Array.IndexOf(_inputs, batch.Port) + 1) % _inputs.Length;
         OutputCursor = (Array.IndexOf(_outputs, output) + 1) % _outputs.Length;
-        Release(batch.Port);
+        Release();
     }
 }

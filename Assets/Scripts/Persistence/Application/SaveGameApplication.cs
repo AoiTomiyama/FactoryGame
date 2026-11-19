@@ -41,7 +41,7 @@ public sealed class SaveGameApplication
         public int x, z, rotation;
         public bool exporter;
         public DirectionsDomain routeInputs, routeOutputs;
-        public int routeInputCursor, routeOutputCursor;
+        public int routeOutputCursor;
         public Slot[] inventory, batches;
         // JsonUtilityのインラインクラスはnullを空の実体へ変えるため、任意の周期を0～1件の配列で表す。
         public Job[] jobs = Array.Empty<Job>();

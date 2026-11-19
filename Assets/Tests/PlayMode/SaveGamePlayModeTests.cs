@@ -361,84 +361,68 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
     [Serializable] private sealed class Stocks { public SaveGameApplication.Stock[] values; }
     [UnityTest] public IEnumerator TransitOwnershipSurvivesReloadAndBlockedBatchesContinue() => TransitRoundTrip(false).ToCoroutine();
     [UnityTest] public IEnumerator ConfiguredCrossingRetainsItsDirectionAndBatchOnReload() => TransitRoundTrip(true).ToCoroutine();
-    [UnityTest] public IEnumerator MergerRouteAndHeldBatchesSurviveReload() => MergerRoundTrip(includeRight: false).ToCoroutine();
-    [UnityTest] public IEnumerator LeftRightMergerCanAddAThirdInletAndSurvivesReload() => MergerRoundTrip(includeRight: true).ToCoroutine();
-    private async UniTask MergerRoundTrip(bool includeRight)
+    [UnityTest] public IEnumerator MergeAppearanceAndNormalConveyorBatchSurviveReload() => MergeAppearanceRoundTrip().ToCoroutine();
+    private async UniTask MergeAppearanceRoundTrip()
     {
         var game = StartNew();
         var grid = GridFieldDatabaseAdapter.Instance;
         var center = grid.Owners.OfType<EmptyCellAdapter>().First(cell =>
-            cell.XIndex > 0 && cell.ZIndex + 1 < grid.GeneratedSize &&
+            cell.XIndex > 0 && cell.XIndex + 1 < grid.GeneratedSize &&
+            cell.ZIndex > 0 && cell.ZIndex + 1 < grid.GeneratedSize &&
             grid.GetCell(cell.XIndex - 1, cell.ZIndex) is EmptyCellAdapter &&
             grid.GetCell(cell.XIndex, cell.ZIndex + 1) is EmptyCellAdapter &&
-            (!includeRight || (cell.XIndex + 1 < grid.GeneratedSize && cell.ZIndex > 0 &&
-                grid.GetCell(cell.XIndex + 1, cell.ZIndex) is EmptyCellAdapter &&
-                grid.GetCell(cell.XIndex, cell.ZIndex - 1) is EmptyCellAdapter)));
+            grid.GetCell(cell.XIndex + 1, cell.ZIndex) is EmptyCellAdapter &&
+            grid.GetCell(cell.XIndex, cell.ZIndex - 1) is EmptyCellAdapter);
         var x = center.XIndex;
         var z = center.ZIndex;
-        Install(CellTypeDomain.Conveyor, x, z);
-        Assert.That(game.ConstructionStock.TryReserveDeposit(ResourceTypeDomain.CopperWire, 1, out var copper));
-        Assert.That(copper.TryCommit());
+        var original = (ConveyorCellAdapter)Install(CellTypeDomain.Conveyor, x, z);
         var placer = TestScenes.Find<CellPlacerAdapter>();
         TestScenes.Find<EconomyPanelAdapter>().ShowPage(0);
         placer.SetPlacementEnabled(true);
         placer.SetSelectedCellType(CellTypeDomain.Conveyor);
-        void DragInlet(int fromX, int fromZ, bool? previewRear = null)
+        void DragInlet(int fromX, int fromZ)
         {
             placer.SelectGrid(grid.GetCell(fromX, fromZ).gameObject);
             placer.PointerBegin();
             placer.SelectGrid(grid.GetCell(x, z).gameObject);
             placer.PointerDrag();
-            if (previewRear.HasValue)
-            {
-                var model = Object.FindObjectsByType<ConveyorRouteViewAdapter>(FindObjectsSortMode.None)
-                    .Single(view => view.transform.parent.name.StartsWith("P_", StringComparison.Ordinal));
-                Assert.That(model.transform.Find("BackBelt").gameObject.activeSelf, Is.EqualTo(previewRear.Value));
-                Assert.That(model.transform.Find("LeftBelt").gameObject.activeSelf);
-                Assert.That(model.transform.Find("RightBelt").gameObject.activeSelf);
-                Assert.That(model.transform.Find("ForwardBelt").gameObject.activeSelf);
-            }
+            Assert.That(placer.PreviewCount, Is.EqualTo(1));
             placer.PointerEnd();
-            Assert.That(placer.LastPlacedCount, Is.EqualTo(2));
+            Assert.That(placer.LastPlacedCount, Is.EqualTo(1));
+            Assert.That(placer.LastPlacementCost, Is.EqualTo(5));
+            Assert.That(grid.GetCell(x, z), Is.SameAs(original));
         }
         DragInlet(x - 1, z);
-        var expectedInputs = DirectionsDomain.Back | DirectionsDomain.Left;
-        var batchCount = 2;
-        if (includeRight)
-        {
-            await UniTask.NextFrame();
-            DragInlet(x + 1, z, previewRear: false);
-            var sideMerger = (ConveyorJunctionCellAdapter)grid.GetCell(x, z);
-            var rear = sideMerger.Ports.Single(port => sideMerger.PortDirection(port.Id) == Vector3Int.back).Id;
-            Assert.That(sideMerger.HasPort(rear, CellPortUseDomain.Input), Is.False);
-            Assert.That(sideMerger.Connections.Count, Is.EqualTo(2));
-            await UniTask.NextFrame();
-            DragInlet(x, z - 1, previewRear: true);
-            expectedInputs |= DirectionsDomain.Right;
-            batchCount = 3;
-        }
-        var merger = (ConveyorJunctionCellAdapter)grid.GetCell(x, z);
-        Assert.That(merger.Ports.Count(port => merger.HasPort(port.Id, CellPortUseDomain.Input)), Is.EqualTo(batchCount));
-        foreach (var port in merger.Ports.Where(port => merger.HasPort(port.Id, CellPortUseDomain.Input)))
-        {
-            Assert.That(merger.AllocateStorage(port.Id, 3, ResourceTypeDomain.Wood));
-            merger.Reuse(port.Id, ResourceItemObjectPoolAdapter.Instance.CreateIdFromResourceData(ResourceTypeDomain.Wood, 3));
-            merger.StoreResource(port.Id, 3);
-        }
+        DragInlet(x + 1, z);
+        DragInlet(x, z - 1);
+        await UniTask.WaitUntil(() => AllArmsVisible(original)).Timeout(TimeSpan.FromSeconds(5), DelayType.Realtime);
+        Assert.That(original.AllocateStorage(1, 3, ResourceTypeDomain.Wood));
+        original.Reuse(1, ResourceItemObjectPoolAdapter.Instance.CreateIdFromResourceData(ResourceTypeDomain.Wood, 3));
+        original.StoreResource(1, 3);
         Assert.That(game.Saves.RequestSave());
         await UniTask.WaitUntil(() => !game.Saves.IsSaving).Timeout(TimeSpan.FromSeconds(10), DelayType.Realtime);
         Assert.That(game.Saves.LastError, Is.Null);
         var saved = game.Saves.Read().cells.Single(cell => cell.x == x && cell.z == z);
-        Assert.That(saved.routeInputs, Is.EqualTo(expectedInputs));
-        Assert.That(saved.routeOutputs, Is.EqualTo(DirectionsDomain.Forward));
-        Assert.That(saved.batches.Sum(batch => batch.amount), Is.EqualTo(batchCount * 3));
+        Assert.That(SaveKeysApplication.Cell(saved.kind), Is.EqualTo(CellTypeDomain.Conveyor));
+        Assert.That(saved.routeInputs | saved.routeOutputs, Is.EqualTo((DirectionsDomain)0));
+        Assert.That(saved.batches.Single().amount, Is.EqualTo(3));
         await ReloadMainScene().ToUniTask();
         Assert.That(await TestScenes.Find<GameInitializerAdapter>().TryRestoreGameAsync());
-        Assert.That(GridFieldDatabaseAdapter.Instance.GetCell(x, z), Is.TypeOf<ConveyorJunctionCellAdapter>());
-        Assert.That(ResourceItemObjectPoolAdapter.Instance.Resources.Count, Is.EqualTo(batchCount));
+        var restored = GridFieldDatabaseAdapter.Instance.GetCell(x, z) as ConveyorCellAdapter;
+        Assert.That(restored, Is.Not.Null);
+        await UniTask.WaitUntil(() => AllArmsVisible(restored)).Timeout(TimeSpan.FromSeconds(5), DelayType.Realtime);
+        Assert.That(ResourceItemObjectPoolAdapter.Instance.Resources.Count, Is.EqualTo(1));
         var sink = (StorageCellAdapter)Install(CellTypeDomain.Storage, x, z + 1);
-        await UniTask.WaitUntil(() => sink.CurrentLoad == batchCount * 3).Timeout(TimeSpan.FromSeconds(10), DelayType.Realtime);
+        await UniTask.WaitUntil(() => sink.CurrentLoad == 3).Timeout(TimeSpan.FromSeconds(10), DelayType.Realtime);
         Assert.That(ResourceItemObjectPoolAdapter.Instance.Resources.Count, Is.Zero);
+
+        static bool AllArmsVisible(ConveyorCellAdapter belt)
+        {
+            var model = belt.CellModel.transform.Find("JunctionBelt");
+            return model != null && model.gameObject.activeSelf &&
+                new[] { "BackBelt", "LeftBelt", "RightBelt", "ForwardBelt" }
+                    .All(arm => model.Find(arm).gameObject.activeSelf);
+        }
     }
     private async UniTask TransitRoundTrip(bool configured)
     {

@@ -26,24 +26,18 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
     public override CellTypeDomain ProgressionType => CellTypeDomain.Crossing;
     internal ConveyorRouteRulesDomain.Route LocalRoute => _route;
     internal ConveyorRouteRulesDomain.Route WorldRoute => ConveyorRouteRulesDomain.Rotate(_route, QuarterTurns);
-    internal int InputCursor => _junction.InputCursor;
     internal int OutputCursor => _junction.OutputCursor;
-    private bool IsMerge => _route.Type == ConveyorRouteRulesDomain.Kind.Merge;
-
-    internal override Vector3 ResourceDisplayPosition(Vector3 point, Vector3Int travelDirection) =>
-        IsMerge ? point - (Vector3)travelDirection * InputOffset + Vector3.up * ResourceDisplayHeight
-            : base.ResourceDisplayPosition(point, travelDirection);
 
     internal void ConfigureWorldRoute(ConveyorRouteRulesDomain.Route route) =>
         ConfigureRoute(ConveyorRouteRulesDomain.Rotate(route, -QuarterTurns));
 
-    internal void ConfigureRoute(ConveyorRouteRulesDomain.Route route, int inputCursor = 0, int outputCursor = 0)
+    internal void ConfigureRoute(ConveyorRouteRulesDomain.Route route, int outputCursor = 0)
     {
-        if (route.Type is not (ConveyorRouteRulesDomain.Kind.Split or ConveyorRouteRulesDomain.Kind.Merge) || _junction != null)
-            throw new InvalidOperationException("Junction requires a fresh split or merge route.");
+        if (route.Type != ConveyorRouteRulesDomain.Kind.Split || _junction != null)
+            throw new InvalidOperationException("Junction requires a fresh split route.");
         _route = route;
-        _junction = new ConveyorJunctionApplication(Ports.Where(p => HasPort(p.Id, CellPortUseDomain.Input)).Select(p => p.Id).OrderBy(p => p).ToArray(),
-            Ports.Where(p => HasPort(p.Id, CellPortUseDomain.Output)).Select(p => p.Id).OrderBy(p => p).ToArray(), inputCursor, outputCursor);
+        _junction = new ConveyorJunctionApplication(Ports.Single(p => HasPort(p.Id, CellPortUseDomain.Input)).Id,
+            Ports.Where(p => HasPort(p.Id, CellPortUseDomain.Output)).Select(p => p.Id).OrderBy(p => p).ToArray(), outputCursor);
     }
 
     protected override CellPortUseDomain PortUse(CellPortDefinition port) => RoutePortUse(port, _route);
@@ -123,7 +117,7 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
     public void CancelStorage(int port, int amount, ResourceTypeDomain type)
     {
         if (_junction.At(port) is not { Ready: false } batch || batch.Amount != amount || batch.Type != type) return;
-        _junction.Release(port);
+        _junction.Release();
         if (batch.Id != 0) _pool.DisposeId(batch.Id);
         NotifyReceiveSpace(port);
     }
@@ -133,23 +127,9 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
         try
         {
             await UniTask.Yield(PlayerLoopTiming.Update, token);
-            ConveyorJunctionApplication.Batch centeredBatch = null;
             while (!token.IsCancellationRequested)
             {
-                var batch = centeredBatch ?? _junction.NextBatch();
-                // 合流の中央を一件だけ使う。後続は各入口で先頭が出るのを待つ。
-                if (IsMerge && batch != null && centeredBatch == null)
-                {
-                    var result = await _pool.Transfer(token, HoldingPosition(batch.Port), CenterPosition, batch.Id,
-                        TransportSeconds() * InputOffset);
-                    token.ThrowIfCancellationRequested();
-                    if (result != ResourceAnimationResultApplication.Completed)
-                    {
-                        await UniTask.Delay(100, cancellationToken: token);
-                        continue;
-                    }
-                    centeredBatch = batch;
-                }
+                var batch = _junction.CurrentBatch is { Ready: true } ready ? ready : null;
                 ResourceReservationApplication Reserve(int port) =>
                     _outputs.TryGetValue(port, out var outlet) &&
                     ResourceReservationApplication.TryCreate(outlet.Target, outlet.Link.NeighborPortId, batch.Amount, batch.Type, out var r) ? r : null;
@@ -164,12 +144,11 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
 
                 var direction = PortDirection(output);
                 var next = transform.position + direction;
-                var start = IsMerge ? CenterPosition : HoldingPosition(batch.Port);
+                var start = HoldingPosition(batch.Port);
                 var fallback = next + Vector3.up * ResourceDisplayHeight;
                 var targetCell = reservation.Target.Identity as CellBaseAdapter;
                 var destination = targetCell != null ? targetCell.ResourceDisplayPosition(next, direction) : fallback;
-                var distance = IsMerge || targetCell is (CrossingCellAdapter or ConveyorJunctionCellAdapter { IsMerge: true })
-                    ? ResourceTravelDistance(start, destination) : 1f;
+                var distance = targetCell is CrossingCellAdapter ? ResourceTravelDistance(start, destination) : 1f;
                 var operation = new ResourceTransferOperationApplication(this, reservation.Target, batch.Id, batch.Type, batch.Amount);
                 operation.TryMarkReserved();
                 using var attempt = CancellationTokenSource.CreateLinkedTokenSource(token);
@@ -184,8 +163,7 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
                         _pool.Resources, _pool, () => TransportSeconds() * distance, attempt.Token);
                     if (result == ResourceAnimationResultApplication.Completed)
                     {
-                        centeredBatch = null;
-                        _junction.Complete(batch, output);
+                        _junction.Complete(output);
                         NotifyReceiveSpace(batch.Port);
                     }
                     else await UniTask.Delay(100, cancellationToken: token);
@@ -204,14 +182,14 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
     }
 
     internal void RestoreBatches(SaveGameApplication.Slot[] slots) => _restoredBatches = slots;
-    internal SaveGameApplication.Slot[] CaptureBatches(Action<int> registerOwner) => _junction.Batches
-        .Where(batch => batch.Ready && (_active?.Operation.CurrentStage != ResourceTransferOperationApplication.Stage.Completed ||
-            _active.Operation.ResourceId != batch.Id))
-        .OrderBy(batch => batch.Port).Select(batch =>
-        {
-            registerOwner(batch.Id);
-            return SaveGameApplication.SlotValue(batch.Port, batch.Type, batch.Amount);
-        }).ToArray();
+    internal SaveGameApplication.Slot[] CaptureBatches(Action<int> registerOwner)
+    {
+        if (_junction.CurrentBatch is not { Ready: true } batch ||
+            (_active?.Operation.CurrentStage == ResourceTransferOperationApplication.Stage.Completed && _active.Operation.ResourceId == batch.Id))
+            return Array.Empty<SaveGameApplication.Slot>();
+        registerOwner(batch.Id);
+        return new[] { SaveGameApplication.SlotValue(batch.Port, batch.Type, batch.Amount) };
+    }
 
     protected override void OnDestroy() { base.OnDestroy(); Shutdown(); }
 
@@ -226,7 +204,6 @@ public sealed class ConveyorJunctionCellAdapter : ConnectableCellBaseAdapter, IC
         _lifetime = null;
         lifetime.Cancel();
         lifetime.Dispose();
-        foreach (var batch in _junction.Batches)
-            if (batch.Id != 0 && batch.Id != completed && _pool != null) _pool.DisposeId(batch.Id);
+        if (_junction.CurrentBatch is { Id: not 0 } batch && batch.Id != completed && _pool != null) _pool.DisposeId(batch.Id);
     }
 }

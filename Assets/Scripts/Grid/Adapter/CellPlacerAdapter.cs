@@ -225,8 +225,9 @@ public class CellPlacerAdapter : MonoBehaviour
         if (line != null)
         {
             var plan = ConveyorRouteRulesDomain.Plan(line, ConveyorRouteRulesDomain.Side(travel.x, travel.z));
-            if (plan.Invalid || (_overlap && plan.Replacements.Count != 0)) newSelection.Clear();
-            else if (plan.Replacements.Count != 0)
+            var routesIntoExisting = plan.JoinsBelt || plan.Replacements.Count != 0;
+            if (plan.Invalid || (_overlap && routesIntoExisting)) newSelection.Clear();
+            else if (routesIntoExisting)
             {
                 _dragRotation = Quaternion.LookRotation(travel);
                 foreach (var change in plan.Replacements)

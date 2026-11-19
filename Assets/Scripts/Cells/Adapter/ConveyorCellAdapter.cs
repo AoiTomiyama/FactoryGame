@@ -9,8 +9,10 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     [SerializeField] private int transferAmount;
     [SerializeField] private ExportConveyorCellAdapter exportDefinition;
     [SerializeField] private ConveyorCellAdapter normalDefinition;
+    [SerializeField] private Transform beltSurface;
     private bool _exportMode, _roleInitialized, _hasPromoted, _modeEvaluationQueued, _takeLoopStarted;
     private GameObject _normalVisual, _exportVisual;
+    private Transform _connectedBelt;
     private IExportableApplication _backwardCell;
     private ConnectableCellBaseAdapter _backwardCellBase;
     private int _backwardPortId;
@@ -138,7 +140,6 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             _backwardCell = (IExportableApplication)connection.Neighbor;
             _backwardCellBase = connection.Neighbor;
             _backwardPortId = connection.NeighborPortId;
-            ScheduleModeEvaluation();
         }
         var dir = connection.Direction;
         var cell = connection.Neighbor;
@@ -153,14 +154,15 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             _forwardCell = container;
             _forwardCellBase = cell;
         }
+        ScheduleModeEvaluation();
     }
 
     private void OnConnectionLost(CellBaseAdapter cell)
     {
+        ScheduleModeEvaluation();
         if (cell == _backwardCellBase)
         {
             _backwardCell = null; _backwardCellBase = null;
-            ScheduleModeEvaluation();
         }
         if (cell != _forwardCellBase) return;
         _forwardCell = null;
@@ -202,10 +204,57 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             var exporter = _backwardCellBase != null && _backwardCellBase.isActiveAndEnabled &&
                 Connections.Values.Any(IsExtractionConnection);
             if (exporter != IsExportConveyor) SetExportMode(exporter, true);
+            RefreshConnectedBelt();
             if (exporter) StartTaking();
         }
         catch (OperationCanceledException) when(token.IsCancellationRequested) { }
         finally { _modeEvaluationQueued = false; }
+    }
+
+    private void RefreshConnectedBelt()
+    {
+        if (beltSurface == null || CellModel == null) return;
+        var inputs = (DirectionsDomain)0;
+        foreach (var link in Connections.Values)
+        {
+            if (link.Neighbor == null || !link.Neighbor.isActiveAndEnabled) continue;
+            var feedsThisBelt = link.Neighbor switch
+            {
+                ConveyorCellAdapter sender => sender.PortDirection(link.NeighborPortId) == sender.DirectionEnumToVector(DirectionsDomain.Forward),
+                CrossingCellAdapter or ConveyorJunctionCellAdapter => link.Neighbor.HasPort(link.NeighborPortId, CellPortUseDomain.Output),
+                _ => IsExportConveyor && IsExtractionConnection(link)
+            };
+            if (feedsThisBelt) inputs |= Ports.First(port => port.Id == link.PortId).Facing;
+        }
+
+        // 前方から押し戻す方向は描かない。横から入るときだけ接続に沿ってモデルを組む。
+        inputs &= ~DirectionsDomain.Forward;
+        var showConnections = (inputs & (DirectionsDomain.Left | DirectionsDomain.Right)) != 0;
+        if (!showConnections && _connectedBelt == null) return;
+        var root = CellModel.transform;
+        CacheBaseBelt(root);
+        if (showConnections)
+        {
+            var route = new ConveyorRouteRulesDomain.Route(inputs, DirectionsDomain.Forward);
+            _connectedBelt = ConveyorRouteViewAdapter.ShowBelt(root, route, beltSurface.parent, beltSurface);
+        }
+        _connectedBelt.gameObject.SetActive(showConnections);
+        if (_normalVisual != null) _normalVisual.SetActive(!IsExportConveyor && !showConnections);
+        if (_exportVisual != null)
+        {
+            // 搬出路の追加パーツは残し、共通のベルト面と矢印だけ差し替える。
+            var exportModel = _exportVisual.transform;
+            for (var i = 0; i < Mathf.Min(beltSurface.parent.childCount, exportModel.childCount); i++)
+                exportModel.GetChild(i).gameObject.SetActive(!showConnections);
+            _exportVisual.SetActive(IsExportConveyor);
+        }
+    }
+
+    private void CacheBaseBelt(Transform model)
+    {
+        if (_normalVisual != null || _exportVisual != null || model.childCount == 0) return;
+        if (StartsAsExporter) _exportVisual = model.GetChild(0).gameObject;
+        else _normalVisual = model.GetChild(0).gameObject;
     }
 
     private void SetExportMode(bool exporter, bool bindProgression)
@@ -221,11 +270,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         var model = transform.Find("Model");
         if (model != null && model.childCount > 0)
         {
-            if (_normalVisual == null && _exportVisual == null)
-            {
-                if (StartsAsExporter) _exportVisual = model.GetChild(0).gameObject;
-                else _normalVisual = model.GetChild(0).gameObject;
-            }
+            CacheBaseBelt(model);
             var visual = exporter ? _exportVisual : _normalVisual;
             if (visual == null && definition != null)
             {
