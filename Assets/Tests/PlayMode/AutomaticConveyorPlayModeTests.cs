@@ -110,14 +110,30 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
                 new ConveyorRouteRulesDomain.Route(DirectionsDomain.Back | DirectionsDomain.Left, DirectionsDomain.Forward | DirectionsDomain.Right)
             }));
         var sourceLower = Add<StorageCellAdapter>("Storage", 5, 4);
-        var sourceUpper = Add<StorageCellAdapter>("Storage", 4, 5);
+        var sourceUpper = Add<CrafterCellAdapter>("Crafter", 4, 5, cell =>
+        {
+            cell.transform.rotation = Quaternion.Euler(0, 270, 0);
+            cell.RestoreState(new SaveGameApplication.Cell
+            {
+                inventory = new[] { SaveGameApplication.SlotValue(int.MaxValue, ResourceTypeDomain.Stone, 4) }
+            });
+        });
         var sinkLower = Add<StorageCellAdapter>("Storage", 5, 6);
         var sinkUpper = Add<StorageCellAdapter>("Storage", 6, 5);
         Fill(sinkLower, ResourceTypeDomain.Wood, sinkLower.Capacity);
         Fill(sourceLower, ResourceTypeDomain.Wood, 3);
-        Fill(sourceUpper, ResourceTypeDomain.Stone, 4);
+        await UniTask.DelayFrame(3);
+        Assert.That(sinkUpper.CurrentLoad, Is.Zero);
+        sourceUpper.transform.rotation = Quaternion.Euler(0, 90, 0);
+        sourceUpper.InitializeSystem();
         await Until(() => sinkUpper.CurrentLoad == 4 && crossing.CaptureBatches(_ => {}).Length == 1);
         Assert.That(sinkUpper.StoredResourceType, Is.EqualTo(ResourceTypeDomain.Stone));
+        sourceUpper.OnDisconnect();
+        sourceUpper.gameObject.SetActive(false);
+        Object.Destroy(sourceUpper.gameObject);
+        var replacement = Add<StorageCellAdapter>("Storage", 4, 5);
+        Fill(replacement, ResourceTypeDomain.Stone, 1);
+        await Until(() => sinkUpper.CurrentLoad == 5);
         Assert.That(sourceLower.CurrentLoad, Is.Zero);
         var exit = sinkLower.Ports.First(port => (port.Use & CellPortUseDomain.Output) != 0).Id;
         Assert.That(sinkLower.TryExport(exit, 3, out _, out _));
@@ -346,7 +362,7 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
             grid.GetCell(cell.XIndex, cell.ZIndex - 1) is EmptyCellAdapter && grid.GetCell(cell.XIndex, cell.ZIndex + 1) is EmptyCellAdapter);
         var x = center.XIndex;
         var z = center.ZIndex;
-        void Drag(int from, int to, int previewCount, long previewCost)
+        void Drag(int from, int to, int previewCount, long previewCost, bool checkArrows = false)
         {
             placer.SelectGrid(grid.GetCell(from, z).gameObject);
             placer.PointerBegin();
@@ -354,6 +370,15 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
             placer.PointerDrag();
             Assert.That(placer.PreviewCount, Is.EqualTo(previewCount));
             Assert.That(placer.PreviewCost, Is.EqualTo(previewCost));
+            if (checkArrows)
+            {
+                var marker = Object.FindObjectsByType<ConveyorRouteViewAdapter>(FindObjectsSortMode.None)
+                    .Single(view => view.transform.parent.name.StartsWith("P_", StringComparison.Ordinal));
+                Assert.That(marker.GetComponent<MeshRenderer>().enabled);
+                var mesh = marker.GetComponent<MeshFilter>().sharedMesh;
+                Assert.That(mesh.vertexCount, Is.EqualTo(split ? 21 : 28));
+                Assert.That(mesh.bounds.max.y, Is.GreaterThan(.5f));
+            }
             placer.PointerEnd();
             if (previewCount > 0)
             {
@@ -366,8 +391,33 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
         placer.SetSelectedCellType(CellTypeDomain.Conveyor);
         Drag(x, x, 1, 5);
         var original = (ConveyorCellAdapter)grid.GetCell(x, z);
-        Assert.That(original.AllocateStorage(0, 2, ResourceTypeDomain.Stone));
-        Drag(split ? x : x - 1, x + 1, split ? 2 : 3, split ? 10 : 15);
+        void PlaceAt(CellTypeDomain type, int depth)
+        {
+            placer.SetSelectedCellType(type);
+            placer.SelectGrid(grid.GetCell(x, depth).gameObject);
+            placer.PointerBegin();
+            placer.PointerDrag();
+            placer.PointerEnd();
+            Assert.That(placer.LastPlacedCount, Is.EqualTo(1));
+        }
+        StorageCellAdapter sink = null;
+        if (split) Assert.That(original.AllocateStorage(0, 2, ResourceTypeDomain.Stone));
+        else
+        {
+            Assert.That(game.ConstructionStock.TryReserveDeposit(ResourceTypeDomain.Plank, 2, out var planks));
+            Assert.That(planks.TryCommit());
+            PlaceAt(CellTypeDomain.Conveyor, z - 1);
+            PlaceAt(CellTypeDomain.Storage, z + 1);
+            sink = (StorageCellAdapter)grid.GetCell(x, z + 1);
+            var sender = (ConveyorCellAdapter)grid.GetCell(x, z - 1);
+            Assert.That(sender.AllocateStorage(0, 2, ResourceTypeDomain.Stone));
+            sender.Reuse(0, ResourceItemObjectPoolAdapter.Instance.CreateIdFromResourceData(ResourceTypeDomain.Stone, 2));
+            sender.StoreResource(0, 2);
+            var reservation = typeof(ConveyorCellAdapter).GetField("_incomingReservationAmount", BindingFlags.Instance | BindingFlags.NonPublic);
+            await UniTask.WaitUntil(() => (int)reservation.GetValue(original) == 2).Timeout(TimeSpan.FromSeconds(5), DelayType.Realtime);
+            placer.SetSelectedCellType(CellTypeDomain.Conveyor);
+        }
+        Drag(split ? x : x - 1, x + 1, split ? 2 : 3, split ? 10 : 15, checkArrows: true);
         if (split) Drag(x, x - 1, 2, 5);
         var converted = (ConnectableCellBaseAdapter)grid.GetCell(x, z);
         Assert.That(converted, split ? Is.TypeOf<ConveyorJunctionCellAdapter>() : Is.TypeOf<CrossingCellAdapter>());
@@ -378,8 +428,10 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
             Assert.That(converted.HasPort(port.Id, CellPortUseDomain.Output), Is.EqualTo(output));
             Assert.That(converted.HasPort(port.Id, CellPortUseDomain.Input), Is.EqualTo(!output));
         }
-        Assert.That(converted.Connections.Count, Is.EqualTo(2));
+        Assert.That(converted.Connections.Count, Is.EqualTo(split ? 2 : 4));
         Assert.That(game.ConstructionStock.Available(ResourceTypeDomain.CopperWire), Is.Zero);
+        if (!split)
+            await UniTask.WaitUntil(() => sink.CurrentLoad == 2).Timeout(TimeSpan.FromSeconds(5), DelayType.Realtime);
         await UniTask.Yield();
     }
     private static async UniTask VerifyPlacement()
@@ -400,6 +452,16 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
         Assert.That(((ConveyorCellAdapter)grid.GetCell(x,z+1)).IsExportConveyor);Assert.That(((ConveyorCellAdapter)grid.GetCell(x,z+2)).IsExportConveyor,Is.False);
         Assert.That(placer.SelectedType,Is.EqualTo(CellTypeDomain.Conveyor));
         Assert.That(panel.PlacementButtons.GetComponentsInChildren<CellSelectButtonUIAdapter>(true).Any(b=>b.name=="ExportConveyorButton"),Is.False);
+        var original = grid.GetCell(x, z + 1);
+        placer.SelectGrid(original.gameObject);
+        placer.PointerBegin();
+        placer.SelectGrid(grid.GetCell(x, z + 2).gameObject);
+        placer.PointerDrag();
+        Assert.That(placer.PreviewCount, Is.Zero);
+        Assert.That(placer.PlacementNotice, Is.EqualTo("既存セルと重なっています"));
+        placer.PointerEnd();
+        Assert.That(grid.GetCell(x, z + 1), Is.SameAs(original));
+        Assert.That(initializer.Wallet.Current.Balance, Is.EqualTo(70));
         await UniTask.DelayFrame(2);
     }
 }

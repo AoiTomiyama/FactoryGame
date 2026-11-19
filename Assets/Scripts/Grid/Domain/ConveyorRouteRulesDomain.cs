@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 /// <summary>ポートの向きを保ったままドラッグで追加できる経路を判定する。</summary>
 public static class ConveyorRouteRulesDomain
 {
@@ -45,6 +47,33 @@ public static class ConveyorRouteRulesDomain
         var added = entry | exit;
         if (added == 0 || ((current.Inputs | current.Outputs) & added) != 0) return default;
         return new Route(current.Inputs | entry, current.Outputs | exit);
+    }
+
+    public static (List<(int X, int Z, Route Before, Route After)> Replacements, bool Overlap, bool Invalid)
+        Plan(IReadOnlyList<(int X, int Z, Route Existing)> line, DirectionsDomain travel)
+    {
+        var replacements = new List<(int X, int Z, Route Before, Route After)>();
+        var overlap = false;
+        var invalid = false;
+        var entry = Opposite(travel);
+        for (var i = 0; i < line.Count; i++)
+        {
+            var (x, z, existing) = line[i];
+            if (existing.Inputs == 0) continue;
+            var incoming = i == 0 ? 0 : entry;
+            var outgoing = i == line.Count - 1 ? 0 : travel;
+            var proposed = Extend(existing, incoming, outgoing);
+            if (proposed.Type != Kind.Invalid)
+            {
+                replacements.Add((x, z, existing, proposed));
+                continue;
+            }
+            overlap = true;
+            // 同じ向きの既設路は通常の重なりとして残す。逆向きなど接続できない経路は成立しない。
+            invalid |= (existing.Inputs & incoming) != incoming || (existing.Outputs & outgoing) != outgoing;
+        }
+        if (invalid) replacements.Clear();
+        return (replacements, overlap, invalid);
     }
 
     private static Kind Classify(DirectionsDomain inputs, DirectionsDomain outputs)

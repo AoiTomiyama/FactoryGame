@@ -183,36 +183,27 @@ public class CellPlacerAdapter : MonoBehaviour
 
         // 正負の方向に応じてステップを決定
         var step = start <= end ? 1 : -1;
-        var blockedRoute = false;
         var travel = isX ? new Vector3Int(step, 0, 0) : new Vector3Int(0, 0, step);
-        var exit = ConveyorRouteRulesDomain.Side(travel.x, travel.z);
-        var entry = ConveyorRouteRulesDomain.Opposite(exit);
+        var line = _selectedType == CellTypeDomain.Conveyor && !_clearingMode && start != end
+            ? new (int X, int Z, ConveyorRouteRulesDomain.Route Existing)[Mathf.Abs(end - start) + 1] : null;
+        var grid = GridFieldDatabaseAdapter.Instance;
         for (int i = start; i != end + step; i += step)
         {
             var x = isX ? i : fixedCoord;
             var z = isX ? fixedCoord : i;
 
-            if (!GridFieldDatabaseAdapter.Instance.IsWithinBounds(x, z)) continue;
-            var cell = GridFieldDatabaseAdapter.Instance.GetCell(x, z);
+            if (!grid.IsWithinBounds(x, z)) continue;
+            var cell = grid.GetCell(x, z);
             if (cell == null) continue;
             if (_clearingMode)
             {
                 if (cell is ResourceCellAdapter raw && _clearing.Rules.CanClear(raw.ResourceTypeDomain)) newSelection.Add(cell);
                 continue;
             }
-            if (_selectedType == CellTypeDomain.Conveyor && start != end &&
-                TryGetExistingRoute(cell, out var current))
+            if (line != null && TryGetExistingRoute(cell, out var current))
             {
-                var added = ConveyorRouteRulesDomain.Extend(current, i == start ? 0 : entry, i == end ? 0 : exit);
-                if (added.Type != ConveyorRouteRulesDomain.Kind.Invalid)
-                {
-                    _routeChanges.Add(cell, (current, added, cell.transform.rotation));
-                    newSelection.Add(cell);
-                    continue;
-                }
-                if ((i == start || (current.Inputs & entry) != 0) &&
-                    (i == end || (current.Outputs & exit) != 0)) continue;
-                blockedRoute = true;
+                line[(i - start) * step] = (x, z, current);
+                continue;
             }
             if (_cachedCell is not EmptyCellAdapter && !CanPlaceAt(x, z)) { _overlap = true; continue; }
             // 撤去は設備だけ、設置は空セルだけを対象にする。
@@ -225,15 +216,21 @@ public class CellPlacerAdapter : MonoBehaviour
             }
         }
 
-        if (_routeChanges.Count != 0 || blockedRoute)
+        if (line != null)
         {
-            // 1マスずつ設置するが、方向を確定できるドラッグだけを経路変更として扱う。
-            if (_overlap || blockedRoute)
+            var plan = ConveyorRouteRulesDomain.Plan(line, ConveyorRouteRulesDomain.Side(travel.x, travel.z));
+            if (plan.Invalid || (_overlap && plan.Replacements.Count != 0)) newSelection.Clear();
+            else if (plan.Replacements.Count != 0)
             {
-                newSelection.Clear();
-                _routeChanges.Clear();
+                _dragRotation = Quaternion.LookRotation(travel);
+                foreach (var change in plan.Replacements)
+                {
+                    var cell = grid.GetCell(change.X, change.Z);
+                    _routeChanges.Add(cell, (change.Before, change.After, cell.transform.rotation));
+                    newSelection.Add(cell);
+                }
             }
-            else _dragRotation = Quaternion.LookRotation(travel);
+            _overlap |= plan.Overlap;
         }
         SelectRangedGrid(newSelection);
         if (_clearingMode) _clearingPreview = _clearing.CreatePreview(newSelection.Select(c => (c.XIndex, c.ZIndex)));

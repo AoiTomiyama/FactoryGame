@@ -26,6 +26,16 @@ public sealed class AutomaticConveyorTests : FactoryEditModeScope
         Assert.That(ConveyorRouteRulesDomain.Extend(merge, 0, right).Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Crossing));
         Assert.That(ConveyorRouteRulesDomain.Extend(straight, output, input).Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Invalid));
         Assert.That(new ConveyorRouteRulesDomain.Route(input | output, left | right).Type, Is.EqualTo(ConveyorRouteRulesDomain.Kind.Invalid));
+
+        var line = new[] { (3, 4, default(ConveyorRouteRulesDomain.Route)), (4, 4, straight), (5, 4, default) };
+        var replacement = ConveyorRouteRulesDomain.Plan(line, right).Replacements;
+        Assert.That(replacement.Count, Is.EqualTo(1));
+        Assert.That((replacement[0].X, replacement[0].Z), Is.EqualTo((4, 4)));
+        var parallel = ConveyorRouteRulesDomain.Plan(line, output);
+        Assert.That(parallel.Overlap);
+        Assert.That(parallel.Invalid, Is.False);
+        Assert.That(parallel.Replacements, Is.Empty);
+        Assert.That(ConveyorRouteRulesDomain.Plan(line, input).Invalid);
     }
 
     [TestCase(0)] [TestCase(90)] [TestCase(180)] [TestCase(270)]

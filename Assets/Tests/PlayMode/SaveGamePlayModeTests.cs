@@ -176,7 +176,8 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         Assert.That(game.Saves.LastError,Is.Null); Assert.That(Directory.GetFiles(SaveTestDirectory).Length,Is.EqualTo(1));
     }
     [Serializable] private sealed class Stocks { public SaveGameApplication.Stock[] values; }
-    [UnityTest] public IEnumerator TransitOwnershipSurvivesReloadAndBlockedBatchesContinue() => TransitRoundTrip().ToCoroutine();
+    [UnityTest] public IEnumerator TransitOwnershipSurvivesReloadAndBlockedBatchesContinue() => TransitRoundTrip(false).ToCoroutine();
+    [UnityTest] public IEnumerator ConfiguredCrossingRetainsItsDirectionAndBatchOnReload() => TransitRoundTrip(true).ToCoroutine();
     [UnityTest] public IEnumerator MergerRouteAndHeldBatchesSurviveReload() => MergerRoundTrip().ToCoroutine();
     private async UniTask MergerRoundTrip()
     {
@@ -221,7 +222,7 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         await UniTask.WaitUntil(() => sink.CurrentLoad == 6).Timeout(TimeSpan.FromSeconds(10), DelayType.Realtime);
         Assert.That(ResourceItemObjectPoolAdapter.Instance.Resources.Count, Is.Zero);
     }
-    private async UniTask TransitRoundTrip()
+    private async UniTask TransitRoundTrip(bool configured)
     {
         var game = StartNew(); var grid = GridFieldDatabaseAdapter.Instance;
         var anchor = grid.Owners.OfType<EmptyCellAdapter>().First(e => e.XIndex > 1 && e.ZIndex > 1 && e.ZIndex + 3 < grid.GeneratedSize &&
@@ -229,7 +230,13 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         var x = anchor.XIndex; var z = anchor.ZIndex;
         var source = (StorageCellAdapter)Install(CellTypeDomain.Storage,x,z);
         var belt = (ConveyorCellAdapter)Install(CellTypeDomain.Conveyor,x,z + 1);
-        var crossing = (CrossingCellAdapter)Install(CellTypeDomain.Crossing,x,z + 2);
+        var crossing = (CrossingCellAdapter)Install(CellTypeDomain.Crossing,x,z + 2, configure: cell =>
+        {
+            if (!configured) return;
+            var route = new ConveyorRouteRulesDomain.Route(DirectionsDomain.Back | DirectionsDomain.Left, DirectionsDomain.Forward | DirectionsDomain.Right);
+            typeof(CrossingCellAdapter).GetMethod("ConfigureRoute", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(cell, new object[] { route });
+        });
         var target = (StorageCellAdapter)Install(CellTypeDomain.Storage,x,z + 3);
         var empty = grid.Owners.OfType<EmptyCellAdapter>().First(e => e.ZIndex > 0 &&
             grid.GetCell(e.XIndex,e.ZIndex - 1) is EmptyCellAdapter);
@@ -248,6 +255,12 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         Assert.That(game.Saves.LastError,Is.Null);
         var saved = game.Saves.Read();
         Assert.That(saved.cells.Where(c => c.batches.Length != 0).Sum(c => c.batches.Sum(b => b.amount)),Is.EqualTo(10));
+        if (configured)
+        {
+            var route = saved.cells.Single(c => c.x == x && c.z == z + 2);
+            Assert.That(route.routeInputs, Is.EqualTo(DirectionsDomain.Back | DirectionsDomain.Left));
+            Assert.That(route.routeOutputs, Is.EqualTo(DirectionsDomain.Forward | DirectionsDomain.Right));
+        }
         Assert.That(formerExporter.IsExportConveyor,Is.False);
         var fallback = saved.cells.Single(c => c.x == fallbackX && c.z == fallbackZ);
         Assert.That(SaveKeysApplication.Cell(fallback.kind),Is.EqualTo(CellTypeDomain.ExportConveyor));
@@ -257,6 +270,12 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         await ReloadMainScene().ToUniTask(); game = TestScenes.Find<GameInitializerAdapter>();
         Assert.That(await game.TryRestoreGameAsync()); grid = GridFieldDatabaseAdapter.Instance;
         belt = (ConveyorCellAdapter)grid.GetCell(x,z + 1); crossing = (CrossingCellAdapter)grid.GetCell(x,z + 2); target = (StorageCellAdapter)grid.GetCell(x,z + 3);
+        if (configured)
+        {
+            Assert.That(crossing.Ports.Count(port => crossing.HasPort(port.Id, CellPortUseDomain.Input)), Is.EqualTo(2));
+            Assert.That(crossing.Ports.Where(port => crossing.HasPort(port.Id, CellPortUseDomain.Output)).Select(port => port.Facing),
+                Is.EquivalentTo(new[] { DirectionsDomain.Forward, DirectionsDomain.Right }));
+        }
         var newIds = new System.Collections.Generic.HashSet<int>(); crossing.CaptureBatches(i => newIds.Add(i)); belt.CaptureBatches(i => newIds.Add(i));
         Assert.That(newIds.Count,Is.EqualTo(2)); Assert.That(newIds.Overlaps(oldIds),Is.False,"runtime IDs are not persisted");
         Assert.That(belt.IsExportConveyor,"automatic exporter role is retained");
@@ -342,7 +361,7 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         var game = TestScenes.Find<GameInitializerAdapter>();
         Assert.That(game.TryPrepareNewGame()); Assert.That(game.TryStartGame()); return game;
     }
-    private static CellBaseAdapter Install(CellTypeDomain type, int x = -1,int z = -1,float yaw = 0)
+    private static CellBaseAdapter Install(CellTypeDomain type, int x = -1,int z = -1,float yaw = 0, Action<CellBaseAdapter> configure = null)
     {
         var grid = GridFieldDatabaseAdapter.Instance; var prefab = TestScenes.Find<CellPlacerAdapter>().FieldPrefab(type);
         var rotation = Mathf.RoundToInt(yaw / 90);
@@ -355,6 +374,7 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         var old = prefab.Footprint.Coordinates(x,z,rotation).Select(p => grid.GetCell(p.x,p.z)).Distinct().ToArray();
         Assert.That(old.All(c => c is EmptyCellAdapter));
         var cell = Object.Instantiate(prefab,new Vector3(x,0,z),Quaternion.Euler(0,yaw,0),grid.transform);
+        configure?.Invoke(cell);
         grid.SaveCell(x,z,cell);
         foreach (var previous in old) {previous.gameObject.SetActive(false); Object.Destroy(previous.gameObject);}
         cell.InitializeSystem(); return cell;
