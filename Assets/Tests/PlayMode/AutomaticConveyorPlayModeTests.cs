@@ -304,6 +304,34 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
         Assert.That(_pool.Resources.Count, Is.Zero);
     }
 
+    [UnityTest] public IEnumerator CrossingReachesItsExitWhileTheNextBeltIsOccupied() => CrossingExitWait().ToCoroutine();
+    private async UniTask CrossingExitWait()
+    {
+        var before = Add<ConveyorCellAdapter>("Conveyor", 4, 4);
+        var crossing = Add<CrossingCellAdapter>("Crossing", 4, 5);
+        var after = Add<ConveyorCellAdapter>("Conveyor", 4, 6);
+        var sink = Add<StorageCellAdapter>("Storage", 4, 7);
+        Fill(sink, ResourceTypeDomain.Wood, sink.Capacity);
+        var port = before.Ports.Single(p => before.PortDirection(p.Id) == Vector3Int.back).Id;
+        var previous = Send(after, after, port, ResourceTypeDomain.Wood, 2);
+        var next = Send(before, before, port, ResourceTypeDomain.Wood, 3);
+        var visual = ResourceTransferAssertions.GetVisual(_pool, next);
+        var exit = crossing.transform.position + Vector3.forward * .5f;
+        await Until(() => Mathf.Abs(visual.transform.position.z - exit.z) < .001f);
+        await UniTask.DelayFrame(3);
+        Assert.That(visual.transform.position.z, Is.EqualTo(exit.z).Within(.001f));
+        Assert.That(Id(before), Is.Zero);
+        Assert.That(Id(after), Is.EqualTo(previous));
+        var heldId = 0;
+        Assert.That(crossing.CaptureBatches(id => heldId = id).Length, Is.EqualTo(1));
+        Assert.That(heldId, Is.EqualTo(next));
+
+        var output = sink.Ports.First(p => (p.Use & CellPortUseDomain.Output) != 0).Id;
+        Assert.That(sink.TryExport(output, 5, out var removed, out _));
+        Assert.That(removed, Is.EqualTo(5));
+        await Until(() => sink.CurrentLoad == sink.Capacity && _pool.Resources.Count == 0);
+    }
+
     [UnityTest] public IEnumerator CrossingShowsTwoStraightPathsAtEveryRotation() => CrossingDisplay().ToCoroutine();
     private async UniTask CrossingDisplay()
     {

@@ -7,6 +7,8 @@ using UnityEngine;
 
 public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableApplication, IResourceReusableApplication
 {
+    private const float EntranceOffset = .23f;
+    private const float ExitOffset = .5f;
     [SerializeField] private ExportConveyorCellAdapter exportDefinition;
     private ConveyorRouteRulesDomain.Route _route;
     internal ConveyorRouteRulesDomain.Route LocalRoute => _route;
@@ -35,7 +37,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         // モデルの横レーンを高くし、逆向きの資源は入口側で止めて表示を分ける。
         var across = Vector3.Dot(travelDirection, transform.right);
         var height = Mathf.Abs(across) > .5f ? 1.55f : ResourceDisplayHeight;
-        return point - (Vector3)travelDirection * .23f + Vector3.up * height;
+        return point - (Vector3)travelDirection * EntranceOffset + Vector3.up * height;
     }
 
     public SaveGameApplication.Slot[] CaptureBatches(Action<int> registerOwner)
@@ -65,6 +67,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         public ResourceTransferOperationApplication Operation => Coordinator.Operation;
         public ResourceReservationApplication Reservation => Coordinator.Reservation;
         public bool Started;
+        public bool ReachedExit;
         public int InputPort;
         public CancellationTokenSource ActiveCts;
         public ResourceItemObjectPoolAdapter ResourceOwner;
@@ -183,11 +186,17 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         var dir = -PortDirection(portId);
         if (_isDisconnected || amount <= 0 || resourceType == ResourceTypeDomain.None || _pending.ContainsKey(dir))
             return false;
-        if (!_adjacentContainers.TryGetValue(dir, out var adjacent) ||
-            !ResourceReservationApplication.TryCreate(adjacent, TargetPortId(adjacent.Identity as CellBaseAdapter, dir), amount, resourceType, out var reservation)) return false;
-
-        var operation = new ResourceTransferOperationApplication(this, adjacent, 0, resourceType, amount);
-        operation.TryMarkReserved();
+        if (!_adjacentContainers.TryGetValue(dir, out var adjacent) || !adjacent.IsAlive) return false;
+        var operation = new ResourceTransferOperationApplication(this, 0, resourceType, amount);
+        ResourceReservationApplication reservation = null;
+        // 次が搬送路なら、交差の入口でその先の枠まで塞がない。交差レーンが一件を受け持つ。
+        if (adjacent is not ConveyorCellAdapter)
+        {
+            if (!ResourceReservationApplication.TryCreate(adjacent, TargetPortId(adjacent.Identity as CellBaseAdapter, dir),
+                    amount, resourceType, out reservation)) return false;
+            operation.TrySetTarget(adjacent);
+            operation.TryMarkReserved();
+        }
         _pending[dir] = new PendingTransfer
         {
             InputPort = portId,
@@ -205,8 +214,8 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         if (operation.Amount != amount || operation.Type != resourceType) return;
         if (operation.IsTerminal) return;
         _pending.Remove(dir);
-        transfer.ActiveCts?.Cancel();
         transfer.Coordinator.Cancel();
+        transfer.ActiveCts?.Cancel();
         if (operation.ResourceId != 0 && transfer.ResourceOwner != null) transfer.ResourceOwner.DisposeId(operation.ResourceId);
         NotifyReceiveSpace(portId);
     }
@@ -225,6 +234,8 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         bool deferUntilConnected = false)
     {
         var operation = transfer.Operation;
+        var entrance = ResourceDisplayPosition(transform.position, dir);
+        var exit = entrance + (Vector3)dir * (EntranceOffset + ExitOffset);
         try
         {
             // 復元時は接続を待つ。通常の引き継ぎでは予約済みの出口へそのまま進む。
@@ -235,20 +246,36 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                 transfer.ActiveCts = activeCts;
                 try
                 {
-                    var startPos = ResourceDisplayPosition(transform.position, dir);
                     var nextCell = transform.position + dir;
                     var fallback = nextCell + Vector3.up * ResourceDisplayHeight;
                     Vector3 Destination(IContainableApplication endpoint) => endpoint.Identity is CellBaseAdapter cell
                         ? cell.ResourceDisplayPosition(nextCell, dir) : fallback;
                     var pool = transfer.ResourceOwner;
                     if (pool == null) throw new InvalidOperationException("Crossing transfer lost its resource owner.");
+                    float TravelSeconds() => EffectiveDuration(pool.BaseTransferSeconds, EquipmentStatDomain.TransportSpeed);
+                    if (!transfer.ReachedExit && transfer.Reservation == null &&
+                        _adjacentContainers.TryGetValue(dir, out var successor) && successor is ConveyorCellAdapter)
+                    {
+                        var approach = await pool.Transfer(activeCts.Token, entrance, exit, operation.ResourceId,
+                            TravelSeconds() * ResourceTravelDistance(entrance, exit));
+                        activeCts.Token.ThrowIfCancellationRequested();
+                        if (approach != ResourceAnimationResultApplication.Completed)
+                        {
+                            pool.SetPosition(operation.ResourceId, entrance);
+                            await UniTask.Delay(100, cancellationToken: token);
+                            continue;
+                        }
+                        transfer.ReachedExit = true;
+                    }
+
+                    var startPos = transfer.ReachedExit ? exit : entrance;
                     var result = await transfer.Coordinator.RunAsync(
                         () => _adjacentContainers.TryGetValue(dir, out var portTarget) ? TargetPortId(portTarget.Identity as CellBaseAdapter, dir) : -1, startPos,
                         fallback,
                         () => _adjacentContainers.TryGetValue(dir, out var adjacent) ? adjacent : null,
                         endpoint => _adjacentContainers.TryGetValue(dir, out var adjacent) &&
                                 ReferenceEquals(adjacent.Identity, endpoint.Identity), pool.Resources,
-                        pool, () => EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed) *
+                        pool, () => TravelSeconds() *
                             ResourceTravelDistance(startPos, Destination(operation.Target)), activeCts.Token,
                         resolveDestination: Destination);
                     if (result != ResourceAnimationResultApplication.Completed)
@@ -266,7 +293,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                     if (operation.CurrentStage != ResourceTransferOperationApplication.Stage.WaitingForReservation)
                         throw;
                     // 接続先だけが失われた。次の接続までIDを保持する。
-                    transfer.ResourceOwner.SetPosition(operation.ResourceId, ResourceDisplayPosition(transform.position, dir));
+                    transfer.ResourceOwner.SetPosition(operation.ResourceId, transfer.ReachedExit ? exit : entrance);
                 }
                 finally
                 {
