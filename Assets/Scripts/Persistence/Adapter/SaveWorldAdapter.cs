@@ -41,7 +41,13 @@ public sealed class SaveWorldAdapter
                 case ExtractorCellAdapter extractor: data.inventory = extractor.CaptureInventory(); data.job = extractor.CaptureJob(); break;
                 case CrafterCellAdapter crafter: data.inventory = crafter.CaptureInventory(); data.job = crafter.CaptureJob(); break;
                 case ConveyorCellAdapter belt: data.exporter = belt.IsExportConveyor; data.batches = belt.CaptureBatches(Register); break;
-                case CrossingCellAdapter crossing: data.batches = crossing.CaptureBatches(Register); break;
+                case CrossingCellAdapter crossing:
+                    data.routeInputs = crossing.LocalRoute.Inputs; data.routeOutputs = crossing.LocalRoute.Outputs;
+                    data.batches = crossing.CaptureBatches(Register); break;
+                case ConveyorJunctionCellAdapter junction:
+                    data.routeInputs = junction.LocalRoute.Inputs; data.routeOutputs = junction.LocalRoute.Outputs;
+                    data.routeInputCursor = junction.InputCursor; data.routeOutputCursor = junction.OutputCursor;
+                    data.batches = junction.CaptureBatches(Register); break;
             }
             cells.Add(data);
         }
@@ -97,8 +103,9 @@ public sealed class SaveWorldAdapter
                 throw new InvalidOperationException("Invalid saved export role.");
             if (prefab is not (ExtractorCellAdapter or CrafterCellAdapter) && c.job != null ||
                 prefab is not (StorageCellAdapter or ExtractorCellAdapter or CrafterCellAdapter) && c.inventory.Length != 0 ||
-                prefab is not (ConveyorCellAdapter or CrossingCellAdapter) && c.batches.Length != 0)
+                prefab is not (ConveyorCellAdapter or CrossingCellAdapter or ConveyorJunctionCellAdapter) && c.batches.Length != 0)
                 throw new InvalidOperationException("Saved state does not belong to this cell kind.");
+            ValidateRoute(c, prefab);
             switch (prefab)
             {
                 case StorageCellAdapter s: s.ValidateSavedInventory(c.inventory,effects); break;
@@ -107,9 +114,6 @@ public sealed class SaveWorldAdapter
                 case ConveyorCellAdapter belt:
                     belt.ValidateSavedRole(c.exporter,effects);
                     if (c.batches.Length > 1 || c.batches.Length == 1 && c.batches[0].port != 0) throw new InvalidOperationException("Invalid saved conveyor slot.");
-                    break;
-                case CrossingCellAdapter crossing:
-                    if (c.batches.Any(b => !crossing.HasPort(b.port,CellPortUseDomain.Input))) throw new InvalidOperationException("Invalid saved crossing port.");
                     break;
                 case SingularityCellAdapter: singularities++; break;
                 case ShippingCellAdapter: shippings++; break;
@@ -151,6 +155,32 @@ public sealed class SaveWorldAdapter
     private static void CheckResource(string key, HashSet<ResourceTypeDomain> accepted)
     { if (!accepted.Contains(SaveKeysApplication.Resource(key))) throw new InvalidOperationException($"Resource definition is missing: {key}"); }
 
+    private static ConveyorRouteRulesDomain.Route SavedRoute(SaveGameApplication.Cell cell) => new(cell.routeInputs, cell.routeOutputs);
+
+    private static void ValidateRoute(SaveGameApplication.Cell cell, CellBaseAdapter prefab)
+    {
+        var route = SavedRoute(cell);
+        var hasRoute = (route.Inputs | route.Outputs) != 0;
+        if (prefab is not (CrossingCellAdapter or ConveyorJunctionCellAdapter))
+        {
+            if (hasRoute || cell.routeInputCursor != 0 || cell.routeOutputCursor != 0)
+                throw new InvalidOperationException("Saved route does not belong to this cell kind.");
+            return;
+        }
+        var connectable = (ConnectableCellBaseAdapter)prefab;
+        var inputs = connectable.Ports.Where(port => hasRoute ? (route.Inputs & port.Facing) != 0 :
+            (port.Use & CellPortUseDomain.Input) != 0).Select(port => port.Id).ToHashSet();
+        var outputCount = connectable.Ports.Count(port => (route.Outputs & port.Facing) != 0);
+        var valid = prefab is CrossingCellAdapter
+            ? (!hasRoute || route.Type == ConveyorRouteRulesDomain.Kind.Crossing) &&
+                cell.routeInputCursor == 0 && cell.routeOutputCursor == 0
+            : route.Type is ConveyorRouteRulesDomain.Kind.Split or ConveyorRouteRulesDomain.Kind.Merge &&
+                cell.routeInputCursor >= 0 && cell.routeInputCursor < inputs.Count &&
+                cell.routeOutputCursor >= 0 && cell.routeOutputCursor < outputCount;
+        if (!valid || cell.batches.Any(batch => !inputs.Contains(batch.port)))
+            throw new InvalidOperationException("Invalid saved conveyor route or input.");
+    }
+
     public async UniTask<CellBaseAdapter[]> BuildCellsAsync(SaveGameApplication data, int[] owners, CancellationToken cancellation)
     {
         // ロードは開始前だけ。元の地形を退役させ、保存された所有セルを一件ずつ構築する。
@@ -168,6 +198,8 @@ public sealed class SaveWorldAdapter
             var c = data.cells[i];
             var cell = Object.Instantiate(_definitions.FieldPrefab(SaveKeysApplication.Cell(c.kind)),new Vector3(c.x,0,c.z),Quaternion.Euler(0,c.rotation * 90,0),root.transform);
             if (cell is ConveyorCellAdapter belt) belt.RestoreExportRole(c.exporter);
+            if (cell is CrossingCellAdapter crossing && c.routeInputs != 0) crossing.ConfigureRoute(SavedRoute(c));
+            if (cell is ConveyorJunctionCellAdapter junction) junction.ConfigureRoute(SavedRoute(c), c.routeInputCursor, c.routeOutputCursor);
             created[i] = cell;
             await budget.YieldIfNeeded();
         }
@@ -195,6 +227,7 @@ public sealed class SaveWorldAdapter
                 case CrafterCellAdapter c: c.RestoreState(data.cells[i]); break;
                 case ConveyorCellAdapter b: b.RestoreBatches(data.cells[i].batches); break;
                 case CrossingCellAdapter cr: cr.RestoreBatches(data.cells[i].batches); break;
+                case ConveyorJunctionCellAdapter junction: junction.RestoreBatches(data.cells[i].batches); break;
             }
             await budget.YieldIfNeeded();
         }
@@ -209,7 +242,7 @@ public sealed class SaveWorldAdapter
             ResourceTypeDomain.Coal => CellTypeDomain.ResourceCoal, _ => throw new InvalidOperationException("Unknown natural resource cell.")
         },
         ExportConveyorCellAdapter => CellTypeDomain.ExportConveyor, ConveyorCellAdapter => CellTypeDomain.Conveyor,
-        CrossingCellAdapter => CellTypeDomain.Crossing, SingularityCellAdapter => CellTypeDomain.Singularity,
+        CrossingCellAdapter => CellTypeDomain.Crossing, ConveyorJunctionCellAdapter => CellTypeDomain.Junction, SingularityCellAdapter => CellTypeDomain.Singularity,
         ShippingCellAdapter => CellTypeDomain.Shipping, ConstructionDepotCellAdapter => CellTypeDomain.ConstructionDepot,
         _ when cell.SupportsProgression => cell.ProgressionType,
         _ => throw new InvalidOperationException($"Cell has no save definition: {cell.GetType().Name}")

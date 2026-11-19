@@ -41,6 +41,89 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
     }
     private static int Id(ConveyorCellAdapter core)=>(int)typeof(ConveyorCellAdapter).GetProperty("ResourceId",Fields).GetValue(core);
 
+    private ConveyorJunctionCellAdapter Junction(int x, int z, DirectionsDomain inputs, DirectionsDomain outputs) =>
+        Add<ConveyorJunctionCellAdapter>("ConveyorJunction", x, z, cell =>
+            typeof(ConveyorJunctionCellAdapter).GetMethod("ConfigureRoute", Fields)
+                .Invoke(cell, new object[] { new ConveyorRouteRulesDomain.Route(inputs, outputs), 0, 0 }));
+
+    private void Send(IContainableApplication lane, IResourceReusableApplication receiver, int port,
+        ResourceTypeDomain type, int count)
+    {
+        Assert.That(lane.AllocateStorage(port, count, type));
+        receiver.Reuse(port, _pool.CreateIdFromResourceData(type, count));
+        lane.StoreResource(port, count);
+    }
+
+    [UnityTest] public IEnumerator JunctionSkipsAFullOutputAndResumesWhenSpaceOpens() => Split().ToCoroutine();
+    private async UniTask Split()
+    {
+        var junction = Junction(5, 5, DirectionsDomain.Back, DirectionsDomain.Left | DirectionsDomain.Right | DirectionsDomain.Forward);
+        var right = Add<StorageCellAdapter>("Storage", 6, 5);
+        var left = Add<StorageCellAdapter>("Storage", 4, 5);
+        var ahead = Add<StorageCellAdapter>("Storage", 5, 6);
+        Fill(right, ResourceTypeDomain.Wood, right.Capacity);
+        var input = junction.Ports.Single(port => junction.HasPort(port.Id, CellPortUseDomain.Input)).Id;
+        Send(junction, junction, input, ResourceTypeDomain.Wood, 3);
+        await Until(() => left.CurrentLoad == 3);
+        Send(junction, junction, input, ResourceTypeDomain.Wood, 3);
+        await Until(() => ahead.CurrentLoad == 3);
+        Fill(left, ResourceTypeDomain.Wood, left.Capacity - 3);
+        Fill(ahead, ResourceTypeDomain.Wood, ahead.Capacity - 3);
+        Send(junction, junction, input, ResourceTypeDomain.Wood, 3);
+        await UniTask.DelayFrame(4);
+        Assert.That(_pool.Resources.Count, Is.EqualTo(1));
+        var exit = right.Ports.First(port => (port.Use & CellPortUseDomain.Output) != 0).Id;
+        Assert.That(right.TryExport(exit, 2, out _, out _));
+        await UniTask.DelayFrame(4);
+        Assert.That(right.AllocatedAmount, Is.Zero);
+        Assert.That(right.TryExport(exit, 1, out _, out _));
+        await Until(() => right.CurrentLoad == right.Capacity && _pool.Resources.Count == 0);
+    }
+
+    [UnityTest] public IEnumerator MergeHoldsTwoInputsAndUsesBothInTurn() => Merge().ToCoroutine();
+    private async UniTask Merge()
+    {
+        var junction = Junction(5, 5, DirectionsDomain.Back | DirectionsDomain.Left, DirectionsDomain.Forward);
+        var sink = Add<StorageCellAdapter>("Storage", 5, 6);
+        var exit = sink.Ports.First(port => (port.Use & CellPortUseDomain.Output) != 0).Id;
+        Fill(sink, ResourceTypeDomain.Wood, sink.Capacity);
+        Send(junction, junction, 1, ResourceTypeDomain.Wood, 2);
+        Send(junction, junction, 3, ResourceTypeDomain.Wood, 4);
+        await UniTask.DelayFrame(4);
+        Assert.That(_pool.Resources.Count, Is.EqualTo(2));
+        Assert.That(junction.AllocateStorage(1, 1, ResourceTypeDomain.Wood), Is.False);
+        Assert.That(sink.TryExport(exit, 4, out _, out _));
+        await Until(() => sink.CurrentLoad == sink.Capacity - 2);
+        Send(junction, junction, 1, ResourceTypeDomain.Wood, 1);
+        Assert.That(sink.TryExport(exit, 2, out _, out _));
+        await Until(() => sink.CurrentLoad == sink.Capacity && _pool.Resources.Count == 1);
+        Assert.That(sink.TryExport(exit, 1, out _, out _));
+        await Until(() => sink.CurrentLoad == sink.Capacity && _pool.Resources.Count == 0);
+    }
+
+    [UnityTest] public IEnumerator ConfiguredCrossingPullsOnlyFromItsInputSides() => CrossingPickup().ToCoroutine();
+    private async UniTask CrossingPickup()
+    {
+        var crossing = Add<CrossingCellAdapter>("Crossing", 5, 5, cell =>
+            typeof(CrossingCellAdapter).GetMethod("ConfigureRoute", Fields).Invoke(cell, new object[]
+            {
+                new ConveyorRouteRulesDomain.Route(DirectionsDomain.Back | DirectionsDomain.Left, DirectionsDomain.Forward | DirectionsDomain.Right)
+            }));
+        var sourceLower = Add<StorageCellAdapter>("Storage", 5, 4);
+        var sourceUpper = Add<StorageCellAdapter>("Storage", 4, 5);
+        var sinkLower = Add<StorageCellAdapter>("Storage", 5, 6);
+        var sinkUpper = Add<StorageCellAdapter>("Storage", 6, 5);
+        Fill(sinkLower, ResourceTypeDomain.Wood, sinkLower.Capacity);
+        Fill(sourceLower, ResourceTypeDomain.Wood, 3);
+        Fill(sourceUpper, ResourceTypeDomain.Stone, 4);
+        await Until(() => sinkUpper.CurrentLoad == 4 && crossing.CaptureBatches(_ => {}).Length == 1);
+        Assert.That(sinkUpper.StoredResourceType, Is.EqualTo(ResourceTypeDomain.Stone));
+        Assert.That(sourceLower.CurrentLoad, Is.Zero);
+        var exit = sinkLower.Ports.First(port => (port.Use & CellPortUseDomain.Output) != 0).Id;
+        Assert.That(sinkLower.TryExport(exit, 3, out _, out _));
+        await Until(() => sinkLower.CurrentLoad == sinkLower.Capacity && _pool.Resources.Count == 0);
+    }
+
     [UnityTest] public IEnumerator SourceThenLineAndLineThenSourceProduceTheSameResult()=>Order().ToCoroutine();
     private async UniTask Order()
     {
@@ -246,6 +329,59 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
 {
     protected override bool NeedsMainScene=>true;
     [UnityTest] public IEnumerator UnifiedToolMatchesPreviewAndChargesOnePrice()=>VerifyPlacement().ToCoroutine();
+    [UnityTest] public IEnumerator DragConvertsABeltWithAnIncomingReservationAndPreservesItsDirection() => VerifyRouteDrag(false).ToCoroutine();
+    [UnityTest] public IEnumerator DragAddsSideOutputsToMakeAThreeWaySplit() => VerifyRouteDrag(true).ToCoroutine();
+
+    private static async UniTask VerifyRouteDrag(bool split)
+    {
+        var game = Object.FindAnyObjectByType<GameInitializerAdapter>();
+        var placer = Object.FindAnyObjectByType<CellPlacerAdapter>();
+        var grid = GridFieldDatabaseAdapter.Instance;
+        Object.FindAnyObjectByType<EconomyPanelAdapter>().ShowPage(0);
+        Assert.That(game.ConstructionStock.TryReserveDeposit(ResourceTypeDomain.CopperWire, 1, out var materials));
+        Assert.That(materials.TryCommit());
+        var center = grid.Owners.OfType<EmptyCellAdapter>().First(cell =>
+            cell.XIndex > 0 && cell.ZIndex > 0 && cell.XIndex + 1 < grid.GeneratedSize && cell.ZIndex + 1 < grid.GeneratedSize &&
+            grid.GetCell(cell.XIndex - 1, cell.ZIndex) is EmptyCellAdapter && grid.GetCell(cell.XIndex + 1, cell.ZIndex) is EmptyCellAdapter &&
+            grid.GetCell(cell.XIndex, cell.ZIndex - 1) is EmptyCellAdapter && grid.GetCell(cell.XIndex, cell.ZIndex + 1) is EmptyCellAdapter);
+        var x = center.XIndex;
+        var z = center.ZIndex;
+        void Drag(int from, int to, int previewCount, long previewCost)
+        {
+            placer.SelectGrid(grid.GetCell(from, z).gameObject);
+            placer.PointerBegin();
+            placer.SelectGrid(grid.GetCell(to, z).gameObject);
+            placer.PointerDrag();
+            Assert.That(placer.PreviewCount, Is.EqualTo(previewCount));
+            Assert.That(placer.PreviewCost, Is.EqualTo(previewCost));
+            placer.PointerEnd();
+            if (previewCount > 0)
+            {
+                Assert.That(placer.LastPlacedCount, Is.EqualTo(previewCount));
+                Assert.That(placer.LastPlacementCost, Is.EqualTo(previewCost));
+            }
+        }
+
+        placer.transform.rotation = Quaternion.identity;
+        placer.SetSelectedCellType(CellTypeDomain.Conveyor);
+        Drag(x, x, 1, 5);
+        var original = (ConveyorCellAdapter)grid.GetCell(x, z);
+        Assert.That(original.AllocateStorage(0, 2, ResourceTypeDomain.Stone));
+        Drag(split ? x : x - 1, x + 1, split ? 2 : 3, split ? 10 : 15);
+        if (split) Drag(x, x - 1, 2, 5);
+        var converted = (ConnectableCellBaseAdapter)grid.GetCell(x, z);
+        Assert.That(converted, split ? Is.TypeOf<ConveyorJunctionCellAdapter>() : Is.TypeOf<CrossingCellAdapter>());
+        foreach (var port in converted.Ports)
+        {
+            var world = converted.PortDirection(port.Id);
+            var output = world.z == 1 || world.x == 1 || (split && world.x == -1);
+            Assert.That(converted.HasPort(port.Id, CellPortUseDomain.Output), Is.EqualTo(output));
+            Assert.That(converted.HasPort(port.Id, CellPortUseDomain.Input), Is.EqualTo(!output));
+        }
+        Assert.That(converted.Connections.Count, Is.EqualTo(2));
+        Assert.That(game.ConstructionStock.Available(ResourceTypeDomain.CopperWire), Is.Zero);
+        await UniTask.Yield();
+    }
     private static async UniTask VerifyPlacement()
     {
         var initializer=Object.FindAnyObjectByType<GameInitializerAdapter>();var placer=Object.FindAnyObjectByType<CellPlacerAdapter>();var grid=GridFieldDatabaseAdapter.Instance;

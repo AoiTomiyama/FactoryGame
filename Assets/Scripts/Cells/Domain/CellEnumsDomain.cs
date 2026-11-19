@@ -60,6 +60,7 @@ public enum CellTypeDomain
     ExtractorCopper,
     ExtractorCoal,
     ConstructionDepot,
+    Junction,
 }
 [System.Flags]
 public enum CellPortUseDomain { Input = 1, Output = 2, Both = Input | Output }

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 /// <summary>設置先の再確認と支出予約を対応付け、失敗時は配置と予約を戻す。</summary>
 public sealed class EquipmentPlacementApplication
@@ -18,7 +20,7 @@ public sealed class EquipmentPlacementApplication
     }
 
     public Result Execute(CellTypeDomain type, Func<bool> validate, Action install, Action rollback,
-        Action complete, out long cost)
+        Action complete, out long cost, CellTypeDomain replacedType = CellTypeDomain.None)
     {
         cost = 0;
         if (_executing) return Result.Busy;
@@ -29,9 +31,8 @@ public sealed class EquipmentPlacementApplication
         try
         {
             LastException = null;
-            if (!validate() || type != CellTypeDomain.Empty && !_prices.TryGetPlacementAmount(type, 1, out cost))
+            if (!validate() || !TryQuote(type, replacedType, out cost, out var requirements))
                 return Result.InvalidTarget;
-            if (!_prices.TryGetMaterialCosts(type, 1, out var requirements)) return Result.InvalidTarget;
             if (!_stock.TryReserveExpense(requirements, out materials)) return Result.InsufficientMaterials;
             if (cost > 0 && !_wallet.TryReserveExpense(cost, out expense)) return Result.InsufficientFunds;
             // 残高通知から対象が変わる場合があるため、予約後にもう一度確認する。
@@ -69,5 +70,22 @@ public sealed class EquipmentPlacementApplication
             return Result.Success;
         }
         finally { _executing = false; }
+    }
+
+    internal bool TryQuote(CellTypeDomain type, CellTypeDomain replacedType, out long cost,
+        out IReadOnlyList<ResourceCostDomain> requirements)
+    {
+        cost = 0;
+        requirements = Array.Empty<ResourceCostDomain>();
+        if ((type != CellTypeDomain.Empty && !_prices.TryGetPlacementAmount(type, 1, out cost)) ||
+            !_prices.TryGetMaterialCosts(type, 1, out requirements)) return false;
+        if (replacedType == CellTypeDomain.None) return true;
+        if (!_prices.TryGetPlacementAmount(replacedType, 1, out var oldCost) ||
+            !_prices.TryGetMaterialCosts(replacedType, 1, out var oldMaterials)) return false;
+        cost = Math.Max(0, cost - oldCost);
+        requirements = requirements.Select(item => (item.Resource,
+            Amount: item.Amount - oldMaterials.FirstOrDefault(old => old.Resource == item.Resource).Amount))
+            .Where(item => item.Amount > 0).Select(item => new ResourceCostDomain(item.Resource, item.Amount)).ToArray();
+        return true;
     }
 }

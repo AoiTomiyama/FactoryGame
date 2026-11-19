@@ -177,6 +177,50 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
     }
     [Serializable] private sealed class Stocks { public SaveGameApplication.Stock[] values; }
     [UnityTest] public IEnumerator TransitOwnershipSurvivesReloadAndBlockedBatchesContinue() => TransitRoundTrip().ToCoroutine();
+    [UnityTest] public IEnumerator MergerRouteAndHeldBatchesSurviveReload() => MergerRoundTrip().ToCoroutine();
+    private async UniTask MergerRoundTrip()
+    {
+        var game = StartNew();
+        var grid = GridFieldDatabaseAdapter.Instance;
+        var center = grid.Owners.OfType<EmptyCellAdapter>().First(cell =>
+            cell.XIndex > 0 && cell.ZIndex + 1 < grid.GeneratedSize &&
+            grid.GetCell(cell.XIndex - 1, cell.ZIndex) is EmptyCellAdapter &&
+            grid.GetCell(cell.XIndex, cell.ZIndex + 1) is EmptyCellAdapter);
+        var x = center.XIndex;
+        var z = center.ZIndex;
+        Install(CellTypeDomain.Conveyor, x, z);
+        Assert.That(game.ConstructionStock.TryReserveDeposit(ResourceTypeDomain.CopperWire, 1, out var copper));
+        Assert.That(copper.TryCommit());
+        var placer = TestScenes.Find<CellPlacerAdapter>();
+        placer.SetPlacementEnabled(true);
+        placer.SetSelectedCellType(CellTypeDomain.Conveyor);
+        placer.SelectGrid(grid.GetCell(x - 1, z).gameObject);
+        placer.PointerBegin();
+        placer.SelectGrid(grid.GetCell(x, z).gameObject);
+        placer.PointerDrag();
+        placer.PointerEnd();
+        var merger = (ConveyorJunctionCellAdapter)grid.GetCell(x, z);
+        foreach (var port in merger.Ports.Where(port => merger.HasPort(port.Id, CellPortUseDomain.Input)))
+        {
+            Assert.That(merger.AllocateStorage(port.Id, 3, ResourceTypeDomain.Wood));
+            merger.Reuse(port.Id, ResourceItemObjectPoolAdapter.Instance.CreateIdFromResourceData(ResourceTypeDomain.Wood, 3));
+            merger.StoreResource(port.Id, 3);
+        }
+        Assert.That(game.Saves.RequestSave());
+        await UniTask.WaitUntil(() => !game.Saves.IsSaving).Timeout(TimeSpan.FromSeconds(10), DelayType.Realtime);
+        Assert.That(game.Saves.LastError, Is.Null);
+        var saved = game.Saves.Read().cells.Single(cell => cell.x == x && cell.z == z);
+        Assert.That(saved.routeInputs, Is.EqualTo(DirectionsDomain.Back | DirectionsDomain.Left));
+        Assert.That(saved.routeOutputs, Is.EqualTo(DirectionsDomain.Forward));
+        Assert.That(saved.batches.Sum(batch => batch.amount), Is.EqualTo(6));
+        await ReloadMainScene().ToUniTask();
+        Assert.That(await TestScenes.Find<GameInitializerAdapter>().TryRestoreGameAsync());
+        Assert.That(GridFieldDatabaseAdapter.Instance.GetCell(x, z), Is.TypeOf<ConveyorJunctionCellAdapter>());
+        Assert.That(ResourceItemObjectPoolAdapter.Instance.Resources.Count, Is.EqualTo(2));
+        var sink = (StorageCellAdapter)Install(CellTypeDomain.Storage, x, z + 1);
+        await UniTask.WaitUntil(() => sink.CurrentLoad == 6).Timeout(TimeSpan.FromSeconds(10), DelayType.Realtime);
+        Assert.That(ResourceItemObjectPoolAdapter.Instance.Resources.Count, Is.Zero);
+    }
     private async UniTask TransitRoundTrip()
     {
         var game = StartNew(); var grid = GridFieldDatabaseAdapter.Instance;

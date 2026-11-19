@@ -12,6 +12,9 @@ public class CellPlacerAdapter : MonoBehaviour
     private GameObject _placeholderCell;
     private CellTypeDomain _idlePreviewKind;
     private readonly Dictionary<CellBaseAdapter,CellTypeDomain> _rangePreviewKinds = new();
+    private readonly Dictionary<CellBaseAdapter, (ConveyorRouteRulesDomain.Route Before,
+        ConveyorRouteRulesDomain.Route After, Quaternion Rotation)> _routeChanges = new();
+    private Quaternion? _dragRotation;
     private readonly HashSet<(CellBaseAdapter cell, GameObject placeholder)> _selectedRangeCells = new();
     private readonly HashSet<CellBaseAdapter> _previewHiddenOwners = new();
     private Vector3Int _dragBeginPos;
@@ -53,6 +56,8 @@ public class CellPlacerAdapter : MonoBehaviour
     public CellTypeDomain SelectedType => _selectedType;
     public int PreviewCount => _selectedRangeCells.Count(t => t.placeholder.activeSelf);
     public long PreviewCost => _clearingMode ? _clearingPreview?.Quote.Cost ?? 0 :
+        _routeChanges.Count != 0 ? _selectedRangeCells.Where(item => item.placeholder.activeSelf).Sum(item =>
+            _placement.TryQuote(PlacementPriceType(item.cell), ReplacedType(item.cell), out var quoted, out _) ? quoted : 0) :
         _prices != null && _prices.TryGetPlacementAmount(_selectedType, PreviewCount, out var cost) ? cost : 0;
     public int LastPlacedCount { get; private set; }
     public long LastPlacementCost { get; private set; }
@@ -75,9 +80,19 @@ public class CellPlacerAdapter : MonoBehaviour
     }
     public GameObject PlaceholderPrefab(CellTypeDomain type)
         => TryGetDefinition(type,out var info) ? info.PlaceholderCellPrefab : throw new InvalidOperationException("Missing preview definition.");
-    private CellTypeDomain PlacementKind(int x,int z)
+    private CellTypeDomain PlacementKind(int x,int z, Quaternion? rotation = null)
         => _selectedType == CellTypeDomain.Conveyor && ConveyorCellAdapter.HasExtractionSource(
-            GridFieldDatabaseAdapter.Instance,x,z,transform.rotation) ? CellTypeDomain.ExportConveyor : _selectedType;
+            GridFieldDatabaseAdapter.Instance,x,z,rotation ?? transform.rotation) ? CellTypeDomain.ExportConveyor : _selectedType;
+
+    private CellTypeDomain PlannedKind(CellBaseAdapter cell) => _routeChanges.TryGetValue(cell, out var change)
+        ? (change.After.Type == ConveyorRouteRulesDomain.Kind.Crossing ? CellTypeDomain.Crossing : CellTypeDomain.Junction)
+        : PlacementKind(cell.XIndex, cell.ZIndex, _dragRotation);
+    private CellTypeDomain PlacementPriceType(CellBaseAdapter cell) =>
+        _routeChanges.ContainsKey(cell) ? PlannedKind(cell) : _selectedType;
+    private CellTypeDomain ReplacedType(CellBaseAdapter cell) =>
+        _routeChanges.ContainsKey(cell) ? cell.ProgressionType : CellTypeDomain.None;
+    private Quaternion PlannedRotation(CellBaseAdapter cell) => _routeChanges.TryGetValue(cell, out var change)
+        ? change.Rotation : _dragRotation ?? transform.rotation;
     private void RefreshIdlePreview()
     {
         if (_selectedType != CellTypeDomain.Conveyor || _placing || _placeholderCell == null || _selectedCell == null) return;
@@ -151,6 +166,8 @@ public class CellPlacerAdapter : MonoBehaviour
     private void FindRangedGrid(Vector3Int from, Vector3Int to)
     {
         _overlap = false;
+        _routeChanges.Clear();
+        _dragRotation = null;
         var newSelection = new HashSet<CellBaseAdapter>();
         // 複数マス設備はカーソル位置へ1台ずつ置く。1マス設備の連続配置は維持する。
         if (_cachedCell is not EmptyCellAdapter && _cachedCell.Footprint.Area > 1) from = to;
@@ -166,6 +183,10 @@ public class CellPlacerAdapter : MonoBehaviour
 
         // 正負の方向に応じてステップを決定
         var step = start <= end ? 1 : -1;
+        var blockedRoute = false;
+        var travel = isX ? new Vector3Int(step, 0, 0) : new Vector3Int(0, 0, step);
+        var exit = ConveyorRouteRulesDomain.Side(travel.x, travel.z);
+        var entry = ConveyorRouteRulesDomain.Opposite(exit);
         for (int i = start; i != end + step; i += step)
         {
             var x = isX ? i : fixedCoord;
@@ -179,6 +200,20 @@ public class CellPlacerAdapter : MonoBehaviour
                 if (cell is ResourceCellAdapter raw && _clearing.Rules.CanClear(raw.ResourceTypeDomain)) newSelection.Add(cell);
                 continue;
             }
+            if (_selectedType == CellTypeDomain.Conveyor && start != end &&
+                TryGetExistingRoute(cell, out var current))
+            {
+                var added = ConveyorRouteRulesDomain.Extend(current, i == start ? 0 : entry, i == end ? 0 : exit);
+                if (added.Type != ConveyorRouteRulesDomain.Kind.Invalid)
+                {
+                    _routeChanges.Add(cell, (current, added, cell.transform.rotation));
+                    newSelection.Add(cell);
+                    continue;
+                }
+                if ((i == start || (current.Inputs & entry) != 0) &&
+                    (i == end || (current.Outputs & exit) != 0)) continue;
+                blockedRoute = true;
+            }
             if (_cachedCell is not EmptyCellAdapter && !CanPlaceAt(x, z)) { _overlap = true; continue; }
             // 撤去は設備だけ、設置は空セルだけを対象にする。
             if (cell is not ResourceCellAdapter && cell is not SingularityCellAdapter &&
@@ -190,8 +225,39 @@ public class CellPlacerAdapter : MonoBehaviour
             }
         }
 
+        if (_routeChanges.Count != 0 || blockedRoute)
+        {
+            // 1マスずつ設置するが、方向を確定できるドラッグだけを経路変更として扱う。
+            if (_overlap || blockedRoute)
+            {
+                newSelection.Clear();
+                _routeChanges.Clear();
+            }
+            else _dragRotation = Quaternion.LookRotation(travel);
+        }
         SelectRangedGrid(newSelection);
         if (_clearingMode) _clearingPreview = _clearing.CreatePreview(newSelection.Select(c => (c.XIndex, c.ZIndex)));
+    }
+
+    private static bool TryGetExistingRoute(CellBaseAdapter cell, out ConveyorRouteRulesDomain.Route route)
+    {
+        switch (cell)
+        {
+            case ConveyorCellAdapter belt:
+                var forward = belt.transform.forward.ToCardinalDirection();
+                var output = ConveyorRouteRulesDomain.Side(forward.x, forward.z);
+                route = new(ConveyorRouteRulesDomain.Opposite(output), output);
+                return true;
+            case ConveyorJunctionCellAdapter junction:
+                route = junction.WorldRoute;
+                return true;
+            case CrossingCellAdapter crossing when crossing.LocalRoute.Inputs != 0:
+                route = ConveyorRouteRulesDomain.Rotate(crossing.LocalRoute, crossing.QuarterTurns);
+                return true;
+            default:
+                route = default;
+                return false;
+        }
     }
 
     private void SelectRangedGrid(HashSet<CellBaseAdapter> newSelection)
@@ -214,21 +280,24 @@ public class CellPlacerAdapter : MonoBehaviour
         foreach (var cell in newSelection)
         {
             HidePreviewModels(cell);
-            var kind = PlacementKind(cell.XIndex,cell.ZIndex);
+            var kind = PlannedKind(cell);
             var reusable = oldSet.TryGetValue(cell,out var placeholder) &&
                 _rangePreviewKinds.TryGetValue(cell,out var previousKind) && previousKind == kind;
             if (!reusable)
             {
                 if (placeholder != null) { _selectedRangeCells.Remove((cell,placeholder)); placeholder.SetActive(false); Destroy(placeholder); }
                 if (!TryGetDefinition(kind,out var info)) throw new InvalidOperationException("Missing placement definition.");
-                placeholder = Instantiate(info.PlaceholderCellPrefab,cell.transform.position,transform.rotation);
+                placeholder = Instantiate(info.PlaceholderCellPrefab,cell.transform.position,PlannedRotation(cell));
                 _rangePreviewKinds[cell] = kind;
             }
             else
             {
                 placeholder.SetActive(true);
             }
-            ConfigurePreview(placeholder, cell);
+            ConfigurePreview(placeholder, cell, PlannedRotation(cell));
+            if (_routeChanges.TryGetValue(cell, out var change) && FieldPrefab(CellTypeDomain.Junction) is ConveyorJunctionCellAdapter junction)
+                ConveyorRouteViewAdapter.Show(placeholder.transform,
+                    ConveyorRouteRulesDomain.Rotate(change.After, -cell.QuarterTurns), junction.RouteMaterial);
             _selectedRangeCells.Add((cell, placeholder));
         }
     }
@@ -252,7 +321,8 @@ public class CellPlacerAdapter : MonoBehaviour
             var isX = Mathf.Abs(direction.x) >= Mathf.Abs(direction.z);
             var sign = (isX ? direction.x : direction.z) < 0 ? -1 : 1;
             var targets = _selectedRangeCells.Where(t => t.placeholder.activeSelf)
-                .OrderBy(t => sign * (isX ? t.cell.XIndex : t.cell.ZIndex)).ToArray();
+                .OrderBy(t => _routeChanges.ContainsKey(t.cell))
+                .ThenBy(t => sign * (isX ? t.cell.XIndex : t.cell.ZIndex)).ToArray();
             foreach (var (cell, _) in targets)
             {
                 LastPlacementResult = TryReplaceCell(cell, out var cost);
@@ -275,6 +345,7 @@ public class CellPlacerAdapter : MonoBehaviour
             if (placeholder != null) Destroy(placeholder);
         }
         _selectedRangeCells.Clear(); _rangePreviewKinds.Clear();
+        _routeChanges.Clear(); _dragRotation = null;
         _clearingPreview = null;
         _overlap = false;
     }
@@ -320,11 +391,11 @@ public class CellPlacerAdapter : MonoBehaviour
         _previewHiddenOwners.Clear();
     }
 
-    private void ConfigurePreview(GameObject preview, CellBaseAdapter target)
+    private void ConfigurePreview(GameObject preview, CellBaseAdapter target, Quaternion? plannedRotation = null)
     {
         var removing = _cachedCell is EmptyCellAdapter && target != null;
         var shape = removing ? target.Footprint : _cachedCell.Footprint;
-        var rotation = removing ? target.transform.rotation : transform.rotation;
+        var rotation = removing ? target.transform.rotation : plannedRotation ?? transform.rotation;
         var anchor = target != null ? target.transform.position : transform.position;
         var baseModel = preview.transform.Find("Model");
         var authoredSize = baseModel.localScale;
@@ -347,6 +418,10 @@ public class CellPlacerAdapter : MonoBehaviour
         var x = replaceTarget.XIndex;
         var z = replaceTarget.ZIndex;
         var grid = GridFieldDatabaseAdapter.Instance;
+        var converting = _routeChanges.TryGetValue(replaceTarget, out var change);
+        var oldRoute = converting ? (ConnectableCellBaseAdapter)replaceTarget : null;
+        var rotation = PlannedRotation(replaceTarget);
+        var detached = false;
         var points = (removing ? replaceTarget.OccupiedCoordinates : _cachedCell.Footprint.Coordinates(x, z,
             Mathf.RoundToInt(transform.eulerAngles.y / 90f))).ToArray();
         if (points.Any(p => !grid.IsWithinBounds(p.x, p.z))) return EquipmentPlacementApplication.Result.InvalidTarget;
@@ -358,28 +433,34 @@ public class CellPlacerAdapter : MonoBehaviour
             replaceTarget is not ResourceCellAdapter && replaceTarget is not SingularityCellAdapter &&
             _cachedCell is not ResourceCellAdapter && _cachedCell is not SingularityCellAdapter &&
             (removing ? replaceTarget is not EmptyCellAdapter && retired.All(c => c == replaceTarget) :
+                converting ? retired.All(c => c == replaceTarget) && replaceTarget.transform.rotation == rotation &&
+                    TryGetExistingRoute(replaceTarget, out var current) &&
+                    current.Inputs == change.Before.Inputs && current.Outputs == change.Before.Outputs :
                 retired.All(c => c is EmptyCellAdapter)) &&
             previous.All(e => grid.GetCell(e.X, e.Z) == e.Owner && e.Owner != null && e.Owner.isActiveAndEnabled);
 
-        var kind = PlacementKind(x,z);
+        var kind = PlannedKind(replaceTarget);
         var template = _cachedCell;
         if (kind != _selectedType && TryGetDefinition(kind,out var resolved)) template = resolved.FieldCellPrefab;
-        var result = _placement.Execute(_selectedType, Validate, () =>
+        var result = _placement.Execute(PlacementPriceType(replaceTarget), Validate, () =>
         {
             var anchors = removing ? points : new[] { (x, z) };
             foreach (var point in anchors)
             {
                 var cell = Instantiate(template, new Vector3(point.Item1, 0, point.Item2),
-                    removing ? Quaternion.identity : transform.rotation, grid.transform);
+                    removing ? Quaternion.identity : rotation, grid.transform);
                 cell.name = $"Tile_{point.Item1}_{point.Item2}";
                 created.Add(cell);
             }
+            if (oldRoute != null) { detached = true; oldRoute.DisconnectPorts(); }
             if (!grid.TryReplaceCells(created.ToArray(), previous)) throw new InvalidOperationException("Cell registration failed.");
             foreach (var cell in created)
             {
                 cell.gameObject.SetActive(true);
                 if (cell is ShippingCellAdapter shipping) shipping.Configure(_wallet, _prices);
                 if (cell is ConstructionDepotCellAdapter depot) depot.Configure(_stock);
+                if (converting && cell is CrossingCellAdapter crossing) crossing.ConfigureWorldRoute(change.After);
+                if (converting && cell is ConveyorJunctionCellAdapter junction) junction.ConfigureWorldRoute(change.After);
                 cell.InitializeSystem();
             }
             if (created.Any(c => c == null || !c.isActiveAndEnabled ||
@@ -397,6 +478,7 @@ public class CellPlacerAdapter : MonoBehaviour
                 grid.RestoreCells(previous);
                 foreach (var cell in created)
                     if (cell != null) { cell.gameObject.SetActive(false); Destroy(cell.gameObject); }
+                if (detached && oldRoute != null) oldRoute.ConnectPorts();
             }
         }, () =>
         {
@@ -410,7 +492,7 @@ public class CellPlacerAdapter : MonoBehaviour
             }
             if (retired.Contains(_selectedCell))
                 _selectedCell = grid.GetCell(_selectedCoordinate.x, _selectedCoordinate.z);
-        }, out cost);
+        }, out cost, ReplacedType(replaceTarget));
 
         if (result == EquipmentPlacementApplication.Result.Success)
         {
@@ -426,7 +508,7 @@ public class CellPlacerAdapter : MonoBehaviour
 
     public void SetSelectedCellType(CellTypeDomain cellType)
     {
-        if (_placing || cellType == CellTypeDomain.Singularity ||
+        if (_placing || cellType is CellTypeDomain.Singularity or CellTypeDomain.Junction ||
             ResourceCellRulesDomain.IsNatural(cellType)) return;
         foreach (var database in cellDatabaseArr)
         {
@@ -512,7 +594,13 @@ public class CellPlacerAdapter : MonoBehaviour
     {
         get
         {
-            if (_stock == null || !_prices.TryGetMaterialCosts(_selectedType, Math.Max(1, PreviewCount), out var costs) || costs.Count == 0) return "";
+            if (_stock == null || !_prices.TryGetMaterialCosts(_selectedType, Math.Max(1, PreviewCount), out var costs)) return "";
+            if (_routeChanges.Count != 0)
+                costs = _selectedRangeCells.Where(item => item.placeholder.activeSelf).SelectMany(item =>
+                    _placement.TryQuote(PlacementPriceType(item.cell), ReplacedType(item.cell), out _, out var quoted)
+                        ? quoted : Array.Empty<ResourceCostDomain>())
+                    .GroupBy(item => item.Resource).Select(group => new ResourceCostDomain(group.Key, group.Sum(item => item.Amount))).ToArray();
+            if (costs.Count == 0) return "";
             return "\n" + string.Join("・", costs.Select(cost =>
             {
                 var label = _resources.GetResourceByType(cost.Resource).ResourceName;

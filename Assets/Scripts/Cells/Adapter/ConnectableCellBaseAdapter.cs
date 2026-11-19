@@ -42,7 +42,11 @@ public abstract class ConnectableCellBaseAdapter : CellBaseAdapter
         var port = ports.First(p => p.Id == id);
         return transform.TransformPoint(new Vector3(port.Cell.x, 0, port.Cell.y));
     }
-    public bool HasPort(int id, CellPortUseDomain use) => ports.Any(p => p.Id == id && (p.Use & use) == use);
+    protected virtual CellPortUseDomain PortUse(CellPortDefinition port) => port.Use;
+    protected static CellPortUseDomain RoutePortUse(CellPortDefinition port, ConveyorRouteRulesDomain.Route route)
+        => ((route.Inputs & port.Facing) != 0 ? CellPortUseDomain.Input : 0) |
+           ((route.Outputs & port.Facing) != 0 ? CellPortUseDomain.Output : 0);
+    public bool HasPort(int id, CellPortUseDomain use) => ports.Any(p => p.Id == id && (PortUse(p) & use) == use);
 
     // 1マスの送り元も、受け取り先の基準位置ではなく接した外周マスで入力IDを決める。
     protected int TargetPortId(CellBaseAdapter target, Vector3Int direction)
@@ -77,6 +81,16 @@ public abstract class ConnectableCellBaseAdapter : CellBaseAdapter
     }
 
     public override void InitializeSystem()
+        => ConnectPorts();
+
+    internal void DisconnectPorts()
+    {
+        var neighbors = _connections.Values.Select(link => link.Neighbor).Distinct().ToArray();
+        DisconnectAdjacentCells();
+        foreach (var neighbor in neighbors) OnLostConnectedCell?.Invoke(neighbor);
+    }
+
+    internal void ConnectPorts()
     {
         ValidatePorts();
         DisconnectAdjacentCells();
@@ -94,7 +108,7 @@ public abstract class ConnectableCellBaseAdapter : CellBaseAdapter
             {
                 if (neighbor.PortDirection(remote.Id) != -direction ||
                     Vector3Int.RoundToInt(neighbor.PortPosition(remote.Id)) != other ||
-                    !Compatible(port.Use, remote.Use) || _connections.ContainsKey(port.Id) ||
+                    !Compatible(PortUse(port), neighbor.PortUse(remote)) || _connections.ContainsKey(port.Id) ||
                     neighbor._connections.ContainsKey(remote.Id)) continue;
                 var here = new Connection { Owner = this, Neighbor = neighbor, PortId = port.Id, NeighborPortId = remote.Id };
                 var there = new Connection { Owner = neighbor, Neighbor = this, PortId = remote.Id, NeighborPortId = port.Id };

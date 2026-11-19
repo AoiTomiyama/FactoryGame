@@ -53,6 +53,7 @@ public sealed class CurrencyPriceCatalogDomain
 
     public bool TryGetPlacementAmount(CellTypeDomain type, int quantity, out long amount)
     {
+        if (type == CellTypeDomain.Junction) type = CellTypeDomain.Crossing;
         amount = 0;
         return _placementPrices.TryGetValue(type, out var price) &&
                CurrencyRulesDomain.TryCalculateAmount(price, quantity, out amount);
@@ -60,6 +61,7 @@ public sealed class CurrencyPriceCatalogDomain
 
     public bool TryGetMaterialCosts(CellTypeDomain type, int quantity, out IReadOnlyList<ResourceCostDomain> costs)
     {
+        if (type == CellTypeDomain.Junction) type = CellTypeDomain.Crossing;
         costs = Array.Empty<ResourceCostDomain>();
         if (quantity <= 0 || type != CellTypeDomain.Empty && !_placementPrices.ContainsKey(type)) return false;
         if (!_materialCosts.TryGetValue(type, out var units)) return true;

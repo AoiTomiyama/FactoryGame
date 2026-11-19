@@ -103,6 +103,7 @@ MonoBehaviour:
     Cell: {x: 0, y: 0}
     Facing: 2
     Use: 3
+  exportDefinition: {fileID: -6418179465880099695, guid: 96acf1e9aebc93d41a2804eeca4df6bd, type: 3}
 --- !u!1001 &3757974501245275860
 PrefabInstance:
   m_ObjectHideFlags: 0

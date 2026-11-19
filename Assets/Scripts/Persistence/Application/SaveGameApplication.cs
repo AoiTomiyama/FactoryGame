@@ -40,6 +40,8 @@ public sealed class SaveGameApplication
         public string kind;
         public int x, z, rotation;
         public bool exporter;
+        public DirectionsDomain routeInputs, routeOutputs;
+        public int routeInputCursor, routeOutputCursor;
         public Slot[] inventory, batches;
         // JsonUtilityのインラインクラスはnullを空の実体へ変えるため、任意の周期を0～1件の配列で表す。
         public Job[] jobs = Array.Empty<Job>();
@@ -146,7 +148,7 @@ public static class SaveKeysApplication
         (CellTypeDomain.ExtractorWood,"wood-extractor"),(CellTypeDomain.ExtractorStone,"stone-extractor"),(CellTypeDomain.ExtractorIron,"iron-extractor"),
         (CellTypeDomain.ExtractorCopper,"copper-extractor"),(CellTypeDomain.ExtractorCoal,"coal-extractor"),
         (CellTypeDomain.Storage,"storage"),(CellTypeDomain.Crafter,"crafter"),(CellTypeDomain.AdvancedCrafter,"advanced-crafter"),
-        (CellTypeDomain.Conveyor,"conveyor"),(CellTypeDomain.ExportConveyor,"exporter"),(CellTypeDomain.Crossing,"crossing"),
+        (CellTypeDomain.Conveyor,"conveyor"),(CellTypeDomain.ExportConveyor,"exporter"),(CellTypeDomain.Crossing,"crossing"),(CellTypeDomain.Junction,"junction"),
         (CellTypeDomain.Singularity,"singularity"),(CellTypeDomain.Shipping,"shipping"),(CellTypeDomain.ConstructionDepot,"construction-depot")
     };
     private static readonly (ResourceTypeDomain type,string key)[] Resources =

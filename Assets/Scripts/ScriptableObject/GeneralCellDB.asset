@@ -93,3 +93,7 @@ MonoBehaviour:
     fieldCellPrefab: {fileID: 6587917589516151994, guid: 5f2d985679d41b44c871d8ec8e066cbd, type: 3}
     placeholderCellPrefab: {fileID: 6373486319321302720, guid: 6dad53f7f4169044c90e03a26c265aad, type: 3}
     cellType: 20
+  - cellName: Junction
+    fieldCellPrefab: {fileID: 4337940525781485777, guid: 113ea62904524109895ea6ed967bb0d8, type: 3}
+    placeholderCellPrefab: {fileID: 5589804250963055731, guid: 5690599eb420d274684c70d59614aef2, type: 3}
+    cellType: 21

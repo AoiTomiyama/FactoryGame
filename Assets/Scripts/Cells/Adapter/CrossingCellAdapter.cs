@@ -7,6 +7,20 @@ using UnityEngine;
 
 public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableApplication, IResourceReusableApplication
 {
+    [SerializeField] private ExportConveyorCellAdapter exportDefinition;
+    private ConveyorRouteRulesDomain.Route _route;
+    internal ConveyorRouteRulesDomain.Route LocalRoute => _route;
+    internal void ConfigureWorldRoute(ConveyorRouteRulesDomain.Route route) =>
+        ConfigureRoute(ConveyorRouteRulesDomain.Rotate(route, -QuarterTurns));
+    internal void ConfigureRoute(ConveyorRouteRulesDomain.Route route)
+    {
+        if (route.Type != ConveyorRouteRulesDomain.Kind.Crossing || _cts != null)
+            throw new InvalidOperationException("Configured crossing requires two straight routes.");
+        _route = route;
+    }
+    protected override CellPortUseDomain PortUse(CellPortDefinition port) =>
+        _route.Inputs == 0 ? base.PortUse(port) : RoutePortUse(port, _route);
+
     // 方向ごとの数量と所有者を保持し、速度だけを共有効果から読む。
     public override CellTypeDomain ProgressionType => CellTypeDomain.Crossing;
     private readonly Dictionary<Vector3Int, IContainableApplication> _adjacentContainers = new();
@@ -34,7 +48,7 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             if (!ResourceItemObjectPoolAdapter.Instance.Resources.TryGet(operation.ResourceId,out var data) || data.Type != operation.Type || data.Amount != operation.Amount)
                 throw new InvalidOperationException("Crossing owns a missing resource batch.");
             registerOwner(operation.ResourceId);
-            var port = Ports.Single(p => -PortDirection(p.Id) == pair.Key && (p.Use & CellPortUseDomain.Input) != 0);
+            var port = Ports.Single(p => -PortDirection(p.Id) == pair.Key && HasPort(p.Id, CellPortUseDomain.Input));
             values.Add(SaveGameApplication.SlotValue(port.Id,operation.Type,operation.Amount));
         }
         return values.OrderBy(v => v.port).ToArray();
@@ -68,17 +82,22 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             foreach (var slot in _restoredBatches)
             {
                 var type = SaveKeysApplication.Resource(slot.resource);
-                var pool = ResourceItemObjectPoolAdapter.Instance;
-                var id = pool.CreateIdFromResourceData(type,slot.amount);
-                var direction = -PortDirection(slot.port);
-                var transfer = new PendingTransfer {Started = true,ResourceOwner = pool,InputPort = slot.port,
-                    Coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(this,id,type,slot.amount))};
-                _pending.Add(direction,transfer);
-                pool.SetPosition(id, ResourceDisplayPosition(transform.position, direction));
-                StoreResourceAsync(direction,transfer,_cts.Token).Forget();
+                AcceptPulledBatch(slot.port, slot.amount, type);
             }
             _restoredBatches = null;
         }
+    }
+
+    private void AcceptPulledBatch(int port, int amount, ResourceTypeDomain type)
+    {
+        var pool = ResourceItemObjectPoolAdapter.Instance;
+        var id = pool.CreateIdFromResourceData(type, amount);
+        var direction = -PortDirection(port);
+        var transfer = new PendingTransfer {Started = true, ResourceOwner = pool, InputPort = port,
+            Coordinator = new ResourceTransferCoordinatorApplication(new ResourceTransferOperationApplication(this, id, type, amount))};
+        _pending.Add(direction, transfer);
+        pool.SetPosition(id, ResourceDisplayPosition(transform.position, direction));
+        StoreResourceAsync(direction, transfer, _cts.Token).Forget();
     }
 
     protected override void OnDestroy() { base.OnDestroy(); Shutdown(); }
@@ -111,13 +130,17 @@ public class CrossingCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     {
         var dir = connection.Direction;
         var cell = connection.Neighbor;
-        if (cell is not IContainableApplication container) return;
+        // 手動配置の交差は向きが未指定なので、受け取り先からの逆向き搬出を始めない。
+        if (Application.isPlaying && _route.Inputs != 0 && HasPort(connection.PortId, CellPortUseDomain.Input))
+            ConveyorLanePickupAdapter.Start(this, connection, exportDefinition,
+                () => !_pending.ContainsKey(-dir), (amount, type) => AcceptPulledBatch(connection.PortId, amount, type), _cts.Token);
+        if (cell is not IContainableApplication container || !HasPort(connection.PortId, CellPortUseDomain.Output) ||
+            !cell.HasPort(connection.NeighborPortId, CellPortUseDomain.Input)) return;
         _adjacentContainers[dir] = container;
         if (_pending.TryGetValue(dir, out var pending)) pending.Coordinator.WakeForTargetChange();
-        if (!HasPort(connection.PortId, CellPortUseDomain.Output)) return;
         foreach (var input in Ports)
         {
-            if ((input.Use & CellPortUseDomain.Input) == 0 || -PortDirection(input.Id) != dir) continue;
+            if (!HasPort(input.Id, CellPortUseDomain.Input) || -PortDirection(input.Id) != dir) continue;
             if (_downstreamSignals.Remove(dir, out var old)) old.Target.ReceiveSpaceAvailable -= old.Wake;
             var inputId = input.Id;
             var downstreamPortId = connection.NeighborPortId;
