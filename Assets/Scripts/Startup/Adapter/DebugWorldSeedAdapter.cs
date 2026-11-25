@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 
 /// <summary>実際の設備定義を使い、検証用の配置を既存のロードへ渡す。</summary>
-internal static class DebugWorldSeedAdapter
+public static class DebugWorldSeedAdapter
 {
     internal const long StartingBalance = 10000;
 
-    internal static SaveGameApplication Create(int size, CellPlacerAdapter definitions)
+    public static SaveGameApplication Create(int size, CellPlacerAdapter definitions)
     {
         var prefabs = definitions.FieldPrefabs().ToDictionary(SaveWorldAdapter.Kind);
         var center = size / 2;
