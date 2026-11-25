@@ -208,6 +208,25 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
             Assert.That(source.CurrentLoad,Is.Zero);
         }
     }
+    [UnityTest] public IEnumerator ConnectedButDisabledSourceStartsExportingWhenEnabled() =>
+        DisabledSourceResumes().ToCoroutine();
+
+    private async UniTask DisabledSourceResumes()
+    {
+        var source = Add<StorageCellAdapter>("Storage", 4, 3);
+        Fill(source, ResourceTypeDomain.Wood, 3);
+        source.gameObject.SetActive(false);
+        var conveyor = Add<ConveyorCellAdapter>("Conveyor", 4, 4);
+        var sink = Add<StorageCellAdapter>("Storage", 4, 5);
+        await Until(() => conveyor.IsExportConveyor);
+        Assert.That(source.CurrentLoad, Is.EqualTo(3));
+        Assert.That(sink.CurrentLoad, Is.Zero);
+
+        source.gameObject.SetActive(true);
+        await Until(() => sink.CurrentLoad == 3);
+        Assert.That(source.CurrentLoad, Is.Zero);
+    }
+
     [UnityTest] public IEnumerator PromotionKeepsAnIncomingReservation()=>Reservation().ToCoroutine();
     private async UniTask Reservation()
     {

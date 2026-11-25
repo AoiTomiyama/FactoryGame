@@ -182,7 +182,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         var dx = Mathf.RoundToInt(forward.x); var dz = Mathf.RoundToInt(forward.z);
         var bx = x - dx; var bz = z - dz;
         if (!grid.IsWithinBounds(bx,bz) || grid.GetCell(bx,bz) is not ConnectableCellBaseAdapter source ||
-            source is not IExportableApplication || !source.isActiveAndEnabled) return false;
+            source is not IExportableApplication) return false;
         return source.Ports.Any(port => (port.Use & CellPortUseDomain.Output) != 0 &&
             source.PortDirection(port.Id) == new Vector3Int(dx,0,dz) &&
             Vector3Int.RoundToInt(source.PortPosition(port.Id)) == new Vector3Int(bx,0,bz));
@@ -201,8 +201,8 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             // 設備の登録・初期化と失敗復元が完了した後の接続だけを採用する。
             await UniTask.Yield(PlayerLoopTiming.Update,token);
             if (this == null || !isActiveAndEnabled || _isDisconnected) return;
-            var source = _backwardConnection?.Neighbor;
-            var exporter = source != null && source.isActiveAndEnabled && Connections.Values.Any(IsExtractionConnection);
+            // 停止中の設備も出力口は残る。在庫の取り出しだけを設備の再開まで待つ。
+            var exporter = Connections.Values.Any(IsExtractionConnection);
             if (exporter != IsExportConveyor) SetExportMode(exporter, true);
             RefreshConnectedBelt();
             if (exporter && _pickup == null)
