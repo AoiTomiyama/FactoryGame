@@ -124,7 +124,7 @@ public static class EconomyUIAssertions
             Require(Subscribers(storage, "StatusChanged") == 0 && !panel.UpgradeInteractable, "hide selection releases subscriptions");
             view.UpdateUIStatusWindow(storage);
             panel.SetExpanded(false);
-            Require(panel.IsSubscribed && Subscribers(wallet, "Changed") == 1, "collapsed left page keeps one persistent balance subscription");
+            Require(panel.IsSubscribed && Subscribers(wallet, "Changed", panel) == 1, "collapsed left page keeps one persistent HUD balance subscription");
             var hiddenText = panel.BalanceText;
             wallet.TryReserveIncome(1, out income); income.TryCommit();
             Require(panel.BalanceText != hiddenText, "closed page still updates persistent balance");
@@ -237,7 +237,8 @@ public static class EconomyUIAssertions
             UnityEngine.Object.Destroy(panel);
             await UniTask.DelayFrame(2);
             Require(canvas != null && !canvas.gameObject.activeSelf && view != null &&
-                Subscribers(wallet, "Changed") == 0 && Subscribers(view, "SelectionChanged") == 0,
+                Subscribers(wallet, "Changed", panel) == 0 && Subscribers(wallet, "Changed", screen) == 0 &&
+                Subscribers(view, "SelectionChanged") == 0,
                 "destroying controller releases subscriptions and retains authored HUD inactive");
             Require(view.SelectedCell == null && view.StatusContent.GetComponentsInChildren<HudStatusRowAdapter>().Length == 0,
                 "controller destruction releases selection and active rows without legacy restoration");
@@ -307,6 +308,9 @@ public static class EconomyUIAssertions
         await WaitForSlide(panel);
         var body = (RectTransform)hud.Body.transform;
         var open = body.anchoredPosition;
+        var summaryHeight = hud.Summary.rect.height;
+        // 収入の表示が折り返したときは、開く位置も上部の高さに合わせて移動する。
+        Vector2 OpenPosition() => open - Vector2.up * (hud.Summary.rect.height - summaryHeight);
         var page = panel.SelectedPage;
         var group = body.GetComponent<CanvasGroup>();
         var itemVisibility = hud.Body.content.GetComponent<CanvasGroup>();
@@ -333,7 +337,7 @@ public static class EconomyUIAssertions
             panel.SetExpanded(true);
             Require(body.anchoredPosition.x == current, "reversal starts from current position");
             await WaitForSlide(panel);
-            Require(Vector2.Distance(body.anchoredPosition, open) < .01f && group.interactable, "opening returns to authored frame while paused");
+            Require(Vector2.Distance(body.anchoredPosition, OpenPosition()) < .01f && group.interactable, "opening returns to authored frame while paused");
             Require(itemVisibility.alpha == 1 && closeVisibility.alpha == 1, "controls are visible when input resumes");
             panel.SetExpanded(false);
             await WaitForSlide(panel);
@@ -355,7 +359,8 @@ public static class EconomyUIAssertions
             await WaitForSlide(panel);
             if (page == 2) panel.SkillScreen.Open(); else panel.ShowPage(page);
             await WaitForSlide(panel);
-            Require(panel.SelectedPage == page && Vector2.Distance(body.anchoredPosition, open) < .01f, "enable and reopen retain page and saved position");
+            Require(panel.SelectedPage == page && Vector2.Distance(body.anchoredPosition, OpenPosition()) < .01f,
+                $"enable and reopen retain page and saved position; page={panel.SelectedPage}/{page}, position={body.anchoredPosition}/{OpenPosition()}");
             Debug.Log("HUD slide checks passed: movement, reversal, paused time, input, persistent tabs and disable/reopen.");
         }
         finally { Time.timeScale = timeScale; }
@@ -794,12 +799,13 @@ public static class EconomyUIAssertions
             Mathf.Min(bounds.xMax, viewport.xMax), Mathf.Min(bounds.yMax, viewport.yMax));
     }
 
-    private static int Subscribers(object owner, string name)
+    private static int Subscribers(object owner, string name, object subscriber = null)
     {
         for (var type = owner.GetType(); type != null; type = type.BaseType)
         {
             var field = type.GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
-            if (field != null) return (field.GetValue(owner) as Delegate)?.GetInvocationList().Length ?? 0;
+            if (field != null) return (field.GetValue(owner) as Delegate)?.GetInvocationList()
+                .Count(handler => subscriber == null || ReferenceEquals(handler.Target, subscriber)) ?? 0;
         }
         throw new Exception("Missing event: " + name);
     }

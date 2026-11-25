@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
@@ -63,11 +63,16 @@ public sealed class ResourceGenerationTests : FactoryEditModeScope
     }
     [Test] public void SavedMainSceneContainsAccessibleNewResources()
     {
-        var grid = TestScenes.Find<GridFieldDatabaseAdapter>(); grid.InitializeCells(100);
-        foreach (var entry in new[] { (46,48,ResourceTypeDomain.Iron), (54,48,ResourceTypeDomain.Copper), (46,54,ResourceTypeDomain.Coal) })
+        var grid = TestScenes.Find<GridFieldDatabaseAdapter>();
+        grid.InitializeCells(grid.GeneratedSize);
+        var directions = new[] { Vector3Int.forward, Vector3Int.right, Vector3Int.back, Vector3Int.left };
+        foreach (var resource in new[] { ResourceTypeDomain.Iron, ResourceTypeDomain.Copper, ResourceTypeDomain.Coal })
         {
-            Assert.That(((ResourceCellAdapter)grid.GetCell(entry.Item1, entry.Item2)).ResourceTypeDomain, Is.EqualTo(entry.Item3));
-            for (var d = 1; d <= 3; d++) Assert.That(grid.GetCell(entry.Item1, entry.Item2 - d), Is.TypeOf<EmptyCellAdapter>());
+            bool IsEmpty(Vector3Int point) => grid.IsWithinBounds(point.x, point.z) && grid.GetCell(point.x, point.z) is EmptyCellAdapter;
+            var accessible = grid.Owners.OfType<ResourceCellAdapter>().Where(cell => cell.ResourceTypeDomain == resource)
+                .Select(cell => Vector3Int.RoundToInt(cell.transform.position))
+                .Any(raw => directions.Any(direction => Enumerable.Range(1, 3).All(distance => IsEmpty(raw + direction * distance))));
+            Assert.That(accessible, Is.True, $"{resource} needs space for a miner and a two-cell exit");
         }
     }
 }

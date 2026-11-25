@@ -165,11 +165,19 @@ public static class FieldRenderingAssertions
     private static async UniTask VerifyDynamic(Camera camera, RenderTexture target, UniversalRenderPipelineAsset pipeline, Result result)
     {
         pipeline.gpuResidentDrawerMode = GPUResidentDrawerMode.InstancedDrawing;
-        camera.transform.SetPositionAndRotation(new Vector3(50, 2.1f, 3), Quaternion.identity); camera.orthographic = false;
+        var grid = GridFieldDatabaseAdapter.Instance;
+        var origin = grid.Owners.OfType<EmptyCellAdapter>()
+            .Select(cell => new Vector3Int(cell.XIndex, 0, cell.ZIndex))
+            .OrderBy(point => point.x).ThenBy(point => point.z)
+            .FirstOrDefault(point => Enumerable.Range(-2, 7).All(x => Enumerable.Range(0, 7).All(z =>
+                grid.IsWithinBounds(point.x + x, point.z + z) && grid.GetCell(point.x + x, point.z + z) is EmptyCellAdapter)));
+        Require(origin != Vector3Int.zero, "camera and moved test mesh have a clear line of sight");
+        camera.transform.SetPositionAndRotation(origin + Vector3.up * 2.1f, Quaternion.identity);
+        camera.orthographic = false;
         var placer = TestScenes.Find<CellPlacerAdapter>();
         var databases = (CellDatabaseDefinition[])typeof(CellPlacerAdapter).GetField("cellDatabaseArr", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(placer);
         var prefab = databases.SelectMany(db => db.GetAllCellInfos()).Single(info => info.CellTypeDomain == CellTypeDomain.Storage).FieldCellPrefab.gameObject;
-        var cell = TestScenes.Clone(prefab, new Vector3(50, 0, 7), Quaternion.identity);
+        var cell = TestScenes.Clone(prefab, origin + Vector3.forward * 4, Quaternion.identity);
         // ゲーム状態へ登録せず、実際の設備PrefabのRenderer登録・移動・破棄を同じ画面で比較する。
         try
         {

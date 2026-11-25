@@ -237,8 +237,8 @@ public sealed class SaveGamePlayModeTests : FactoryPlayModeScope
         var game = TestScenes.Find<GameInitializerAdapter>();
         Assert.That(game.Session.CurrentStage,Is.EqualTo(GameStartApplication.Stage.Menu));
         Assert.That(game.Wallet,Is.Null); Assert.That(game.Saves.RequestSave(),Is.False);
-        var menu = GameObject.Find("SaveSlotOverlay");
-        var menuCanvas = menu.GetComponent<Canvas>().rootCanvas;
+        var menu = TestScenes.Find<SaveSlotMenuAdapter>().gameObject;
+        var menuCanvas = menu.GetComponentInParent<Canvas>().rootCanvas;
         menuCanvas.renderMode = RenderMode.WorldSpace;
         menuCanvas.GetComponent<CanvasScaler>().enabled = false;
         void CheckMenuFit()
