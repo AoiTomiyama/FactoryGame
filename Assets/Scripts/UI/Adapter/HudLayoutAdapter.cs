@@ -15,7 +15,8 @@ public sealed class HudLayoutAdapter : MonoBehaviour
     public RectTransform Summary;
     public Text[] WalletItems;
     public Button Save;
-    internal Button ReturnToSlots { get; set; }
+    [SerializeField] private Button returnToSlots;
+    internal Button ReturnToSlots => returnToSlots;
     public Text EquipmentHeading, EquipmentText, EquipmentFeedback;
     public GameObject EquipmentGroup;
     public Button Upgrade;

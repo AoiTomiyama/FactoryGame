@@ -8,6 +8,8 @@ public sealed class OperationBarAdapter : MonoBehaviour
     [SerializeField] private RectTransform walkingHelp;
     [SerializeField] private RectTransform bar;
     [SerializeField] private Text placementInfo;
+    [SerializeField] private SaveSlotMenuAdapter saveSlotMenu;
+    internal SaveSlotMenuAdapter SaveSlotMenu => saveSlotMenu;
     public Text PlacementInfo => placementInfo;
     public RectTransform WalkingHelp => walkingHelp;
     public Button WalkButton => walkButton;

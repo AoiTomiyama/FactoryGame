@@ -50,7 +50,8 @@ public sealed class GameInitializerAdapter : MonoBehaviour
             _world = new SaveWorldAdapter(field,placer);
             saves.Configure(this,_world,startupHud.Layout.Save);
             cameraController.ConfigureInputGate(() => Session.CurrentStage != GameStartApplication.Stage.Running || SaveMenuBlocksInput);
-            _saveMenu = new SaveSlotMenuAdapter(startupHud.Layout, startupHud.MenuHost, ChooseSlot, () => ChooseSlot(0),
+            _saveMenu = startupHud.SaveSlotMenu;
+            _saveMenu.Configure(startupHud.Layout, ChooseSlot, () => ChooseSlot(0),
                 () => OpenReturnMenu(), save => TryReturnToSaveSlotsAsync(save).Forget(), () => TryReturnToSaveSlotsAsync(false).Forget(),
                 (name, seed) => TryStartNewGameAsync(_setupSlot, name, seed).Forget(), CancelNewGame);
             startupHud.BeginMenu();

@@ -154,6 +154,19 @@ public sealed class StartupReferenceDiagnosticsTests : FactoryEditModeScope
 {
     protected override bool NeedsMainScene => true;
 
+    [Test] public void SaveMenuAndReturnButtonAreStoredInPrefabs()
+    {
+        var menu = TestScenes.Find<SaveSlotMenuAdapter>(FindObjectsInactive.Include);
+        Assert.That(PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(menu), Is.EqualTo("Assets/Prefabs/UI/SaveSlotMenu.prefab"));
+        Assert.That(menu.GetComponentsInChildren<UnityEngine.UI.InputField>(true).Length, Is.EqualTo(2));
+        Assert.That(menu.GetComponentsInChildren<Canvas>(true), Is.Empty);
+        var bar = TestScenes.Find<OperationBarAdapter>(FindObjectsInactive.Include);
+        Assert.That(menu.GetComponentInParent<Canvas>(true), Is.SameAs(bar.GetComponentInParent<Canvas>(true)));
+        var hud = TestScenes.Find<HudLayoutAdapter>(FindObjectsInactive.Include);
+        var shortcut = new SerializedObject(hud).FindProperty("returnToSlots").objectReferenceValue;
+        Assert.That(PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(shortcut), Is.EqualTo("Assets/Prefabs/UI/FactoryHud.prefab"));
+    }
+
     [Test] public void MissingInitializerReferencesIncludeMemberAndContext()
     {
         var source = TestScenes.Find<GameInitializerAdapter>();

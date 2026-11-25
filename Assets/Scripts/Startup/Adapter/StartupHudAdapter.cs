@@ -10,7 +10,7 @@ public sealed class StartupHudAdapter : MonoBehaviour
     [SerializeField] private CellStatusViewAdapter statusView;
 
     public HudLayoutAdapter Layout => hud;
-    public RectTransform MenuHost => (RectTransform)bar.GetComponentInParent<Canvas>().rootCanvas.transform;
+    internal SaveSlotMenuAdapter SaveSlotMenu => bar.SaveSlotMenu;
 
     public void BeginMenu()
     {
@@ -29,8 +29,11 @@ public sealed class StartupHudAdapter : MonoBehaviour
         if (placer == null) missing.Add(nameof(placer));
         if (statusView == null) missing.Add(nameof(statusView));
         if (hud != null && hud.Save == null) missing.Add("hud.Save");
+        if (hud != null && hud.ReturnToSlots == null) missing.Add("hud.ReturnToSlots");
+        if (bar != null && SaveSlotMenu == null) missing.Add("bar.SaveSlotMenu");
         if (missing.Count > 0)
             throw new MissingReferenceException($"{nameof(StartupHudAdapter)}: missing references [{string.Join(", ", missing)}] on '{name}' (Scene: '{gameObject.scene.path}').");
+        SaveSlotMenu.ValidateBindings();
     }
 
     public void Finish() => hud.gameObject.SetActive(true);
