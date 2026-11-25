@@ -142,7 +142,7 @@ public sealed class DeliveryFactoryAssertions
         Require(UnityEditor.EditorUtility.audioMasterMute,"消音"); _panel.ShowPage(0);
         var last=100L;
         _initializer.Wallet.Changed+=s=>{ if(s.Balance>last)_earned+=s.Balance-last; last=s.Balance; };
-        foreach(var command in TestScenes.StarterPlacements(_initializer.Session.Selected))
+        foreach(var command in TestScenes.StarterPlacements(TestScenes.StarterSite))
             await Place(command.Type,new Vector3Int(command.X,0,command.Z),Vector3Int.RoundToInt(Quaternion.Euler(0,command.Yaw,0)*Vector3.forward));
         await Until(()=>_earned>0,"初回換金"); Record("初回換金");
         Time.timeScale=20;

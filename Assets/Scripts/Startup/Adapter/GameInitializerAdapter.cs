@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -8,6 +9,7 @@ using UnityEngine;
 public sealed class GameInitializerAdapter : MonoBehaviour
 {
     [SerializeField] private GridFieldDatabaseAdapter field;
+    [SerializeField] private GridFieldGeneratorAdapter terrainGenerator;
     [SerializeField] private SingularityStartDefinition initialLayout;
     [SerializeField] private SkillTreeDefinition skillTree;
     [SerializeField] private ResourceDefinition resources;
@@ -16,13 +18,14 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     [SerializeField] private CellStatusViewAdapter statusView;
     [SerializeField] private CameraControllerAdapter cameraController;
     [SerializeField] private PlayerCursorBehaviourAdapter cursor;
-    [SerializeField] private StartSiteSelectionAdapter selection;
+    [SerializeField] private StartupHudAdapter startupHud;
     [SerializeField] private GameSaveAdapter saves;
     private SaveSlotMenuAdapter _saveMenu;
-    private DateTime?[] _slotDates;
+    private (DateTime? Date, string Name, int? Seed)[] _slots;
+    private int _setupSlot;
+    private CancellationTokenSource _newGameAttempt;
     private SaveWorldAdapter _world;
-    private StartSiteRulesDomain.Terrain[,] _initialTerrain;
-    private int _initialSeed;
+    private int _fieldSize;
     private float? _timeScaleBeforeSlotSelection;
     private bool _returning;
     internal bool SaveMenuBlocksInput => _saveMenu?.BlocksGameplay ?? false;
@@ -43,19 +46,19 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         try
         {
             ValidateConfiguration();
-            cursor.ConfigureStartup(Session,selection,cameraController);
+            cursor.ConfigureStartup(Session, cameraController);
             _world = new SaveWorldAdapter(field,placer);
-            saves.Configure(this,_world,selection.Layout.Save);
-            cameraController.ConfigureInputGate(() => SaveMenuBlocksInput);
-            _saveMenu = new SaveSlotMenuAdapter(selection.Layout, selection.MenuHost, ChooseSlot, () => ChooseSlot(0),
-                () => OpenReturnMenu(), save => TryReturnToSaveSlotsAsync(save).Forget(), () => TryReturnToSaveSlotsAsync(false).Forget());
-            selection.BeginMenu();
-            _slotDates = await saves.ReadSlotDatesAsync(cancellation);
+            saves.Configure(this,_world,startupHud.Layout.Save);
+            cameraController.ConfigureInputGate(() => Session.CurrentStage != GameStartApplication.Stage.Running || SaveMenuBlocksInput);
+            _saveMenu = new SaveSlotMenuAdapter(startupHud.Layout, startupHud.MenuHost, ChooseSlot, () => ChooseSlot(0),
+                () => OpenReturnMenu(), save => TryReturnToSaveSlotsAsync(save).Forget(), () => TryReturnToSaveSlotsAsync(false).Forget(),
+                (name, seed) => TryStartNewGameAsync(_setupSlot, name, seed).Forget(), CancelNewGame);
+            startupHud.BeginMenu();
+            _slots = await saves.ReadSlotsAsync(cancellation);
             cancellation.ThrowIfCancellationRequested();
-            _initialTerrain = field.CaptureTerrain();
-            _initialSeed = field.GenerationSeed;
+            _fieldSize = field.GeneratedSize;
             Session.ShowMenu();
-            _saveMenu.ShowSlots(_slotDates);
+            _saveMenu.ShowSlots(_slots);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception exception) { Fail("preparation",exception); }
@@ -69,40 +72,93 @@ public sealed class GameInitializerAdapter : MonoBehaviour
 
     private void ChooseSlot(int slot)
     {
+        if (SaveSlotCatalogApplication.IsNormal(slot) && !_slots[slot - SaveSlotCatalogApplication.FirstSlot].Date.HasValue)
+        {
+            if (!Session.TryOpenNewGame(slot)) return;
+            _setupSlot = slot;
+            _saveMenu.ShowNewGame(slot);
+            return;
+        }
         var switching = Session.TryBeginSlotSwitch();
         if (!switching && Session.CurrentStage != GameStartApplication.Stage.Menu) return;
         if (slot == 0) TryStartDebugAsync().Forget();
-        else if (_slotDates[slot - SaveSlotCatalogApplication.FirstSlot].HasValue) TryRestoreGameAsync(slot).Forget();
-        else if (switching) PrepareEmptySlotAsync(slot).Forget();
-        else TryPrepareNewGame(slot);
+        else TryRestoreGameAsync(slot).Forget();
     }
 
-    private async UniTask PrepareEmptySlotAsync(int slot)
+    private void CancelNewGame()
     {
-        var cancellation = destroyCancellationToken;
+        if (!Session.TryCancelNewGame()) return;
+        _newGameAttempt?.Cancel();
+        _saveMenu.ShowSlots(_slots);
+    }
+
+    public async UniTask<bool> TryStartNewGameAsync(int slot, string name, int? seed)
+    {
+        if (!SaveSlotCatalogApplication.IsNormal(slot) || _slots == null ||
+            _slots[slot - SaveSlotCatalogApplication.FirstSlot].Date.HasValue) return false;
+        if (Session.TryOpenNewGame(slot))
+        {
+            _setupSlot = slot;
+            _saveMenu.ShowNewGame(slot);
+        }
+        if (!Session.TryBeginNewGame(slot)) return false;
+        using var attempt = CancellationTokenSource.CreateLinkedTokenSource(destroyCancellationToken);
+        _newGameAttempt = attempt;
+        var cancellation = attempt.Token;
         try
         {
-            _saveMenu.SetBusy("ロード中…");
+            _saveMenu.ShowTerrainPreparation();
             await UniTask.NextFrame(cancellationToken: cancellation);
-            var terrain = _initialTerrain;
-            var seed = _initialSeed;
+            ValidateConfiguration();
+            // 乱数は Unity の共有状態に触れず、空欄で始める操作ごとに一つ引く。
+            var actualSeed = seed ?? RandomSeed();
+            var terrain = await terrainGenerator.BuildTerrainAsync(_fieldSize, actualSeed, cancellation);
             var footprint = initialLayout.SingularityPrefab.Footprint;
             var shipping = initialLayout.ShippingCell(Vector2Int.zero);
             var prices = initialLayout.CreateCatalog();
-            var candidates = await System.Threading.Tasks.Task.Run(
-                () => DiscoverStartSites(terrain, seed, footprint, shipping, prices), cancellation);
+            var site = await System.Threading.Tasks.Task.Run(
+                () => FindStartSite(terrain, actualSeed, footprint, shipping, prices, cancellation), cancellation);
             cancellation.ThrowIfCancellationRequested();
+            if (site == null)
+            {
+                Session.NewGameNeedsAnotherSeed();
+                _saveMenu.ShowNewGameForm(seed.HasValue ? "このシードでは始められる場所がありません" : "もう一度始めると別の地形を試せます");
+                return false;
+            }
+
+            // 開始できる地形が確定してから、表示中の工場を入れ替える。
+            Session.BeginPreparedGame();
+            _saveMenu.SetBusy("地形を準備中…");
             PrepareWorldSwitch();
-            await _world.BuildInitialTerrainAsync(terrain, seed, cancellation);
-            ShowStartSites(slot, candidates);
+            await _world.BuildInitialTerrainAsync(terrain, actualSeed, cancellation);
+            saves.SelectSlot(slot, name);
+            StartGame(site, prices);
+            _saveMenu.SetDebugSession(false);
+            _saveMenu.Hide();
+            startupHud.Finish();
             ResumeSlotSelectionTime();
+            return true;
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { return false; }
         catch (Exception exception)
         {
-            Fail("preparation", exception);
-            _saveMenu.ShowFailure("開始できませんでした");
+            if (cancellation.IsCancellationRequested) return false;
+            Fail("start", exception);
+            _saveMenu.ShowFailure("ゲームを始められませんでした");
+            return false;
         }
+        finally
+        {
+            if (ReferenceEquals(_newGameAttempt, attempt)) _newGameAttempt = null;
+        }
+    }
+
+    private static int RandomSeed()
+    {
+        var bytes = new byte[sizeof(int)];
+        using var random = System.Security.Cryptography.RandomNumberGenerator.Create();
+        random.GetBytes(bytes);
+        return BitConverter.ToInt32(bytes, 0);
     }
 
     private void PrepareWorldSwitch()
@@ -110,39 +166,10 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         economyPanel.SkillScreen.ReleaseWorld();
         cameraController.RestoreOverview();
         economyPanel.ReleaseWorld();
-        selection.BeginMenu();
+        startupHud.BeginMenu();
         placer.ResetWorldSelection();
         Wallet = null; IncomeRate = null; Prices = null;
         ConstructionStock = null; Deliveries = null; Skills = null;
-    }
-
-    public bool TryPrepareNewGame(int slot = SaveSlotCatalogApplication.FirstSlot)
-    {
-        if (!SaveSlotCatalogApplication.IsNormal(slot) ||
-            Session.CurrentStage is not (GameStartApplication.Stage.Uninitialized or GameStartApplication.Stage.Menu)) return false;
-        try
-        {
-            ValidateConfiguration();
-            var candidates = DiscoverStartSites(field, initialLayout);
-            cursor.ConfigureStartup(Session, selection, cameraController);
-            ShowStartSites(slot, candidates);
-            return true;
-        }
-        catch (Exception exception)
-        {
-            Fail("preparation", exception);
-            _saveMenu?.ShowFailure("開始できませんでした");
-            return false;
-        }
-    }
-
-    private void ShowStartSites(int slot, IReadOnlyList<StartSiteRulesDomain.Candidate> candidates)
-    {
-        saves.SelectSlot(slot);
-        Session.Prepare(candidates);
-        _saveMenu?.SetDebugSession(false);
-        _saveMenu?.Hide();
-        selection.Begin(Session, initialLayout.SingularityPrefab.Footprint, () => TryStartGame());
     }
 
     public UniTask<bool> TryRestoreGameAsync(int slot = SaveSlotCatalogApplication.FirstSlot) =>
@@ -162,7 +189,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
             ValidateConfiguration();
             var deliveryCatalog = initialLayout.CreateDeliveryCatalog();
             var data = debug
-                ? DebugWorldSeedAdapter.Create(_initialTerrain.GetLength(0), placer)
+                ? DebugWorldSeedAdapter.Create(_fieldSize, placer)
                 : await saves.ReadAsync(slot, cancellation);
             cancellation.ThrowIfCancellationRequested();
             var catalog = skillTree.CreateCatalog();
@@ -171,7 +198,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
                 cancellation,includeOccupancy: true);
             if (switching) PrepareWorldSwitch();
             if (debug) saves.SelectDebug();
-            else saves.SelectSlot(slot);
+            else saves.SelectSlot(slot, data.displayName);
             var cells = await _world.BuildCellsAsync(data,owners,cancellation);
             Prices = initialLayout.CreateCatalog(); Wallet = new CurrencyWalletApplication(data.balance);
             ConstructionStock = new ConstructionStockApplication(RegisteredResources);
@@ -194,7 +221,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
             Session.Complete();
             _saveMenu?.SetDebugSession(debug);
             _saveMenu?.Hide();
-            selection.Finish();
+            startupHud.Finish();
             ResumeSlotSelectionTime();
             return true;
         }
@@ -235,13 +262,13 @@ public sealed class GameInitializerAdapter : MonoBehaviour
                 }
             }
             _saveMenu.SetBusy("セーブ選択へ戻っています…");
-            _slotDates = await saves.ReadSlotDatesAsync(cancellation);
+            _slots = await saves.ReadSlotsAsync(cancellation);
             cancellation.ThrowIfCancellationRequested();
             if (!Session.TryShowSlotSelection()) return false;
             // 一覧を開いている間は今のフィールドを描画し、ゲーム内の時間だけを止める。
             _timeScaleBeforeSlotSelection ??= Time.timeScale;
             Time.timeScale = 0;
-            _saveMenu.ShowSlots(_slotDates);
+            _saveMenu.ShowSlots(_slots);
             return true;
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { return false; }
@@ -254,45 +281,35 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         finally { _returning = false; }
     }
 
-    public static IReadOnlyList<StartSiteRulesDomain.Candidate> DiscoverStartSites(
+    public static StartSiteRulesDomain.Candidate FindStartSite(
         GridFieldDatabaseAdapter field, SingularityStartDefinition layout)
     {
         layout.Validate(field.GeneratedSize);
-        return DiscoverStartSites(field.CaptureTerrain(), field.GenerationSeed,
+        return FindStartSite(field.CaptureTerrain(), field.GenerationSeed,
             layout.SingularityPrefab.Footprint, layout.ShippingCell(Vector2Int.zero), layout.CreateCatalog());
     }
 
-    private static IReadOnlyList<StartSiteRulesDomain.Candidate> DiscoverStartSites(StartSiteRulesDomain.Terrain[,] terrain,
-        int seed, CellFootprintDomain footprint, (int x, int z) shipping, CurrencyPriceCatalogDomain prices)
+    private static StartSiteRulesDomain.Candidate FindStartSite(StartSiteRulesDomain.Terrain[,] terrain,
+        int seed, CellFootprintDomain footprint, (int x, int z) shipping, CurrencyPriceCatalogDomain prices,
+        CancellationToken cancellation = default)
     {
         prices.TryGetPlacementAmount(CellTypeDomain.ExtractorWood, 1, out var extractor);
         prices.TryGetPlacementAmount(CellTypeDomain.Conveyor, 1, out var belt);
-        return StartSiteRulesDomain.Candidates(terrain, seed, footprint, shipping, prices.InitialBalance, extractor, belt);
+        return StartSiteRulesDomain.Find(terrain, seed, footprint, shipping, prices.InitialBalance, extractor, belt, cancellation);
     }
 
-    public bool TryStartGame()
+    private void StartGame(StartSiteRulesDomain.Candidate site, CurrencyPriceCatalogDomain prices)
     {
-        if (!Session.TryBegin(out var candidate)) return false;
-        try
-        {
-            // 予測できる設定不足を、地形を置き換える前に検出する。
-            ValidateConfiguration();
-            selection.RefreshSelection();
-            var prices = initialLayout.CreateCatalog();
-            var wallet = new CurrencyWalletApplication(prices.InitialBalance);
-            var stock = new ConstructionStockApplication(resources.GetAllResources().Select(r => r.ResourceTypeDomain));
-            var deliveries = new DeliveryProgressApplication(initialLayout.CreateDeliveryCatalog());
-            var skillCatalog = skillTree.CreateCatalog();
-            var cells = new InitialCellPlacementAdapter().Place(field, initialLayout, new Vector2Int(candidate.X, candidate.Z));
-            Prices = prices; Wallet = wallet; ConstructionStock = stock; Deliveries = deliveries;
-            Skills = new SkillTreeApplication(skillCatalog, Wallet, field.StatEffects, Deliveries);
-            ConfigureGameplay(cells.core);
-            cameraController.FocusOn(cells.core.WorldCenter);
-            Session.Complete();
-            selection.Finish();
-            return true;
-        }
-        catch (Exception exception) { Fail("start", exception); return false; }
+        var wallet = new CurrencyWalletApplication(prices.InitialBalance);
+        var stock = new ConstructionStockApplication(resources.GetAllResources().Select(r => r.ResourceTypeDomain));
+        var deliveries = new DeliveryProgressApplication(initialLayout.CreateDeliveryCatalog());
+        var skillCatalog = skillTree.CreateCatalog();
+        var cells = new InitialCellPlacementAdapter().Place(field, initialLayout, new Vector2Int(site.X, site.Z));
+        Prices = prices; Wallet = wallet; ConstructionStock = stock; Deliveries = deliveries;
+        Skills = new SkillTreeApplication(skillCatalog, Wallet, field.StatEffects, Deliveries);
+        ConfigureGameplay(cells.core);
+        cameraController.FocusOn(cells.core.WorldCenter);
+        Session.Complete();
     }
 
     // 新規開始の初期配置・初期値付与と、既存機能への配線を分けておく。
@@ -331,7 +348,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
 
     private void ConfigureSkills()
     {
-        var hud = selection.Layout;
+        var hud = startupHud.Layout;
         var screen = economyPanel.SkillScreen;
         screen.Configure(Wallet, Skills, Deliveries, field.StatEffects, hud, () => placer.ClearingPriceText,
             cursor.CancelCurrentGesture, new[] { hud.GameplayRoot, statusView.transform, economyPanel.Operation.transform });
@@ -343,6 +360,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     {
         var missing = new List<string>();
         if (field == null) missing.Add(nameof(field));
+        if (terrainGenerator == null) missing.Add(nameof(terrainGenerator));
         if (initialLayout == null) missing.Add(nameof(initialLayout));
         if (skillTree == null) missing.Add(nameof(skillTree));
         if (resources == null) missing.Add(nameof(resources));
@@ -351,7 +369,7 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         if (statusView == null) missing.Add(nameof(statusView));
         if (cameraController == null) missing.Add(nameof(cameraController));
         if (cursor == null) missing.Add(nameof(cursor));
-        if (selection == null) missing.Add(nameof(selection));
+        if (startupHud == null) missing.Add(nameof(startupHud));
         if (saves == null) missing.Add(nameof(saves));
         if (missing.Count > 0)
             throw new MissingReferenceException($"{nameof(GameInitializerAdapter)}: missing references [{string.Join(", ", missing)}] on '{name}' (Scene: '{gameObject.scene.path}').");
@@ -359,8 +377,8 @@ public sealed class GameInitializerAdapter : MonoBehaviour
         skillTree.CreateCatalog().ValidateDeliveryPrerequisites(initialLayout.CreateDeliveryCatalog());
         _ = initialLayout.CreateClearingRules();
         _ = new ConstructionStockApplication(resources.GetAllResources().Select(r => r.ResourceTypeDomain));
-        selection.ValidateBindings();
-        if (economyPanel.SkillScreen == null || selection.Layout.GameplayRoot == null)
+        startupHud.ValidateBindings();
+        if (economyPanel.SkillScreen == null || startupHud.Layout.GameplayRoot == null)
             throw new MissingReferenceException("GameInitializerAdapter: assign the full-screen skill UI and gameplay HUD root.");
         economyPanel.SkillScreen.ValidateBindings();
     }
@@ -379,6 +397,5 @@ public sealed class GameInitializerAdapter : MonoBehaviour
     private void OnDestroy()
     {
         ResumeSlotSelectionTime();
-        if (selection != null) selection.DisposePreviews();
     }
 }

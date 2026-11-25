@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class PlayerCursorBehaviourAdapter : MonoBehaviour
@@ -13,7 +13,6 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
     [SerializeField] private OperationBarAdapter operationBar;
 
     private GameStartApplication _startSession;
-    private StartSiteSelectionAdapter _startSelection;
     private System.Func<bool> _inputBlocked;
     private bool GameplayBlocked => (_inputBlocked?.Invoke() ?? false) || _startSession == null || _startSession.CurrentStage != GameStartApplication.Stage.Running;
     public void ConfigureInputGate(System.Func<bool> blocked) => _inputBlocked = blocked;
@@ -24,10 +23,9 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
     private bool _firstPerson;
     private CameraControllerAdapter _cameraController;
 
-    public void ConfigureStartup(GameStartApplication session, StartSiteSelectionAdapter selection, CameraControllerAdapter cameraController)
+    public void ConfigureStartup(GameStartApplication session, CameraControllerAdapter cameraController)
     {
         _startSession = session;
-        _startSelection = selection;
         _camera = Camera.main;
         if (_cameraController != null) _cameraController.FirstPersonChanged -= SetFirstPerson;
         _cameraController = cameraController;
@@ -96,12 +94,6 @@ public class PlayerCursorBehaviourAdapter : MonoBehaviour
         if (_inputBlocked?.Invoke() == true) return;
         if (_firstPerson) return;
         if (raycaster.IsPointerOverUI(_mousePosition)) return;
-        if (_startSession != null && _startSession.CurrentStage == GameStartApplication.Stage.Choosing)
-        {
-            if(_camera!=null && Physics.Raycast(_camera.ScreenPointToRay(_mousePosition),out var hit,Mathf.Infinity,layerMask))
-                _startSelection?.SelectAt(hit.point);
-            return;
-        }
         if (GameplayBlocked) return;
         _isLeftClickPressed = true;
         placer.PointerBegin();

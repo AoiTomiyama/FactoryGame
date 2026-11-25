@@ -6,6 +6,15 @@ using UnityEngine;
 public static class SaveJsonAdapter
 {
     [Serializable] private sealed class Envelope { public int version; public string payload, sha256; }
+    [Serializable] private sealed class Summary { public string displayName; public int seed; }
+
+    public static (string Name, int Seed) DecodeSummary(string json)
+    {
+        var summary = JsonUtility.FromJson<Summary>(ReadPayload(json));
+        if (summary == null) throw new InvalidOperationException("Missing save summary.");
+        return (summary.displayName, summary.seed);
+    }
+
     public static string Encode(SaveGameApplication data, bool parallelValidation = false)
     {
         Validate(data, parallelValidation);
@@ -14,10 +23,7 @@ public static class SaveJsonAdapter
     }
     public static SaveGameApplication Decode(string json, bool parallelValidation = false)
     {
-        var envelope = JsonUtility.FromJson<Envelope>(json);
-        if (envelope == null || envelope.version != 1 || string.IsNullOrEmpty(envelope.payload) ||
-            envelope.sha256 != Digest(envelope.payload)) throw new InvalidOperationException("Save file is incomplete, corrupt or unsupported.");
-        var data = JsonUtility.FromJson<SaveGameApplication>(envelope.payload);
+        var data = JsonUtility.FromJson<SaveGameApplication>(ReadPayload(json));
         if (data == null) throw new InvalidOperationException("Missing save payload.");
         if (data.formatVersion == 1)
         {
@@ -30,6 +36,14 @@ public static class SaveJsonAdapter
         }
         Validate(data, parallelValidation); return data;
     }
+    private static string ReadPayload(string json)
+    {
+        var envelope = JsonUtility.FromJson<Envelope>(json);
+        if (envelope == null || envelope.version != 1 || string.IsNullOrEmpty(envelope.payload) ||
+            envelope.sha256 != Digest(envelope.payload)) throw new InvalidOperationException("Save file is incomplete, corrupt or unsupported.");
+        return envelope.payload;
+    }
+
     private static void Validate(SaveGameApplication data, bool parallel)
     {
         if (parallel) data.ValidateShapeInParallel();

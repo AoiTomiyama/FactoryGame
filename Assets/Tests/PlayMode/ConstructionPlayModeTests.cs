@@ -105,7 +105,7 @@ public sealed class ConstructionGameplayPlayModeTests : FactoryPlayModeScope
             throw new InvalidOperationException("No construction test area.");
         }
         async UniTask Funds(long amount) => await ConstructionTestRoute.Until(() => initializer.Wallet.Current.AvailableBalance >= amount, "残高 " + amount);
-        var commands=TestScenes.StarterPlacements(initializer.Session.Selected).ToArray();var first=commands[0];
+        var commands=TestScenes.StarterPlacements(TestScenes.StarterSite).ToArray();var first=commands[0];
         Place(first.Type,first.X,first.Z,first.Yaw);
         // 換金経路をつなぐ前に、最初の板材用の木材を採る。
         await Mine((ExtractorCellAdapter)grid.GetCell(first.X,first.Z),4);

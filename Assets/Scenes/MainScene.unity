@@ -636522,7 +636522,8 @@ MonoBehaviour:
   statusView: {fileID: 870000000000001005}
   cameraController: {fileID: 1256464689}
   cursor: {fileID: 1114964330}
-  selection: {fileID: 870000000000001004}
+  startupHud: {fileID: 870000000000001004}
+  terrainGenerator: {fileID: 1279850225}
   saves: {fileID: 870000000000001006}
 --- !u!114 &870000000000001004
 MonoBehaviour:
@@ -636535,13 +636536,11 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 080e6558d06e4f51ab8e85dad06168bd, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: FactoryGame.Runtime::StartSiteSelectionAdapter
-  cameraController: {fileID: 1256464689}
+  m_EditorClassIdentifier: FactoryGame.Runtime::StartupHudAdapter
   hud: {fileID: 1025091595}
   bar: {fileID: 855129350}
   placer: {fileID: 1114964332}
   statusView: {fileID: 870000000000001005}
-  frameMaterial: {fileID: 10306, guid: 0000000000000000f000000000000000, type: 0}
 --- !u!114 &870000000000001005 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 4032386388975503306, guid: 2179b37b96bd01c4d8fb4ca0af145bb0, type: 3}

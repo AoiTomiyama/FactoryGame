@@ -39,6 +39,8 @@ public sealed class SkillTreePlayModeTests : FactoryPlayModeScope
 public sealed class EconomyLoopPlayModeTests : FactoryPlayModeScope
 {
     protected override bool NeedsMainScene => true;
+    // 通しの納品ラインは座標を指定して建てるため、地形の変更と切り分ける。
+    protected override int? FixedTerrainSeed => 423794866;
     [UnityTest] public IEnumerator EarnedCurrencyFundsSkillsAndReinvestment() => EconomyLoopAssertions.Verify().ToCoroutine();
     [UnityTest] public IEnumerator PhysicalFactoryCompletesEveryDeliveryGoalAndKeepsRunning() => DeliveryFactoryAssertions.Verify().ToCoroutine();
 }

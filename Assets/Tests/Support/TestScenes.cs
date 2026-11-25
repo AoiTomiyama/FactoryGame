@@ -11,6 +11,7 @@ using Object = UnityEngine.Object;
 /// <summary>検証のSceneだけを参照し、Editorで開いている作業中のSceneとSingletonを保持する。</summary>
 public static class TestScenes
 {
+    public static StartSiteRulesDomain.Candidate StarterSite { get; set; }
     public static Scene CurrentScene => _override.IsValid() ? _override : SceneManager.GetActiveScene();
     private static Scene _override;
     public static bool CaptureImages;

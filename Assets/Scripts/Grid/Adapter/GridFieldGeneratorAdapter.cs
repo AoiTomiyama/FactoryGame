@@ -1,6 +1,8 @@
 using System;
-#if UNITY_EDITOR
 using System.Security.Cryptography;
+using System.Threading;
+using Cysharp.Threading.Tasks;
+#if UNITY_EDITOR
 using UnityEditor;
 using Random = UnityEngine.Random;
 #endif
@@ -52,6 +54,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
 
         [Tooltip("ノイズオフセットのランダム値")]
         public Vector2Int NoiseOffset { get; set; }
+        public ResourceTypeDomain Resource { get; set; }
     }
 
 #if UNITY_EDITOR
@@ -87,6 +90,49 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     {
         if (parent == null) throw new ArgumentNullException(nameof(parent));
         if (gridSize <= 0 || emptyCellPrefab == null) throw new InvalidOperationException("Assign terrain size and empty prefab.");
+        var (props, offsets) = PrepareTerrain(seedValue);
+        var terrain = new StartSiteRulesDomain.Terrain[gridSize, gridSize];
+        for (var x = 0; x < gridSize; x++) FillRow(terrain, x, props, offsets);
+        var prefabs = props.ToDictionary(p => p.Resource, p => p.prefab);
+        ClearGrid(parent);
+
+        var cellScale = emptyCellPrefab.transform.localScale;
+        for (var x = 0; x < gridSize; x++)
+        {
+            var separator = new GameObject($"Separator_{x}");
+            separator.transform.SetParent(parent);
+            for (var z = 0; z < gridSize; z++)
+            {
+                var cell = terrain[x, z];
+                var prefab = cell.Empty ? emptyCellPrefab : prefabs[cell.Resource];
+                var tile = (GameObject)PrefabUtility.InstantiatePrefab(prefab, separator.transform);
+                tile.transform.position = new Vector3(x * cellScale.x, 0, z * cellScale.z);
+                tile.name = $"Tile_{x}_{z}";
+            }
+        }
+        if (parent.TryGetComponent<GridFieldDatabaseAdapter>(out var field)) field.RecordGeneratedField(gridSize, seedValue);
+    }
+#endif
+
+    public async UniTask<StartSiteRulesDomain.Terrain[,]> BuildTerrainAsync(int size, int seed, CancellationToken cancellation)
+    {
+        var (props, offsets) = PrepareTerrain(seed);
+        var terrain = new StartSiteRulesDomain.Terrain[size, size];
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        // Unity のノイズ関数はメインスレッドで使い、画面を更新できるよう行単位で区切る。
+        for (var x = 0; x < size; x++)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            FillRow(terrain, x, props, offsets);
+            if (clock.ElapsedMilliseconds < 4) continue;
+            await UniTask.NextFrame(cancellationToken: cancellation);
+            clock.Restart();
+        }
+        return terrain;
+    }
+
+    private (PropPrefab[] Props, Vector2Int[] Offsets) PrepareTerrain(int seed)
+    {
         var candidates = (propPrefabs ?? Array.Empty<PropPrefab>()).OrderBy(p =>
             p.prefab != null && p.prefab.TryGetComponent<ResourceCellAdapter>(out var resource) ? (int)resource.ResourceTypeDomain : -1).ToArray();
         var identities = new System.Collections.Generic.HashSet<ResourceTypeDomain>();
@@ -96,44 +142,28 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
                 !identities.Add(resource.ResourceTypeDomain) || (float.IsNaN(candidates[i].threshold) || float.IsInfinity(candidates[i].threshold)))
                 throw new InvalidOperationException("Generation requires unique resource prefabs and finite thresholds.");
             // 保存済みの資源種を使い、Editor再起動や候補の並べ替えで配置を変えない。
-            candidates[i].NoiseOffset = GetHashedVector(unchecked(seedValue + (int)resource.ResourceTypeDomain * 73856093));
+            candidates[i].Resource = resource.ResourceTypeDomain;
+            candidates[i].NoiseOffset = GetHashedVector(unchecked(seed + (int)resource.ResourceTypeDomain * 73856093));
         }
-        var octaveOffsets = Enumerable.Range(0, octaves).Select(i => GetHashedVector(unchecked(seedValue + i))).ToArray();
+        var octaveOffsets = Enumerable.Range(0, octaves).Select(i => GetHashedVector(unchecked(seed + i))).ToArray();
+        return (candidates, octaveOffsets);
+    }
 
-        if (parent != null)
+    private void FillRow(StartSiteRulesDomain.Terrain[,] terrain, int x, PropPrefab[] props, Vector2Int[] offsets)
+    {
+        for (var z = 0; z < terrain.GetLength(1); z++)
         {
-            ClearGrid(parent);
-        }
-
-        var cellScale = emptyCellPrefab.transform.localScale;
-        for (int x = 0; x < gridSize; x++)
-        {
-            var separator = new GameObject($"Separator_{x}");
-            separator.transform.SetParent(parent);
-            for (int z = 0; z < gridSize; z++)
+            var best = 0f;
+            var resource = ResourceTypeDomain.None;
+            foreach (var prop in props)
             {
-                // セルの位置を計算
-                var pos = new Vector3(x * cellScale.x, 0, z * cellScale.z);
-
-                var obj = emptyCellPrefab;
-                var best = 0f;
-                foreach (var p in candidates)
-                {
-                    // 全候補を比較し、配列の先頭だけが資源分布を占める偏りを防ぐ。
-                    var score = Fbm(x + p.NoiseOffset.x, z + p.NoiseOffset.y, octaveOffsets) - p.threshold;
-                    if (score <= best) continue;
-                    best = score;
-                    obj = p.prefab;
-                }
-
-
-                // セルの生成
-                var tile = (GameObject)PrefabUtility.InstantiatePrefab(obj, separator.transform);
-                tile.transform.position = pos;
-                tile.name = $"Tile_{x}_{z}";
+                var score = Fbm(x + prop.NoiseOffset.x, z + prop.NoiseOffset.y, offsets) - prop.threshold;
+                if (score <= best) continue;
+                best = score;
+                resource = prop.Resource;
             }
+            terrain[x, z] = new StartSiteRulesDomain.Terrain(resource == ResourceTypeDomain.None, resource);
         }
-        if (parent.TryGetComponent<GridFieldDatabaseAdapter>(out var field)) field.RecordGeneratedField(gridSize, seedValue);
     }
 
     /// <summary>
@@ -206,6 +236,7 @@ public class GridFieldGeneratorAdapter : MonoBehaviour
     }
 
 
+    #if UNITY_EDITOR
     /// <summary>
     /// フィールドに合わせたグリッドラインを生成
     /// </summary>

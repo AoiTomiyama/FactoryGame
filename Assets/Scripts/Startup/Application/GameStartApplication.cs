@@ -1,16 +1,47 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
-/// <summary>開始地点の選択と、開始処理の一回性を管理する。Scene操作は呼出側が担当する。</summary>
+/// <summary>開始設定と、開始処理の一回性を管理する。Scene操作は呼出側が担当する。</summary>
 public sealed class GameStartApplication
 {
-    public enum Stage { Uninitialized, Menu, Choosing, Starting, Running, Failed, SelectingSlot, SwitchingSlot }
+    public enum Stage { Uninitialized, Menu, Configuring, Preparing, Starting, Running, Failed, SelectingSlot, SwitchingSlot }
     public Stage CurrentStage { get; private set; }
-    public IReadOnlyList<StartSiteRulesDomain.Candidate> Candidates { get; private set; } = Array.Empty<StartSiteRulesDomain.Candidate>();
-    public int SelectedIndex { get; private set; }
-    public StartSiteRulesDomain.Candidate Selected => Candidates.Count == 0 ? null : Candidates[SelectedIndex];
-    public bool CanChoose => CurrentStage == Stage.Choosing && Candidates.Count > 0;
+    private Stage _setupOrigin;
+    private int _newSlot;
+
+    public bool TryOpenNewGame(int slot)
+    {
+        if (CurrentStage is not (Stage.Menu or Stage.SelectingSlot)) return false;
+        _setupOrigin = CurrentStage;
+        _newSlot = slot;
+        CurrentStage = Stage.Configuring;
+        return true;
+    }
+
+    public bool TryBeginNewGame(int slot)
+    {
+        if (CurrentStage != Stage.Configuring || _newSlot != slot) return false;
+        CurrentStage = Stage.Preparing;
+        return true;
+    }
+
+    public bool TryCancelNewGame()
+    {
+        if (CurrentStage is not (Stage.Configuring or Stage.Preparing)) return false;
+        CurrentStage = _setupOrigin;
+        return true;
+    }
+
+    public void NewGameNeedsAnotherSeed()
+    {
+        if (CurrentStage != Stage.Preparing) throw new InvalidOperationException("Game is not preparing terrain.");
+        CurrentStage = Stage.Configuring;
+    }
+
+    public void BeginPreparedGame()
+    {
+        if (CurrentStage != Stage.Preparing) throw new InvalidOperationException("Game is not preparing terrain.");
+        CurrentStage = Stage.Starting;
+    }
     public void ShowMenu()
     {
         if (CurrentStage != Stage.Uninitialized) throw new InvalidOperationException("Start menu has already been prepared.");
@@ -22,27 +53,6 @@ public sealed class GameStartApplication
         CurrentStage = Stage.Starting; return true;
     }
 
-    public void Prepare(IEnumerable<StartSiteRulesDomain.Candidate> candidates)
-    {
-        if (CurrentStage is not (Stage.Uninitialized or Stage.Menu or Stage.SwitchingSlot)) throw new InvalidOperationException("Start session has already been prepared.");
-        var copy = (candidates ?? throw new ArgumentNullException(nameof(candidates))).ToArray();
-        if (copy.Any(c => c == null)) throw new ArgumentException("Start candidates must be valid.");
-        Candidates = Array.AsReadOnly(copy);
-        SelectedIndex = 0;
-        CurrentStage = Stage.Choosing;
-    }
-    public bool TrySelect(int index)
-    {
-        if (!CanChoose || index < 0 || index >= Candidates.Count) return false;
-        SelectedIndex = index; return true;
-    }
-    public bool TryBegin(out StartSiteRulesDomain.Candidate candidate)
-    {
-        candidate = null;
-        if (!CanChoose) return false;
-        // 通知から再入されても、Sceneの変更を二度始めない。
-        CurrentStage = Stage.Starting; candidate = Selected; return true;
-    }
     public void Complete()
     {
         if (CurrentStage != Stage.Starting) throw new InvalidOperationException("Game is not starting.");

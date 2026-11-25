@@ -133,7 +133,7 @@ public sealed class TerrainClearingHudPlayModeTests : FactoryPlayModeScope
     private async UniTask Verify()
     {
         var game = TestScenes.Find<GameInitializerAdapter>();
-        Assert.That(game.TryPrepareNewGame()); Assert.That(game.TryStartGame());
+        Assert.That(await game.TryStartNewGameAsync(1, null, FixedTerrainSeed));
         await UniTask.DelayFrame(2);
         var placer = TestScenes.Find<CellPlacerAdapter>();
         var panel = TestScenes.Find<EconomyPanelAdapter>();

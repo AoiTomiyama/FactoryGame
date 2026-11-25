@@ -81,7 +81,7 @@ public static class SingularityAssertions
                 generator.GenerateGrid(anchor.transform);
                 var cells=anchor.GetComponentsInChildren<CellBaseAdapter>();
                 Require(cells.Length==196 && cells.All(c=>c is EmptyCellAdapter || c is ResourceCellAdapter),"generation contains terrain only");
-                GameInitializerAdapter.DiscoverStartSites(anchor, layout);
+                GameInitializerAdapter.FindStartSite(anchor, layout);
                 Require(anchor.GetComponentsInChildren<CellBaseAdapter>().SequenceEqual(cells),"candidate discovery preserves the generated terrain");
             }
             var rejected = false;
@@ -140,8 +140,8 @@ public static class SingularityAssertions
             var protectedResource=grid.Owners.OfType<ResourceCellAdapter>().First();
             Place(placer,protectedResource,CellTypeDomain.Empty,0);
             Require(protectedResource!=null,"resource deletion protected");
-            var plan=initializer.Session.Selected;
-            foreach(var command in TestScenes.StarterPlacements(initializer.Session.Selected)) Place(placer,grid.GetCell(command.X,command.Z),command.Type,command.Yaw);
+            var plan=TestScenes.StarterSite;
+            foreach(var command in TestScenes.StarterPlacements(TestScenes.StarterSite)) Place(placer,grid.GetCell(command.X,command.Z),command.Type,command.Yaw);
             var miner=(ExtractorCellAdapter)grid.GetCell(plan.Extractor.x,plan.Extractor.z);
             var tail=plan.Belts[plan.Belts.Count-1];var conveyor=(ConveyorCellAdapter)grid.GetCell(tail.x,tail.z);
             var pool=ResourceItemObjectPoolAdapter.Instance;var scale=Time.timeScale;Time.timeScale=20;

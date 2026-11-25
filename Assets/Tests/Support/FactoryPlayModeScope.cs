@@ -19,7 +19,6 @@ public abstract class FactoryPlayModeScope
     private float _volume, _scale;
     protected virtual bool NeedsMainScene => false;
     protected virtual bool PrepareHud => false;
-    protected virtual bool ChooseDefaultStart => true;
     protected virtual bool ChooseNewGame => true;
     protected virtual int? FixedTerrainSeed => null;
     protected string SaveTestDirectory { get; private set; }
@@ -64,14 +63,8 @@ public abstract class FactoryPlayModeScope
                 .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime).ToCoroutine();
             Assert.That(initializer.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Menu));
             if (!ChooseNewGame) yield break;
-            Assert.That(initializer.TryPrepareNewGame(),Is.True);
-            Assert.That(initializer.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Choosing));
-            if (ChooseDefaultStart)
-            {
-                Assert.That(initializer.TryStartGame(), Is.True, "confirm default start for this fixture");
-                Assert.That(initializer.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Running));
-                yield return null; yield return null; yield return null;
-            }
+            yield return StartFixtureGame(initializer).ToCoroutine();
+            yield return null; yield return null; yield return null;
         }
     }
     protected IEnumerator ReloadMainScene()
@@ -82,11 +75,21 @@ public abstract class FactoryPlayModeScope
         yield return UniTask.WaitUntil(() => initializer.Session.CurrentStage != GameStartApplication.Stage.Uninitialized)
             .Timeout(TimeSpan.FromSeconds(30), DelayType.Realtime).ToCoroutine();
         if (_preparationError != null) throw _preparationError;
-        if (ChooseNewGame) Assert.That(initializer.TryPrepareNewGame(),Is.True);
+        if (ChooseNewGame) yield return StartFixtureGame(initializer).ToCoroutine();
     }
+    private static async UniTask StartFixtureGame(GameInitializerAdapter initializer)
+    {
+        var field = TestScenes.Find<GridFieldDatabaseAdapter>();
+        var layout = AssetDatabase.LoadAssetAtPath<SingularityStartDefinition>("Assets/Scripts/ScriptableObject/SingularityStart.asset");
+        TestScenes.StarterSite = GameInitializerAdapter.FindStartSite(field, layout);
+        Assert.That(await initializer.TryStartNewGameAsync(1, null, field.GenerationSeed), Is.True);
+        Assert.That(initializer.Session.CurrentStage, Is.EqualTo(GameStartApplication.Stage.Running));
+    }
+
     [UnityTearDown]
     public IEnumerator CloseScope()
     {
+        TestScenes.StarterSite = null;
         SceneManager.sceneLoaded -= BeforeStart;
         var empty = SceneManager.CreateScene("FactoryTestCleanup_" + Guid.NewGuid().ToString("N")); SceneManager.SetActiveScene(empty);
         if (_scene.IsValid() && _scene.isLoaded) yield return SceneManager.UnloadSceneAsync(_scene);

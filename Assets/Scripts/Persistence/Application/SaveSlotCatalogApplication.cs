@@ -7,6 +7,9 @@ public sealed class SaveSlotCatalogApplication
     public const int FirstSlot = 1;
     public const int NormalSlotCount = 3;
     private readonly SaveFileApplication[] _files;
+    public static string DefaultName(int slot) => $"工場 {slot}";
+    public static string DisplayName(int slot, string name) =>
+        string.IsNullOrWhiteSpace(name) ? DefaultName(slot) : name.Trim();
 
     public SaveSlotCatalogApplication(string directory)
     {

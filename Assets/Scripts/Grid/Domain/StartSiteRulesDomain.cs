@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 /// <summary>生成済み地形を読み取り、換金経路と建設場所が成立する候補だけを返す。</summary>
 public static class StartSiteRulesDomain
@@ -22,14 +23,13 @@ public static class StartSiteRulesDomain
     }
     private static readonly (int x,int z)[] Directions={(0,1),(1,0),(0,-1),(-1,0)};
     private static readonly ResourceTypeDomain[] Required={ResourceTypeDomain.Wood,ResourceTypeDomain.Stone,ResourceTypeDomain.Iron,ResourceTypeDomain.Copper,ResourceTypeDomain.Coal};
-    public static IReadOnlyList<Candidate> Candidates(Terrain[,] map,int seed,CellFootprintDomain footprint,(int x,int z) shippingOffset,
-        long balance,long extractorPrice,long beltPrice)
+    public static Candidate Find(Terrain[,] map,int seed,CellFootprintDomain footprint,(int x,int z) shippingOffset,
+        long balance,long extractorPrice,long beltPrice, CancellationToken cancellation = default)
     {
         var size=map.GetLength(0);var resources=Required.ToDictionary(t=>t,_=>new List<(int x,int z)>());
         for(var x=0;x<size;x++) for(var z=0;z<map.GetLength(1);z++)
             if(resources.TryGetValue(map[x,z].Resource,out var list)) list.Add((x,z));
-        var result=new List<Candidate>();
-        if(resources.Values.Any(list=>list.Count==0) || balance<extractorPrice) return result.AsReadOnly();
+        if(resources.Values.Any(list=>list.Count==0) || balance<extractorPrice) return null;
         bool Free((int x,int z) p)=>p.x>=0 && p.z>=0 && p.x<size && p.z<map.GetLength(1) && map[p.x,p.z].Empty;
         bool ExportExit((int x,int z) raw)
         {
@@ -52,7 +52,7 @@ public static class StartSiteRulesDomain
             }
             return false;
         }
-        if(Required.Any(t=>!resources[t].Any(ExportExit))) return result.AsReadOnly();
+        if(Required.Any(t=>!resources[t].Any(ExportExit))) return null;
         // 最初の換金予算で届かない出荷位置は、地形の詳細な連結探索より先に除外する。
         var woodDistance=new int[size,map.GetLength(1)];
         for(var x=0;x<size;x++) for(var z=0;z<map.GetLength(1);z++) woodDistance[x,z]=int.MaxValue;
@@ -76,15 +76,14 @@ public static class StartSiteRulesDomain
             .OrderBy(p=>Hash(unchecked((uint)seed ^ (uint)p.x*73856093u ^ (uint)p.z*19349663u))));
         foreach(var point in order.Distinct())
         {
+            cancellation.ThrowIfCancellationRequested();
             if(point.x<0 || point.z<0 || point.x>=size || point.z>=map.GetLength(1) || !map[point.x,point.z].Empty) continue;
             if((long)woodDistance[point.x,point.z]-2>maximumBelts) continue;
             var anchor=(x:point.x-shippingOffset.x,z:point.z-shippingOffset.z);
-            if(result.Any(c=>Math.Abs(c.X-anchor.x)<12 && Math.Abs(c.Z-anchor.z)<12)) continue;
             var candidate=Check(map,footprint,shippingOffset,anchor.x,anchor.z,balance,extractorPrice,beltPrice,resources);
-            if(candidate!=null) result.Add(candidate);
-            if(result.Count==3) break;
+            if(candidate!=null) return candidate;
         }
-        return result.AsReadOnly();
+        return null;
     }
     private static Candidate Check(Terrain[,] map,CellFootprintDomain footprint,(int x,int z) offset,int x,int z,
         long balance,long extractorPrice,long beltPrice,Dictionary<ResourceTypeDomain,List<(int x,int z)>> resources)

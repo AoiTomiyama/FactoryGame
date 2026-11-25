@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>保存済み操作帯のボタンを既存入力へ接続する。</summary>
@@ -12,62 +12,17 @@ public sealed class OperationBarAdapter : MonoBehaviour
     public RectTransform WalkingHelp => walkingHelp;
     public Button WalkButton => walkButton;
     private bool _placementActive, _firstPerson;
-    private StartSiteSelectionAdapter _startSelection;
-    private readonly System.Collections.Generic.Dictionary<Text,string> _savedStartText = new();
-    private void RememberStartText()
-    {
-        if (_savedStartText.Count == 0)
-            foreach (var text in bar.GetComponentsInChildren<Text>(true)) _savedStartText[text] = text.text;
-    }
-    public void SetStartSelection(StartSiteSelectionAdapter selection)
-    {
-        _startSelection=selection;
-        walkButton.gameObject.SetActive(true);
-        if(selection!=null)
-        {
-            RememberStartText();
-            rotateButton.GetComponentInChildren<Text>(true).text="前の候補";
-            viewButton.GetComponentInChildren<Text>(true).text="次の候補";
-            walkButton.GetComponentInChildren<Text>(true).text="ここから開始";
-            var line=0;
-            foreach(var pair in _savedStartText)
-                if(pair.Key!=placementInfo && pair.Key.GetComponentInParent<Button>()==null)
-                    pair.Key.text=line++==0 ? "候補地をクリックして選択\n中ドラッグ：移動　ホイール：拡大・縮小" : "";
-            walkingHelp.gameObject.SetActive(false);
-        }
-        else
-        {
-            foreach(var pair in _savedStartText) if(pair.Key!=null) pair.Key.text=pair.Value;
-            _savedStartText.Clear();
-        }
-        BindButtons();
-        RefreshStartAvailability();
-        if(bar!=null) bar.gameObject.SetActive(selection!=null || _placementActive && !_firstPerson);
-    }
-    public void RefreshStartAvailability()
-    {
-        // 入力側のConfigureが後でも、候補の操作可否を上書きしない。
-        if (_startSelection != null)
-            rotateButton.interactable = viewButton.interactable = walkButton.interactable = _startSelection.CanChoose;
-        else
-        { rotateButton.interactable = walkButton.interactable = true; viewButton.interactable = _cameraController != null; }
-    }
-    private void BindButtons()
-    {
-        rotateButton.onClick.RemoveListener(Rotate);viewButton.onClick.RemoveListener(SwitchView);walkButton.onClick.RemoveListener(Walk);
-        rotateButton.onClick.AddListener(Rotate);viewButton.onClick.AddListener(SwitchView);walkButton.onClick.AddListener(Walk);
-    }
     public void SetPlacementActive(bool active)
     {
         // シーン終了時は操作帯が先に破棄される場合もある。
         _placementActive = active;
-        if (bar != null) bar.gameObject.SetActive(_startSelection!=null || active && !_firstPerson);
+        if (bar != null) bar.gameObject.SetActive(active && !_firstPerson);
     }
     public void SetFirstPersonMode(bool active)
     {
         _firstPerson = active;
         if (walkingHelp != null) walkingHelp.gameObject.SetActive(active);
-        if (bar != null) bar.gameObject.SetActive(_startSelection!=null || _placementActive && !active);
+        if (bar != null) bar.gameObject.SetActive(_placementActive && !active);
     }
     private PlayerCursorBehaviourAdapter _cursor;
     private CameraControllerAdapter _cameraController;
@@ -85,7 +40,7 @@ public sealed class OperationBarAdapter : MonoBehaviour
         rotateButton.onClick.AddListener(Rotate);
         viewButton.onClick.AddListener(SwitchView);
         walkButton.onClick.AddListener(Walk);
-        RefreshStartAvailability();
+        viewButton.interactable = _cameraController != null;
         foreach (var root in gameObject.scene.GetRootGameObjects())
         {
             var hud = root.GetComponentInChildren<HudLayoutAdapter>(true);
@@ -98,9 +53,9 @@ public sealed class OperationBarAdapter : MonoBehaviour
     {
         hud.StyleButton(rotateButton); hud.StyleButton(viewButton); hud.StyleButton(walkButton);
     }
-    private void Rotate() { if(_startSelection!=null) _startSelection.Step(-1); else _cursor?.RotatePlacement(); }
-    private void SwitchView() { if(_startSelection!=null) _startSelection.Step(1); else _cameraController?.SwitchCameraAngle(); }
-    private void Walk() { if(_startSelection!=null) _startSelection.Confirm(); else _cameraController?.ToggleFirstPerson(); }
+    private void Rotate() => _cursor?.RotatePlacement();
+    private void SwitchView() => _cameraController?.SwitchCameraAngle();
+    private void Walk() => _cameraController?.ToggleFirstPerson();
     private void OnDestroy()
     {
         if (rotateButton != null) rotateButton.onClick.RemoveListener(Rotate);

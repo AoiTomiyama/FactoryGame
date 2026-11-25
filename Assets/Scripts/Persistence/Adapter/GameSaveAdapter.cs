@@ -18,6 +18,7 @@ public sealed class GameSaveAdapter : MonoBehaviour
     private bool _requested;
     private UniTaskCompletionSource<bool> _completion;
     public int SelectedSlot { get; private set; } = SaveSlotCatalogApplication.FirstSlot;
+    public string DisplayName { get; private set; }
     public bool IsDebug { get; private set; }
     public bool IsSaving { get; private set; }
     public Exception LastError { get; private set; }
@@ -30,10 +31,11 @@ public sealed class GameSaveAdapter : MonoBehaviour
         if (_game != null || IsSaving) throw new InvalidOperationException("Set save storage before startup.");
         _slots = new SaveSlotCatalogApplication(directory);
     }
-    internal void SelectSlot(int slot)
+    internal void SelectSlot(int slot, string displayName)
     {
         if (!SaveSlotCatalogApplication.IsNormal(slot)) throw new ArgumentOutOfRangeException(nameof(slot));
         SelectedSlot = slot;
+        DisplayName = SaveSlotCatalogApplication.DisplayName(slot, displayName);
         IsDebug = false;
         SavedRevision = 0; LastError = null;
         _label.text = "保存 [F5]";
@@ -67,10 +69,34 @@ public sealed class GameSaveAdapter : MonoBehaviour
         if (!save) return UniTask.FromResult(true);
         return RequestSave() ? _completion.Task : UniTask.FromResult(false);
     }
-    internal Task<DateTime?[]> ReadSlotDatesAsync(CancellationToken cancellation)
+    internal Task<(DateTime? Date, string Name, int? Seed)[]> ReadSlotsAsync(CancellationToken cancellation)
     {
         var catalog = Slots;
-        return Task.Run(catalog.LastSavedDates, cancellation);
+        return Task.Run(() =>
+        {
+            var result = new (DateTime? Date, string Name, int? Seed)[SaveSlotCatalogApplication.NormalSlotCount];
+            for (var i = 0; i < result.Length; i++)
+            {
+                cancellation.ThrowIfCancellationRequested();
+                var slot = i + SaveSlotCatalogApplication.FirstSlot;
+                var date = catalog.LastSaved(slot);
+                if (!date.HasValue) continue;
+                var name = SaveSlotCatalogApplication.DefaultName(slot);
+                int? seed = null;
+                try
+                {
+                    var summary = SaveJsonAdapter.DecodeSummary(catalog.FileFor(slot).Read());
+                    name = SaveSlotCatalogApplication.DisplayName(slot, summary.Name);
+                    seed = summary.Seed;
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+                {
+                    // 読めない枠も使用中として表示し、詳細は開く操作で報告する。
+                }
+                result[i] = (date, name, seed);
+            }
+            return result;
+        }, cancellation);
     }
     private void Update()
     { if (_game != null && !_game.SaveMenuBlocksInput && Keyboard.current?.f5Key.wasPressedThisFrame == true) RequestSave(); }

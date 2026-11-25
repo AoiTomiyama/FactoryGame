@@ -12,6 +12,7 @@ public sealed class SaveGameApplication
     public int formatVersion;
     public long revision;
     public string savedUtc;
+    public string displayName;
     public int size, seed;
     public long balance;
     public Stock[] construction, deliveries;

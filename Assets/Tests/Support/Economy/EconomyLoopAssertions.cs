@@ -48,8 +48,8 @@ public static class EconomyLoopAssertions
                 Require(wallet.Current.Balance == balance - price, "placement charged once");
                 spent += price;
             }
-            var plan=initializer.Session.Selected;
-            foreach(var command in TestScenes.StarterPlacements(initializer.Session.Selected)) Place(command.X,command.Z,command.Type,command.Yaw);
+            var plan=TestScenes.StarterSite;
+            foreach(var command in TestScenes.StarterPlacements(TestScenes.StarterSite)) Place(command.X,command.Z,command.Type,command.Yaw);
             Require(wallet.Current.Balance==100-spent,"starter route stays within initial budget");
             var extractor=grid.GetCell(plan.Extractor.x,plan.Extractor.z) as ExtractorCellAdapter;
             Require(extractor != null, "route installed through pointer commands");
