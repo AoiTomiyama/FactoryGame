@@ -162,6 +162,33 @@ public sealed class AutomaticConveyorPlayModeTests : FactoryPlayModeScope
         await Until(() => sinkLower.CurrentLoad == sinkLower.Capacity && _pool.Resources.Count == 0);
     }
 
+    [UnityTest] public IEnumerator PendingPickupDoesNotConsumeStockAfterTheSourceIsDisconnected() =>
+        DisconnectPendingPickup().ToCoroutine();
+
+    private async UniTask DisconnectPendingPickup()
+    {
+        Add<CrossingCellAdapter>("Crossing", 5, 5, cell =>
+            typeof(CrossingCellAdapter).GetMethod("ConfigureRoute", Fields).Invoke(cell, new object[]
+            {
+                new ConveyorRouteRulesDomain.Route(DirectionsDomain.Back | DirectionsDomain.Left,
+                    DirectionsDomain.Forward | DirectionsDomain.Right)
+            }));
+        var source = Add<StorageCellAdapter>("Storage", 5, 4);
+        var sink = Add<StorageCellAdapter>("Storage", 5, 6);
+        Fill(source, ResourceTypeDomain.Stone, 3);
+
+        // The pickup job collects its inputs at LastUpdate and applies them after LateUpdate.
+        await UniTask.Yield(PlayerLoopTiming.LastUpdate);
+        source.OnDisconnect();
+        await UniTask.DelayFrame(2);
+        Assert.That(source.CurrentLoad, Is.EqualTo(3));
+        Assert.That(sink.CurrentLoad, Is.Zero);
+
+        source.InitializeSystem();
+        await Until(() => sink.CurrentLoad == 3);
+        Assert.That(source.CurrentLoad, Is.Zero);
+    }
+
     [UnityTest] public IEnumerator SourceThenLineAndLineThenSourceProduceTheSameResult()=>Order().ToCoroutine();
     private async UniTask Order()
     {

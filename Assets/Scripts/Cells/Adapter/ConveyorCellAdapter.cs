@@ -10,12 +10,11 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     [SerializeField] private ExportConveyorCellAdapter exportDefinition;
     [SerializeField] private ConveyorCellAdapter normalDefinition;
     [SerializeField] private Transform beltSurface;
-    private bool _exportMode, _roleInitialized, _hasPromoted, _modeEvaluationQueued, _takeLoopStarted;
+    private bool _exportMode, _roleInitialized, _hasPromoted, _modeEvaluationQueued;
     private GameObject _normalVisual, _exportVisual;
     private Transform _connectedBelt;
-    private IExportableApplication _backwardCell;
-    private ConnectableCellBaseAdapter _backwardCellBase;
-    private int _backwardPortId;
+    private Connection _backwardConnection;
+    private ConveyorLanePickupAdapter _pickup;
     protected virtual bool StartsAsExporter => false;
     public bool IsExportConveyor => _roleInitialized ? _exportMode : StartsAsExporter;
     public event Action KindChanged;
@@ -112,11 +111,15 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
         // 回転・再接続では処理と保持IDを残し、古い相手との試行だけを取り消す。
         _activeTransferCts?.Cancel();
         _forwardCell = null; _forwardCellBase = null;
-        _backwardCell = null; _backwardCellBase = null;
+        _pickup?.Dispose();
+        _pickup = null;
+        _backwardConnection = null;
         base.InitializeSystem();
         StoreResourceAsync(_cts.Token).Forget();
         ScheduleModeEvaluation();
     }
+
+    private void OnEnable() => _pickup?.Queue();
 
     protected override void OnDestroy() { base.OnDestroy(); Shutdown(); }
 
@@ -135,12 +138,7 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     /// <param name="cell">接続するセル</param>
     private void OnConnectionUpdated(Connection connection)
     {
-        if (IsExtractionConnection(connection))
-        {
-            _backwardCell = (IExportableApplication)connection.Neighbor;
-            _backwardCellBase = connection.Neighbor;
-            _backwardPortId = connection.NeighborPortId;
-        }
+        if (IsExtractionConnection(connection)) _backwardConnection = connection;
         var dir = connection.Direction;
         var cell = connection.Neighbor;
         var forward = DirectionEnumToVector(DirectionsDomain.Forward);
@@ -160,9 +158,11 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
     private void OnConnectionLost(CellBaseAdapter cell)
     {
         ScheduleModeEvaluation();
-        if (cell == _backwardCellBase)
+        if (cell == _backwardConnection?.Neighbor)
         {
-            _backwardCell = null; _backwardCellBase = null;
+            _pickup?.Dispose();
+            _pickup = null;
+            _backwardConnection = null;
         }
         if (cell != _forwardCellBase) return;
         _forwardCell = null;
@@ -201,11 +201,14 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
             // 設備の登録・初期化と失敗復元が完了した後の接続だけを採用する。
             await UniTask.Yield(PlayerLoopTiming.Update,token);
             if (this == null || !isActiveAndEnabled || _isDisconnected) return;
-            var exporter = _backwardCellBase != null && _backwardCellBase.isActiveAndEnabled &&
-                Connections.Values.Any(IsExtractionConnection);
+            var source = _backwardConnection?.Neighbor;
+            var exporter = source != null && source.isActiveAndEnabled && Connections.Values.Any(IsExtractionConnection);
             if (exporter != IsExportConveyor) SetExportMode(exporter, true);
             RefreshConnectedBelt();
-            if (exporter) StartTaking();
+            if (exporter && _pickup == null)
+                _pickup = ConveyorLanePickupAdapter.Start(this, _backwardConnection,
+                    () => IsExportConveyor && isActiveAndEnabled && !HasResource && ResourceId == 0,
+                    () => TransferAmount, TakeBatch, _cts.Token);
         }
         catch (OperationCanceledException) when(token.IsCancellationRequested) { }
         finally { _modeEvaluationQueued = false; }
@@ -299,48 +302,40 @@ public class ConveyorCellAdapter : ConnectableCellBaseAdapter, IContainableAppli
                 try { handler(); } catch (Exception exception) { Debug.LogException(exception); }
     }
 
-    private void StartTaking()
+    private void TakeBatch(IExportableApplication source, int port, int limit)
     {
-        if (!Application.isPlaying || _takeLoopStarted || _cts == null || _isDisconnected) return;
-        TakeResourceAsync(_cts.Token).Forget();
-    }
-    private bool TryTakeBatch(out Vector3 startPosition)
-    {
-        startPosition = default;
-        if (!IsExportConveyor || !isActiveAndEnabled || HasResource || ResourceId != 0 || _backwardCellBase == null ||
-            !_backwardCellBase.isActiveAndEnabled || !_backwardCellBase.HasPort(_backwardPortId,CellPortUseDomain.Output)) return false;
-        startPosition = _backwardCell.GetPosition(_backwardPortId) + Vector3.up * 1.1f;
-        // 送り元の通知から搬入が再入しても、同じ枠を二重に使わない。
+        var start = source.GetPosition(port) + Vector3.up * 1.1f;
+        var token = _cts.Token;
+        // 送り元の通知から搬入が呼ばれても、同じ枠を二重に使わない。
         HasResource = true;
-        if (!_backwardCell.TryExport(_backwardPortId,TransferAmount,out var amount,out var type)) { HasResource = false; return false; }
-        ResourceId = ResourceItemObjectPoolAdapter.Instance.CreateIdFromResourceData(type,amount);
-        return true;
+        if (!source.TryExport(port, limit, out var amount, out var type))
+        {
+            HasResource = false;
+            return;
+        }
+        if (token.IsCancellationRequested) return;
+        ResourceId = ResourceItemObjectPoolAdapter.Instance.CreateIdFromResourceData(type, amount);
+        AnimatePickup(start, token).Forget();
     }
-    private async UniTask TakeResourceAsync(CancellationToken token)
+
+    private async UniTask AnimatePickup(Vector3 start, CancellationToken token)
     {
-        _takeLoopStarted = true;
+        var end = transform.position + Vector3.up * 1.1f;
         try
         {
-            await UniTask.Yield(PlayerLoopTiming.Update,token);
-            while (!token.IsCancellationRequested)
+            while (true)
             {
-                var start = default(Vector3);
-                await UniTask.WaitUntil(() => TryTakeBatch(out start),cancellationToken:token);
-                var end = transform.position + Vector3.up * 1.1f;
-                while (true)
-                {
-                    var pool = ResourceItemObjectPoolAdapter.Instance;
-                    var result = await pool.Transfer(token,start,end,ResourceId,EffectiveDuration(pool.BaseTransferSeconds,EquipmentStatDomain.TransportSpeed));
-                    token.ThrowIfCancellationRequested();
-                    if (result == ResourceAnimationResultApplication.Completed) break;
-                    await UniTask.Delay(100,cancellationToken:token);
-                }
-                // 搬出済みの資源は、後方の切断後も同じIDで前へ送る。
-                MarkResourceReady();
+                var pool = ResourceItemObjectPoolAdapter.Instance;
+                var result = await pool.Transfer(token, start, end, ResourceId,
+                    EffectiveDuration(pool.BaseTransferSeconds, EquipmentStatDomain.TransportSpeed));
+                token.ThrowIfCancellationRequested();
+                if (result == ResourceAnimationResultApplication.Completed) break;
+                await UniTask.Delay(100, cancellationToken: token);
             }
+            // 搬出済みの資源は、後方の切断後も同じIDで前へ送る。
+            MarkResourceReady();
         }
-        catch (OperationCanceledException) when(token.IsCancellationRequested) { }
-        finally { _takeLoopStarted = false; }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { }
     }
 
     private bool IsForwardEmpty()

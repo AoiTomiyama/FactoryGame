@@ -18,6 +18,8 @@ public abstract class ConnectableCellBaseAdapter : CellBaseAdapter
         public ConnectableCellBaseAdapter Owner, Neighbor;
         public int PortId, NeighborPortId;
         public Vector3Int Direction => Owner.PortDirection(PortId);
+        internal event Action Closed;
+        internal void Close() => Closed?.Invoke();
     }
     public IReadOnlyDictionary<int, Connection> Connections => _connections;
     public event Action<int?> ReceiveSpaceAvailable;
@@ -132,8 +134,14 @@ public abstract class ConnectableCellBaseAdapter : CellBaseAdapter
         foreach (var link in previous)
         {
             var neighbor = link.Neighbor;
-            if (neighbor == null || !neighbor._connections.TryGetValue(link.NeighborPortId, out var other) || other.Neighbor != this) continue;
+            if (neighbor == null || !neighbor._connections.TryGetValue(link.NeighborPortId, out var other) || other.Neighbor != this)
+            {
+                link.Close();
+                continue;
+            }
             neighbor._connections.Remove(link.NeighborPortId);
+            link.Close();
+            other.Close();
             neighbor.OnLostConnectedCell?.Invoke(this);
         }
     }

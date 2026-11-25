@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -257,23 +257,20 @@ public static class ResourceTransferAssertions
 
     public static async UniTask VerifyExportPresentationRecovery(ResourceItemObjectPoolAdapter pool)
     {
-        var storage = CreateCell<StorageCellAdapter>("TransferCheck:ExportStorage", Vector3.back);
+        var grid = TestScenes.NewObject("ExportRecoveryGrid").AddComponent<GridFieldDatabaseAdapter>();
+        grid.InitializeCells(4);
+        var storage = CreateCell<StorageCellAdapter>("TransferCheck:ExportStorage", new Vector3(1, 0, 1));
         SetField(storage, "capacity", 10);
         Require(storage.AllocateStorage(2, 5, ResourceTypeDomain.Stone),
             "export fixture reserves its source data");
         storage.StoreResource(2, 5);
-        var exporter = CreateCell<ExportConveyorCellAdapter>("TransferCheck:Exporter", Vector3.zero);
-        typeof(ConveyorCellAdapter).GetField("_backwardCell", InstanceFields).SetValue(exporter, storage);
-        typeof(ConveyorCellAdapter).GetField("_backwardCellBase", InstanceFields).SetValue(exporter, storage);
-        using var cts = new CancellationTokenSource();
-        SetField(exporter, "_cts", cts);
+        grid.SaveCell(1, 1, storage);
+        storage.InitializeSystem();
+
+        var exporter = CreateCell<ExportConveyorCellAdapter>("TransferCheck:Exporter", new Vector3(1, 0, 2));
         typeof(ConveyorCellAdapter).GetField("transferAmount", InstanceFields).SetValue(exporter, 3);
-        var send = (UniTask)typeof(ConveyorCellAdapter).GetMethod("StoreResourceAsync", InstanceFields)
-            .Invoke(exporter, new object[] { cts.Token });
-        send.Forget();
-        var take = (UniTask)typeof(ConveyorCellAdapter).GetMethod("TakeResourceAsync", InstanceFields)
-            .Invoke(exporter, new object[] { cts.Token });
-        take.Forget();
+        grid.SaveCell(1, 2, exporter);
+        exporter.InitializeSystem();
         await UniTask.Delay(120);
         var id = (int)typeof(ConveyorCellAdapter).GetProperty("ResourceId", InstanceFields).GetValue(exporter);
         Require(id != 0 && storage.CurrentLoad == 2, "export removes exactly one batch from its source");

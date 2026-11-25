@@ -30,6 +30,8 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
     public float ProcessTime { get; private set; }
     public float ElapsedProcessTime { get; private set; }
     public event Action StatusChanged;
+    public event Action ExportStockAvailable;
+    int IExportableApplication.ExportStock => ExportStorageAmount;
 
     public ResourceTypeDomain ExportResourceType { get; private set; }
 
@@ -144,7 +146,11 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
         StartProcessing();
     }
 
-    private void OnEnable() => StartProcessing();
+    private void OnEnable()
+    {
+        StartProcessing();
+        if (ExportStorageAmount > 0) ExportStockAvailable?.Invoke();
+    }
     private void OnDisable() => StopProcessing();
     protected override void OnDestroy() { base.OnDestroy(); StopProcessing(); }
 
@@ -229,6 +235,7 @@ public class CrafterCellAdapter : ConnectableCellBaseAdapter, IContainableApplic
         }
         ExportResourceType = commit.Result.Type;
         ExportStorageAmount = commit.Result.Amount;
+        ExportStockAvailable?.Invoke();
         NotifyReceiveSpace();
     }
 

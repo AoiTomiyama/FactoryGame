@@ -22,6 +22,13 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
     public int CurrentLoad { get; private set; }
     public int AllocatedAmount { get; private set; }
     public event Action StatusChanged;
+    public event Action ExportStockAvailable;
+    int IExportableApplication.ExportStock => CurrentLoad;
+
+    private void OnEnable()
+    {
+        if (CurrentLoad > 0) ExportStockAvailable?.Invoke();
+    }
     public ResourceTypeDomain StoredResourceType { get; private set; } = ResourceTypeDomain.None;
     public IUIDataProviderApplication GetDataProvider() => CellStatusProviderAdapter.Create(this, dataProvider);
     public SaveGameApplication.Slot[] CaptureInventory() => CurrentLoad == 0 ? Array.Empty<SaveGameApplication.Slot>() :
@@ -43,9 +50,11 @@ public sealed class StorageCellAdapter : ConnectableCellBaseAdapter, IContainabl
 
     private void ApplyStock(ResourceStorageRulesDomain.Stock stock)
     {
+        var stockIncreased = stock.Amount > CurrentLoad;
         StoredResourceType = stock.Type;
         CurrentLoad = stock.Amount;
         AllocatedAmount = stock.Reserved;
+        if (stockIncreased) ExportStockAvailable?.Invoke();
         UpdateUI();
     }
 

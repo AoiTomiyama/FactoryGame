@@ -42,6 +42,9 @@ public sealed class GridFieldDatabaseAdapter : SingletonMonoBehaviourAdapter<Gri
     private CellBaseAdapter[,] _gridCells;
     private int _gridSize;
     public SharedStatEffectsApplication StatEffects { get; private set; } = new();
+    internal ConveyorPickupJobsAdapter ConveyorPickupJobs { get; } = new();
+
+    private void OnDestroy() => ConveyorPickupJobs.Dispose();
 
     /// <summary>
     /// 配列の初期化とセルの保存を行う

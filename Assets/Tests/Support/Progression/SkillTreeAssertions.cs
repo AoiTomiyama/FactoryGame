@@ -174,7 +174,8 @@ public static class SkillTreeAssertions
             Require(feed.AllocateStorage(3, 20, ResourceTypeDomain.Wood), "feed reservation"); feed.StoreResource(3, 20);
             Require(feed.CurrentLoad == 20, "feed stock before exporter");
             var exporter = (ExportConveyorCellAdapter)Install(grid, "ExportConveyor", 45, 46);
-            Require(ReferenceEquals(typeof(ConveyorCellAdapter).GetField("_backwardCellBase", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(exporter), feed), "exporter connected to test feed; actual=" + ((CellBaseAdapter)typeof(ConveyorCellAdapter).GetField("_backwardCellBase", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(exporter)) + "; feed=" + feed + "; difference=" + (exporter.transform.position - feed.transform.position));
+            Require(exporter.Connections.Values.Any(link => ReferenceEquals(link.Neighbor, feed) &&
+                feed.HasPort(link.NeighborPortId, CellPortUseDomain.Output)), "exporter connected to test feed");
             await Wait(() => ResourceId(exporter) != 0);
             var id = ResourceId(exporter); var pool = ResourceItemObjectPoolAdapter.Instance;
             Require(pool.TakeResourceDataById(id).amount == 5, "export captures original amount");

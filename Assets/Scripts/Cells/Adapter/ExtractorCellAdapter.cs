@@ -32,6 +32,8 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     public float ActiveExtractionSecond => _cycleAmount > 0 ? _cycleSeconds : _resumeJob?.seconds ?? ExtractionSecond;
     public ResourceTypeDomain ResourceTypeDomain => resourceType;
     public event Action StatusChanged;
+    public event Action ExportStockAvailable;
+    int IExportableApplication.ExportStock => CurrentLoad;
 
     public int StorageCapacity => EffectiveStat(storageCapacity, EquipmentStatDomain.Capacity);
     public int ExtractionAmount => EffectiveStat(extractionAmount, EquipmentStatDomain.ExtractionAmount);
@@ -88,6 +90,7 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
     {
         _isActivate = _initialized;
         RefreshExtraction();
+        if (CurrentLoad > 0) ExportStockAvailable?.Invoke();
     }
 
     private void Update() => RefreshExtraction();
@@ -189,6 +192,7 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
                 ElapsedTime = 0;
                 CurrentLoad += _cycleAmount;
                 _cycleAmount = 0;
+                ExportStockAvailable?.Invoke();
                 UpdateUI();
                 tween = null;
             }
@@ -221,11 +225,9 @@ public sealed class ExtractorCellAdapter : ConnectableCellBaseAdapter, IExportab
         if (!HasPort(portId, CellPortUseDomain.Output)) return false;
         
         // 出力可能な量がない、または要求量がない場合はfalseを返す
-        if (CurrentLoad <= 0 || requestedAmount <= 0) return false;
-        
-        // 返却量を計算し、現在量を減らす
-        amount = Mathf.Min(requestedAmount, CurrentLoad);
-        CurrentLoad = Mathf.Max(0, CurrentLoad - requestedAmount);
+        amount = ResourceStorageRulesDomain.GetExportableAmount(CurrentLoad, requestedAmount);
+        if (amount == 0) return false;
+        CurrentLoad -= amount;
         
         UpdateUI();
         return true;
