@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Cysharp.Threading.Tasks;
@@ -564,7 +565,17 @@ public sealed class AutomaticConveyorPlacementPlayModeTests : FactoryPlayModeSco
         placer.transform.rotation=Quaternion.identity;placer.SetSelectedCellType(CellTypeDomain.Conveyor);placer.SelectGrid(grid.GetCell(x,z+1).gameObject);
         var preview=(GameObject)typeof(CellPlacerAdapter).GetField("_placeholderCell",BindingFlags.Instance|BindingFlags.NonPublic).GetValue(placer);
         Assert.That(preview.name,Does.Contain("ExportConveyor"));
-        placer.PointerBegin();placer.SelectGrid(grid.GetCell(x,z+2).gameObject);placer.PointerDrag();placer.PointerEnd();
+        placer.PointerBegin();placer.SelectGrid(grid.GetCell(x,z+2).gameObject);placer.PointerDrag();
+        var previews = (IEnumerable<(CellBaseAdapter cell, GameObject placeholder)>)typeof(CellPlacerAdapter)
+            .GetField("_selectedRangeCells", BindingFlags.Instance | BindingFlags.NonPublic).GetValue(placer);
+        foreach (var (cell, placeholder) in previews)
+        {
+            var markers = placeholder.transform.Find("Model").Cast<Transform>()
+                .Where(child => child.name == "PlacementDirectionMarker").ToArray();
+            Assert.That(markers.Length, Is.EqualTo(cell.ZIndex == z+1 ? 2 : 1));
+            Assert.That(markers.All(marker => marker.gameObject.activeInHierarchy && marker.forward == Vector3.forward));
+        }
+        placer.PointerEnd();
         Assert.That(placer.LastPlacedCount,Is.EqualTo(2));Assert.That(placer.LastPlacementCost,Is.EqualTo(10));Assert.That(initializer.Wallet.Current.Balance,Is.EqualTo(70));
         Assert.That(((ConveyorCellAdapter)grid.GetCell(x,z+1)).IsExportConveyor);Assert.That(((ConveyorCellAdapter)grid.GetCell(x,z+2)).IsExportConveyor,Is.False);
         Assert.That(placer.SelectedType,Is.EqualTo(CellTypeDomain.Conveyor));
