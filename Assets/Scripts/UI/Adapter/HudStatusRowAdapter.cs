@@ -38,8 +38,12 @@ public sealed class HudStatusRowAdapter : UIStatusRowBaseAdapter
     {
         _gauge.gameObject.SetActive(true);
         var rect = _gauge.rectTransform;
+        var fill = data.Max > 0 ? Mathf.Clamp01(data.Current / data.Max) : 0;
+        const float inset = 8;
         rect.anchorMin = Vector2.zero;
-        rect.anchorMax = new Vector2(data.Max > 0 ? Mathf.Clamp01(data.Current / data.Max) : 0, 0);
-        rect.offsetMin = new Vector2(8, 2); rect.offsetMax = new Vector2(8, 5);
+        rect.anchorMax = new Vector2(fill, 0);
+        rect.offsetMin = new Vector2(inset, 2);
+        // 左右の余白を除いた幅で在庫の割合を示す。
+        rect.offsetMax = new Vector2(Mathf.Lerp(inset, -inset, fill), 5);
     }
 }

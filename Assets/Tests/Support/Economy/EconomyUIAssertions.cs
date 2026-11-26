@@ -224,6 +224,7 @@ public static class EconomyUIAssertions
                         "side panel is narrower without reducing text size " + resolution);
 
                 }
+                VerifyStorageRowFits(view, canvas.GetComponent<HudLayoutAdapter>(), resolution);
             }
             await VerifySideTabs(panel, view, canvas, wallet, grid);
             if (TestScenes.CaptureImages)
@@ -710,6 +711,42 @@ public static class EconomyUIAssertions
         }
         canvas.GetComponent<CanvasScaler>().enabled = true;
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+    }
+
+    private static void VerifyStorageRowFits(CellStatusViewAdapter view, HudLayoutAdapter hud, Vector2 resolution)
+    {
+        var prefab = AssetDatabase.LoadAssetAtPath<HudStatusRowAdapter>("Assets/Prefabs/UI/HudStatusRow.prefab");
+        var content = (RectTransform)view.StatusContent;
+        view.SetStatusWindowActive(true);
+        var first = TestScenes.Clone(prefab, content);
+        var next = TestScenes.Clone(prefab, content);
+        try
+        {
+            first.Configure(hud.Font, hud.Resources);
+            next.Configure(hud.Font, hud.Resources);
+            first.RenderUIByData(new StorageElementDataApplication("入力1", 100000)
+                { ResourceTypeDomain = ResourceTypeDomain.StoneBrick, Current = 99999 });
+            next.RenderUIByData(new StorageElementDataApplication("出力在庫", 100000)
+                { ResourceTypeDomain = ResourceTypeDomain.BuildingParts, Current = 99999 });
+            var value = first.transform.Find("Value").GetComponent<Text>();
+            value.text = "耐熱補強用の石レンガ加工材 " + value.text;
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+            var firstBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(content, (RectTransform)first.transform);
+            var nextBounds = RectTransformUtility.CalculateRelativeRectTransformBounds(content, (RectTransform)next.transform);
+            Require(value.preferredHeight > 34 && value.preferredHeight <= value.rectTransform.rect.height + 1,
+                "long storage value wraps with quantity visible " + resolution);
+            Require(firstBounds.min.y >= nextBounds.max.y - 1,
+                $"wrapped storage rows do not overlap {resolution}: {firstBounds.min.y} >= {nextBounds.max.y}");
+            Require(firstBounds.max.x <= content.rect.xMax + 1,
+                $"storage row and gauge fit the right scroll content {resolution}: {firstBounds.max.x} <= {content.rect.xMax}");
+        }
+        finally
+        {
+            first.gameObject.SetActive(false); next.gameObject.SetActive(false);
+            UnityEngine.Object.Destroy(first.gameObject); UnityEngine.Object.Destroy(next.gameObject);
+            view.SetStatusWindowActive(false);
+        }
     }
 
     private static void VerifyLayout(Canvas canvas, Vector2 resolution, int page)
