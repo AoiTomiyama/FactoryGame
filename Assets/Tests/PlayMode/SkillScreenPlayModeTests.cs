@@ -71,6 +71,30 @@ public sealed class SkillScreenPlayModeTests : FactoryPlayModeScope
             screen.Select("industrial-extraction-" + tier);
             screen.PurchaseButton.onClick.Invoke();
         }
+        var tree = screen.TreeScroll;
+        await UniTask.DelayFrame(2);
+        Canvas.ForceUpdateCanvases();
+        var previousViewportOffset = tree.viewport.offsetMax;
+        tree.viewport.offsetMax -= Vector2.right * 160;
+        await UniTask.DelayFrame(2);
+        Canvas.ForceUpdateCanvases();
+        tree.horizontalNormalizedPosition = 0;
+        var visible = screen.NodeButtons.Values.Where(button => button.gameObject.activeSelf &&
+            Inside(tree.viewport, (RectTransform)button.transform) && button.name != "SkillNode_industrial-extraction-2" &&
+            tree.viewport.InverseTransformPoint(button.transform.position).x > tree.viewport.rect.center.x + 30).First();
+        var originalX = tree.content.anchoredPosition.x;
+        visible.onClick.Invoke();
+        await UniTask.DelayFrame(2);
+        Canvas.ForceUpdateCanvases();
+        Assert.That(tree.content.anchoredPosition.x, Is.EqualTo(originalX).Within(.01f), "selecting a visible node leaves scroll in place");
+        var rightmost = screen.NodeButtons.Values.Where(button => button.gameObject.activeSelf)
+            .OrderByDescending(button => tree.viewport.InverseTransformPoint(button.transform.position).x).First();
+        Assert.That(Inside(tree.viewport, (RectTransform)rightmost.transform), Is.False);
+        rightmost.onClick.Invoke();
+        await UniTask.DelayFrame(2);
+        Canvas.ForceUpdateCanvases();
+        Assert.That(Inside(tree.viewport, (RectTransform)rightmost.transform), Is.True, "selecting a clipped node reveals it");
+        tree.viewport.offsetMax = previousViewportOffset;
         foreach(var size in new[] {new Vector2Int(1600,900),new Vector2Int(1366,768)})
         {
             Screen.SetResolution(size.x,size.y,false); await UniTask.DelayFrame(4); Canvas.ForceUpdateCanvases();

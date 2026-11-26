@@ -145,7 +145,16 @@ public sealed class SkillTreeViewAdapter : IDisposable
             _selection.anchoredPosition = rect.anchoredPosition; _selection.sizeDelta = rect.rect.size;
             if (_focus)
             {
-                _scroll.horizontalNormalizedPosition = _root.rect.width <= _viewportSize.x ? 0 : Mathf.Clamp01((rect.anchoredPosition.x-_viewportSize.x*.5f)/(_root.rect.width-_viewportSize.x));
+                // 選んだノードが見えている間は、横に並ぶ候補の位置を保つ。
+                var hiddenWidth = _root.rect.width - _viewport.rect.width;
+                if (hiddenWidth > 0)
+                {
+                    var view = _viewport.rect;
+                    var bounds = RectTransformUtility.CalculateRelativeRectTransformBounds(_viewport, rect);
+                    var offset = bounds.min.x < view.xMin ? bounds.min.x - view.xMin : Mathf.Max(0, bounds.max.x - view.xMax);
+                    if (!Mathf.Approximately(offset, 0))
+                        _scroll.horizontalNormalizedPosition = Mathf.Clamp01(_scroll.horizontalNormalizedPosition + offset / hiddenWidth);
+                }
                 _scroll.verticalNormalizedPosition = _root.rect.height <= _viewportSize.y ? 1 : 1-Mathf.Clamp01((-rect.anchoredPosition.y-_viewportSize.y*.5f)/(_root.rect.height-_viewportSize.y));
             }
         }
