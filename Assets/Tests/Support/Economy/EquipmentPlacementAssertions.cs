@@ -85,12 +85,35 @@ public static class EquipmentPlacementAssertions
                 grid.GetCell(c.XIndex,c.ZIndex+1) is EmptyCellAdapter && grid.GetCell(c.XIndex,c.ZIndex+2) is EmptyCellAdapter &&
                 grid.GetCell(c.XIndex,c.ZIndex-1) is not ResourceCellAdapter);
             var testX=strip.XIndex;var testZ=strip.ZIndex;
+            foreach (var type in new[] { CellTypeDomain.ExtractorWood, CellTypeDomain.ExtractorStone,
+                         CellTypeDomain.ExtractorIron, CellTypeDomain.ExtractorCopper, CellTypeDomain.ExtractorCoal })
+            {
+                placer.SetSelectedCellType(type);
+                for (var turn = 0; turn < 4; turn++)
+                {
+                    placer.transform.rotation = Quaternion.Euler(0, turn * 90, 0);
+                    placer.SelectGrid(strip.gameObject);
+                    var arrow = Get<GameObject>(placer, "_placeholderCell").transform.Find("Model/PlacementDirectionMarker");
+                    Require(arrow != null && arrow.gameObject.activeInHierarchy && arrow.forward == placer.transform.forward,
+                        $"extractor preview points toward the source {type} {turn}");
+                }
+            }
             Place(placer, grid.GetCell(testX, testZ), CellTypeDomain.ExtractorWood, 180);
             Require(wallet.Current.Balance == 80 && placer.LastPlacedCount == 1 && placer.LastPlacementCost == 20,
                 "extractor charged once");
             Require(Quaternion.Angle(grid.GetCell(testX, testZ).transform.rotation, Quaternion.Euler(0, 180, 0)) < .1f, "rotation retained");
             Require(Get<CellBaseAdapter>(placer, "_selectedCell") == grid.GetCell(testX, testZ) &&
                 Get<CellBaseAdapter>(CellStatusViewAdapter.Instance, "_selectedCell") == grid.GetCell(testX, testZ), "cursor and status select new cell");
+            var placed = grid.GetCell(testX, testZ);
+            var idle = Get<GameObject>(placer, "_placeholderCell");
+            await UniTask.NextFrame();
+            placer.SelectGrid(placed.gameObject);
+            Require(placed.CellModel.activeSelf && !idle.activeSelf, "placed cell stays uncovered under the pointer");
+            placer.SelectGrid(grid.GetCell(testX, testZ+1).gameObject);
+            Require(idle.activeSelf, "moving to another tile restores the idle preview");
+            placer.SelectGrid(placed.gameObject);
+            placer.PointerBegin(); placer.PointerDrag(); placer.PointerEnd();
+            Require(idle.activeSelf && placer.PlacementNotice.Contains("既存セル"), "a new placement gesture can show overlap on the same cell");
             Place(placer, grid.GetCell(testX, testZ+1), CellTypeDomain.ExportConveyor, 0);
             Place(placer, grid.GetCell(testX, testZ+2), CellTypeDomain.Conveyor, 0);
             Require(wallet.Current.Balance == 70 && wallet.Current.ReservedExpense == 0, "three purchased cells cost thirty");

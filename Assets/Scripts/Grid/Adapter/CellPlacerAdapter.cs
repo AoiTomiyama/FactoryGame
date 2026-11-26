@@ -11,6 +11,7 @@ public class CellPlacerAdapter : MonoBehaviour
     private CellBaseAdapter _cachedCell;
     private GameObject _placeholderCell;
     private CellTypeDomain _idlePreviewKind;
+    private bool _idlePreviewSuppressed;
     private readonly Dictionary<CellBaseAdapter,CellTypeDomain> _rangePreviewKinds = new();
     private readonly Dictionary<CellBaseAdapter, (ConveyorRouteRulesDomain.Route Before,
         ConveyorRouteRulesDomain.Route After, Quaternion Rotation)> _routeChanges = new();
@@ -40,7 +41,7 @@ public class CellPlacerAdapter : MonoBehaviour
         _placementEnabled = enabled;
         // タブを離れたドラッグは取消し、戻った後のマウス解放で確定させない。
         if (!enabled) { _dragging = false; CancelPlacementPreview(); }
-        if (_placeholderCell != null) _placeholderCell.SetActive(enabled);
+        UpdateIdlePreviewVisibility();
         if (_selectedCell != null) _selectedCell.CellModel.SetActive(!enabled || _selectedCell is not EmptyCellAdapter);
     }
     internal void ResetWorldSelection()
@@ -106,8 +107,14 @@ public class CellPlacerAdapter : MonoBehaviour
         if (kind == _idlePreviewKind || !TryGetDefinition(kind,out var info)) return;
         _placeholderCell.SetActive(false); Destroy(_placeholderCell);
         _placeholderCell = Instantiate(info.PlaceholderCellPrefab,transform.position,transform.rotation,transform);
-        _idlePreviewKind = kind; _placeholderCell.SetActive(_placementEnabled);
+        _idlePreviewKind = kind;
+        UpdateIdlePreviewVisibility();
         ConfigurePreview(_placeholderCell,null);
+    }
+    private void UpdateIdlePreviewVisibility()
+    {
+        if (_placeholderCell != null)
+            _placeholderCell.SetActive(_placementEnabled && !_dragging && !_idlePreviewSuppressed);
     }
     private void LateUpdate() => RefreshIdlePreview();
 
@@ -118,7 +125,9 @@ public class CellPlacerAdapter : MonoBehaviour
         if (!_placementEnabled || _placing || _selectedCell == null) return;
         if (_clearingMode && !ClearingAvailable) return;
         _placementNotice = "";
+        _idlePreviewSuppressed = false;
         _dragging = true;
+        UpdateIdlePreviewVisibility();
         _dragBeginPos = _selectedCoordinate;
         _dragEndPos = _dragBeginPos;
         if (_clearingMode) FindRangedGrid(_dragBeginPos, _dragEndPos);
@@ -131,12 +140,19 @@ public class CellPlacerAdapter : MonoBehaviour
         FindRangedGrid(_dragBeginPos, _dragEndPos);
     }
 
-    public void CancelPlacementPreview() { _dragging = false; _placementNotice = ""; if (!_placing) ClearRange(); }
+    public void CancelPlacementPreview()
+    {
+        _dragging = false;
+        _placementNotice = "";
+        if (!_placing) ClearRange();
+        UpdateIdlePreviewVisibility();
+    }
     public void PointerEnd()
     {
         if (!_placementEnabled || !_dragging) return;
         _placementNotice = _overlap ? "既存セルと重なっています" : "";
         _dragging = false; ReplaceRangedCells();
+        UpdateIdlePreviewVisibility();
     }
     public void TransferDataToUI() => CellStatusViewAdapter.Instance.UpdateUIStatusWindow(_selectedCell);
 
@@ -157,13 +173,16 @@ public class CellPlacerAdapter : MonoBehaviour
 
         var cellBase = target.GetComponentInParent<CellBaseAdapter>();
         if (cellBase == null) return;
+        var previousCoordinate = _selectedCoordinate;
         _selectedCell = cellBase;
         _selectedCoordinate = Vector3Int.RoundToInt(hitPoint ?? cellBase.transform.position);
         _selectedCoordinate.y = 0;
         if (!cellBase.OccupiedCoordinates.Contains((_selectedCoordinate.x, _selectedCoordinate.z)))
             _selectedCoordinate = new Vector3Int(cellBase.XIndex, 0, cellBase.ZIndex);
+        if (previousCoordinate != _selectedCoordinate) _idlePreviewSuppressed = false;
         transform.position = _selectedCoordinate;
         RefreshIdlePreview();
+        UpdateIdlePreviewVisibility();
 
         if (!_placementEnabled || cellBase is not EmptyCellAdapter) return;
         _selectedCell.CellModel.SetActive(false);
@@ -363,7 +382,11 @@ public class CellPlacerAdapter : MonoBehaviour
         RestorePreviewModels();
         foreach (var (cell, placeholder) in _selectedRangeCells)
         {
-            if (placeholder != null) Destroy(placeholder);
+            if (placeholder != null)
+            {
+                placeholder.SetActive(false);
+                Destroy(placeholder);
+            }
         }
         _selectedRangeCells.Clear(); _rangePreviewKinds.Clear();
         _routeChanges.Clear(); _dragRotation = null;
@@ -514,7 +537,12 @@ public class CellPlacerAdapter : MonoBehaviour
                 Destroy(old.gameObject);
             }
             if (retired.Contains(_selectedCell))
+            {
                 _selectedCell = grid.GetCell(_selectedCoordinate.x, _selectedCoordinate.z);
+                // 同じマスにポインターがある間は、購入した設備をプレビューで覆わない。
+                _idlePreviewSuppressed = !removing;
+                UpdateIdlePreviewVisibility();
+            }
         }, out cost, ReplacedType(replaceTarget));
 
         if (result == EquipmentPlacementApplication.Result.Success)
@@ -541,8 +569,9 @@ public class CellPlacerAdapter : MonoBehaviour
             _clearingMode = false;
             _placementNotice = "";
             _selectedType = cellType; _idlePreviewKind = cellType;
+            _idlePreviewSuppressed = false;
 
-            // _selectedCellType = cellInfo.CellTypeDomain;
+            if (_placeholderCell != null) _placeholderCell.SetActive(false);
             Destroy(_placeholderCell);
             _placeholderCell = Instantiate(cellInfo.PlaceholderCellPrefab,
                 transform.position, transform.rotation, transform);
@@ -552,7 +581,7 @@ public class CellPlacerAdapter : MonoBehaviour
                 Destroy(_cachedCell.gameObject);
             }
 
-            _placeholderCell.SetActive(_placementEnabled);
+            UpdateIdlePreviewVisibility();
             _cachedCell = Instantiate(cellInfo.FieldCellPrefab, transform.position, transform.rotation, transform);
             _cachedCell.gameObject.SetActive(false);
             ConfigurePreview(_placeholderCell, null);
